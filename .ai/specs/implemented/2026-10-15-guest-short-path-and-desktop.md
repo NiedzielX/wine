@@ -137,6 +137,7 @@ Bez zmian.
 - 2026-10-15 — cross-model review (Sonnet 5.5): 3 High, 6 Medium, 5 Low — wszystkie przyjęte (przełączanie serwowania, przekierowanie w `next.config` z pełnym query, `dish_viewed` usunięty, `self-start`/`top-0` na G0, preferencje w ścieżce stolika, klasy panelu Refine, „More…” pierwszy z licznikiem, kolejność DOM + `aside`, G0 czyta preferencje, liczba kroków 3, klasy `BottomBar`, grill log).
 - 2026-10-15 — grill: 8 pytań, 1 dla właściciela (#5).
 - 2026-10-15 — approved: właściciel (Filip) zatwierdził specyfikację wraz z usunięciem `dish_viewed` z E02; obie fazy do implementacji.
+- 2026-10-15 — po uwadze właściciela („strona dalej nie jest pełnoekranowa”): R7 zmienione — kontener gościa bez limitu szerokości od 768 px (było: 1200 px od 1024 px), dwie kolumny nadal od 1024 px; panel bez limitu `max-w-6xl`. Brak poziomego przewijania przy 390/800/1024/1600 px.
 
 ## Realizacja
 - Branch `feat/guest-desktop-short-path`; log `.ai/runs/2026-10-15-guest-short-path-and-desktop.md`.
