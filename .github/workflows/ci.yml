@@ -1,0 +1,122 @@
+# Every pull request runs all checks. A job fails the pull request; nothing is merged on a red check.
+#
+#   lint        lint, package boundaries, typecheck, dependency audit gate
+#   unit        unit tests of every package, each with a 100% coverage gate (see AGENTS.md §7)
+#   build       production build with no environment and no database, plus the start-up checks
+#   database    PostgreSQL integration tests, on a throwaway container (testcontainers)
+#   e2e         the built app on a throwaway PostgreSQL, driven by agent-browser (home page and admin panel)
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  # agent-browser 0.39.1 is a CLI, not a project dependency: it declares Node 24 but runs on the project's Node 22
+  AGENT_BROWSER_VERSION: '0.39.1'
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Package boundaries
+        run: npm run check:boundaries
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Dependency audit (high and critical block; exceptions are listed and dated)
+        run: npm run audit:gate
+
+  unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      - name: Unit tests with the 100% coverage gate
+        run: npm test
+
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      - name: Build (no environment, no .env, no database)
+        run: npm run build
+      - name: Start-up checks (bad configuration stops the server, demo only on purpose, generic 500 without a database)
+        run: npm run boot:check
+
+  database:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      # no TEST_DATABASE_URL here: the suite starts its own PostgreSQL in a container
+      - name: PostgreSQL integration tests (testcontainers)
+        run: npm run test:db
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      - name: Build the app the e2e suite runs
+        run: npm run build
+      - name: Install agent-browser ${{ env.AGENT_BROWSER_VERSION }} and its browser
+        run: |
+          npm install -g --engine-strict=false agent-browser@${{ env.AGENT_BROWSER_VERSION }}
+          agent-browser --version
+          agent-browser install --with-deps
+      - name: End-to-end tests (testcontainers PostgreSQL, built app, agent-browser)
+        run: npm run test:e2e
+      - name: Keep screenshots and the app log of a failing run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            packages/app/test-results
+          if-no-files-found: ignore
+          retention-days: 14

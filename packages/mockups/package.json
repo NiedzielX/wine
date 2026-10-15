@@ -1,0 +1,23 @@
+{
+  "name": "@wine-match/mockups",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Clickable static mockups (Vite) used for product demos; uses the engine from @wine-match/core",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p . && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@fontsource-variable/bodoni-moda": "5.1.0",
+    "@fontsource-variable/hanken-grotesk": "5.1.0",
+    "@wine-match/core": "*",
+    "qrcode": "1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "1.5.5",
+    "vite": "8.3.1"
+  }
+}

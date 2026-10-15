@@ -1,0 +1,36 @@
+{
+  "name": "@wine-match/ui",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable UI: shadcn/ui components for the dashboard, Wine Match brand components and the dashboard theme",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
+    "./components/*": "./src/components/*.tsx",
+    "./brand/*": "./src/brand/*.tsx",
+    "./lib/*": "./src/lib/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.49.0",
+    "radix-ui": "1.6.7",
+    "tailwind-merge": "3.7.0",
+    "tw-animate-css": "1.4.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

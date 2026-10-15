@@ -1,0 +1,45 @@
+/**
+ * @wine-match/core — domain, deterministic engine, ports and application services.
+ * No React, Next.js, MikroORM, Awilix or I/O here (checked by scripts/check-boundaries.mjs).
+ */
+export * from './domain/types';
+export * from './errors';
+export * from './logging/logger';
+export * from './logging/redact';
+export * from './config/env';
+export * from './validators';
+export * from './auth/types';
+export * from './auth/permissions';
+export * from './auth/auth-service';
+export * from './engine/scoring';
+export * from './engine/recommend';
+export * from './engine/table';
+export * from './engine/suggest';
+export * from './engine/drafts';
+export * from './import/types';
+export * from './import/normalize';
+export * from './import/mapping';
+export * from './import/validate';
+export * from './import/import-service';
+export * from './ports/import';
+export * from './guest/prefs';
+export * from './guest/taste';
+export * from './ports/repositories';
+export * from './ports/runtime';
+export * from './ports/auth';
+export * from './services/guest/recommendation-service';
+export * from './services/catalog/catalog-service';
+export * from './services/dashboard/admin-service';
+export * from './services/pairings/pairing-rules';
+export * from './services/pairings/sommelier-service';
+export * from './services/publishing/publish-service';
+export * from './services/restaurants/restaurant-service';
+export * from './demo/halka';
+export * from './demo/dataset';
+export * from './demo/users';
+export * from './memory/memory-repositories';
+export * from './testing/contract-types';
+export * from './testing/repository-contract';
+export * from './testing/write-contract';
+export * from './testing/import-contract';
+export * from './testing/auth-contract';

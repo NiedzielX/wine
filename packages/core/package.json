@@ -1,0 +1,18 @@
+{
+  "name": "@wine-match/core",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Domain types, deterministic pairing engine, repository ports and application services",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p tsconfig.scripts.json",
+    "test": "vitest run --coverage",
+    "engine:matrix": "tsx scripts/engine-matrix.ts"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Wine Match",
+  "short_name": "Wine Match",
+  "start_url": "/#/r/halka",
+  "display": "standalone",
+  "background_color": "#F4F2F3",
+  "theme_color": "#3B0F1C",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

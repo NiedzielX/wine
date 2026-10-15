@@ -1,0 +1,70 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "import", "react", "nextjs"],
+  "categories": { "correctness": "error" },
+  "env": { "node": true, "es2023": true },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "no-empty": ["error", { "allowEmptyCatch": false }],
+    "no-console": "error",
+    "no-debugger": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "eqeqeq": ["error", "always"],
+    "no-throw-literal": "error",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
+    "react/jsx-key": "error"
+  },
+  "ignorePatterns": ["**/.next/**", "**/dist/**", "**/node_modules/**", "packages/db/src/migrations/**", "**/next-env.d.ts"],
+  "overrides": [
+    {
+      "files": ["packages/core/src/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["next", "next/*", "react", "react-dom", "react/*"], "message": "core must not know the web framework (it is pure domain logic)." },
+            { "group": ["@mikro-orm/*", "pg", "kysely"], "message": "only packages/db may import the ORM or the database driver." },
+            { "group": ["node:*"], "message": "core stays runtime-agnostic: put Node-only code behind a port (see @wine-match/db/auth and /import)." },
+            { "group": ["@wine-match/db", "@wine-match/db/*", "@wine-match/ui", "@wine-match/ui/*"], "message": "core depends on nothing else in the project." }
+          ]
+        }]
+      }
+    },
+    {
+      "files": ["packages/ui/src/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{ "group": ["@wine-match/*", "@mikro-orm/*", "pg"], "message": "ui is presentation only: it imports nothing from the project or the database." }]
+        }]
+      }
+    },
+    {
+      "files": ["packages/db/src/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{ "group": ["next", "next/*", "react", "react-dom", "@wine-match/app", "@wine-match/app/*", "@wine-match/ui", "@wine-match/ui/*"], "message": "db knows the domain (core) and the ORM, nothing about the web or the UI." }]
+        }]
+      }
+    },
+    {
+      "files": ["packages/app/src/app/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{ "group": ["@wine-match/db", "@wine-match/db/*", "@mikro-orm/*", "pg"], "message": "pages and routes get data through services from the container (src/server), never from the database package." }]
+        }]
+      }
+    },
+    {
+      "files": ["packages/app/src/server/logger.ts"],
+      "rules": { "no-console": "off" }
+    },
+    {
+      "files": ["scripts/**", "packages/*/scripts/**", "packages/db/src/seeders/**", "packages/core/scripts/**"],
+      "rules": { "no-console": "off" }
+    },
+    {
+      "files": ["**/tests/**", "**/*.test.ts", "packages/core/src/testing/**"],
+      "rules": { "no-unused-vars": "off" }
+    }
+  ]
+}

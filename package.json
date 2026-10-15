@@ -1,0 +1,52 @@
+{
+  "name": "wine-match",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Wine Match \u2014 B2B2C wine pairing platform for restaurants (monorepo)",
+  "workspaces": [
+    "packages/core",
+    "packages/db",
+    "packages/ui",
+    "packages/app",
+    "packages/mockups",
+    "packages/testkit"
+  ],
+  "packageManager": "npm@11.20.0",
+  "engines": {
+    "node": ">=22.17.0",
+    "npm": ">=11.6.0"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @wine-match/app --",
+    "dev:mockups": "npm run dev -w @wine-match/mockups --",
+    "build": "npm run check:boundaries && npm run build -w @wine-match/mockups && npm run build -w @wine-match/app",
+    "start": "npm run start -w @wine-match/app --",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:db": "npm run test:integration -w @wine-match/db",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "db:migration:create": "npm run migration:create -w @wine-match/db",
+    "db:migrate": "npm run migration:up -w @wine-match/db",
+    "db:seed": "npm run seed -w @wine-match/db",
+    "engine:matrix": "npm run engine:matrix -w @wine-match/core --",
+    "smoke": "node scripts/smoke.mjs",
+    "user:create": "npm run user:create -w @wine-match/db --",
+    "audit:gate": "node scripts/audit-gate.mjs",
+    "lint": "oxlint --deny-warnings",
+    "boot:check": "node scripts/boot-check.mjs",
+    "test:e2e": "npm run test:e2e -w @wine-match/app"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "@vitest/coverage-v8": "5.0.2",
+    "oxlint": "1.86.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  },
+  "allowScripts": {
+    "esbuild": false
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@wine-match/app",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Next.js application: guest app (Tailwind), dashboard (shadcn/ui), REST API and the DI composition root",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit -p .",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@fontsource-variable/bodoni-moda": "5.1.0",
+    "@fontsource-variable/hanken-grotesk": "5.1.0",
+    "@wine-match/core": "*",
+    "@wine-match/db": "*",
+    "@wine-match/ui": "*",
+    "awilix": "13.0.5",
+    "next": "16.3.8",
+    "qrcode": "1.5.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tailwindcss": "4.3.3",
+    "@wine-match/testkit": "0.2.0"
+  }
+}

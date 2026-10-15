@@ -1,0 +1,35 @@
+/*
+ * Guest app theme: Tailwind only, no shadcn/ui.
+ * Mobile-first, premium restaurant look: cool paper, aubergine ink, deep bordeaux, brass for the
+ * sommelier seal. Fonts are local (@fontsource), never loaded from a CDN.
+ */
+@import "tailwindcss";
+@import "@fontsource-variable/bodoni-moda";
+@import "@fontsource-variable/hanken-grotesk";
+
+@source "../../../../ui/src/brand";
+
+@theme {
+  --font-sans: "Hanken Grotesk Variable", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-serif: "Bodoni Moda Variable", "Bodoni 72", Didot, "Times New Roman", serif;
+  --color-ink: #22181d;
+  --color-ink-2: #5e5258;
+  --color-ink-3: #857a80;
+  --color-line: #e4dee1;
+  --color-paper: #f5f3f4;
+  --color-surface: #ffffff;
+  --color-wine: #5a1a2c;
+  --color-wine-deep: #3b0f1c;
+  --color-on-wine: #f3e9eb;
+  --color-brass: #8a6a30;
+  --color-brass-soft: #f3ede1;
+  --color-sage: #3b6a52;
+  --color-sage-soft: #e5efe9;
+}
+
+@layer base {
+  :root { color-scheme: light; }
+  /* Sticky top bar (~57px) and bottom action bar (~110px) must never cover a focused or scrolled-to element. */
+  html { scroll-padding-top: 4.5rem; scroll-padding-bottom: 7.5rem; }
+  body { @apply bg-[#e9e5e7] font-sans text-ink antialiased; }
+}

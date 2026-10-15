@@ -1,0 +1,281 @@
+import { Migrator } from '@mikro-orm/migrations';
+import { MikroORM } from '@mikro-orm/postgresql';
+import {
+  AdminService, AuthService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, RestaurantService, authContract, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset,
+  createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, type Repositories
+} from '@wine-match/core';
+import { randomUUID } from 'node:crypto';
+import { createDatabase } from '@wine-match/testkit';
+import { inject } from 'vitest';
+import { fileURLToPath } from 'node:url';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ormConfig } from '../src/config';
+import { PairingEntity } from '../src/entities';
+import { PgAuthRepository } from '../src/repositories/auth';
+import { PgImportRepository } from '../src/repositories/import';
+import { NodeImportFileParser } from '../src/import';
+import { NodeSessionTokens, ScryptPasswordHasher, hashPassword, verifyPassword } from '../src/auth';
+import { RestaurantEntity } from '../src/entities';
+import { readFileSync } from 'node:fs';
+import {
+  PgDishRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
+  PgRestaurantWriteRepository, PgWineRepository, PgWineWriteRepository
+} from '../src/repositories';
+import { DemoSeeder } from '../src/seeders/DemoSeeder';
+
+const baseUrl = inject('databaseUrl');
+const ds = buildDemoDataset({ ids: 'uuid' });
+const actor = (key: string, name: string) => ({ id: ds.users.find((u) => u.key === key)!.id, name });
+const MARTA = actor('marta', 'Marta Wierzbicka');
+const TOMASZ = actor('tomasz', 'Tomasz Lis');
+
+/** Creates a fresh test database, applies the real migrations and seeds the demo data. */
+async function freshDatabase(): Promise<MikroORM> {
+  const url = new URL(await createDatabase(baseUrl, 'winematch_db_test'));
+  const orm = await MikroORM.init(ormConfig({
+    clientUrl: url.toString(),
+    extensions: [Migrator],
+    migrations: { path: fileURLToPath(new URL('../src/migrations', import.meta.url)), transactional: true, allOrNothing: true }
+  }));
+  await orm.migrator.up();
+  await new DemoSeeder().run(orm.em.fork());
+  return orm;
+}
+
+/** Empties every table and loads the demo data again: each write test starts from the same state. */
+async function resetData(orm: MikroORM): Promise<void> {
+  await orm.em.getConnection().execute('truncate table session, membership, app_user, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await new DemoSeeder().run(orm.em.fork());
+}
+
+/** Repositories over a fresh EntityManager fork, as the DI container builds them per request. */
+function pgRepos(orm: MikroORM): Repositories {
+  const em = orm.em.fork();
+  return {
+    restaurantRepository: new PgRestaurantRepository({ em }),
+    dishRepository: new PgDishRepository({ em }),
+    wineRepository: new PgWineRepository({ em }),
+    pairingRepository: new PgPairingRepository({ em }),
+    pairingWriteRepository: new PgPairingWriteRepository({ em }),
+    wineWriteRepository: new PgWineWriteRepository({ em }),
+    restaurantWriteRepository: new PgRestaurantWriteRepository({ em }),
+    publishRepository: new PgPublishRepository({ em }),
+    importRepository: new PgImportRepository({ em })
+  };
+}
+
+function services(repos: Repositories) {
+  let seq = 0;
+  const clock = { now: () => new Date(Date.parse('2026-10-14T10:00:00.000Z') + ++seq * 1000) };
+  const idGenerator = { uuid: () => randomUUID() };
+  return {
+    som: new SommelierService({ ...repos, clock, idGenerator }),
+    publish: new PublishService({ ...repos, clock, idGenerator }),
+    rec: new RecommendationService(repos),
+    admin: new AdminService(repos),
+    imp: new ImportService({ ...repos, importFileParser: new NodeImportFileParser(), clock, idGenerator }),
+    restaurantSvc: new RestaurantService(repos)
+  };
+}
+
+const run = describe;
+
+run('PostgreSQL', () => {
+  let orm: MikroORM;
+  beforeAll(async () => { orm = await freshDatabase(); });
+  afterAll(async () => { await orm?.close(true); });
+
+  repositoryContract('postgres', async () => ({ repos: pgRepos(orm), dataset: ds }), { describe, it, expect, beforeAll, afterAll });
+
+  it('gives the same recommendations as the engine on the demo data', async () => {
+    const { rec } = services(pgRepos(orm));
+    for (const dish of ds.dishes.filter((d) => d.status === 'published')) {
+      const out = await rec.forDish('halka', dish.id, { serving: 'glass' });
+      const direct = recommendForDish(dish, ds.wines.filter((w) => w.active), ds.pairings.filter((p) => p.dishId === dish.id && p.status !== 'suggested'), { ...DEFAULT_PREFS, serving: 'glass' });
+      expect(out!.result.items.map((i) => `${i.wine.id}:${i.matchScore}:${i.tier}`)).toEqual(direct.items.map((i) => `${i.wine.id}:${i.matchScore}:${i.tier}`));
+    }
+  });
+
+  it('seeds the demo restaurant as published version 1', async () => {
+    const v = await pgRepos(orm).publishRepository.latest(ds.restaurant.id);
+    expect(v).toMatchObject({ number: 1, changesCount: 0, publishedBy: 'Marta Wierzbicka' });
+  });
+
+  it('the database rejects a second primary pairing for a dish and a duplicate pair, even without the service', async () => {
+    const em = orm.em.fork();
+    const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+    const second = await em.findOneOrFail(PairingEntity, { dish: duck.id, role: null, status: 'suggested' });
+    second.role = 'primary';
+    second.status = 'approved';
+    await expect(em.flush()).rejects.toThrow(/pairing_one_primary_per_dish/);
+
+    const em2 = orm.em.fork();
+    const existing = await em2.findOneOrFail(PairingEntity, { status: 'approved' });
+    em2.create(PairingEntity, {
+      id: '11111111-1111-4111-8111-111111111111', restaurant: existing.restaurant, dish: existing.dish, wine: existing.wine,
+      modelScore: 80, engineVersion: 'test', source: 'sommelier', updatedBy: 'test'
+    });
+    await expect(em2.flush()).rejects.toThrow(/pairing_dish_id_wine_id_unique/);
+  });
+
+  authContract('postgres', async () => { await resetData(orm); return { repo: new PgAuthRepository({ em: orm.em.fork() }), dataset: ds }; }, { describe, it, expect, beforeEach });
+
+  it('stores the session token only as a hash, and passwords only as scrypt hashes', async () => {
+    const em = orm.em.fork();
+    const repo = new PgAuthRepository({ em });
+    await repo.createSession({ id: '77777777-7777-4777-8777-777777777777', userId: ds.users[0].id, tokenHash: 'a'.repeat(64), csrfToken: 'b'.repeat(64), createdAt: '2026-10-14T10:00:00.000Z', expiresAt: '2026-10-14T22:00:00.000Z' });
+    const raw = await orm.em.getConnection().execute<Array<{ token_hash: string }>>("select token_hash from session where id = '77777777-7777-4777-8777-777777777777'");
+    expect(raw[0].token_hash).toBe('a'.repeat(64));
+    const hashes = await orm.em.getConnection().execute<Array<{ password_hash: string }>>('select password_hash from app_user');
+    expect(hashes.length).toBe(3);
+    expect(hashes.every((h) => h.password_hash.startsWith('scrypt$'))).toBe(true);
+  });
+
+  // The next contracts reset the data before every test, so they come after the read-only checks.
+  importContract('postgres', async () => { await resetData(orm); return { repos: pgRepos(orm), dataset: ds }; }, { describe, it, expect, beforeEach });
+
+  // Write contract last: it resets the data before every test.
+  writeContract('postgres', async () => { await resetData(orm); return { repos: pgRepos(orm), dataset: ds }; }, { describe, it, expect, beforeEach });
+
+  describe('with real concurrency and the services', () => {
+    beforeEach(async () => { await resetData(orm); });
+
+    it('two sessions edit the same pairing: the second one gets a version conflict and the first change survives', async () => {
+      const a = services(pgRepos(orm));
+      const b = services(pgRepos(orm));
+      const saw = (await pgRepos(orm).pairingRepository.listByDish(ds.restaurant.id, ds.dishes.find((d) => d.name === 'Duck breast')!.id)).find((p) => p.role === 'best_value')!;
+      await a.som.setComment('halka', saw.id, 'From the first session', MARTA, saw.version);
+      await expect(b.som.setComment('halka', saw.id, 'From the second session', TOMASZ, saw.version)).rejects.toBeInstanceOf(VersionConflictError);
+      expect((await pgRepos(orm).pairingRepository.findById(ds.restaurant.id, saw.id))!.comment).toBe('From the first session');
+    });
+
+    it('records who made each change, by name and by account id', async () => {
+      const a = services(pgRepos(orm));
+      const s = (await pgRepos(orm).pairingRepository.listByDish(ds.restaurant.id, ds.dishes.find((d) => d.name === 'Duck breast')!.id)).find((p) => p.status === 'suggested')!;
+      await a.som.approve('halka', s.id, MARTA);
+      const trail = await pgRepos(orm).pairingRepository.listDecisions(ds.restaurant.id, { pairingId: s.id });
+      expect(trail[0]).toMatchObject({ actor: 'Marta Wierzbicka', actorId: MARTA.id, action: 'approve' });
+      expect((await pgRepos(orm).pairingRepository.findById(ds.restaurant.id, s.id))!.updatedBy).toBe('Marta Wierzbicka');
+    });
+
+    it('behaves exactly like the in-memory store: same commands, same guest view before and after publish', async () => {
+      const mem = createMemoryRepositories(MemoryStore.from(buildDemoDataset({ ids: 'uuid' })));
+      const stores = [{ name: 'memory', s: services(mem) }, { name: 'postgres', s: services(pgRepos(orm)) }];
+      const results: Record<string, string[][]> = {};
+      for (const { name, s } of stores) {
+        const pork = ds.dishes.find((d) => d.name === 'Glazed pork belly')!;
+        const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+        const guest = async () => (await s.rec.forDish('halka', pork.id))!.result.items.map((i) => `${i.wine.name}:${i.tier}:${i.sommelier?.role ?? '-'}`);
+        const before = await guest();
+        await s.som.approveAll('halka', MARTA, pork.id);
+        const unpublished = await guest();
+        const mine = (await s.admin.dishDetail('halka', duck.id))!.topMatches.find((m) => !['Savigny-lès-Beaune', 'Morgon'].includes(m.wine.name))!;
+        await s.som.addManual('halka', { dishId: duck.id, wineId: mine.wine.id, role: 'primary', comment: 'Mine' }, MARTA);
+        const v = await s.publish.publish('halka', MARTA);
+        const after = await guest();
+        const duckAfter = (await s.rec.forDish('halka', duck.id))!.result.items.map((i) => `${i.wine.name}:${i.tier}:${i.sommelier?.role ?? '-'}`);
+        results[name] = [before, unpublished, after, duckAfter, [String(v.number), String(v.changesCount)]];
+      }
+      expect(results.postgres).toEqual(results.memory);
+      expect(results.postgres[0]).toEqual(results.postgres[1]);       // guests saw nothing before publish
+      expect(results.postgres[1]).not.toEqual(results.postgres[2]);   // and the new state after it
+    });
+  });
+
+  describe('password hashes on PostgreSQL', () => {
+    beforeEach(async () => { await resetData(orm); });
+
+    it('a account with an old, weaker scrypt hash signs in and gets today\'s parameters stored', async () => {
+      const em = orm.em.fork();
+      const repo = new PgAuthRepository({ em });
+      const marta = ds.users.find((u) => u.key === 'marta')!;
+      await repo.updatePasswordHash(marta.id, await hashPassword(DEMO_PASSWORD, { N: 32768, r: 8, p: 1 }));
+      const stored = async () => (await new PgAuthRepository({ em: orm.em.fork() }).findUserByEmail('marta@halka.pl'))!.passwordHash;
+      expect(await stored()).toMatch(/^scrypt\$32768\$8\$1\$/);
+
+      const auth = new AuthService({
+        authRepository: new PgAuthRepository({ em: orm.em.fork() }), passwordHasher: await ScryptPasswordHasher.create(), sessionTokens: new NodeSessionTokens(),
+        clock: { now: () => new Date() }, idGenerator: { uuid: () => randomUUID() }, authConfig: DEFAULT_AUTH_CONFIG
+      });
+      await auth.login('marta@halka.pl', DEMO_PASSWORD);
+      const upgraded = await stored();
+      expect(upgraded).toMatch(/^scrypt\$32768\$8\$3\$/);
+      expect(await verifyPassword(DEMO_PASSWORD, upgraded)).toBe(true);                 // the same password still works
+      await expect(auth.login('marta@halka.pl', 'not-the-password')).rejects.toMatchObject({ code: 'invalid_credentials' });
+      expect(await stored()).toBe(upgraded);                                            // a failed login changes nothing
+    });
+  });
+
+  describe('import on PostgreSQL, with real files and real concurrency', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const fixture = (name: string) => ({ name, bytes: new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url))) });
+
+    it('reads a real XLSX, shows the checks, takes the corrections and saves into the database', async () => {
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'menu', fixture('menu.xlsx'), MARTA);
+      expect(job.rows.map((r) => [r.fields.name, r.include, r.action])).toEqual([
+        ['Smoked trout rillettes', true, 'create'], ['Beetroot carpaccio', true, 'create'], ['Roast chicken for two', true, 'create'],
+        ['Grilled cauliflower steak', true, 'create'], ['Veal schnitzel', false, 'create'], ['Plum tart', true, 'create'], ['Duck breast', false, 'update']
+      ]);
+      expect(job.rows[1].fields.price).toBe('38.5');                         // "38,50 zł" read from the cell
+      expect(job.rows[4].issues[0]).toMatchObject({ level: 'error', field: 'price' });
+      const fresh = services(pgRepos(orm));                                   // a new request: the preview is in the database
+      expect((await fresh.imp.get('halka', job.id)).rows).toEqual(job.rows);
+      const result = await fresh.imp.confirm('halka', job.id, MARTA, [{ rowNumber: 5, fields: { price: '64' } }]);
+      expect(result).toMatchObject({ created: 6, updated: 0, skipped: 1 });
+      const dishes = await pgRepos(orm).dishRepository.listByRestaurant(ds.restaurant.id);
+      expect(dishes.find((d) => d.name === 'Veal schnitzel')).toMatchObject({ price: 64, status: 'draft', profile: { source: 'draft' } });
+      expect(dishes.find((d) => d.name === 'Duck breast')!.price).toBe(112);   // the duplicate was left alone
+      const raw = await orm.em.getConnection().execute<Array<{ n: string }>>("select count(*)::text as n from pairing p join dish d on d.id = p.dish_id where d.name = 'Plum tart' and p.status = 'suggested'");
+      expect(Number(raw[0].n)).toBeGreaterThan(0);
+    });
+
+    it('reads a real wine PDF as text and a Windows-1250 CSV with Polish characters', async () => {
+      const s = services(pgRepos(orm));
+      const pdf = await s.imp.upload('halka', 'wines', fixture('wines.pdf'), MARTA);
+      expect(pdf.parser).toBe('pdf-text');
+      expect(pdf.notes[0]).toMatch(/check every row/);
+      expect(pdf.rows.map((r) => [r.fields.producer, r.fields.name, r.fields.vintage, r.fields.style, r.fields.glassPrice, r.fields.bottlePrice])).toEqual([
+        ['Weingut Keller', 'Riesling trocken', '2022', 'white', '52', '240'], ['Domaine Huet', 'Le Haut-Lieu Sec', '2021', 'white', '', '310'],
+        ['Berece & Fils', 'Brut Reserve', 'NV', 'sparkling', '68', '360'], ['Isole e Olena', 'Chianti Classico', '2020', 'red', '46', '220']
+      ]);
+      const csv = await s.imp.upload('halka', 'menu', fixture('menu-1250.csv'), MARTA);
+      expect(csv.rows.map((r) => [r.fields.name, r.fields.category, r.fields.price])).toEqual([['Tatar z jelenia', 'Starters', '74'], ['Sandacz', 'Mains', '98.5'], ['Sernik', 'Desserts', '38']]);
+      await s.imp.confirm('halka', csv.id, MARTA);
+      expect((await pgRepos(orm).dishRepository.listByRestaurant(ds.restaurant.id)).some((d) => d.name === 'Tatar z jelenia')).toBe(true);
+    });
+
+    it('two people pressing "Import" at the same moment import once', async () => {
+      const a = services(pgRepos(orm));
+      const b = services(pgRepos(orm));
+      const job = await a.imp.upload('halka', 'menu', fixture('menu-bom.csv'), MARTA);
+      const before = (await pgRepos(orm).dishRepository.listByRestaurant(ds.restaurant.id)).length;
+      const results = await Promise.allSettled([a.imp.confirm('halka', job.id, MARTA), b.imp.confirm('halka', job.id, TOMASZ)]);
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      const failed = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+      expect((failed.reason as { code?: string }).code).toBe('job_closed');
+      expect((await pgRepos(orm).dishRepository.listByRestaurant(ds.restaurant.id)).length).toBe(before + 1);   // "Tartare" is new, "Duck breast" is an update
+    });
+
+    it('another restaurant cannot see or confirm this import, and cannot take over a slug', async () => {
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'menu', fixture('menu-bom.csv'), MARTA);
+      const em = orm.em.fork();
+      em.create(RestaurantEntity, { id: '99999999-9999-4999-8999-999999999999', slug: 'other', name: 'Other', tagline: '', address: 'x', city: 'y', wineDirector: 'z', status: 'active', settings: { showUnreviewed: true, showScores: true } });
+      await em.flush();
+      const repos = pgRepos(orm);
+      expect(await repos.importRepository.find('99999999-9999-4999-8999-999999999999', job.id)).toBeNull();
+      await expect(repos.restaurantWriteRepository.updateDetails(ds.restaurant.id, { name: 'Halka', slug: 'other', address: 'a', city: 'c', wineDirector: 'w' })).rejects.toMatchObject({ code: 'slug_taken' });
+      await expect(services(pgRepos(orm)).restaurantSvc.updateDetails('halka', { slug: 'other' })).rejects.toMatchObject({ code: 'slug_taken' });
+      await em.nativeDelete(RestaurantEntity, { id: '99999999-9999-4999-8999-999999999999' });
+    });
+
+    it('does not keep the uploaded file: only what was read from it is in the database', async () => {
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'menu', fixture('menu.xlsx'), MARTA);
+      const raw = await orm.em.getConnection().execute<Array<{ storage_key: string | null; file_size: number; file_name: string }>>("select storage_key, file_size, file_name from import_job where id = '" + job.id + "'");
+      expect(raw[0]).toMatchObject({ storage_key: null, file_name: 'menu.xlsx' });
+      expect(raw[0].file_size).toBeGreaterThan(1000);
+    });
+  });
+});

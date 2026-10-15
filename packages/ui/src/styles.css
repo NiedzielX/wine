@@ -1,0 +1,112 @@
+/*
+ * Dashboard theme (shadcn/ui tokens) in Wine Match colours.
+ * Imported only by the dashboard layout. Guest pages use their own Tailwind theme
+ * (packages/app/src/app/(guest)/guest.css) and never load shadcn/ui components.
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Tailwind does not scan workspace packages by default: include this package's sources. */
+@source "./";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: #ffffff;
+  --foreground: #22181d;
+  --card: #ffffff;
+  --card-foreground: #22181d;
+  --popover: #ffffff;
+  --popover-foreground: #22181d;
+  --primary: #5a1a2c;
+  --primary-foreground: #f3e9eb;
+  --secondary: #f5f3f4;
+  --secondary-foreground: #22181d;
+  --muted: #f5f3f4;
+  --muted-foreground: #5e5258;
+  --accent: #f4e9ec;
+  --accent-foreground: #3b0f1c;
+  --destructive: #a13838;
+  --border: #e4dee1;
+  --input: #d4ccd0;
+  --ring: #5a1a2c;
+  --brass: #8a6a30;
+  --brass-soft: #f3ede1;
+  --sage: #3b6a52;
+  --sage-soft: #e5efe9;
+  --sidebar: #f5f3f4;
+  --sidebar-foreground: #22181d;
+  --sidebar-border: #e4dee1;
+}
+
+.dark {
+  --background: #171114;
+  --foreground: #f1eaed;
+  --card: #1f171b;
+  --card-foreground: #f1eaed;
+  --popover: #1f171b;
+  --popover-foreground: #f1eaed;
+  --primary: #d9a3b1;
+  --primary-foreground: #2a0b15;
+  --secondary: #2a2125;
+  --secondary-foreground: #f1eaed;
+  --muted: #2a2125;
+  --muted-foreground: #b3a7ad;
+  --accent: #3b2730;
+  --accent-foreground: #f1eaed;
+  --destructive: #e07a7a;
+  --border: #3a2f34;
+  --input: #4a3e44;
+  --ring: #d9a3b1;
+  --brass: #d3b277;
+  --brass-soft: #3a3020;
+  --sage: #8cc3a5;
+  --sage-soft: #1f3329;
+  --sidebar: #1f171b;
+  --sidebar-foreground: #f1eaed;
+  --sidebar-border: #3a2f34;
+}
+
+@theme inline {
+  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Bodoni Moda Variable", "Bodoni 72", Didot, serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brass: var(--brass);
+  --color-brass-soft: var(--brass-soft);
+  --color-sage: var(--sage);
+  --color-sage-soft: var(--sage-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}

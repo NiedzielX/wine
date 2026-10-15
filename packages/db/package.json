@@ -1,0 +1,42 @@
+{
+  "name": "@wine-match/db",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "PostgreSQL data layer: MikroORM entities, config (connection pool), migrations, seeders and repositories implementing @wine-match/core ports",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth": "./src/auth/index.ts",
+    "./import": "./src/import/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "migration:create": "mikro-orm migration:create",
+    "migration:up": "mikro-orm migration:up",
+    "migration:down": "mikro-orm migration:down",
+    "migration:pending": "mikro-orm migration:pending",
+    "seed": "mikro-orm seeder:run --class=DemoSeeder",
+    "schema:check": "mikro-orm migration:check",
+    "test": "vitest run --coverage",
+    "user:create": "tsx scripts/create-user.ts"
+  },
+  "dependencies": {
+    "@mikro-orm/core": "7.2.2",
+    "@mikro-orm/migrations": "7.2.2",
+    "@mikro-orm/postgresql": "7.2.2",
+    "@mikro-orm/seeder": "7.2.2",
+    "@wine-match/core": "*",
+    "fflate": "0.7.5",
+    "unpdf": "1.8.1"
+  },
+  "devDependencies": {
+    "@mikro-orm/cli": "7.2.2",
+    "@wine-match/testkit": "0.2.0"
+  },
+  "mikro-orm": {
+    "configPaths": [
+      "./src/mikro-orm.config.ts"
+    ]
+  }
+}
