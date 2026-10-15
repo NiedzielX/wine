@@ -1,8 +1,9 @@
 import { isLocale, pickLocale, type Locale } from '@wine-match/core';
 import { NextResponse, type NextRequest } from 'next/server';
+import { LANG_COOKIE } from './server/lang-cookie';
 
 /** Dashboard language cookie (spec 2026-10-15-polish-language R4); read only for `/admin`, never on guest pages. */
-export const LANG_COOKIE = 'wm_lang';
+export { LANG_COOKIE };
 
 /**
  * The interface language: `?lang` wins; on the dashboard the `wm_lang` cookie comes next; then the browser's

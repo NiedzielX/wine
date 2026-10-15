@@ -111,7 +111,7 @@ Benchmark odłożony: żaden produkt nie został sprawdzony w źródle (Collecti
 | D08 | 2026-10-15 | Wstrzymać nowe funkcje do czasu badań i pilotażu; Now = Collection plan | brak dowodów problemu i pomiaru; rekomendacja agenta, niepotwierdzona | pending (Filip) | superseded | — | product owner | `[ASSUMPTION]` rekomendacja agenta w tym briefie | none |
 | D09 | 2026-10-15 | Domknąć technicznie zakres MVP (D01) i przygotować pilotaż na przyjętych, niesprawdzonych założeniach A01–A06 | właściciel potrzebuje backlogu technicznego; przyjmuje ryzyko założeń | Filip | active | po wynikach #3–#9 lub pilotażu | product owner | `[DOCUMENT]` .ai/specs/research/decisions/2026-10-15-d09-build-on-accepted-assumptions.md | D08 |
 | D10 | 2026-10-15 | Hosting pilota: obraz OCI niezależny od dostawcy, referencyjnie jedna VM w UE z Docker Compose i PostgreSQL 16; `PUBLIC_BASE_URL` w produkcji tylko https z hostem publicznym | rekomendacja ze spec wdrożenia przyjęta przez właściciela | Filip | active | po pilotażu | product owner | `[DOCUMENT]` .ai/specs/2026-10-15-production-deployment.md (Q2, Q6) | none |
-| D11 | 2026-10-15 | Interfejs PL i EN; język z przeglądarki, przełącznik; supersedes D06 | pierwsze restauracje i goście są w Polsce (Q04); prośba właściciela | Filip | active | po pilotażu | product owner | `[DOCUMENT]` .ai/specs/2026-10-15-polish-language.md | D06 |
+| D11 | 2026-10-15 | Interfejs PL i EN; język z przeglądarki, przełącznik; supersedes D06 | pierwsze restauracje i goście są w Polsce (Q04); prośba właściciela | Filip | active | po pilotażu | product owner | `[DOCUMENT]` .ai/specs/implemented/2026-10-15-polish-language.md | D06 |
 
 ## Riskiest assumptions
 

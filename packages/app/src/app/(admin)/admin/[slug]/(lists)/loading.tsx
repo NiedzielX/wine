@@ -1,11 +1,13 @@
 import { LoadingMessage } from '@wine-match/ui';
 import { Page } from '../../_components/admin-shell';
+import { getI18n } from '@/server/i18n';
 
 /** Skeleton shown while a dashboard list page loads (spec: loading state = skeleton, not a spinner). */
-export default function Loading() {
+export default async function Loading() {
+  const { t } = await getI18n();
   return (
     <Page as="div">
-      <LoadingMessage label="Loading the page" />
+      <LoadingMessage label={t.admin.loading} />
     </Page>
   );
 }

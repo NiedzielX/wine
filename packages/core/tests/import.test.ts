@@ -193,6 +193,35 @@ describe('checking wine rows', () => {
   });
 });
 
+describe('issue codes (the dashboard translates issues by code, spec 2026-10-15-polish-language)', () => {
+  it('every issue has a code, and the values it quotes travel in params', () => {
+    const menu = buildRows('menu', [
+      { category: 'Snacks', name: '', description: 'x'.repeat(401), price: 'about 40' },
+      { category: '', name: 'Duck breast', description: '', price: '0' }
+    ], existing);
+    const wines = buildRows('wines', [
+      { producer: '', name: '', vintage: 'twenty', region: '', country: '', grape: '', style: 'Fizzy', glassPrice: 'x', bottlePrice: '' },
+      { producer: 'P', name: '', vintage: '', region: '', country: '', grape: 'Pinot Noir', style: '', glassPrice: '300', bottlePrice: '200' }
+    ], existing);
+    const issues = [...menu, ...wines].flatMap((r) => r.issues);
+    expect(issues.every((i) => typeof i.code === 'string' && i.message.length > 0)).toBe(true);
+    expect(issues.map((i) => i.code)).toEqual(expect.arrayContaining([
+      'category_unknown', 'name_missing', 'description_long', 'price_invalid', 'category_missing', 'price_not_positive', 'exists',
+      'producer_missing', 'wine_name_missing', 'vintage_invalid', 'grape_missing', 'style_unknown', 'glass_price_invalid', 'bottle_price_missing',
+      'wine_name_from_grape', 'vintage_missing', 'style_missing_from_grape', 'glass_price_not_lower'
+    ]));
+    expect(menu[0].issues.find((i) => i.code === 'price_invalid')!.params).toEqual({ value: 'about 40' });
+    expect(menu[0].issues.find((i) => i.code === 'category_unknown')!.params).toEqual({ value: 'Snacks' });
+    expect(wines[0].issues.find((i) => i.code === 'style_unknown')!.params).toMatchObject({ value: 'Fizzy', guess: expect.any(String) });
+    expect(wines[1].issues.find((i) => i.code === 'style_missing_from_grape')!.params).toEqual({ guess: 'red' });
+  });
+
+  it('a repeat in the file names its first row in params', () => {
+    const [, b] = buildRows('menu', [{ category: 'Mains', name: 'Tart', description: '', price: '36' }, { category: 'Mains', name: 'tart', description: '', price: '36' }], existing);
+    expect(b.issues[0]).toMatchObject({ code: 'duplicate_in_file', params: { row: '1' } });
+  });
+});
+
 describe('correcting rows in the preview', () => {
   const start = () => buildRows('menu', [
     { category: 'Mains', name: 'Tart', description: '', price: '' },

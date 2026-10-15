@@ -9,10 +9,25 @@ export interface ImportIssue {
   /** errors keep a row from being imported; warnings are advice */
   level: 'error' | 'warning';
   field?: string;
-  /** machine-readable kind for the issues the logic reacts to */
-  code?: 'duplicate_in_file' | 'exists';
+  /**
+   * Machine-readable kind of the issue. `duplicate_in_file` and `exists` are the ones the logic reacts to; every
+   * other code lets the dashboard show the message in the user's language (spec 2026-10-15-polish-language, A9).
+   * Jobs saved before 2026-10-15 may have issues without a code: show `message`.
+   */
+  code?: ImportIssueCode;
+  /** values quoted in the message (the cell text, the guessed style, the first row of a repeat) */
+  params?: Record<string, string>;
+  /** English text, kept for the API and as the fallback when a translation is missing */
   message: string;
 }
+
+export type ImportIssueCode =
+  | 'duplicate_in_file' | 'exists'
+  | 'name_missing' | 'name_too_long' | 'price_missing' | 'price_invalid' | 'price_not_positive' | 'price_too_high'
+  | 'category_unknown' | 'category_missing' | 'description_long'
+  | 'producer_missing' | 'wine_name_from_grape' | 'wine_name_missing' | 'wine_name_too_long'
+  | 'vintage_missing' | 'vintage_invalid' | 'grape_missing' | 'style_unknown' | 'style_missing' | 'style_missing_from_grape'
+  | 'bottle_price_missing' | 'bottle_price_invalid' | 'glass_price_invalid' | 'glass_price_not_lower';
 
 /** One row of the preview. All values are text, exactly as the user can edit them. */
 export interface ImportRow {

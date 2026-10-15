@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: implemented
 created: 2026-10-15
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md, docs/SCREEN_SPECIFICATION.md, docs/RECOMMENDATION_ENGINE.md]
@@ -94,14 +94,14 @@ Bez zmian.
 - **Sommelier** loguje się do panelu → panel po polsku (przeglądarka PL) → przełącza na EN → wybór zapamiętany w ciasteczku przy kolejnych wizytach.
 
 ## Kryteria akceptacji
-- [ ] AC1 (R2, R5) `GET /r/halka` z `Accept-Language: pl-PL` → `<html lang="pl">`, „Wybierz danie”; z `en-GB` lub bez nagłówka → „Pick your dish”. Smoke.
-- [ ] AC2 (R2, R3) `?lang=en` przy `Accept-Language: pl` → EN; linki dań, Back, chipy i formularze niosą `lang=en`. Smoke.
-- [ ] AC3 (R7, R8) G3 kaczki z `lang=pl`: uzasadnienie silnika i słowa smaku po polsku, notatka sommeliera bez zmian; test jednostkowy: każda reguła `why` ma PL.
-- [ ] AC4 (R4) Panel: bez ciasteczka i z `Accept-Language: pl` — logowanie i przegląd po polsku; przełącznik ustawia `wm_lang=en` i panel przechodzi na EN bez JS. E2E/SSR.
-- [ ] AC5 (R9) Ceny „1 234 zł” (spacja NBSP) w PL i „1,234 zł” w EN; daty w panelu wg locale.
-- [ ] AC6 (R6) `pl.ts` bez brakujących kluczy (typecheck).
-- [ ] AC7 Zrzuty PL przy 390 i 1440 px dla G0, G3, G4, G5, G7, G8, A1, A6 bez poziomego przewijania; ścieżka gościa bez JS.
-- [ ] AC8 `lint`, `typecheck`, `test`, `build`, smoke (EN i PL), E2E zielone; docs zaktualizowane (SCREEN_SPECIFICATION, BC §1/§5, brief D11/Q04, RECOMMENDATION_ENGINE §uzasadnienia).
+- [x] AC1 (R2, R5) `GET /r/halka` z `Accept-Language: pl-PL` → `<html lang="pl">`, „Wybierz danie”; z `en-GB` lub bez nagłówka → „Pick your dish”. Smoke.
+- [x] AC2 (R2, R3) `?lang=en` przy `Accept-Language: pl` → EN; linki dań, Back, chipy i formularze niosą `lang=en`. Smoke.
+- [x] AC3 (R7, R8) G3 kaczki z `lang=pl`: uzasadnienie silnika i słowa smaku po polsku, notatka sommeliera bez zmian; test jednostkowy: każda reguła `why` ma PL.
+- [x] AC4 (R4) Panel: bez ciasteczka i z `Accept-Language: pl` — logowanie i przegląd po polsku; przełącznik ustawia `wm_lang=en` i panel przechodzi na EN bez JS. E2E/SSR.
+- [x] AC5 (R9) Ceny „1 234 zł” (spacja NBSP) w PL i „1,234 zł” w EN; daty w panelu wg locale.
+- [x] AC6 (R6) `pl.ts` bez brakujących kluczy (typecheck).
+- [ ] AC7 (częściowo: gość 390 px w fazie 1; panel A0 przy 390 px, A0/A1/A2/A4/A6/A7/A10/A11 przy 1440 px — bez przewijania; brak zrzutów A1/A6 przy 390 px) Zrzuty PL przy 390 i 1440 px dla G0, G3, G4, G5, G7, G8, A1, A6 bez poziomego przewijania; ścieżka gościa bez JS.
+- [ ] AC8 (bez E2E w fazie 2; reszta zielona) `lint`, `typecheck`, `test`, `build`, smoke (EN i PL), E2E zielone; docs zaktualizowane (SCREEN_SPECIFICATION, BC §1/§5, brief D11/Q04, RECOMMENDATION_ENGINE §uzasadnienia).
 
 ## 📋 Phasing
 - **Faza 1 — gość (osobny PR):** R1–R3, R5–R13 (część gościa), core `locale`, smoke PL; brief D11 / Q04 i BC §1.
@@ -132,8 +132,11 @@ Bez zmian.
 - 2026-10-15 — cross-model review (Sonnet 5.5): 2 High, 7 Medium, 4 Low — przyjęte: `why` jako pary przy regule (nie mapa tekstów) + `styleWord`, teksty spoza słownika (metadata, not-found/error, flash, import po kodzie, `format.ts`, propsy `ui`), `Vary`, `wm_lang` tylko dla panelu + `safeBack`, API bez `locale` (test), `lang` tylko jawny i jedna funkcja linków wspólna z E02, etykiety vs wartości URL, dwa PR-y, `pickLocale` tylko w core, NBSP w asercjach. Odrzucone: lint na stringi JSX (zbyt wiele fałszywych alarmów; zastępuje go przegląd zrzutów PL każdej strony).
 - 2026-10-15 — grill: 8 pytań, 1 dla właściciela (#8).
 - 2026-10-15 — approved: właściciel (Filip) zatwierdził; obie fazy, najpierw gość, potem panel.
+- 2026-10-15 — faza 1 (gość) zaimplementowana.
+- 2026-10-15 — faza 2 (panel) zaimplementowana; status `implemented`.
 
 ## Realizacja
 - **Faza 1 (gość) — 2026-10-15**, gałąź `feat/i18n-guest`, log `.ai/runs/2026-10-15-polish-language-guest.md`. Core: `i18n/locale.ts` (`Locale`, `LOCALES`, `isLocale`, `pickLocale`, typ `Localized`), pary `{ en, pl }` przy regułach w `scoring.ts`, `Factor.whyPl`, `explain`/`styleWord`/`recommendForDish`/`recommendForTable`/`tableWhy`/`budgetNotice`/`tasteWords`/`styleLabel`/`prefsSummary` z `locale = 'en'`; `RecommendationService.forDish(slug, dishId, prefs, limit?, locale?)`, `wineDetails(…, locale?)`, `forTable(…, locale?)`. App: `src/i18n/en.ts` + `pl.ts`, `server/i18n.ts`, proxy z `x-wine-lang` (matcher `/admin`, `/r`), `guestContext` → `locale`, `lang`, `t`, `href`, `langHrefs`; `hrefWith(path, prefs, extra, state)` dokleja `lang` na końcu; `LanguageSwitch`; wszystkie strony gościa na słowniku.
 - **Odstępstwa:** (1) **R12 `Vary` nie jest wysyłany** — Next.js 16.3 nadpisuje nagłówek `Vary` każdej strony App Routera (`app-page-runtime`: `res.setHeader('Vary', …)`), zarówno ustawiony w proxy, jak i w `next.config` `headers()` (sprawdzone na `next start`). Strony gościa i panelu są `force-dynamic` z `Cache-Control: private, no-store`, więc żaden cache nie poda złego języka; do powrotu przy cache'owaniu stron (lekcja `nextjs-vary-header-overwritten`). (2) Architektura wspominała `engine/why-pl.ts` (mapa) — zgodnie z changelogiem i R8 użyto par przy regułach, bez mapy. (3) `forDish` ma `locale` jako 5. parametr (po istniejącym `limit`).
-- Faza 2 (panel) — do zrobienia.
+- **Faza 2 (panel) — 2026-10-15**, gałąź `feat/i18n-panel`, log `.ai/runs/2026-10-15-polish-language-panel.md`. Proxy bez zmian w logice (`wm_lang` tylko dla `/admin`, nazwa w `server/lang-cookie.ts`). Akcja `setLanguage` (`(admin)/admin/language-actions.ts`): tylko `pl`/`en`, ciasteczko `wm_lang` (httpOnly, SameSite=Lax, `Secure` jak sesja, `Path=/admin`, rok), powrót przez `languageBack` (`safeNext`; ekran logowania zachowuje zwalidowane `next`), `revalidatePath('/admin', 'layout')`, sesja nietknięta. Przełącznik `LanguageSwitch` (komponent kliencki tylko po to, by `back` był bieżącym adresem po nawigacji klienckiej; bez JS działa z adresem z SSR) w stopce `AdminShell` i na A0. Słownik `admin.*` w `en.ts`/`pl.ts`; wszystkie ekrany A0–A12, `forbidden`/`not-found`/`error` (teksty przez kontekst `ErrorTextsProvider`, bo `error.tsx` jest kliencki)/`loading`, `generateMetadata` z szablonem „%s | Panel Wine Match”. Komunikaty po kodzie w `_components/messages.ts`: flash (`saved`/`error`, kody błędów domenowych), błędy logowania, uwagi importu (`ImportIssue.code` + `params`), notatki importu (rozpoznawane po tekście core, brak → EN). Core: każde `err()`/`warn()` ma kod i `params` (pole dodane, `message` EN bez zmian); `SetupStep.state` + `values`; `AdminService.dishDetail/wineDetail/reviewQueue/pairingWorkbench(…, locale = 'en')` — uzasadnienia silnika w języku panelu. `format.ts`: `Intl` z `locale` (`pl`: `09.10.2026, 17:40`, kwoty przez `formatPrice`). `@wine-match/ui`: `LevelMeter` i `MatchGlass` przyjmują `label` (domyślnie EN); `EmptyState`/`ErrorMessage`/`LoadingMessage` dostają teksty ze słownika.
+- **Odstępstwa fazy 2:** (1) R12 `Vary` — jak w fazie 1 (Next 16 nadpisuje; strony panelu `no-store`). (2) Notatki importu (`ImportJob.notes: string[]`) nie mają kodów — tłumaczone po znanym tekście core (test pilnuje, że każda notatka core ma tłumaczenie); zmiana typu `notes` byłaby zmianą danych w bazie. (3) Bez E2E panelu PL — AC4 pokrywa smoke (SSR i POST akcji serwerowej bez JS) i test jednostkowy akcji. (4) Historia parowań: nazwa „Removed wine” z core zostaje po angielsku (rzadki przypadek).

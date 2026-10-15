@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { Page, PageHeader } from '../../_components/admin-shell';
+import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Pairings' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).t.admin.meta.pairings };
+}
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -15,5 +18,6 @@ export default async function PairingsIndex({ params }: Props) {
   if (!menu) notFound();
   const target = menu.rows.find((r) => r.suggested > 0 && r.dish.status !== 'hidden') ?? menu.rows[0];
   if (target) redirect(`/admin/${slug}/pairings/${target.dish.id}`);
-  return <Page><PageHeader title="Pairings" description="There are no dishes yet." /></Page>;
+  const { t } = await getI18n();
+  return <Page><PageHeader title={t.admin.meta.pairings} description={t.admin.pairings.noDishes} /></Page>;
 }

@@ -223,6 +223,7 @@ expect('the preview normalises, flags and recognises existing dishes', rowsOf[0]
 const jobUrl = `/api/v1/imports/${up.body.id}?restaurant=${slug}`;
 await check('read the preview back', jobUrl, { cookie: SESSION, has: ['Smoke test dish', 'preview_ready'] });
 await check('the preview is also shown in the dashboard', `${A}/import/menu?job=${up.body.id}`, { has: ['Check and correct', 'Smoke test dish', 'Import 1 dish', 'Check again', 'Cancel import', 'smoke.csv'] });
+await check('the import preview in Polish: issues translated by code, values quoted', `${A}/import/menu?job=${up.body.id}`, { cookie: `${SESSION}; wm_lang=pl`, has: ['2. Sprawdź i popraw', 'Popraw: ', '„abc” nie jest ceną.', 'Już jest w menu', 'Importuj 1 danie'], hasNot: ['is not a price', 'Check and correct'] });
 await check('correct a row: the error goes and the row is ticked', `/api/v1/imports/${up.body.id}/rows?restaurant=${slug}`, { method: 'PATCH', body: { rows: [{ rowNumber: 2, fields: { price: '52,00', name: 'Smoke test three' } }] }, headers: write(), has: ['"price":"52"', '"withErrors":0'] });
 await check('rows body is validated', `/api/v1/imports/${up.body.id}/rows?restaurant=${slug}`, { method: 'PATCH', body: { rows: 'x' }, headers: write(), status: 422 });
 await check('an unknown row is refused', `/api/v1/imports/${up.body.id}/rows?restaurant=${slug}`, { method: 'PATCH', body: { rows: [{ rowNumber: 99, include: true }] }, headers: write(), status: 422, has: ['unknown_row'] });
@@ -293,6 +294,39 @@ await check('A7 review has approve controls', `${A}/review`, { has: ['Approve al
 await check('A4 wine list has availability controls', `${A}/wines`, { has: ['Hide', 'Show'] });
 await check('dashboard nav has Publish', A, { has: ['Publish'] });
 await check('publish page of a restaurant without access: 403', '/admin/nope/publish', { status: 403 });
+
+// --- dashboard in Polish (spec 2026-10-15-polish-language, phase 2): wm_lang cookie, then Accept-Language, then English
+const PLC = `${SESSION}; wm_lang=pl`;
+await check('A0 sign-in in Polish from Accept-Language', '/admin/login', { cookie: '', headers: PL, has: ['<html lang="pl"', 'Zaloguj się', 'Służbowy e-mail', 'Hasło', 'aria-label="Język panelu"', 'name="lang"'], hasNot: ['Work e-mail'] });
+await check('A0 sign-in in English without a header or cookie', '/admin/login', { cookie: '', has: ['<html lang="en"', 'Work e-mail', 'aria-label="Dashboard language"'], hasNot: ['Służbowy e-mail'] });
+await check('A0 sign-in: the cookie wins over the browser', '/admin/login', { cookie: 'wm_lang=en', headers: PL, has: ['<html lang="en"', 'Work e-mail'] });
+await check('A0 Polish error message by code', '/admin/login?error=invalid_credentials', { cookie: '', headers: PL, has: ['Nieprawidłowy e-mail lub hasło'] });
+await check('A1 dashboard with wm_lang=pl', A, { cookie: PLC, headers: { 'accept-language': 'en-GB' }, has: ['<html lang="pl"', 'Pulpit', 'Karta win', 'Parowania', 'Do przeglądu', 'Publikacja', 'Kod QR', 'Ustawienia', 'Wyloguj', 'Dania z parowaniem sommeliera', 'Wymaga uwagi', 'aria-current="true"', '<title>Pulpit | Panel Wine Match</title>'], hasNot: ['Sign out', 'Sommelier-led dishes'] });
+await check('A2 menu in Polish', `${A}/menu`, { cookie: PLC, has: ['Szukaj dań', 'Przystawki', 'Szkic, do sprawdzenia', 'Opublikowane', '<title>Menu | Panel Wine Match</title>'] });
+await check('A4 wine list in Polish: styles, prices with NBSP', `${A}/wines`, { cookie: PLC, has: ['Karta win', 'Tylko butelka', 'Czerwone', '\u00a0zł', 'Ukryj'] });
+await check('A6 pairings in Polish: roles, flash by code, Polish engine reasons', `${A}/pairings/${duck}?saved=approved`, { cookie: PLC, has: ['Parowanie zatwierdzone.', 'Zatwierdzone dla gości', 'Podstawowe', 'Najlepsza cena', 'Propozycje silnika', 'Co teraz widzą goście', 'Ustaw rolę'], hasNot: ['Approved for guests', 'Set role'] });
+await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą zmienił to parowanie'] });
+await check('A7 review queue in Polish', `${A}/review`, { cookie: PLC, has: ['Do przeglądu', 'Zatwierdź', 'Odrzuć', 'Otwórz parowania'] });
+await check('A10 setup in Polish', `${A}/setup`, { cookie: PLC, has: ['Lista kroków', 'Dane restauracji', 'Zaimportuj menu', 'Wydrukuj kod QR', 'W szkicu: 4 z 15 profili dań.'] });
+await check('A11 publish in Polish', `${A}/publish`, { cookie: PLC, has: ['Przed publikacją', 'Opublikuj zmiany', 'Ostatnia publikacja:'] });
+await check('A12 QR in Polish', `${A}/qr`, { cookie: PLC, has: ['Kod QR', 'Drukuj stojak na stolik'] });
+await check('guest pages ignore wm_lang (no cookies for guests)', R, { cookie: 'wm_lang=pl', has: ['<html lang="en"', 'Pick your dish'], hasNot: ['Wybierz danie'] });
+// the switch is a plain form post to a server action: no JavaScript, no session needed
+const loginHtml = await (await fetch(`${base}/admin/login`)).text();
+const langAction = /name="(\$ACTION_ID_[0-9a-f]+)"\/><input type="hidden" name="back"/.exec(loginHtml)?.[1];
+expect('the language switch is a server-action form on the sign-in page', !!langAction, 'no action id before the back field');
+if (langAction) {
+  const post = async (fields) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    return fetch(`${base}/admin/login`, { method: 'POST', body: fd, redirect: 'manual' });
+  };
+  const sw = await post({ [langAction]: '', lang: 'pl', back: `/admin/login?next=${encodeURIComponent(`/admin/${slug}/review`)}` });
+  const sc = sw.headers.getSetCookie?.().join(' | ') ?? '';
+  expect('switching to PL sets wm_lang=pl (SameSite=Lax, a year, /admin) and goes back', sw.status === 303 && /wm_lang=pl/.test(sc) && /SameSite=lax/i.test(sc) && /Max-Age=31536000/.test(sc) && /Path=\/admin/.test(sc) && !/wm_session/.test(sc) && (sw.headers.get('location') ?? '') === `/admin/login?next=${encodeURIComponent(`/admin/${slug}/review`)}`, `${sw.status} ${sc} ${sw.headers.get('location')}`);
+  const evil = await post({ [langAction]: '', lang: 'xx', back: 'https://evil.example/' });
+  expect('the switch ignores an unknown language and a foreign address', evil.status === 303 && !(evil.headers.getSetCookie?.() ?? []).some((c) => c.startsWith('wm_lang')) && evil.headers.get('location') === '/admin', `${evil.status} ${evil.headers.get('location')}`);
+}
 
 await check('sign out', '/api/v1/auth/logout', { method: 'POST', headers: write(), status: 204 });
 await check('after sign-out the old session is dead', '/api/v1/auth/me', { cookie: SESSION, status: 401 });

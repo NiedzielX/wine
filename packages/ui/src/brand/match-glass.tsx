@@ -8,13 +8,15 @@ export interface MatchGlassProps {
   colour: string;
   size?: number;
   className?: string;
+  /** accessible name for the score; English "Match n percent" by default */
+  label?: (score: number) => string;
 }
 
 /**
  * The Wine Match signature element: a wine glass filled to the match level in the wine's colour.
  * Pure SVG + Tailwind, no shadcn — usable on guest pages and in the dashboard.
  */
-export function MatchGlass({ score, colour, size = 44, className }: MatchGlassProps) {
+export function MatchGlass({ score, colour, size = 44, className, label = (n) => `Match ${n} percent` }: MatchGlassProps) {
   const id = useId();
   const clamped = Math.max(0, Math.min(100, score));
   const top = 6;
@@ -27,7 +29,7 @@ export function MatchGlass({ score, colour, size = 44, className }: MatchGlassPr
       height={Math.round(size * 1.3)}
       viewBox="0 0 40 52"
       role="img"
-      aria-label={`Match ${clamped} percent`}
+      aria-label={label(clamped)}
     >
       <defs>
         <clipPath id={id}>

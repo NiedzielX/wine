@@ -109,6 +109,18 @@ describe('AdminService.reviewQueue', () => {
     expect(q.groups.find((g) => g.dish.name === 'Duck breast')!.hasPrimary).toBe(true);
   });
 
+  it('explains in the requested language; scores and order never depend on it', async () => {
+    const en = (await svc().reviewQueue('halka'))!;
+    const pl = (await svc().reviewQueue('halka', 'pl'))!;
+    const flat = (q: typeof en) => q.groups.flatMap((g) => g.items);
+    expect(flat(pl).map((i) => [i.pairing.id, i.pairing.modelScore])).toEqual(flat(en).map((i) => [i.pairing.id, i.pairing.modelScore]));
+    expect(flat(pl).map((i) => i.why)).not.toEqual(flat(en).map((i) => i.why));
+    expect(flat(pl).every((i) => i.why.length > 0)).toBe(true);
+    const duck = dish('Duck breast');
+    const d = (await svc().dishDetail('halka', duck.id, 'pl'))!;
+    expect(d.topMatches.map((m) => m.score)).toEqual((await svc().dishDetail('halka', duck.id))!.topMatches.map((m) => m.score));
+  });
+
   it('is empty when every suggestion has been decided', async () => {
     const done = buildDemoDataset({ ids: 'uuid' });
     for (const p of done.pairings) if (p.status === 'suggested') p.status = 'approved';
@@ -167,6 +179,10 @@ describe('AdminService.setup', () => {
     expect(s.steps.find((x) => x.key === 'profiles')!.detail).toBe('4 of 15 dish profiles are still drafts.');
     expect(s.steps.find((x) => x.key === 'menu')!.detail).toBe('15 dishes on the menu.');
     expect(s.published).toBe(true);
+    // the state and the numbers let the dashboard say the same in another language
+    expect(s.steps.map((x) => x.state)).toEqual(['details', 'menu_done', 'wines_done', 'profiles_drafts', 'pairings', 'publish_pending', 'qr_done']);
+    expect(s.steps.find((x) => x.key === 'profiles')!.values).toEqual({ drafts: 4, dishes: 15 });
+    expect(s.steps.find((x) => x.key === 'wines')!.values).toEqual({ active: 19, byGlass: 14 });
   });
 
   it('a restaurant with nothing yet has nothing done except the details', async () => {
@@ -175,6 +191,7 @@ describe('AdminService.setup', () => {
     const s = (await svc(empty).setup('halka'))!;
     expect(s.steps.filter((x) => x.done).map((x) => x.key)).toEqual(['details']);
     expect(s.steps.find((x) => x.key === 'menu')!.detail).toMatch(/Upload/);
+    expect(s.steps.map((x) => x.state)).toEqual(['details', 'menu_empty', 'wines_empty', 'profiles_no_menu', 'pairings', 'publish_done', 'qr_wait']);
     expect(await svc().setup('nope')).toBeNull();
   });
 });

@@ -10,9 +10,12 @@ import { publishChanges, saveGuestSettings } from '../actions';
 import { isDomainError } from '@/server/domain-errors';
 import { getRequestScope } from '@/server/request-scope';
 import { requireAccess } from '@/server/auth';
+import { getI18n } from '@/server/i18n';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Publish' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).t.admin.meta.publish };
+}
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -26,7 +29,6 @@ function Item({ ok, title, children, href, action }: { ok: boolean; title: strin
   );
 }
 
-const names = (list: { name: string }[], max = 4) => list.slice(0, max).map((d) => d.name).join(', ') + (list.length > max ? ` and ${list.length - max} more` : '');
 
 /** A11 — publish: what guests will see, a checklist (advice, never a blocker) and guest-facing settings. */
 export default async function PublishPage({ params, searchParams }: Props) {
@@ -41,46 +43,49 @@ export default async function PublishPage({ params, searchParams }: Props) {
   const base = `/admin/${slug}`;
   const common = { slug, back: `${base}/publish` };
   const first_ = p.withoutPrimary[0];
+  const { locale, t } = await getI18n();
+  const m = t.admin.publish;
+  const names = (list: { name: string }[], max = 4) => m.names(list.slice(0, max).map((d) => d.name).join(', '), Math.max(0, list.length - max));
 
   return (
     <Page>
-      <PageHeader title="Publish" description={`Last published ${formatDateTime(p.restaurant.publishedAt)}${p.lastVersion ? ` (version ${p.lastVersion.number}, ${p.lastVersion.publishedBy})` : ''}. Guests see the published version through the QR code.`} />
-      {!access.can('publish') && <ReadOnlyNotice>Your role cannot publish.</ReadOnlyNotice>}
+      <PageHeader title={m.title} description={m.description(formatDateTime(p.restaurant.publishedAt, locale), p.lastVersion ? m.version(p.lastVersion.number, p.lastVersion.publishedBy) : '')} />
+      {!access.can('publish') && <ReadOnlyNotice>{m.readOnly}</ReadOnlyNotice>}
       <Flash saved={first(sp.saved)} error={first(sp.error)} n={first(sp.n)} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card className="gap-0 py-0">
-          <CardHeader className="border-b py-4"><CardTitle>Before you publish</CardTitle><CardDescription>Recommended, not required.</CardDescription></CardHeader>
+          <CardHeader className="border-b py-4"><CardTitle>{m.checklist}</CardTitle><CardDescription>{m.checklistText}</CardDescription></CardHeader>
           <CardContent className="px-0">
-            <Item ok={p.withoutPrimary.length === 0} title={p.withoutPrimary.length ? `${p.withoutPrimary.length} dishes have no primary pick` : 'Every dish has a primary pick'} href={first_ ? `${base}/pairings/${first_.id}` : undefined} action="Fix">
-              {p.withoutPrimary.length ? names(p.withoutPrimary) : 'Guests always see your first choice first.'}
+            <Item ok={p.withoutPrimary.length === 0} title={p.withoutPrimary.length ? m.noPrimary(p.withoutPrimary.length) : m.allPrimary} href={first_ ? `${base}/pairings/${first_.id}` : undefined} action={m.fix}>
+              {p.withoutPrimary.length ? names(p.withoutPrimary) : m.allPrimaryText}
             </Item>
-            <Item ok={p.unreviewedSuggestions === 0} title={p.unreviewedSuggestions ? `${p.unreviewedSuggestions} engine suggestions not reviewed` : 'All suggestions reviewed'} href={`${base}/review`} action="Review">
-              {p.settings.showUnreviewed ? 'Unreviewed suggestions can still appear as “Best match”, never as a sommelier recommendation.' : 'Unreviewed suggestions are hidden from guests.'}
+            <Item ok={p.unreviewedSuggestions === 0} title={p.unreviewedSuggestions ? m.unreviewed(p.unreviewedSuggestions) : m.allReviewed} href={`${base}/review`} action={m.review}>
+              {p.settings.showUnreviewed ? m.unreviewedShown : m.unreviewedHidden}
             </Item>
-            <Item ok={p.draftProfiles.length === 0} title={p.draftProfiles.length ? `${p.draftProfiles.length} taste profiles are still drafts` : 'All taste profiles confirmed'} href={`${base}/menu`} action="Check">
-              {p.draftProfiles.length ? names(p.draftProfiles) : 'Scores are based on profiles you checked.'}
+            <Item ok={p.draftProfiles.length === 0} title={p.draftProfiles.length ? m.draftProfiles(p.draftProfiles.length) : m.allConfirmed} href={`${base}/menu`} action={m.check}>
+              {p.draftProfiles.length ? names(p.draftProfiles) : m.allConfirmedText}
             </Item>
-            <Item ok={p.draftDishes.length === 0} title={p.draftDishes.length ? `${p.draftDishes.length} new dishes will go live` : 'No new dishes'}>
-              {p.draftDishes.length ? names(p.draftDishes) : 'The menu is unchanged since the last publish.'}
+            <Item ok={p.draftDishes.length === 0} title={p.draftDishes.length ? m.newDishes(p.draftDishes.length) : m.noNewDishes}>
+              {p.draftDishes.length ? names(p.draftDishes) : m.noNewDishesText}
             </Item>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Guest settings</CardTitle><CardDescription>These apply right away; they are not part of a published version.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{m.settings}</CardTitle><CardDescription>{m.settingsText}</CardDescription></CardHeader>
           <CardContent>
             <form action={saveGuestSettings} className="grid gap-4">
               <Hidden fields={common} />
               <label className="flex items-start gap-3 text-sm">
                 <input type="checkbox" name="showUnreviewed" defaultChecked={p.settings.showUnreviewed} className="mt-0.5 size-4 accent-primary" />
-                <span><b className="font-medium">Fill empty places with engine picks</b><span className="block text-muted-foreground">When off, guests only see pairings you approved.</span></span>
+                <span><b className="font-medium">{m.showUnreviewed}</b><span className="block text-muted-foreground">{m.showUnreviewedText}</span></span>
               </label>
               <label className="flex items-start gap-3 text-sm">
                 <input type="checkbox" name="showScores" defaultChecked={p.settings.showScores} className="mt-0.5 size-4 accent-primary" />
-                <span><b className="font-medium">Show match percentages to guests</b><span className="block text-muted-foreground">The glass icon is always shown.</span></span>
+                <span><b className="font-medium">{m.showScores}</b><span className="block text-muted-foreground">{m.showScoresText}</span></span>
               </label>
-              {access.can('settings.change') && <div><Button type="submit" variant="outline">Save settings</Button></div>}
+              {access.can('settings.change') && <div><Button type="submit" variant="outline">{m.saveSettings}</Button></div>}
             </form>
           </CardContent>
         </Card>
@@ -88,20 +93,20 @@ export default async function PublishPage({ params, searchParams }: Props) {
         <Card className="lg:col-span-2">
           <CardContent className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-lg font-medium">{p.pendingChanges ? `${p.pendingChanges} unpublished ${p.pendingChanges === 1 ? 'change' : 'changes'}` : 'Guests see the latest version'}</p>
+              <p className="text-lg font-medium">{p.pendingChanges ? m.pending(p.pendingChanges) : m.latest}</p>
               <p className="text-sm text-muted-foreground">
-                {p.pendingChanges ? `${p.pendingPairings} pairings and ${p.draftDishes.length} new dishes. Publishing updates the guest app immediately; the QR code stays the same.` : 'There is nothing to publish.'}
+                {p.pendingChanges ? m.pendingText(p.pendingPairings, p.draftDishes.length) : m.nothing}
               </p>
             </div>
             <div className="flex gap-2">
-              <Button asChild variant="outline"><Link href={`/r/${slug}`}>Preview guest app</Link></Button>
-              <ActionButton action={publishChanges} fields={common} variant="default" size="default" disabled={p.pendingChanges === 0 || !access.can('publish')}>Publish changes</ActionButton>
+              <Button asChild variant="outline"><Link href={`/r/${slug}`}>{m.preview}</Link></Button>
+              <ActionButton action={publishChanges} fields={common} variant="default" size="default" disabled={p.pendingChanges === 0 || !access.can('publish')}>{m.submit}</ActionButton>
             </div>
           </CardContent>
         </Card>
-        {p.pendingChanges === 0 && <Alert className="lg:col-span-2"><AlertTitle>Up to date</AlertTitle><AlertDescription>Make a change on the Pairings or Review queue screens, then come back to publish it.</AlertDescription></Alert>}
+        {p.pendingChanges === 0 && <Alert className="lg:col-span-2"><AlertTitle>{m.upToDate}</AlertTitle><AlertDescription>{m.upToDateText}</AlertDescription></Alert>}
       </div>
-      <Badge variant="outline" className="mt-6">Version {p.lastVersion?.number ?? 0}</Badge>
+      <Badge variant="outline" className="mt-6">{m.versionBadge(p.lastVersion?.number ?? 0)}</Badge>
     </Page>
   );
 }
