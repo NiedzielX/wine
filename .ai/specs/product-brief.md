@@ -3,18 +3,18 @@
 - Date: 2026-10-15
 - Mode: existing (produkt zbudowany, bez prawdziwych użytkowników), z kontrolami trybu `own`; Owner: Filip (product owner); Pass: full, prowadzony przez agenta bez rozmowy — decyzje spoza zatwierdzonych specyfikacji mają status `proposal`
 - Evidence basis: tylko dokumenty zespołu (brief MVP zatwierdzony przez Filipa 2026-10-14; decyzje fazy 5 — import i QR — czekają na jego przegląd) oraz działający kod. Brak wywiadów, danych sprzedaży, benchmarku i pilotażowej restauracji. Najbardziej ryzykowne niesprawdzone przekonanie: że restauracje premium tracą sprzedaż wina, bo goście nie wiedzą, co wybrać (A01).
-- Coverage: 40 claims — 29 sourced (interview 0, data 0, document 24, product 5, benchmark 0), 0 synthetic, 11 assumed; 6 entries on the collection plan
+- Coverage: 41 claims — 30 sourced (interview 0, data 0, document 25, product 5, benchmark 0), 0 synthetic, 11 assumed; 6 entries on the collection plan
 - Synthetic hypotheses outside Coverage: 0
-- Definition of Ready signed by: not yet signed — Problems i Target group nie mają wsparcia z wywiadów ani danych; ready for: research
+- Definition of Ready signed by: Filip (product owner), z uchyleniem wymogu dowodów dla Problems i Target group (D09); ready for: implementation planning of the stated scope
 - Sources: `.ai/specs/research/README.md`, `.ai/specs/implemented/2026-10-14-wine-match-mvp-concept.md`, `.ai/specs/implemented/2026-10-14-phase4-authentication.md`, `docs/PRODUCT_CONCEPT.md`, `docs/USER_ROLES.md`, `docs/USER_FLOWS.md`, `AGENTS.md`, `packages/app/src/app/(guest)/`, `packages/app/src/app/(admin)/`, `packages/core/src/engine/recommend.ts`
 
 ## Decision summary
 
-Bieżąca decyzja: **czy i z kim przeprowadzić pilotaż Wine Match**, zanim zespół zbuduje kolejne funkcje. Decyzja jest proponowana (D08), nie potwierdzona.
+Bieżąca decyzja (D09, active, 2026-10-15): **domknąć technicznie zakres MVP i przygotować produkt do pilotażu**, przyjmując założenia biznesowe z koncepcji bez testu. Badania (#3–#9) biegną równolegle.
 Problem — goście restauracji premium wybierają wino niepewnie albo wcale, a sommelier nie dociera do każdego stolika — opisuje tylko koncepcja zespołu; nikt z branży go jeszcze nie potwierdził (Problems, A01).
 Z zakresu MVP zatwierdzonego przez Filipa (D01) zbudowane są aplikacja gościa, panel sommeliera, import, publikacja i QR. Niezbudowane: analityka użycia, import sprzedaży i dashboard KPI — panel pokazuje „Nothing has been recorded yet”, więc North Star (Wine Attach Rate) jest dziś niemierzalny, a pilotaż nie ma czym zmierzyć wyniku (Q05).
 Najbardziej może zmienić decyzję to, czy restauracje widzą utraconą sprzedaż wina jako problem wart subskrypcji (A01, A02) i czy goście w ogóle skanują QR przy stoliku (A03).
-Następny krok: rozmowy z restauracjami i sommelierami oraz dane z POS jednej restauracji (Collection plan). Właściciel: Filip; terminy otwarte.
+Następny krok: backlog techniczny (E02–E05 w `.ai/specs/backlog.md`): pomiar użycia, import sprzedaży i Wine Attach Rate, dashboard KPI, wdrożenie i zakładanie restauracji. Właściciel: Filip.
 
 ## Vision
 
@@ -57,8 +57,8 @@ Benchmark odłożony: żaden produkt nie został sprawdzony w źródle (Collecti
 
 ## Scope
 
-- **Now:** zebrać dowody problemu i gotowości do zakupu oraz znaleźć restaurację pilotażową (Collection plan C01–C06, D08 proposal). Kod MVP zostaje taki, jaki jest.
-- **Later:** widok kelnera z logowaniem PIN, plany subskrypcji (D07) — po wynikach badań. Pomiar (analityka użycia, import sprzedaży, dashboard KPI) należy do D01, ale nie jest zbudowany; czy zbudować go przed pilotażem, rozstrzyga Q05.
+- **Now:** domknąć niezbudowaną część D01 i przygotować pilotaż (D09): (1) zdarzenia użycia gościa i kelnera zapisywane bez JavaScriptu i bez ciasteczek (R05, `packages/app/AGENTS.md`); (2) import sprzedaży z eksportu POS (CSV) i Wine Attach Rate (D04); (3) dashboard KPI w panelu; (4) wdrożenie produkcyjne i założenie restauracji bez danych demo (Q08). Badania z Collection plan biegną równolegle.
+- **Later:** widok kelnera z logowaniem PIN, plany subskrypcji (D07), edycja profili smakowych dań i win w panelu, historia publikacji i przywracanie wersji, panel administratora systemu, OCR skanów PDF, przekierowanie po zmianie sluga, eksport analityki do CSV.
 - **Not doing:** see Non-goals
 
 ## Domain glossary
@@ -108,18 +108,19 @@ Benchmark odłożony: żaden produkt nie został sprawdzony w źródle (Collecti
 | D05 | 2026-10-14 | Restauracja demo Halka jako dane pokazowe | pokaz bez prawdziwego klienta | Filip | active | unknown | product owner | `[DOCUMENT]` .ai/specs/implemented/2026-10-14-wine-match-mvp-concept.md | none |
 | D06 | 2026-10-14 | Interfejs po angielsku | zgodnie z briefem | Filip | active | unknown | product owner | `[DOCUMENT]` .ai/specs/implemented/2026-10-14-wine-match-mvp-concept.md „Realizacja” | none |
 | D07 | 2026-10-14 | Plany Essential 390 zł, Professional 790 zł, Group — wycena | ceny orientacyjne „do walidacji z pierwszymi klientami” | Filip | proposal | po C05 | product owner | `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §5 | none |
-| D08 | 2026-10-15 | Wstrzymać nowe funkcje do czasu badań i pilotażu; Now = Collection plan | brak dowodów problemu i pomiaru; rekomendacja agenta, niepotwierdzona | pending (Filip) | proposal | po C01–C03 | product owner | `[ASSUMPTION]` rekomendacja agenta w tym briefie | none |
+| D08 | 2026-10-15 | Wstrzymać nowe funkcje do czasu badań i pilotażu; Now = Collection plan | brak dowodów problemu i pomiaru; rekomendacja agenta, niepotwierdzona | pending (Filip) | superseded | — | product owner | `[ASSUMPTION]` rekomendacja agenta w tym briefie | none |
+| D09 | 2026-10-15 | Domknąć technicznie zakres MVP (D01) i przygotować pilotaż na przyjętych, niesprawdzonych założeniach A01–A06 | właściciel potrzebuje backlogu technicznego; przyjmuje ryzyko założeń | Filip | active | po wynikach #3–#9 lub pilotażu | product owner | `[DOCUMENT]` .ai/specs/research/decisions/2026-10-15-d09-build-on-accepted-assumptions.md | D08 |
 
 ## Riskiest assumptions
 
 | Id | Assumption | Importance | Evidence today | If false | Smallest test | Owner | By when | Result |
 |---|---|---|---|---|---|---|---|---|
-| A01 | Restauracje premium tracą sprzedaż wina, bo goście nie wiedzą, co wybrać, a sommelier nie dociera do stolików `[ASSUMPTION]` koncepcja zespołu | high | brak; tylko docs/PRODUCT_CONCEPT.md §1 | produkt rozwiązuje nieistniejący problem | rozmowy z sommelierami i GM o ostatnim serwisie (C01) | Filip | unknown | untested |
-| A02 | Restauracja zapłaci subskrypcję rzędu 390–790 zł miesięcznie `[ASSUMPTION]` docs/PRODUCT_CONCEPT.md §5 | high | brak | model przychodu nie działa | rozmowy z właścicielami o obecnych wydatkach i procesie zakupu (C05) | Filip | unknown | untested |
-| A03 | Goście skanują QR i używają aplikacji przy stoliku `[ASSUMPTION]` | high | brak | nikt nie zobaczy rekomendacji | obserwacja w pilotażu (C06) | Filip | unknown | untested |
-| A04 | Sommelier znajdzie czas na przegląd propozycji silnika `[ASSUMPTION]` | medium | brak | parowania zostaną niezatwierdzone | rozmowy z sommelierami (C01) | Filip | unknown | untested |
-| A05 | Wine Match podnosi Wine Attach Rate (rachunek w koncepcji zakłada +5 pp i +10 zł na gościa) `[ASSUMPTION]` docs/PRODUCT_CONCEPT.md §5 | high | brak | brak uzasadnienia ceny | baseline z POS (C03), potem pomiar w pilotażu | Filip | unknown | untested |
-| A06 | Brak dobrej alternatywy dla restauracji (karty cyfrowe, aplikacje parujące) `[ASSUMPTION]` | medium | brak benchmarku | trudniej o wyróżnik | benchmark (C04) | Filip | unknown | untested |
+| A01 | Restauracje premium tracą sprzedaż wina, bo goście nie wiedzą, co wybrać, a sommelier nie dociera do stolików `[ASSUMPTION]` koncepcja zespołu | high | brak; tylko docs/PRODUCT_CONCEPT.md §1 | produkt rozwiązuje nieistniejący problem | rozmowy z sommelierami i GM o ostatnim serwisie (C01) | Filip | unknown | accepted untested (D09) |
+| A02 | Restauracja zapłaci subskrypcję rzędu 390–790 zł miesięcznie `[ASSUMPTION]` docs/PRODUCT_CONCEPT.md §5 | high | brak | model przychodu nie działa | rozmowy z właścicielami o obecnych wydatkach i procesie zakupu (C05) | Filip | unknown | accepted untested (D09) |
+| A03 | Goście skanują QR i używają aplikacji przy stoliku `[ASSUMPTION]` | high | brak | nikt nie zobaczy rekomendacji | obserwacja w pilotażu (C06) | Filip | unknown | accepted untested (D09) |
+| A04 | Sommelier znajdzie czas na przegląd propozycji silnika `[ASSUMPTION]` | medium | brak | parowania zostaną niezatwierdzone | rozmowy z sommelierami (C01) | Filip | unknown | accepted untested (D09) |
+| A05 | Wine Match podnosi Wine Attach Rate (rachunek w koncepcji zakłada +5 pp i +10 zł na gościa) `[ASSUMPTION]` docs/PRODUCT_CONCEPT.md §5 | high | brak | brak uzasadnienia ceny | baseline z POS (C03), potem pomiar w pilotażu | Filip | unknown | accepted untested (D09) |
+| A06 | Brak dobrej alternatywy dla restauracji (karty cyfrowe, aplikacje parujące) `[ASSUMPTION]` | medium | brak benchmarku | trudniej o wyróżnik | benchmark (C04) | Filip | unknown | accepted untested (D09) |
 
 ## Kill criteria
 
@@ -137,14 +138,14 @@ Brak — nie przeprowadzono symulacji `om-synthetic-users`.
 | Q02 | Jaki próg Wine Attach Rate i w jakim czasie uznamy za sukces pilotażu? | yes — blokuje plan pilotażu (C06) | product owner | open |
 | Q03 | Czy pilotażowa restauracja może wyeksportować dane sprzedaży z POS? | yes — blokuje C03 | GM restauracji | open |
 | Q04 | Czy interfejs gościa ma być też po polsku? | no | product owner | open |
-| Q05 | Czy przed pilotażem budujemy pomiar (zdarzenia użycia, import sprzedaży z CSV), wbrew „bez nowych funkcji” z D08? Bez niego A03 i A05 nie dadzą się sprawdzić w pilotażu. | yes — blokuje plan pilotażu (C06) | product owner | open |
+| Q05 | Czy przed pilotażem budujemy pomiar (zdarzenia użycia, import sprzedaży z CSV)? | no | product owner | closed — tak, D09 |
 | Q06 | Kto jest Domain expertem (sommelier) zatwierdzającym R01, R02, R04? | no — reguły obowiązują, brak tylko właściciela zmian | product owner | open |
 | Q07 | Czy Filip akceptuje decyzje fazy 5 (import i QR), oznaczone „Do przeglądu”? | no | product owner | open |
 | Q08 | Gdzie działa instancja dla pilota i jaki jest `PUBLIC_BASE_URL` przed drukiem kodów QR? | yes — blokuje start pilotażu | product owner / maintainer | open |
 
 ## Definition of Ready addendum (existing + own)
 
-Problems i Target group opierają się wyłącznie na `[ASSUMPTION]` i wyborach zespołu, więc żaden ticket implementacyjny nie spełnia ticket-level Definition of Ready z `SDLC.md`. Gotowe są tylko zadania badawcze z Collection plan. Decyzja D08 (wstrzymanie funkcji) czeka na potwierdzenie Filipa. Dotknięte powierzchnie: brak — Now nie zmienia kodu.
+Problems i Target group nadal opierają się wyłącznie na `[ASSUMPTION]`. Product owner uchylił wymóg dowodów dla zakresu Now (D09, `SDLC.md`: „A maintainer may waive an item”), więc zadania implementacyjne E02–E05 są gotowe do specyfikacji; przyjęcie ryzyka nie zmienia statusu założeń A01–A06. Dotknięte powierzchnie (`BACKWARD_COMPATIBILITY.md`): schemat bazy (nowe tabele sprzedaży, zapisy do `guest_interaction`), `/api/v1` (nowe trasy analityki i importu sprzedaży), adresy gościa (ewentualny parametr sesji w URL — tylko dodany, istniejące adresy działają dalej). Konflikt do rozstrzygnięcia w specyfikacji E02: `docs/SCREEN_SPECIFICATION.md` trzyma `sessionId` w sessionStorage, a `packages/app/AGENTS.md` wymaga działania bez JavaScriptu i bez pamięci przeglądarki.
 
 ## Collection plan
 
