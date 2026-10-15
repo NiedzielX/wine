@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-10-15
 owner: Filip
 related: [issue #19, #20, #21, #22, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/product-brief.md]
@@ -10,7 +10,7 @@ related: [issue #19, #20, #21, #22, .ai/specs/2026-10-15-guest-usage-events.md, 
 ## 📝 TLDR
 GM i sommelier otwierają dziś przegląd panelu (A1) i widzą tylko liczby katalogu oraz kartę „Nothing has been recorded yet”, choć po E02 i E03 zdarzenia gości i sprzedaż z POS będą w bazie. **Proponujemy**, by A1 pokazywał za ostatnie 28 pełnych dni, z deltą wobec poprzednich 28: KPI użycia (sesje gości, wyświetlenia rekomendacji dań, konwersja rekomendacja → wybór), KPI sprzedaży (wyróżniony Wine Attach Rate, przychód z wina na gościa i na stolik, średnia butelka i kieliszek) oraz tabelę skuteczności par danie–wino ze źródłem (Sommelier/Engine) **w chwili wyświetlenia**. Stawki pokazują mianownik, a delta stawek przy małej próbie jest ukryta. Liczy to jeden serwis odczytu `AnalyticsService` w `core` — bez nowej tabeli, trasy HTTP i biblioteki wykresów. Faza 1 (użycie) nie zależy od E03.
 
-**Bramka akceptacji (AGENTS §3):** spec nie przejdzie w `approved` przed odpowiedzią na Q12 ⚠. Fazy dziedziczą bramki rodzeństwa: F1 i F3 — E02 (Q1, Q6, Q13 ⚠), F2 — dodatkowo E03 (Q2, Q7, Q17 ⚠).
+**Akceptacja (AGENTS §3):** `approved` przez właściciela (Filip) 2026-10-15 — wszystkie decyzje ✅ przyjęte zgodnie z rekomendacją; bramki faz z sekcji Fazy są spełnione.
 
 ## Wymagania
 - **R1** Okno KPI = 28 pełnych dni kalendarzowych kończących się wczoraj w `Europe/Warsaw`; okno poprzednie = 28 dni bezpośrednio przed nim. Granice zdarzeń jako półotwarte przedziały UTC `[from, to)`, poprawne przy zmianie czasu.
@@ -27,22 +27,22 @@ GM i sommelier otwierają dziś przegląd panelu (A1) i widzą tylko liczby kata
 - **R12** A1 przy 390 px i 1440 px bez poziomego przewijania strony, także z `?pairs=all` i długimi nazwami.
 
 ## Resolved assumptions (autonomous defaults)
-Uruchomienie `--autonomous`. Każde założenie można nadpisać przed `approved`. ⚠ = czeka na ownera.
+Uruchomienie `--autonomous`. Każde założenie można nadpisać przed `approved`. ✅ = potwierdzone przez właściciela 2026-10-15.
 
 | # | Pytanie | Przyjęta odpowiedź | Uzasadnienie |
 |---|---|---|---|
 | Q1 | Jedna spec czy trzy (#20–#22)? | Jedna, trzy fazy = trzy PR‑y; F2 i F3 niezależne od siebie. | Wspólny ekran, okno, serwis i reguła sesji. |
 | Q2 | Okno czasu? | R1; bez selektora okresu. Strefa jako stała `KPI_TIME_ZONE` (`Restaurant.timezone` jest w `DATA_MODEL.md`, ale nie w typie domenowym). | Dzisiejszy niepełny dzień zaniżałby deltę; selektor bez AC. |
-| Q3 | Okno sprzedaży przy opóźnionym imporcie? | To samo okno co użycie. Brak sprzedaży w oknie → stan „brak danych” + `latestDataDay`. Częściowo zaimportowane okno renderuje się; sekcja pisze „Sales data through {latestDataDay}”, gdy `latestDataDay` < koniec okna. (wcześniej ⚠ → agent-default: odwracalne, bez wpływu na dane) | Porównywalność z sesjami; KPI sprzedaży to ilorazy/średnie, więc niepełne okno jest czytelne, gdy daty są jawne. |
+| Q3 | Okno sprzedaży przy opóźnionym imporcie? | To samo okno co użycie. Brak sprzedaży w oknie → stan „brak danych” + `latestDataDay`. Częściowo zaimportowane okno renderuje się; sekcja pisze „Sales data through {latestDataDay}”, gdy `latestDataDay` < koniec okna. (wcześniej ✅ → agent-default: odwracalne, bez wpływu na dane) | Porównywalność z sesjami; KPI sprzedaży to ilorazy/średnie, więc niepełne okno jest czytelne, gdy daty są jawne. |
 | Q4 | Trasy `analytics/*` z API_SPECIFICATION? | Nie w tej spec; w docs „planowane”. Bez obietnicy zgodności kształtu `KpiSummary` z dokumentem — mapowanie ustali spec trasy. | BC §2; żadne AC nie wymaga HTTP. |
 | Q5 | Wykresy z A1? | Odłożone; bez `recharts`. Docs A1: „wykresy: później”. | Brak AC; nowa zależność (§1.1). |
 | Q6 | Kto widzi KPI? | `panel.view` (owner, manager, sommelier) przez `requireAccess`; link „Import sales” tylko z `access.can('import.manage')`. | Bez zmian w `permissions.ts` (BC §5). |
-| Q7 | AC #21.3 zakłada sommeliera bez `import.manage`. | Macierz bez zmian; AC #21.3 usunięte z kryteriów tej spec (żadna rola panelu nie ma tego stanu); warunek linku pokryty testem SSR `canImport=false`. Odebranie uprawnienia — osobna decyzja/spec. (wcześniej ⚠ → agent-default: nic nie zmieniamy w uprawnieniach) | Nie da się spełnić AC bez zmiany risk-high, której ta spec nie robi. |
+| Q7 | AC #21.3 zakłada sommeliera bez `import.manage`. | Macierz bez zmian; AC #21.3 usunięte z kryteriów tej spec (żadna rola panelu nie ma tego stanu); warunek linku pokryty testem SSR `canImport=false`. Odebranie uprawnienia — osobna decyzja/spec. (wcześniej ✅ → agent-default: nic nie zmieniamy w uprawnieniach) | Nie da się spełnić AC bez zmiany risk-high, której ta spec nie robi. |
 | Q8 | Konwersja i „wyświetlenia”? | R3. „Dish recommendations viewed” = unikalne (sesja, danie) `recommendations_viewed`. Kafelek konwersji: „5 of 16 sessions · dish recommendations only”. | Zgodnie z E02 (tylko ścieżka dania); E02 Q7 — unikalne (sesja, obiekt). |
 | Q9 | Sesja gościa? | R2. `usageTotals` zwraca `sessions` (ta sama definicja co `countGuestSessions`, kontrakt sprawdza równość). | Jedno zapytanie, jedna definicja. |
 | Q10 | Wiersze i źródło tabeli par? | Wiersz = (danie, wino, źródło). Źródło per (sesja, danie, wino) = `tier` z **ostatniego** w oknie `recommendations_viewed` tej sesji dla dania, którego `items` zawiera wino (R8). Do wierszy z `shown > 0` dochodzą pary `approved`/`modified` z `listPublishedByRestaurant` (źródło Sommelier) bez wyświetleń, tylko dla opublikowanego dania i aktywnego wina. Para dziś `rejected`, ale wyświetlana w oknie, ma wiersz ze źródłem historycznym. | Port zwraca tylko zrecenzowane i odrzucone pary migawki; `suggested` nie istnieją jako wiersze `Pairing` — wino „Engine” powstaje wyłącznie ze zdarzeń. Historyczny tier = uczciwe porównanie A04/A05. |
 | Q11 | Długa lista par? | 10 wierszy (shown ↓, chosen ↓, nazwa dania, źródło; wiersze bez wyświetleń na końcu); „Show all N pairings” = `?pairs=all`; inna wartość = 10. | Bez nowego ekranu i paginacji. |
-| Q12 | Gdzie liczyć? | Nowy `AnalyticsService` w `core/src/services/analytics/`. `packages/app/AGENTS.md` „dane panelu wyłącznie przez `adminService`” → „przez `adminService` i serwisy odczytu z `core`”. ⚠ NEEDS HUMAN CONFIRMATION | Zmiana prawa repozytorium — decyduje owner. Precedens: `salesKpiService` na A13 (E03). |
+| Q12 | Gdzie liczyć? | Nowy `AnalyticsService` w `core/src/services/analytics/`. `packages/app/AGENTS.md` „dane panelu wyłącznie przez `adminService`” → „przez `adminService` i serwisy odczytu z `core`”. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Zmiana prawa repozytorium — decyduje owner. Precedens: `salesKpiService` na A13 (E03). |
 | Q13 | Agregacje? | Dwie nowe metody `GuestInteractionRepository` (własność E04): `usageTotals` (F1), `pairingStats` (F3); pamięć + PostgreSQL + kontrakt. Bez migracji. | AGENTS §1.3; indeks `(restaurant_id, created_at)` istnieje. |
 | Q14 | Awaria analityki? | R9: trzy metody serwisu, każda przez `settleSection` na stronie (`Promise.all` po wynikach `settleSection`, jak `AdminService` z `Promise.all` na jednym zakresie). `ErrorMessage` dostaje opcjonalny `compact` (`h2`, `py-8`). | `ErrorMessage` ma dziś `h1` i `py-24`. Zmiana addytywna w `ui`. |
 | Q15 | Ładowanie? | Istniejący `(lists)/loading.tsx`. | Mniej ruchomych części. |
@@ -186,14 +186,14 @@ Strona tylko czyta (`force-dynamic`), działa bez JS.
 - **Wycofanie:** poprzedni `page.tsx`; serwis i metody portu mogą zostać bez konsumenta.
 
 ## 📝 Decisions in play
-- **D01** — realizowane. **D04** — wyróżniony kafelek; definicja z E03 Q7 ⚠; delta vs poprzednie 28 dni (Q17). **Later:** stały baseline pilota (C03) na A1 — owner decyduje po pierwszym miesiącu pilota.
+- **D01** — realizowane. **D04** — wyróżniony kafelek; definicja z E03 Q7 ✅; delta vs poprzednie 28 dni (Q17). **Later:** stały baseline pilota (C03) na A1 — owner decyduje po pierwszym miesiącu pilota.
 - **R01** — „Sommelier” = tier sommeliera w chwili wyświetlenia. **R02** — Match Score = `pairingScore`.
 - **D09** — KPI mierzą A03/A05, nie zmieniają ich statusu. **N04** — bez prognoz.
-- **Q12 ⚠** — zmiana `packages/app/AGENTS.md`. Owner: Filip. Zmiany docs A1/§Analytics zatwierdza owner.
+- **Q12 ✅** — zmiana `packages/app/AGENTS.md`. Owner: Filip. Zmiany docs A1/§Analytics zatwierdza owner.
 
 ## 📋 Phasing
 - **F1 — #20 Guest usage.** Wymaga E02 F1–F3 (E02 Q17). **Bez E03.**
-- **F2 — #21 Sales.** Wymaga E03 F2 (i jej bramek Q2/Q7/Q17 ⚠) oraz F1.
+- **F2 — #21 Sales.** Wymaga E03 F2 (i jej bramek Q2/Q7/Q17 ✅) oraz F1.
 - **F3 — #22 Pairing performance.** Wymaga F1 i E02 F1 z `items[].tier`; niezależna od F2 (kolejność F2/F3 dowolna).
 
 ## 📋 Implementation Plan
@@ -263,11 +263,12 @@ Dokumentacja (A1, §Analytics, `packages/app/AGENTS.md`) — checklista PR (CODE
 | 24 | F2 dziedziczy bramki E03 (Q2, Q7, Q17)? | Tak | agent-default |
 | 25 | E2E wstawia zdarzenia `seedUsageEvents` z E02 przez repozytorium PostgreSQL? | Tak | agent-default |
 | 26 | Testy SSR sekcji z `{ ok: false }` zamiast „review” dla AC11? | Tak | agent-default |
-| 27 | Zmiana `packages/app/AGENTS.md` (panel czyta też serwisy odczytu `core`)? | Rekomendacja: tak | ⚠ owner |
+| 27 | Zmiana `packages/app/AGENTS.md` (panel czyta też serwisy odczytu `core`)? | Rekomendacja: tak | owner ✅ |
 
 ## Changelog
 - 2026-10-15 — draft (om-spec-writing --autonomous)
 - 2026-10-15 — cross-model review (Sonnet 5.5): 20 accepted, 1 rejected, 1 partial. Accepted: D1 delta vs poprzednie 28 dni + baseline „Later”; D2 skutek częściowego okna; D4 AC6 usunięte; H1 uniwersum par (migawka = `approved`/`modified`, Engine tylko ze zdarzeń); H2 źródło z `items[].tier` (E02); H3 F1 niezależna od E03; skala delty; próba i mianowniki; bez obietnicy kształtu API; izolacja per sekcja + usunięte twierdzenie o jednym połączeniu; pomocnik `seedUsageEvents` + podział kroku 6; `Kpi` do `_components`; testy SSR dla AC11; tabela pełnej szerokości i filtr wierszy bez wyświetleń; `sessions` z `usageTotals`; etykiety jednostek; revenue per table; daty/locale; stałe okna, `total`/`omitted`, `source`/`modelScore`, długie nazwy w E2E; cięcia (Research, narracja przeglądu, trywialne wiersze). Cross-spec: sesje vs rachunki (R4), Wymagania R1–R12, bramki faz. Rejected: D3 stolik w konwersji — E02 ustalił konwersję tylko dla ścieżki dania. Partial: sortowanie „niska konwersja” — bez AC i z arbitralnym progiem; zostaje „Show all” + wiersze bez wyświetleń.
 - 2026-10-15 — grill: 27 questions, 1 left for owner (Q12); Q3 i Q7 zdjęte z ⚠.
+- 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 
 ## Realizacja
