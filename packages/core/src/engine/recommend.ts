@@ -1,4 +1,5 @@
 import type { Dish, GuestPreferences, Pairing, PairingRole, Wine } from '../domain/types';
+import type { Locale } from '../i18n/locale';
 import { pairingScore } from './scoring';
 
 /**
@@ -90,7 +91,9 @@ export function recommendForDish(
   wines: Wine[],
   pairings: Pairing[],
   prefs: GuestPreferences,
-  limit = DEFAULT_LIMIT
+  limit = DEFAULT_LIMIT,
+  /** language of the engine's `why` and the notice; the sommelier's note is shown as written */
+  locale: Locale = 'en'
 ): RecommendationResult {
   const forDish = new Map(pairings.filter((p) => p.dishId === dish.id).map((p) => [p.wineId, p]));
 
@@ -101,7 +104,7 @@ export function recommendForDish(
       const pairing = forDish.get(wine.id);
       if (pairing?.status === 'rejected') continue;
       if (!passesHardFilters(wine, prefs, ignoreBudget)) { if (wine.active) filteredOut++; continue; }
-      const { score, why } = pairingScore(dish, wine);
+      const { score, why } = pairingScore(dish, wine, locale);
       const tier = tierFor(pairing);
       if (tier === 2 && score < MIN_MODEL_SCORE) continue;
       const { price, serving } = priceFor(wine, prefs.serving);
@@ -131,10 +134,17 @@ export function recommendForDish(
   let notice: string | null = null;
   if (list.length === 0 && prefs.maxPrice !== null) {
     list = build(true).list.slice(0, 2);
-    if (list.length > 0) notice = `Nothing matches under ${prefs.maxPrice} zł. These are the closest options.`;
+    if (list.length > 0) notice = budgetNotice(prefs.maxPrice, locale);
   }
   markBestValue(list);
   return { items: list, notice, filteredOut };
+}
+
+/** The notice shown when nothing fits the guest's budget and the closest options are listed instead. */
+export function budgetNotice(maxPrice: number, locale: Locale = 'en'): string {
+  return locale === 'pl'
+    ? `Nic nie mieści się w budżecie do ${maxPrice}\u00a0zł. Oto najbliższe propozycje.`
+    : `Nothing matches under ${maxPrice} zł. These are the closest options.`;
 }
 
 /**

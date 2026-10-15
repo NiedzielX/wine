@@ -1,17 +1,21 @@
 import type { Metadata } from 'next';
-import { DishList, GuestColumns, ModeSwitch, TopBar } from '../../../_components/guest-ui';
+import { DishList, GuestColumns, LanguageSwitch, ModeSwitch, TopBar } from '../../../_components/guest-ui';
 import { RestaurantHero } from '../../../_components/restaurant-hero';
-import { guestContext, hrefWith, notFound, type SearchParams } from '@/server/guest-page';
+import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
+import { getI18n } from '@/server/i18n';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Menu' };
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).t.guest.meta.menu };
+}
 
 type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 
 /** G1 — dish list. A dish opens its wines directly; the guest's preferences travel in the links. */
 export default async function MenuPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const { prefs, services } = await guestContext(searchParams);
+  const { prefs, services, t, locale, href, langHrefs } = await guestContext(searchParams);
   const { catalogService } = services;
   const menu = await catalogService.publishedMenu(slug);
   if (!menu) notFound();
@@ -19,16 +23,16 @@ export default async function MenuPage({ params, searchParams }: Props) {
 
   const main = (
     <main className="flex-1 px-5 pt-5 pb-8">
-      <ModeSwitch dishHref={hrefWith(`/r/${slug}/menu`, prefs)} tableHref={hrefWith(`/r/${slug}/table`, prefs)} mode="dish" />
+      <ModeSwitch dishHref={href(`/r/${slug}/menu`, prefs)} tableHref={href(`/r/${slug}/table`, prefs)} mode="dish" t={t} />
       {menu.dishes.length === 0 ? (
         <div className="py-12 text-center">
-          <h2 className="font-serif text-2xl">Tonight’s menu is being updated</h2>
-          <p className="mt-2 text-ink-2">Your waiter can suggest a wine in the meantime.</p>
+          <h2 className="font-serif text-2xl">{t.guest.menu.updatingTitle}</h2>
+          <p className="mt-2 text-ink-2">{t.guest.menu.updatingText}</p>
         </div>
       ) : (
         <>
-          <p className="text-ink-2">Pick the dish you’re ordering.</p>
-          <DishList dishes={menu.dishes} coverage={coverage} hrefFor={(d) => hrefWith(`/r/${slug}/dish/${d.id}/wines`, prefs)} />
+          <p className="text-ink-2">{t.guest.menu.pickLead}</p>
+          <DishList dishes={menu.dishes} coverage={coverage} t={t} locale={locale} hrefFor={(d) => href(`/r/${slug}/dish/${d.id}/wines`, prefs)} />
         </>
       )}
     </main>
@@ -36,8 +40,8 @@ export default async function MenuPage({ params, searchParams }: Props) {
 
   return (
     <>
-      <TopBar back={hrefWith(`/r/${slug}`, prefs)} title={menu.restaurant.name} />
-      <GuestColumns main={main} asideLabel="Restaurant" aside={<RestaurantHero restaurant={menu.restaurant} compact />} />
+      <TopBar back={href(`/r/${slug}`, prefs)} title={menu.restaurant.name} t={t} langSwitch={<LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${slug}/menu`)} t={t} />} />
+      <GuestColumns main={main} asideLabel={t.guest.hero.restaurant} aside={<RestaurantHero restaurant={menu.restaurant} compact t={t} />} />
     </>
   );
 }

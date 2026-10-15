@@ -76,6 +76,23 @@ await check('G5 table selection', `${R}/table`, { has: ['Tick everything your ta
 await check('G6 table result', `${R}/table/result?dish=${tartare}&dish=${risotto}&dish=${duck}`, { has: ['Recommended for your table', 'Overall match', 'Savigny', '85%'] });
 await check('G6 table with one dish', `${R}/table/result?dish=${duck}`, { has: ['Add at least two dishes'] });
 await check('G9 staff lookup', `${R}/staff?dish=${duck}`, { has: ['Say:', 'Wine Director’s first choice', 'no. 112'] });
+// --- Polish interface (spec 2026-10-15-polish-language): language from the browser, `?lang` wins, the API stays English
+const PL = { 'accept-language': 'pl-PL,pl;q=0.9' };
+await check('G0 in Polish from Accept-Language', R, { headers: PL, has: ['<html lang="pl"', 'Wybierz danie', 'Pokażemy wina z naszej karty, które do niego pasują.', 'Dobierz butelkę do stolika', `${R}?lang=en`], hasNot: ['Pick your dish'] });
+await check('G0 in English without Accept-Language', R, { has: ['<html lang="en"', 'Pick your dish'], hasNot: ['Wybierz danie'] });
+await check('G0 in English for an English browser', R, { headers: { 'accept-language': 'en-GB' }, has: ['Pick your dish'] });
+await check('G0 links do not carry a language from the browser', R, { headers: PL, has: [`href="${R}/dish/${duck}/wines"`], hasNot: [`${R}/dish/${duck}/wines?lang=`] });
+await check('G0 ?lang=en wins over a Polish browser and travels in the links', `${R}?lang=en`, { headers: PL, has: ['<html lang="en"', 'Pick your dish', `${R}/dish/${duck}/wines?lang=en`, `${R}/table?lang=en`, `${R}/staff?lang=en`, 'aria-current="true"'], hasNot: ['Wybierz danie'] });
+await check('G3 in Polish: engine reason translated, sommelier note as written', `${R}/dish/${duck}/wines`, { headers: PL, has: ['<html lang="pl"', 'Rekomendacja sommeliera', 'Pinot and sour cherry jus', 'Też pasuje do tego dania', 'Świeża kwasowość równoważy bogactwo potrawy', 'Na kieliszki', 'Więcej…', 'Czerwone', 'Kieliszek 64\u00a0zł', 'dopasowanie'], hasNot: ['Also good with this dish', 'AI'] });
+await check('G3 ?lang=pl without a header', `${R}/dish/${duck}/wines?lang=pl&serving=glass`, { has: ['Rekomendacja sommeliera', `${R}/menu?serving=glass&amp;lang=pl`] });
+await check('G3 budget notice in Polish', `${R}/dish/${dish('Dry-aged ribeye, 300 g')}/wines?serving=glass&maxPrice=45`, { headers: PL, has: ['Nic nie mieści się w budżecie do 45\u00a0zł'] });
+await check('G5 in Polish keeps an explicit language in the form', `${R}/table?lang=pl`, { has: ['Dania główne', 'Znajdź butelkę dla stolika', 'name="lang" value="pl"'] });
+await check('G7 in Polish keeps an explicit language in the form', `${R}/wine/${wine}?dish=${duck}&lang=pl`, { has: ['Wybierz to wino', 'name="lang" value="pl"', 'Marta Wierzbicka, Wine Director'] });
+await check('G8 in Polish', `${R}/selected/${wine}?serving=glass&dish=${duck}`, { headers: PL, has: ['Pokaż to kelnerowi.', '1 kieliszek, 150 ml, 64\u00a0zł'] });
+await check('unknown restaurant in Polish', '/r/nope', { status: 404, headers: PL, has: ['To menu jest niedostępne'] });
+const apiPl = await (await fetch(`${base}/api/v1/dishes/${duck}/recommendations?restaurant=${slug}`, { headers: PL })).json();
+expect('API recommendations stay English with a Polish browser', JSON.stringify(apiPl.items.map((i) => i.why)) === JSON.stringify(recs.items.map((i) => i.why)) && apiPl.items.some((i) => /^[A-Z][a-z]/.test(i.why) && !/[ąęłśżź]/.test(i.why)), JSON.stringify(apiPl.items.map((i) => i.why)));
+
 await check('unknown restaurant', '/r/nope', { status: 404 });
 await check('unknown restaurant (menu)', '/r/nope/menu', { status: 404 });
 

@@ -134,6 +134,8 @@ Tabela jest danymi, nie kodem warunkowym — w produkcji trzymana w `EngineVersi
 
 Dwa najsilniejsze czynniki dodatnie z polem `why` łączone w zdanie, np. *„Pinot Noir’s red fruit mirrors the cherry and roasted skin, and fresh acidity cuts through the richness.”* Remis rozstrzyga nazwa reguły (determinizm). Brak czynników dodatnich → *„A balanced, food-friendly red wine for this dish.”* Komentarz sommeliera zawsze zastępuje tekst wygenerowany.
 
+**Języki (spec `2026-10-15-polish-language`).** Każdy tekst `why` jest parą `{ en, pl }` zapisaną przy samej regule (w `add()` i w `AFFINITIES`), więc reguła bez polskiego tekstu nie przejdzie kompilacji. Czynnik ma `why` (EN, bez zmian w API) i `whyPl`. `explain(factors, wine, locale = 'en')` składa zdanie w danym języku: po polsku dwa czynniki łączy „, a ”, a zdanie awaryjne brzmi *„Wszechstronne, zrównoważone wino czerwone, które dobrze pasuje do tego dania.”* (`styleWord(wine, 'pl')`). Tak samo `locale` przyjmują `recommendForDish`, `recommendForTable` (uzasadnienia stolika: nazwy dań bez odmiany, w cudzysłowie) i komunikat budżetu. Wynik, czynniki i kolejność nie zależą od języka. Publiczne API (`/api/v1`) nie przekazuje `locale` — jego `why` i `notice` są zawsze po angielsku. Komentarz sommeliera wyświetlany jest tak, jak go wpisano.
+
 ### Przykład: Duck breast × Savigny-lès-Beaune
 
 | Czynnik | Delta |

@@ -3,7 +3,7 @@
 - Date: 2026-10-15
 - Mode: existing (produkt zbudowany, bez prawdziwych użytkowników), z kontrolami trybu `own`; Owner: Filip (product owner); Pass: full, prowadzony przez agenta bez rozmowy — decyzje spoza zatwierdzonych specyfikacji mają status `proposal`
 - Evidence basis: tylko dokumenty zespołu (brief MVP zatwierdzony przez Filipa 2026-10-14; decyzje fazy 5 — import i QR — czekają na jego przegląd) oraz działający kod. Brak wywiadów, danych sprzedaży, benchmarku i pilotażowej restauracji. Najbardziej ryzykowne niesprawdzone przekonanie: że restauracje premium tracą sprzedaż wina, bo goście nie wiedzą, co wybrać (A01).
-- Coverage: 42 claims — 31 sourced (interview 0, data 0, document 26, product 5, benchmark 0), 0 synthetic, 11 assumed; 6 entries on the collection plan
+- Coverage: 43 claims — 32 sourced (interview 0, data 0, document 27, product 5, benchmark 0), 0 synthetic, 11 assumed; 6 entries on the collection plan
 - Synthetic hypotheses outside Coverage: 0
 - Definition of Ready signed by: Filip (product owner), z uchyleniem wymogu dowodów dla Problems i Target group (D09); ready for: implementation planning of the stated scope
 - Sources: `.ai/specs/research/README.md`, `.ai/specs/implemented/2026-10-14-wine-match-mvp-concept.md`, `.ai/specs/implemented/2026-10-14-phase4-authentication.md`, `docs/PRODUCT_CONCEPT.md`, `docs/USER_ROLES.md`, `docs/USER_FLOWS.md`, `AGENTS.md`, `packages/app/src/app/(guest)/`, `packages/app/src/app/(admin)/`, `packages/core/src/engine/recommend.ts`
@@ -106,11 +106,12 @@ Benchmark odłożony: żaden produkt nie został sprawdzony w źródle (Collecti
 | D03 | 2026-10-14 | Kelner bez logowania, przez publiczny widok `/r/{slug}/staff` | zapisane w specyfikacji fazy 4 bez uzasadnienia | Filip | active | unknown | product owner | `[DOCUMENT]` .ai/specs/implemented/2026-10-14-phase4-authentication.md | none |
 | D04 | 2026-10-14 | North Star: Wine Attach Rate z eksportu POS | mierzy cel biznesowy klienta | Filip | active | unknown | product owner | `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §6 | none |
 | D05 | 2026-10-14 | Restauracja demo Halka jako dane pokazowe | pokaz bez prawdziwego klienta | Filip | active | unknown | product owner | `[DOCUMENT]` .ai/specs/implemented/2026-10-14-wine-match-mvp-concept.md | none |
-| D06 | 2026-10-14 | Interfejs po angielsku | zgodnie z briefem | Filip | active | unknown | product owner | `[DOCUMENT]` .ai/specs/implemented/2026-10-14-wine-match-mvp-concept.md „Realizacja” | none |
+| D06 | 2026-10-14 | Interfejs po angielsku | zgodnie z briefem | Filip | superseded | unknown | product owner | `[DOCUMENT]` .ai/specs/implemented/2026-10-14-wine-match-mvp-concept.md „Realizacja” | none |
 | D07 | 2026-10-14 | Plany Essential 390 zł, Professional 790 zł, Group — wycena | ceny orientacyjne „do walidacji z pierwszymi klientami” | Filip | proposal | po C05 | product owner | `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §5 | none |
 | D08 | 2026-10-15 | Wstrzymać nowe funkcje do czasu badań i pilotażu; Now = Collection plan | brak dowodów problemu i pomiaru; rekomendacja agenta, niepotwierdzona | pending (Filip) | superseded | — | product owner | `[ASSUMPTION]` rekomendacja agenta w tym briefie | none |
 | D09 | 2026-10-15 | Domknąć technicznie zakres MVP (D01) i przygotować pilotaż na przyjętych, niesprawdzonych założeniach A01–A06 | właściciel potrzebuje backlogu technicznego; przyjmuje ryzyko założeń | Filip | active | po wynikach #3–#9 lub pilotażu | product owner | `[DOCUMENT]` .ai/specs/research/decisions/2026-10-15-d09-build-on-accepted-assumptions.md | D08 |
 | D10 | 2026-10-15 | Hosting pilota: obraz OCI niezależny od dostawcy, referencyjnie jedna VM w UE z Docker Compose i PostgreSQL 16; `PUBLIC_BASE_URL` w produkcji tylko https z hostem publicznym | rekomendacja ze spec wdrożenia przyjęta przez właściciela | Filip | active | po pilotażu | product owner | `[DOCUMENT]` .ai/specs/2026-10-15-production-deployment.md (Q2, Q6) | none |
+| D11 | 2026-10-15 | Interfejs PL i EN; język z przeglądarki, przełącznik; supersedes D06 | pierwsze restauracje i goście są w Polsce (Q04); prośba właściciela | Filip | active | po pilotażu | product owner | `[DOCUMENT]` .ai/specs/2026-10-15-polish-language.md | D06 |
 
 ## Riskiest assumptions
 
@@ -138,7 +139,7 @@ Brak — nie przeprowadzono symulacji `om-synthetic-users`.
 | Q01 | Którzy właściciele, GM i sommelierzy są dostępni do rozmów? | yes — blokuje C01, C05 | product owner | open |
 | Q02 | Jaki próg Wine Attach Rate i w jakim czasie uznamy za sukces pilotażu? | yes — blokuje plan pilotażu (C06) | product owner | open |
 | Q03 | Czy pilotażowa restauracja może wyeksportować dane sprzedaży z POS? | yes — blokuje C03 | GM restauracji | open |
-| Q04 | Czy interfejs gościa ma być też po polsku? | no | product owner | open |
+| Q04 | Czy interfejs gościa ma być też po polsku? | no | product owner | closed — D11 |
 | Q05 | Czy przed pilotażem budujemy pomiar (zdarzenia użycia, import sprzedaży z CSV)? | no | product owner | closed — tak, D09 |
 | Q06 | Kto jest Domain expertem (sommelier) zatwierdzającym R01, R02, R04? | no — reguły obowiązują, brak tylko właściciela zmian | product owner | open |
 | Q07 | Czy Filip akceptuje decyzje fazy 5 (import i QR), oznaczone „Do przeglądu”? | no | product owner | open |

@@ -4,6 +4,7 @@
  */
 export * from './domain/types';
 export * from './errors';
+export * from './i18n/locale';
 export * from './logging/logger';
 export * from './logging/redact';
 export * from './config/env';
