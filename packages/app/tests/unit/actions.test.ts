@@ -231,3 +231,47 @@ describe('the small helpers of the actions and the pages', () => {
     void logout;
   });
 });
+
+describe('translation actions (spec 2026-10-15-bilingual-content, R6)', () => {
+  const dishOf = async (name: string) => {
+    const scope = await createRequestScope();
+    try { return (await scope.cradle.adminService.menu('halka'))!.rows.find((r) => r.dish.name === name)!.dish; } finally { await scope.dispose(); }
+  };
+
+  it('saves a dish translation through the service, reports it and refuses a stale version or a too-long text', async () => {
+    await signIn('marta@halka.pl');
+    const duck = await dishOf('Duck breast');
+    const back = `/admin/halka/menu/${duck.id}`;
+    const { translationsVersion } = await import('@wine-match/core');
+    const ok = await redirectOf(() => pairing.saveDishTranslations(form({ slug: 'halka', back, dishId: duck.id, version: translationsVersion(duck.translations), name_pl: 'Pierś z kaczki z wiśniami', description_pl: '', name_en: '', description_en: '' })));
+    expect(ok).toBe(`${back}?saved=translations`);
+    expect((await dishOf('Duck breast')).translations).toEqual({ pl: { name: 'Pierś z kaczki z wiśniami' } });
+    expect(await redirectOf(() => pairing.saveDishTranslations(form({ slug: 'halka', back, dishId: duck.id, version: translationsVersion(duck.translations), name_pl: 'X' })))).toBe(`${back}?error=version_conflict`);
+    expect(await redirectOf(() => pairing.saveDishTranslations(form({ slug: 'halka', back, dishId: duck.id, name_pl: 'x'.repeat(200) })))).toBe(`${back}?error=translation_invalid`);
+  });
+
+  it('wine translations, the note in two languages and the restaurant content', async () => {
+    await signIn('tomasz@halka.pl');   // the general manager imports, so may translate
+    const scope = await createRequestScope();
+    const wine = (await scope.cradle.adminService.wines('halka'))!.rows[0].wine;
+    await scope.dispose();
+    expect(await redirectOf(() => pairing.saveWineTranslations(form({ slug: 'halka', back: '/admin/halka/wines', wineId: wine.id, tastingNote_en: 'Chalky.' })))).toBe('/admin/halka/wines?saved=translations');
+    expect(await redirectOf(() => imports.saveRestaurantContent(form({ slug: 'halka', back: '/admin/halka/setup', contentLocale: 'en', city_pl: 'Warszawa', tagline_pl: '', city_en: '', tagline_en: '' })))).toBe('/admin/halka/setup?saved=content');
+    expect(await redirectOf(() => imports.saveRestaurantContent(form({ slug: 'halka', back: '/admin/halka/setup', contentLocale: 'de' })))).toBe('/admin/halka/setup?error=translation_invalid');
+    // the manager does not decide pairings: the note form is refused for him
+    const { rows } = await pairingsOf('Duck breast');
+    const p = rows.find((x) => x.role === 'primary')!;
+    expect(await redirectOf(() => pairing.savePairingNote(form({ slug: 'halka', back: '/admin/halka/pairings', pairingId: p.id, comment: 'x', comment_pl: 'y' })))).toMatch(/error=forbidden/);
+    await signIn('marta@halka.pl');
+    const note = await redirectOf(() => pairing.savePairingNote(form({ slug: 'halka', back: '/admin/halka/pairings', pairingId: p.id, version: String(p.version), comment: p.comment ?? '', comment_pl: 'Notatka po polsku', comment_en: '' })));
+    expect(note).toBe('/admin/halka/pairings?saved=note');
+    expect((await pairingsOf('Duck breast')).rows.find((x) => x.id === p.id)!.commentTranslations).toEqual({ pl: 'Notatka po polsku' });
+  });
+
+  it('a signed-out post goes to the sign-in page; the waiter role has no translation permission', async () => {
+    state().cookies.delete(SESSION_COOKIE);
+    expect(await redirectOf(() => pairing.saveDishTranslations(form({ slug: 'halka', back: '/admin/halka/menu', dishId: 'x' })))).toMatch(/^\/admin\/login\?next=/);
+    const { can } = await import('@wine-match/core');
+    expect(can('waiter', 'import.manage')).toBe(false);
+  });
+});

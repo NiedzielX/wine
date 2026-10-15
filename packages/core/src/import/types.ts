@@ -27,7 +27,8 @@ export type ImportIssueCode =
   | 'category_unknown' | 'category_missing' | 'description_long'
   | 'producer_missing' | 'wine_name_from_grape' | 'wine_name_missing' | 'wine_name_too_long'
   | 'vintage_missing' | 'vintage_invalid' | 'grape_missing' | 'style_unknown' | 'style_missing' | 'style_missing_from_grape'
-  | 'bottle_price_missing' | 'bottle_price_invalid' | 'glass_price_invalid' | 'glass_price_not_lower';
+  | 'bottle_price_missing' | 'bottle_price_invalid' | 'glass_price_invalid' | 'glass_price_not_lower'
+  | 'translation_empty' | 'translation_too_long';
 
 /** One row of the preview. All values are text, exactly as the user can edit them. */
 export interface ImportRow {
@@ -78,6 +79,14 @@ export const IMPORT_LIMITS = { maxBytes: 10 * 1024 * 1024, maxRows: 2000 } as co
 
 export const MENU_FIELDS = ['category', 'name', 'description', 'price'] as const;
 export const WINE_FIELDS = ['producer', 'name', 'vintage', 'region', 'country', 'grape', 'style', 'glassPrice', 'bottlePrice'] as const;
+
+/**
+ * Translation columns (spec 2026-10-15-bilingual-content, R5): optional, never in the default column order. A row has
+ * such a field only when its column is in the file; an empty cell means "no change" (and a warning).
+ */
+export const MENU_TRANSLATION_FIELDS = ['name_pl', 'name_en', 'description_pl', 'description_en'] as const;
+export const WINE_TRANSLATION_FIELDS = ['tasting_note_pl', 'tasting_note_en', 'region_pl', 'region_en', 'country_pl', 'country_en'] as const;
+export const TRANSLATION_FIELDS = { menu: MENU_TRANSLATION_FIELDS, wines: WINE_TRANSLATION_FIELDS } as const;
 
 export const DISH_CATEGORIES: DishCategory[] = ['Starters', 'Mains', 'Desserts'];
 

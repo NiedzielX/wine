@@ -1,5 +1,5 @@
-import { Alert, AlertDescription, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from '@wine-match/ui';
-import type { SetupStep, SetupStepKey } from '@wine-match/core';
+import { Alert, AlertDescription, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, NativeSelect, NativeSelectOption } from '@wine-match/ui';
+import { LOCALES, TEXT_LIMITS, restaurantContentVersion, type SetupStep, type SetupStepKey } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -7,7 +7,7 @@ import { Page, PageHeader } from '../../_components/admin-shell';
 import { ActionButton, Hidden } from '../../_components/action-form';
 import { Flash, ReadOnlyNotice } from '../../_components/flash';
 import { first } from '../../_components/format';
-import { saveRestaurantDetails, generateSuggestions } from '../import-actions';
+import { saveRestaurantContent, saveRestaurantDetails, generateSuggestions } from '../import-actions';
 import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { env } from '@/server/env';
@@ -26,19 +26,23 @@ export default async function SetupPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
   const access = await requireAccess(slug);
-  const setup = await (await getRequestScope()).cradle.adminService.setup(slug);
+  const { locale, t } = await getI18n();
+  const setup = await (await getRequestScope()).cradle.adminService.setup(slug, locale);
   if (!setup) notFound();
-  const r = setup.restaurant;
+  // the forms edit what is stored; the checklist shows the restaurant in the dashboard's language
+  const r = setup.source;
+  const canTranslate = access.can('import.manage');
   const base = `/admin/${slug}`;
   const canEdit = access.can('restaurant.edit');
   const next = setup.steps.find((s) => !s.done);
   const common = { slug, back: `${base}/setup` };
-  const { t } = await getI18n();
   const m = t.admin.setup;
+  const tr = t.admin.translations;
+  const names = t.common.languageNames;
   const HREFS: Partial<Record<SetupStepKey, string>> = {
     menu: `${base}/import/menu`, wines: `${base}/import/wines`, profiles: `${base}/menu`, pairings: `${base}/review`, publish: `${base}/publish`, qr: `${base}/qr`
   };
-  const detail = (s: SetupStep) => (s.state === 'details' ? m.states.details(r) : m.states[s.state](s.values));
+  const detail = (s: SetupStep) => (s.state === 'details' ? m.states.details(setup.restaurant) : m.states[s.state](s.values));
 
   return (
     <Page>
@@ -75,6 +79,32 @@ export default async function SetupPage({ params, searchParams }: Props) {
                   <p className="text-xs text-muted-foreground">{m.slugHelpBefore} <code>{guestUrl(r.slug)}</code>. <b className="font-medium">{m.slugWarning}</b></p>
                 </div>
                 {canEdit && <div><Button type="submit">{m.save}</Button></div>}
+              </form>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>{tr.contentTitle}</CardTitle><CardDescription>{tr.contentText} {tr.afterPublish}</CardDescription></CardHeader>
+            <CardContent>
+              {!canTranslate && <ReadOnlyNotice>{tr.readOnly}</ReadOnlyNotice>}
+              <form action={saveRestaurantContent} className="grid gap-4">
+                <Hidden fields={{ ...common, version: restaurantContentVersion(r) }} />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="contentLocale">{tr.contentLocale}</Label>
+                  <NativeSelect id="contentLocale" name="contentLocale" defaultValue={r.contentLocale} disabled={!canTranslate}>
+                    {LOCALES.map((l) => <NativeSelectOption key={l} value={l}>{names[l]}</NativeSelectOption>)}
+                  </NativeSelect>
+                  <p className="text-xs text-muted-foreground">{tr.contentWarning}</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {LOCALES.map((l) => (
+                    <fieldset key={l} lang={l} className="grid min-w-0 content-start gap-3">
+                      <legend className="mb-1 font-medium">{names[l]}</legend>
+                      <div className="grid gap-1.5"><Label htmlFor={`tagline_${l}`}>{tr.field(tr.fields.tagline, l.toUpperCase())}</Label><Input id={`tagline_${l}`} name={`tagline_${l}`} defaultValue={r.translations[l]?.tagline ?? ''} placeholder={r.tagline} maxLength={TEXT_LIMITS.tagline} readOnly={!canTranslate} /></div>
+                      <div className="grid gap-1.5"><Label htmlFor={`city_${l}`}>{tr.field(tr.fields.city, l.toUpperCase())}</Label><Input id={`city_${l}`} name={`city_${l}`} defaultValue={r.translations[l]?.city ?? ''} placeholder={r.city} maxLength={TEXT_LIMITS.city} readOnly={!canTranslate} /></div>
+                    </fieldset>
+                  ))}
+                </div>
+                {canTranslate && <div><Button type="submit">{tr.saveContent}</Button></div>}
               </form>
             </CardContent>
           </Card>

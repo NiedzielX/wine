@@ -12,6 +12,7 @@ export const en = {
   common: {
     language: 'Language',
     languageNames: { pl: 'Polski', en: 'English' },
+    languageShort: { pl: 'PL', en: 'EN' },
     back: 'Back',
     close: 'Close'
   },
@@ -289,7 +290,9 @@ export const en = {
         import_cancelled: () => 'Import cancelled. Nothing was changed.',
         details: () => 'Details saved.',
         details_slug: () => 'Details saved. The address of your guest app changed: print new QR codes, the old ones no longer work.',
-        suggestions: (n: number) => `${n} engine suggestions added.`
+        suggestions: (n: number) => `${n} engine suggestions added.`,
+        translations: () => 'Translations saved. Guests see them after you publish.',
+        content: () => 'Content language and translations saved. Guests see them after you publish.'
       },
       errors: {
         version_conflict: 'This pairing was changed by someone else a moment ago. The page now shows the latest version, please try again.',
@@ -324,6 +327,7 @@ export const en = {
         invalid_kind: 'Import either the menu or the wine list.',
         slug_taken: 'Another restaurant already uses this address name. Choose another.',
         validation_failed: 'Check the details. The address name can use only lowercase letters, digits and hyphens (2 to 40 characters) and must not be a reserved word.',
+        translation_invalid: 'Check the translations: one of them is too long.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -512,6 +516,9 @@ export const en = {
       notePlaceholder: 'Shown as “Why it works”. 140 characters.',
       noteLabel: 'Note for guests',
       saveNote: 'Save note',
+      noteIn: (lang: string) => `Note in ${lang}`,
+      noteBase: 'Base note',
+      noteTranslationsHelp: 'Guests see the note in their language; an empty field shows the base note.',
       suggestionsTitle: 'Engine suggestions',
       suggestionsText: 'Guests see these as “Best match”, never as your recommendation, until you approve them.',
       approveAll: (n: number) => `Approve all ${n}`,
@@ -605,6 +612,21 @@ export const en = {
       link: 'Link',
       linkText: 'The same address, for a menu, a website or a message.'
     },
+    translations: {
+      title: 'Translations',
+      text: 'Guests and the dashboard show the version in their language. An empty field shows the base text.',
+      base: (lang: string) => `Base text (${lang})`,
+      field: (field: string, lang: string) => `${field} (${lang})`,
+      fields: { name: 'Name', description: 'Description', tastingNote: 'Tasting note', region: 'Region', country: 'Country', tagline: 'Tagline', city: 'City' },
+      save: 'Save translations',
+      afterPublish: 'Guests see changes after you publish.',
+      readOnly: 'Your role cannot change translations.',
+      contentTitle: 'Content language and translations',
+      contentText: 'The language your menu, wine list and notes were written in (the base texts), and the tagline and city in both languages.',
+      contentLocale: 'Language of the base texts',
+      contentWarning: 'Changing this language translates nothing: it only says which language the base texts are in.',
+      saveContent: 'Save'
+    },
     setup: {
       title: 'Setup',
       description: 'Everything that takes a restaurant from an empty account to guests scanning a code.',
@@ -660,6 +682,8 @@ export const en = {
         wines: { noun: (n: number): string => (n === 1 ? 'wine' : 'wines'), columns: 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price', hint: 'New wines are on your list at once and get engine pairing suggestions for your review.', updates: 'prices' }
       },
       columns: {
+        name_pl: 'Name (PL)', name_en: 'Name (EN)', description_pl: 'Description (PL)', description_en: 'Description (EN)',
+        tasting_note_pl: 'Tasting note (PL)', tasting_note_en: 'Tasting note (EN)', region_pl: 'Region (PL)', region_en: 'Region (EN)', country_pl: 'Country (PL)', country_en: 'Country (EN)',
         category: 'Category', name: 'Name', description: 'Description', price: 'Price (zł)',
         producer: 'Producer', wineName: 'Wine', vintage: 'Vintage', region: 'Region', country: 'Country', grape: 'Grape', style: 'Style', glassPrice: 'Glass', bottlePrice: 'Bottle'
       },
@@ -674,6 +698,7 @@ export const en = {
       pricesAnd: 'and',
       pricesAfter: 'are fine. PDFs are read as text and are less precise: check every row.',
       sample: 'Download a sample CSV',
+      translationsHint: 'Optional translation columns: add _pl or _en to a column name (name_pl, description_en, tasting_note_pl, region_en, country_pl).',
       recent: 'Recent imports',
       recentResult: (created: number, updated: number) => `${created} new, ${updated} updated`,
       continue: 'Continue',
@@ -743,7 +768,9 @@ export const en = {
         bottle_price_missing: () => 'Bottle price is missing.',
         bottle_price_invalid: (p: IssueParams) => `“${p.value}” is not a price.`,
         glass_price_invalid: (p: IssueParams) => `“${p.value}” is not a price.`,
-        glass_price_not_lower: () => 'The glass price must be lower than the bottle price.'
+        glass_price_not_lower: () => 'The glass price must be lower than the bottle price.',
+        translation_empty: () => 'Empty translation: the current one is kept.',
+        translation_too_long: () => 'The translation is too long.'
       } as Record<ImportIssueCode | 'exists_menu', (p: IssueParams) => string>
     }
   }

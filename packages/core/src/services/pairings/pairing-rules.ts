@@ -1,5 +1,7 @@
 import type { Pairing, PairingRole } from '../../domain/types';
 import { ValidationError } from '../../errors';
+import { cleanCommentTranslations, sameTranslations, type CommentTranslations } from '../../i18n/content';
+import { LOCALES } from '../../i18n/locale';
 import type { DecisionAction, DecisionRecord, PairingChangeSet, PairingOp } from '../../ports/repositories';
 
 /**
@@ -19,8 +21,9 @@ export function orderReviewed(pairings: Pairing[]): Pairing[] {
     .sort((a, b) => (a.role === 'primary' ? 0 : 1) - (b.role === 'primary' ? 0 : 1) || (a.rank ?? 99) - (b.rank ?? 99) || b.modelScore - a.modelScore || a.id.localeCompare(b.id));
 }
 
-interface Fields { status: Pairing['status']; role: PairingRole | null; rank: number | null; comment: string | null }
-const fieldsOf = (p: Pairing): Fields => ({ status: p.status, role: p.role, rank: p.rank, comment: p.comment });
+interface Fields { status: Pairing['status']; role: PairingRole | null; rank: number | null; comment: string | null; commentTranslations: CommentTranslations }
+const fieldsOf = (p: Pairing): Fields => ({ status: p.status, role: p.role, rank: p.rank, comment: p.comment, commentTranslations: { ...(p.commentTranslations ?? {}) } });
+const sameField = (k: keyof Fields, a: Fields, b: Fields) => (k === 'commentTranslations' ? sameTranslations(a[k], b[k]) : a[k] === b[k]);
 
 export interface PlanContext {
   /** display name (kept on the pairing as `updatedBy`) */
@@ -111,7 +114,7 @@ export class DishPlan {
       }
       const after = fieldsOf(now);
       const patch: Partial<Fields> = {};
-      (Object.keys(after) as Array<keyof Fields>).forEach((k) => { if (after[k] !== before[k]) (patch as Record<string, unknown>)[k] = after[k]; });
+      (Object.keys(after) as Array<keyof Fields>).forEach((k) => { if (!sameField(k, after, before)) (patch as Record<string, unknown>)[k] = after[k]; });
       if (Object.keys(patch).length === 0) continue;
       ops.push({ kind: 'update', id, expectedVersion, patch: { ...patch, updatedBy: this.ctx.actor, updatedAt: this.ctx.at } });
       decisions.push(this.decision(now, actionOf(before, after), before, after));
@@ -132,7 +135,7 @@ function actionOf(before: Fields, after: Fields): DecisionAction {
     return 'approve';
   }
   if (after.role !== before.role) return 'set_role';
-  if (after.comment !== before.comment) return 'comment';
+  if (after.comment !== before.comment || !sameField('commentTranslations', after, before)) return 'comment';
   return 'reorder';
 }
 
@@ -176,13 +179,24 @@ export function setRole(plan: DishPlan, id: string, role: PairingRole): void {
   plan.normaliseRanks();
 }
 
-export function setComment(plan: DishPlan, id: string, text: string): void {
+/** The note per language (spec 2026-10-15-bilingual-content): the same 140-character rule as the base note. */
+function checkCommentTranslations(input: CommentTranslations): CommentTranslations {
+  const clean = cleanCommentTranslations(input);
+  for (const l of LOCALES) {
+    if ((clean[l] ?? '').length > MAX_COMMENT) throw new ValidationError('comment_too_long', `The note can have at most ${MAX_COMMENT} characters.`, { [`comment_${l}`]: `max_${MAX_COMMENT}` });
+  }
+  return clean;
+}
+
+/** Sets the base note and, when `translations` is given, the note in other languages (an empty one is removed). */
+export function setComment(plan: DishPlan, id: string, text: string, translations?: CommentTranslations): void {
   const comment = checkComment(text);
+  const tr = translations === undefined ? undefined : checkCommentTranslations(translations);
   const p = plan.get(id);
   if (p.status === 'rejected') throw new ValidationError('pairing_rejected', 'Restore the pairing before adding a note.');
-  if (comment === p.comment) return;
+  if (comment === p.comment && (tr === undefined || sameTranslations(tr, p.commentTranslations ?? {}))) return;
   if (!isReviewed(p)) approve(plan, id);
-  plan.update(id, { comment, status: 'modified' });
+  plan.update(id, { comment, status: 'modified', ...(tr !== undefined ? { commentTranslations: tr } : {}) });
 }
 
 export function move(plan: DishPlan, id: string, dir: -1 | 1): void {
@@ -213,7 +227,7 @@ export function addManual(plan: DishPlan, input: ManualPairing, ctx: PlanContext
     plan.update(existing.id, { status, role, comment, rank: null });
   } else {
     plan.create({
-      id: ctx.newId(), dishId: input.dishId, wineId: input.wineId, status, role, rank: null, comment, modelScore: input.modelScore,
+      id: ctx.newId(), dishId: input.dishId, wineId: input.wineId, status, role, rank: null, comment, commentTranslations: {}, modelScore: input.modelScore,
       source: 'sommelier', updatedBy: ctx.actor, updatedAt: ctx.at, dirty: true
     });
   }

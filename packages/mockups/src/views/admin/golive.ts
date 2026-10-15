@@ -148,7 +148,7 @@ function importView(kind: Kind): View {
           if (invalid >= 0) { err.textContent = `Row ${included[invalid] + 1}: add a name and a price, or untick it.`; err.hidden = false; return; }
           const created: Dish[] = sel.map((r) => ({
             id: newId('d'), name: r.name.trim(), description: r.description.trim(), category: r.category, price: Number(r.price),
-            status: 'draft', profile: draftDishProfile(r.name, r.description, r.category)
+            status: 'draft', profile: draftDishProfile(r.name, r.description, r.category), translations: {}
           }));
           state.dishes.push(...created);
           state.pairings.push(...generateSuggestions(created, state.wines).map((p) => ({ ...p, id: newId('p'), dirty: true })));
@@ -166,7 +166,7 @@ function importView(kind: Kind): View {
               region: r.region, country: '', grapes: r.grape ? [r.grape] : [], glassPrice: r.glassPrice ? Number(r.glassPrice) : null, glassPour: profile.style === 'sweet' ? 75 : 150,
               bottlePrice: Number(r.bottlePrice), bottleSize: 750, active: true,
               colour: profile.style === 'red' ? '#6E1F33' : profile.style === 'rose' ? '#EBB3A0' : profile.style === 'orange' ? '#D89B4E' : '#E4D79A',
-              tastingNote: '', profile
+              tastingNote: '', profile, translations: {}
             };
           });
           state.wines.push(...created);

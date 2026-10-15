@@ -17,6 +17,26 @@ const ADMIN_PATH = /^\/admin\/[a-z0-9-]{2,40}(\/[A-Za-z0-9._~%/-]*)?(\?[^\s#]*)?
 export const str = (f: FormData, k: string) => String(f.get(k) ?? '');
 export const version = (f: FormData) => { const n = Number(f.get('version')); return Number.isFinite(n) && n > 0 ? n : undefined; };
 
+/**
+ * The `<field>_pl` / `<field>_en` inputs of a translation form as `{ pl: { field }, en: { field } }`. Only fields the
+ * form has; the service's schema refuses anything else. Keys come from our own list (no client-chosen keys).
+ */
+export function localeFields(f: FormData, fields: readonly string[]): Record<string, Record<string, string>> {
+  return Object.fromEntries((['pl', 'en'] as const)
+    .filter((l) => fields.some((k) => f.has(`${k}_${l}`)))
+    .map((l) => [l, Object.fromEntries(fields.filter((k) => f.has(`${k}_${l}`)).map((k) => [k, str(f, `${k}_${l}`)]))]));
+}
+
+/** A translation that breaks its schema (too long) is reported as `translation_invalid`, not as the generic details error. */
+export async function translationsOrInvalid(run: () => Promise<Record<string, string>>): Promise<Record<string, string>> {
+  try {
+    return await run();
+  } catch (e) {
+    if (domainError(e)?.code === 'validation_failed') return { error: 'translation_invalid' };
+    throw e;
+  }
+}
+
 /** Only paths inside this restaurant's dashboard are accepted (no open redirect). */
 export function safeBack(slug: string, back: string): string {
   const root = `/admin/${slug}`;

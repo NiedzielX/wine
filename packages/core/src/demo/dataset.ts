@@ -48,14 +48,14 @@ export function buildDemoDataset(opts: { ids?: 'raw' | 'uuid' } = {}): DemoDatas
       const dish = dishes.find((x) => x.id === dishId)!;
       const wine = wines.find((x) => x.id === wineId)!;
       p = {
-        id: pairId(dishId, wineId), dishId, wineId, status: 'suggested', role: null, rank: null, comment: null,
+        id: pairId(dishId, wineId), dishId, wineId, status: 'suggested', role: null, rank: null, comment: null, commentTranslations: {},
         modelScore: pairingScore(dish, wine).score, source: 'sommelier', updatedBy: restaurant.wineDirector,
         updatedAt: '2026-10-09T16:20:00.000Z', dirty: false
       };
       pairings.push(p);
     }
     Object.assign(p, {
-      status: s.status, role: s.role ?? null, rank: s.rank ?? null, comment: s.comment ?? null,
+      status: s.status, role: s.role ?? null, rank: s.rank ?? null, comment: s.comment ?? null, commentTranslations: s.commentPl ? { pl: s.commentPl } : {},
       updatedBy: restaurant.wineDirector, updatedAt: '2026-10-09T16:20:00.000Z'
     });
   }

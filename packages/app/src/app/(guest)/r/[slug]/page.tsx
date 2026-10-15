@@ -24,7 +24,7 @@ export default async function LandingPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { prefs, services, t, locale, href, langHrefs } = await guestContext(searchParams);
   const { catalogService } = services;
-  const menu = await catalogService.publishedMenu(slug);
+  const menu = await catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
   const r = menu.restaurant;
   const hasMenu = menu.dishes.length > 0;

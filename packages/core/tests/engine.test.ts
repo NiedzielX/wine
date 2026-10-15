@@ -10,7 +10,7 @@ import { recommendForTable } from '../src/engine/table';
 const dish = (id: string) => DISHES.find((d) => d.id === id) as Dish;
 const wine = (id: string) => WINES.find((w) => w.id === id) as Wine;
 const pairing = (over: Partial<Pairing>): Pairing => ({
-  id: 'p1', dishId: 'd_duck', wineId: 'w_lapierre', status: 'approved', role: 'primary', rank: 1, comment: null,
+  id: 'p1', dishId: 'd_duck', wineId: 'w_lapierre', status: 'approved', role: 'primary', rank: 1, comment: null, commentTranslations: {},
   modelScore: 0, source: 'sommelier', updatedBy: 'test', updatedAt: '2026-01-01', dirty: false, ...over
 });
 

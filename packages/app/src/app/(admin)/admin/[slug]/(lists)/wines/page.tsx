@@ -27,7 +27,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
   const q = first(sp.q);
   const style = WINE_STYLES.find((s) => s === first(sp.style)) as WineStyle | undefined;
   const toggle = (await requireAccess(slug)).can('wines.toggle');
-  const list = await (await getRequestScope()).cradle.adminService.wines(slug, { q, style });
+  const list = await (await getRequestScope()).cradle.adminService.wines(slug, { q, style }, (await getI18n()).locale);
   if (!list) notFound();
   const path = `/admin/${slug}/wines`;
   const { locale, t } = await getI18n();

@@ -2,6 +2,7 @@ import type { ContractRunner } from './contract-types';
 import type { DemoDataset } from '../demo/dataset';
 import type { Pairing } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
+import { countContentChanges } from '../i18n/content';
 import type { DecisionRecord, PairingOp, Repositories } from '../ports/repositories';
 
 /**
@@ -30,6 +31,8 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
     const duckPairs = async () => repos.pairingRepository.listByDish(rid(), duck().id);
     const primary = async () => (await duckPairs()).find((p) => p.role === 'primary')!;
     const suggestion = async () => (await duckPairs()).find((p) => p.status === 'suggested')!;
+    const duck0 = () => ds.dishes.find((d) => d.name === 'Duck breast')!;
+    const OTHER = '00000000-0000-4000-8000-00000000dead';
 
     t.it('updates a pairing, bumps its version and marks it as changed since the last publish', async () => {
       const s = await suggestion();
@@ -79,9 +82,9 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
     t.it('creates and deletes pairings, and keeps the audit trail after a delete', async () => {
       const taken = new Set((await duckPairs()).map((p) => p.wineId));
       const wine = ds.wines.find((w) => w.active && !taken.has(w.id))!;
-      const created: Pairing = { id: '22222222-2222-4222-8222-222222222222', dishId: duck().id, wineId: wine.id, status: 'approved', role: 'alternative', rank: 9, comment: 'Mine', modelScore: 77, source: 'sommelier', updatedBy: 'Test', updatedAt: AT, dirty: true };
+      const created: Pairing = { id: '22222222-2222-4222-8222-222222222222', dishId: duck().id, wineId: wine.id, status: 'approved', role: 'alternative', rank: 9, comment: 'Mine', commentTranslations: { pl: 'Moje' }, modelScore: 77, source: 'sommelier', updatedBy: 'Test', updatedAt: AT, dirty: true };
       await repos.pairingWriteRepository.commit(rid(), { ops: [{ kind: 'create', pairing: created }], decisions: [decision(created, 'create')] });
-      t.expect(await repos.pairingRepository.findById(rid(), created.id)).toMatchObject({ comment: 'Mine', source: 'sommelier', modelScore: 77, dirty: true });
+      t.expect(await repos.pairingRepository.findById(rid(), created.id)).toMatchObject({ comment: 'Mine', commentTranslations: { pl: 'Moje' }, source: 'sommelier', modelScore: 77, dirty: true });
       const stored = (await repos.pairingRepository.findById(rid(), created.id))!;
       await repos.pairingWriteRepository.commit(rid(), { ops: [{ kind: 'delete', id: created.id, expectedVersion: stored.version }], decisions: [decision(created, 'delete')] });
       t.expect(await repos.pairingRepository.findById(rid(), created.id)).toBeNull();
@@ -126,7 +129,7 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       const taken = new Set((await repos.pairingRepository.listByDish(rid(), dish.id)).map((p) => p.wineId));
       const free = ds.wines.filter((w) => w.active && !taken.has(w.id)).slice(0, 2);
       const existing = (await duckPairs())[0];
-      const mk = (wineId: string, id: string): Pairing => ({ id, dishId: dish.id, wineId, status: 'suggested', role: null, rank: null, comment: null, modelScore: 70, source: 'engine', updatedBy: 'Wine Match engine', updatedAt: AT, dirty: false });
+      const mk = (wineId: string, id: string): Pairing => ({ id, dishId: dish.id, wineId, status: 'suggested', role: null, rank: null, comment: null, commentTranslations: {}, modelScore: 70, source: 'engine', updatedBy: 'Wine Match engine', updatedAt: AT, dirty: false });
       const added = await repos.pairingWriteRepository.addSuggestions(rid(), [mk(free[0].id, '88888888-8888-4888-8888-888888888881'), mk(free[1].id, '88888888-8888-4888-8888-888888888882'), mk(existing.wineId, '88888888-8888-4888-8888-888888888883')]);
       t.expect(added).toBe(2);
       t.expect(await repos.pairingWriteRepository.addSuggestions(rid(), [mk(free[0].id, '88888888-8888-4888-8888-888888888884')])).toBe(0);
@@ -134,6 +137,47 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect((await repos.pairingRepository.findById(rid(), existing.id))!.status).toBe(existing.status);
       t.expect(await repos.publishRepository.pendingPairingChanges(rid())).toBe(0);
       t.expect(await repos.pairingWriteRepository.addSuggestions(rid(), [])).toBe(0);
+    });
+
+    t.it('stores translations atomically against the version the caller saw, scoped by restaurant', async () => {
+      const duck = duck0();
+      await repos.contentWriteRepository.setDishTranslations(rid(), duck.id, { pl: { name: 'Kaczka' }, en: { description: 'Roasted' } }, duck.translations);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.translations).toEqual({ pl: { name: 'Kaczka' }, en: { description: 'Roasted' } });
+      // stale: the caller saw the demo translations, which are gone now
+      await t.expect(repos.contentWriteRepository.setDishTranslations(rid(), duck.id, {}, duck.translations)).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.translations).toEqual({ pl: { name: 'Kaczka' }, en: { description: 'Roasted' } });
+      await t.expect(repos.contentWriteRepository.setDishTranslations(OTHER, duck.id, {})).rejects.toBeInstanceOf(NotFoundError);
+      const wine = ds.wines[0];
+      await repos.contentWriteRepository.setWineTranslations(rid(), wine.id, { en: { region: 'Champagne!' } }, wine.translations);
+      t.expect((await repos.wineRepository.findById(rid(), wine.id))!.translations).toEqual({ en: { region: 'Champagne!' } });
+      await t.expect(repos.contentWriteRepository.setWineTranslations(OTHER, wine.id, {})).rejects.toBeInstanceOf(NotFoundError);
+      const r = ds.restaurant;
+      await repos.contentWriteRepository.setRestaurantContent(rid(), { contentLocale: 'pl', translations: { en: { city: 'Warsaw' } } }, { contentLocale: r.contentLocale, translations: r.translations });
+      t.expect(await repos.restaurantRepository.findBySlug(r.slug)).toMatchObject({ contentLocale: 'pl', translations: { en: { city: 'Warsaw' } } });
+      await t.expect(repos.contentWriteRepository.setRestaurantContent(rid(), { contentLocale: 'en', translations: {} }, { contentLocale: r.contentLocale, translations: r.translations })).rejects.toBeInstanceOf(VersionConflictError);
+    });
+
+    t.it('guests see translations of the published version only; publish takes the current ones', async () => {
+      const duck = duck0();
+      const before = await repos.publishRepository.publishedContent(rid());
+      t.expect(before.dishes.get(duck.id)).toEqual(duck.translations);
+      t.expect(before.restaurant).toEqual(ds.restaurant.translations);
+      await repos.contentWriteRepository.setDishTranslations(rid(), duck.id, { pl: { name: 'Kaczka po nowemu' } });
+      t.expect((await repos.publishRepository.publishedContent(rid())).dishes.get(duck.id)).toEqual(duck.translations);
+      const current = { restaurant: (await repos.restaurantRepository.findBySlug(ds.restaurant.slug))!, dishes: await repos.dishRepository.listByRestaurant(rid()), wines: await repos.wineRepository.listByRestaurant(rid()) };
+      t.expect(countContentChanges(current, before)).toBe(1);
+      await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '77777777-7777-4777-8777-777777777777', contentChanges: 1 });
+      const after = await repos.publishRepository.publishedContent(rid());
+      t.expect(after.dishes.get(duck.id)).toEqual({ pl: { name: 'Kaczka po nowemu' } });
+      t.expect(countContentChanges(current, after)).toBe(0);
+    });
+
+    t.it('changes the note translations of a pairing and keeps them in the published version', async () => {
+      const p = await primary();
+      await repos.pairingWriteRepository.commit(rid(), { ops: [{ kind: 'update', id: p.id, expectedVersion: p.version, patch: patch({ commentTranslations: { pl: 'Po polsku', en: 'In English' } }) }], decisions: [decision(p, 'comment')] });
+      t.expect((await repos.pairingRepository.findById(rid(), p.id))!.commentTranslations).toEqual({ pl: 'Po polsku', en: 'In English' });
+      await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '99999999-9999-4999-8999-999999999999' });
+      t.expect((await repos.pairingRepository.listPublishedByDish(rid(), duck().id)).find((x) => x.id === p.id)!.commentTranslations).toEqual({ pl: 'Po polsku', en: 'In English' });
     });
 
     t.it('updates the restaurant details, including its slug', async () => {

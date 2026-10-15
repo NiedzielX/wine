@@ -16,9 +16,9 @@ type Props = { children: ReactNode; params: Promise<{ slug: string }> };
 export default async function RestaurantAdminLayout({ children, params }: Props) {
   const { slug } = await params;
   const access = await requireAccess(slug);
-  const overview = await (await getRequestScope()).cradle.adminService.overview(slug);
-  if (!overview) notFound();
   const { locale, t } = await getI18n();
+  const overview = await (await getRequestScope()).cradle.adminService.overview(slug, locale);
+  if (!overview) notFound();
   const back = safeNext((await headers()).get('x-pathname')) ?? `/admin/${slug}`;
   return (
     <AdminShell

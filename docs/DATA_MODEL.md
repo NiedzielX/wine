@@ -18,6 +18,7 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | ImportJob | tak | wiersze podglądu w kolumnie `rows` (jsonb) zamiast tabeli ImportRow |
 | User (`app_user`), Membership, Session | tak | hasło jako skrót scrypt; w `session` tylko SHA-256 tokenu; licznik prób i blokada w `app_user`; `membership.role`: owner, manager, sommelier, waiter. `sommelier_decision.actor_id` wskazuje konto (zwykła kolumna) |
 | ImportJob | tak | `rows` (jsonb) to sprawdzony podgląd wierszy, `notes` — jak odczytano plik, `result` — wynik zatwierdzenia; **plik nie jest przechowywany** (`storage_key` puste); status `preview_ready` → `confirmed` / `cancelled`; zatwierdzenie atomowe z blokadą wiersza. Rodzaj `sales` w Fazie 6 |
+| Tłumaczenia treści (od 2026-10-15) | tak | `dish.translations`, `wine.translations`, `restaurant.translations` (jsonb, domyślnie `'{}'`), `pairing.comment_translations` (jsonb), `restaurant.content_locale` (text, domyślnie `'en'`). Kształt: `{ "pl": { "name": …, "description": … }, "en": { … } }`; pola bazowe zostają w języku `content_locale`. Migawka publikacji niesie tłumaczenia (`snapshot.content`, `snapshot.pairings[].commentTranslations`); starsze migawki bez nich czytane jako `{}`. Spec `2026-10-15-bilingual-content` |
 | Recommendation, GuestSession, ImportRow (osobna tabela), SalesRecord, EngineVersion, CatalogWine | nie | wejdą razem z funkcjami, które ich potrzebują (osobne specyfikacje) |
 
 Poniżej model docelowy.
@@ -61,6 +62,8 @@ erDiagram
 | organization_id | uuid FK | grupa restauracyjna (plan Group) |
 | slug | text unique | `^[a-z0-9-]{2,40}$`, publiczny link i QR |
 | name, tagline | text | |
+| content_locale | text | `pl` / `en` (domyślnie `en`): język pól bazowych (tagline, city, nazwy i opisy dań, notatki o winach i notatki sommeliera) |
+| translations | jsonb | `{pl?: {tagline, city}, en?: {…}}`; brak tłumaczenia → pole bazowe |
 | address, city, country | text | |
 | currency | char(3) | `PLN` |
 | timezone | text | `Europe/Warsaw` |
@@ -92,6 +95,7 @@ System Administrator to flaga `is_staff` na User (poza Membership).
 | restaurant_id | uuid FK | |
 | name | text | |
 | description | text | |
+| translations | jsonb | `{pl?: {name, description}, en?: {…}}` (limity jak pól bazowych: nazwa 120, opis 1000 znaków) |
 | category | text | `Starters`, `Mains`, `Desserts` (słownik per restauracja) |
 | price | numeric | |
 | status | enum | `draft`, `published`, `hidden` |
@@ -134,6 +138,7 @@ Pozycja na karcie konkretnej restauracji (cena i dostępność są lokalne).
 | active | bool | dostępne dziś (natychmiastowe, bez publikacji) |
 | colour_hex | char(7) | kolor do „Match glass” |
 | tasting_note | text | |
+| translations | jsonb | `{pl?: {tastingNote, region, country}, en?: {…}}`; nazwy win i producentów nie są tłumaczone |
 | stock_qty | int null | przyszłe: inventory |
 | external_ref | text | ID w POS |
 
@@ -162,6 +167,7 @@ Relacja Dish ↔ Wine z decyzją sommeliera. Unikalność `(dish_id, wine_id)`.
 | role | enum null | `primary`, `alternative`, `best_value`; max 1 `primary` na danie (indeks częściowy) |
 | rank | smallint null | kolejność ustalona przez sommeliera |
 | comment | varchar(140) null | „Why it works” w słowach sommeliera |
+| comment_translations | jsonb | `{pl?: string, en?: string}`, każde do 140 znaków; gość widzi notatkę w swoim języku, inaczej `comment` |
 | model_score | smallint | 0–99, wynik silnika przy ostatnim przeliczeniu |
 | factors | jsonb | czynniki reguł `[{rule, delta}]` (wyjaśnialność) |
 | engine_version | text FK | |
@@ -195,7 +201,7 @@ Status pary jest pochodną ostatnich decyzji; tabela umożliwia raport „co zmi
 | id | uuid PK | |
 | restaurant_id | uuid FK | |
 | number | int | kolejny numer |
-| snapshot | jsonb | menu, wina, pary, ustawienia (to, co serwuje publiczne API) |
+| snapshot | jsonb | menu, wina, pary, ustawienia (to, co serwuje publiczne API). W implementacji: `pairings` (z `commentTranslations`) i `content` — tłumaczenia restauracji, dań i win, które widzą goście (zmiana tłumaczenia to zmiana do publikacji) |
 | changes_count | int | |
 | published_by, published_at | | |
 

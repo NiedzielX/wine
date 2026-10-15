@@ -29,7 +29,7 @@ export default async function TableResultPage({ params, searchParams }: Props) {
     out = await services.recommendationService.forTable(slug, ids, prefs, locale);
   } catch (e) {
     if (!isDomainError(e, 'table_needs_two_dishes')) throw e;
-    const menu = await services.catalogService.publishedMenu(slug);
+    const menu = await services.catalogService.publishedMenu(slug, locale);
     if (!menu) notFound();
     return (
       <>
@@ -41,7 +41,7 @@ export default async function TableResultPage({ params, searchParams }: Props) {
   if (!out) notFound();
   const { restaurant, result } = out;
   const showScores = restaurant.settings?.showScores ?? true;
-  const menu = await services.catalogService.publishedMenu(slug);
+  const menu = await services.catalogService.publishedMenu(slug, locale);
   const chosen = ids.map((id) => menu?.dishes.find((d) => d.id === id)).filter((d) => !!d);
   const tableParam = ids.join(',');
   const wineHref = (id: string) => href(`/r/${slug}/wine/${id}`, prefs, { table: tableParam });

@@ -1,8 +1,10 @@
 import type { Dish, Pairing, Restaurant, Wine } from '../../domain/types';
 import { pairingScore } from '../../engine/scoring';
 import type { Repositories } from '../../ports/repositories';
+import { localizeDish, localizeRestaurant, withPublishedContent } from '../../i18n/content';
+import type { Locale } from '../../i18n/locale';
 
-export type CatalogServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository'>;
+export type CatalogServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository'>;
 
 export interface PairingWithWine extends Pairing {
   wine: Wine | null;
@@ -18,19 +20,28 @@ export class CatalogService {
     this.repos = deps;
   }
 
-  async publishedMenu(slug: string): Promise<{ restaurant: Restaurant; dishes: Dish[] } | null> {
+  /**
+   * The guests' menu. With `locale` the restaurant and the dishes are shown in that language with the translations of
+   * the latest publish (spec 2026-10-15-bilingual-content, R3/R4); without it (the public API) the base fields.
+   */
+  async publishedMenu(slug: string, locale?: Locale): Promise<{ restaurant: Restaurant; dishes: Dish[] } | null> {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
     const dishes = await this.repos.dishRepository.listByRestaurant(restaurant.id, { statuses: ['published'] });
-    return { restaurant, dishes };
+    if (!locale) return { restaurant, dishes };
+    const pub = withPublishedContent(await this.repos.publishRepository.publishedContent(restaurant.id));
+    return { restaurant: localizeRestaurant(pub.restaurant(restaurant), locale), dishes: dishes.map((d) => localizeDish(pub.dish(d), locale)) };
   }
 
   /** One published dish; draft and hidden dishes are not visible to guests. */
-  async publishedDish(slug: string, dishId: string): Promise<{ restaurant: Restaurant; dish: Dish } | null> {
+  async publishedDish(slug: string, dishId: string, locale?: Locale): Promise<{ restaurant: Restaurant; dish: Dish } | null> {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
     const dish = await this.repos.dishRepository.findById(restaurant.id, dishId);
-    return dish && dish.status === 'published' ? { restaurant, dish } : null;
+    if (!dish || dish.status !== 'published') return null;
+    if (!locale) return { restaurant, dish };
+    const pub = withPublishedContent(await this.repos.publishRepository.publishedContent(restaurant.id));
+    return { restaurant: localizeRestaurant(pub.restaurant(restaurant), locale), dish: localizeDish(pub.dish(dish), locale) };
   }
 
   async dishPairings(slug: string, dishId: string): Promise<{ restaurant: Restaurant; dish: Dish; pairings: PairingWithWine[] } | null> {

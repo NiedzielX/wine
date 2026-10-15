@@ -14,10 +14,56 @@ export const RESTAURANT: Restaurant = {
   city: 'Warsaw',
   currency: 'PLN',
   wineDirector: 'Marta Wierzbicka',
-  publishedAt: '2026-10-09T17:40:00Z'
+  publishedAt: '2026-10-09T17:40:00Z',
+  // base content is English; the Polish version is a full translation (spec 2026-10-15-bilingual-content, R8)
+  contentLocale: 'en',
+  translations: { pl: { tagline: 'Nowoczesna kuchnia polska przy ulicy Mokotowskiej', city: 'Warszawa' } }
 };
 
-export const DISHES: Dish[] = [
+/** Polish names and descriptions of the dishes, by demo id. */
+const DISH_PL: Record<string, { name: string; description: string }> = {
+  d_tartare: { name: 'Tatar wołowy', description: 'Siekana ręcznie polędwica, marynowane kurki, wędzone żółtko, chrupka żytnia' },
+  d_herring: { name: 'Śledź bałtycki', description: 'Śledź marynowany, burak, kwaśna śmietana, olej koperkowy, chleb na zakwasie' },
+  d_burrata: { name: 'Burrata z pieczoną dynią', description: 'Burrata, dynia pieczona z miodem, pesto z pestek dyni, szałwia' },
+  d_scallops: { name: 'Przegrzebki z patelni', description: 'Przegrzebki z Hokkaido, masło noisette, purée z kalafiora, orzechy laskowe' },
+  d_risotto: { name: 'Risotto z grzybami leśnymi', description: 'Carnaroli, borowiki, dojrzewający ser Bursztyn, tymianek' },
+  d_pikeperch: { name: 'Sandacz', description: 'Sandacz gotowany w maśle, sos beurre blanc, opalany por, polski kawior' },
+  d_duck: { name: 'Pierś z kaczki', description: 'Pieczona pierś z kaczki, sos wiśniowy, burak, prażona kasza gryczana' },
+  d_venison: { name: 'Comber z jelenia', description: 'Jeleń w jałowcowej panierce, jeżyny, seler, sos z dziczyzny' },
+  d_ribeye: { name: 'Antrykot sezonowany na sucho, 300 g', description: 'Antrykot sezonowany na sucho przez 45 dni, masło ze szpikiem, opalana cebula' },
+  d_porkbelly: { name: 'Glazurowany boczek', description: 'Glazura gochujang, marynowana kalarepa, jabłko, gorczyca' },
+  d_pierogi: { name: 'Pierogi z gęsiną', description: 'Farsz z gęsiny z majerankiem, konfitura z cebuli, skwarki' },
+  d_celeriac: { name: 'Seler pieczony w soli', description: 'Masło z miso, orzechy włoskie, jabłko, olej z orzechów laskowych' },
+  d_chocolate: { name: 'Tarta z gorzkiej czekolady', description: 'Czekolada 70%, wiśnia, crème fraîche' },
+  d_sernik: { name: 'Sernik pieczony', description: 'Sernik z twarogu, rokitnik, owsiana kruszonka' },
+  d_cheese: { name: 'Wybór polskich serów', description: 'Pięć serów zagrodowych, pigwa, chleb z orzechami włoskimi' }
+};
+
+/** Polish tasting notes, regions and countries of the wines, by demo id (wine and producer names stay as they are). */
+const WINE_PL: Record<string, { tastingNote: string; region: string; country: string }> = {
+  w_gimonnet: { tastingNote: 'Kredowe i precyzyjne, zielone jabłko i brioszka, długi, słonawy finisz.', region: 'Szampania', country: 'Francja' },
+  w_denit: { tastingNote: 'Blade i wytrawne, poziomka, skórka cytrusów i drobne bąbelki.', region: 'Conca del Riu Anoia', country: 'Hiszpania' },
+  w_turnau: { tastingNote: 'Jasne i aromatyczne, agrest, kwiat czarnego bzu, rześka północna kwasowość.', region: 'Pomorze Zachodnie', country: 'Polska' },
+  w_loosen: { tastingNote: 'Półwytrawne, biała brzoskwinia i limonka, łupek i lekkie jak piórko ciało.', region: 'Mozela', country: 'Niemcy' },
+  w_vacheron: { tastingNote: 'Krzemień, grejpfrut i świeżo skoszona trawa, mineralny, soczysty finisz.', region: 'Dolina Loary', country: 'Francja' },
+  w_bruendlmayer: { tastingNote: 'Biały pieprz, zielona gruszka i soczewica, żywe i wytrawne.', region: 'Kamptal', country: 'Austria' },
+  w_leflaive: { tastingNote: 'Dojrzała cytryna, orzech laskowy i delikatnie kremowa tekstura z wyraźnym napięciem.', region: 'Burgundia', country: 'Francja' },
+  w_kumeu: { tastingNote: 'Prażone orzechy, krem cytrynowy i bogaty, wielowarstwowy smak.', region: 'Auckland', country: 'Nowa Zelandia' },
+  w_radikon: { tastingNote: 'Bursztynowe wino z maceracji na skórkach, suszona morela, herbata i delikatna taniczność.', region: 'Friuli-Wenecja Julijska', country: 'Włochy' },
+  w_tempier: { tastingNote: 'Wyraziste wino różowe, czerwona pomarańcza, zioła garrigue i wytrawna głębia.', region: 'Prowansja', country: 'Francja' },
+  w_lapierre: { tastingNote: 'Soczysta czerwona wiśnia i fiołek, jedwabiste, podawane lekko schłodzone.', region: 'Beaujolais', country: 'Francja' },
+  w_savigny: { tastingNote: 'Czerwone owoce, runo leśne i drobnoziarniste taniny.', region: 'Burgundia', country: 'Francja' },
+  w_feltonroad: { tastingNote: 'Ciemna wiśnia, przyprawy i pełna, hojna tekstura.', region: 'Central Otago', country: 'Nowa Zelandia' },
+  w_graillot: { tastingNote: 'Jeżyna, czarna oliwka i świeżo mielony pieprz, zwarte i wytrawne.', region: 'Północny Rodan', country: 'Francja' },
+  w_produttori: { tastingNote: 'Płatki róży, smoła i wiśnia, wysoka kwasowość i wyraźne taniny.', region: 'Piemont', country: 'Włochy' },
+  w_batailley: { tastingNote: 'Czarna porzeczka, cedr i grafit, o wyraźnej strukturze i długim finiszu.', region: 'Bordeaux', country: 'Francja' },
+  w_ridge: { tastingNote: 'Dojrzałe owoce jeżyny, słodkie przyprawy i ciepły, pełny finisz.', region: 'Hrabstwo Sonoma', country: 'USA' },
+  w_tokaji: { tastingNote: 'Morela, marmolada pomarańczowa i miód, ożywione wyraźną kwasowością.', region: 'Tokaj', country: 'Węgry' },
+  w_grahams: { tastingNote: 'Orzech włoski, figa i karmel, łagodne i długie.', region: 'Douro', country: 'Portugalia' },
+  w_musar: { tastingNote: 'Korzenna śliwka, skóra i suszone zioła. Chwilowo niedostępne.', region: 'Dolina Bekaa', country: 'Liban' }
+};
+
+const BASE_DISHES: Array<Omit<Dish, 'translations'>> = [
   {
     id: 'd_tartare', name: 'Beef tartare', category: 'Starters', price: 68, status: 'published',
     description: 'Hand-cut tenderloin, pickled chanterelles, smoked egg yolk, rye crisp',
@@ -95,7 +141,9 @@ export const DISHES: Dish[] = [
   }
 ];
 
-export const WINES: Wine[] = [
+export const DISHES: Dish[] = BASE_DISHES.map((d) => ({ ...d, translations: DISH_PL[d.id] ? { pl: { ...DISH_PL[d.id] } } : {} }));
+
+const BASE_WINES: Array<Omit<Wine, 'translations'>> = [
   {
     id: 'w_gimonnet', producer: 'Pierre Gimonnet & Fils', name: 'Cuis 1er Cru Blanc de Blancs Brut', vintage: 'NV',
     region: 'Champagne', country: 'France', grapes: ['Chardonnay'], glassPrice: 72, glassPour: 125, bottlePrice: 390, bottleSize: 750, active: true,
@@ -218,6 +266,8 @@ export const WINES: Wine[] = [
   }
 ];
 
+export const WINES: Wine[] = BASE_WINES.map((w) => ({ ...w, translations: WINE_PL[w.id] ? { pl: { ...WINE_PL[w.id] } } : {} }));
+
 /**
  * Sommelier decisions seeded on top of engine suggestions.
  * Dishes not listed here keep engine suggestions in status "suggested" — they form the review queue.
@@ -225,20 +275,22 @@ export const WINES: Wine[] = [
 export const SEED_DECISIONS: Array<{
   dishId: string; wineId: string; status: 'approved' | 'modified' | 'rejected';
   role?: 'primary' | 'alternative' | 'best_value'; rank?: number; comment?: string;
+  /** the note in Polish */
+  commentPl?: string;
 }> = [
-  { dishId: 'd_tartare', wineId: 'w_lapierre', status: 'modified', role: 'primary', rank: 1, comment: 'Served lightly chilled — the fruit lifts the smoked yolk.' },
+  { dishId: 'd_tartare', wineId: 'w_lapierre', status: 'modified', role: 'primary', rank: 1, comment: 'Served lightly chilled — the fruit lifts the smoked yolk.', commentPl: 'Podawane lekko schłodzone — owoc podkreśla wędzone żółtko.' },
   { dishId: 'd_tartare', wineId: 'w_gimonnet', status: 'approved', role: 'alternative', rank: 2 },
-  { dishId: 'd_herring', wineId: 'w_bruendlmayer', status: 'approved', role: 'primary', rank: 1, comment: 'White pepper and dill — a classic Halka pairing.' },
+  { dishId: 'd_herring', wineId: 'w_bruendlmayer', status: 'approved', role: 'primary', rank: 1, comment: 'White pepper and dill — a classic Halka pairing.', commentPl: 'Biały pieprz i koperek — klasyczne połączenie w Halce.' },
   { dishId: 'd_herring', wineId: 'w_turnau', status: 'approved', role: 'best_value', rank: 2 },
   { dishId: 'd_risotto', wineId: 'w_kumeu', status: 'approved', role: 'primary', rank: 1 },
-  { dishId: 'd_risotto', wineId: 'w_savigny', status: 'modified', role: 'alternative', rank: 2, comment: 'Forest floor in the glass, porcini on the plate.' },
-  { dishId: 'd_pikeperch', wineId: 'w_leflaive', status: 'approved', role: 'primary', rank: 1, comment: 'Enough texture for the beurre blanc, still precise.' },
+  { dishId: 'd_risotto', wineId: 'w_savigny', status: 'modified', role: 'alternative', rank: 2, comment: 'Forest floor in the glass, porcini on the plate.', commentPl: 'Runo leśne w kieliszku, borowiki na talerzu.' },
+  { dishId: 'd_pikeperch', wineId: 'w_leflaive', status: 'approved', role: 'primary', rank: 1, comment: 'Enough texture for the beurre blanc, still precise.', commentPl: 'Dość tekstury na beurre blanc, a wciąż precyzyjne.' },
   { dishId: 'd_pikeperch', wineId: 'w_produttori', status: 'rejected' },
-  { dishId: 'd_duck', wineId: 'w_savigny', status: 'approved', role: 'primary', rank: 1, comment: 'Pinot and sour cherry jus — our signature match.' },
+  { dishId: 'd_duck', wineId: 'w_savigny', status: 'approved', role: 'primary', rank: 1, comment: 'Pinot and sour cherry jus — our signature match.', commentPl: 'Pinot noir i sos wiśniowy — nasze firmowe połączenie.' },
   { dishId: 'd_duck', wineId: 'w_lapierre', status: 'approved', role: 'best_value', rank: 2 },
-  { dishId: 'd_venison', wineId: 'w_graillot', status: 'approved', role: 'primary', rank: 1, comment: 'Peppery Syrah meets juniper.' },
+  { dishId: 'd_venison', wineId: 'w_graillot', status: 'approved', role: 'primary', rank: 1, comment: 'Peppery Syrah meets juniper.', commentPl: 'Pieprzne syrah spotyka jałowiec.' },
   { dishId: 'd_ribeye', wineId: 'w_batailley', status: 'approved', role: 'primary', rank: 1 },
   { dishId: 'd_ribeye', wineId: 'w_graillot', status: 'approved', role: 'best_value', rank: 2 },
   { dishId: 'd_chocolate', wineId: 'w_grahams', status: 'approved', role: 'primary', rank: 1 },
-  { dishId: 'd_sernik', wineId: 'w_tokaji', status: 'approved', role: 'primary', rank: 1, comment: 'Sea buckthorn and Aszú share the same bright acidity.' }
+  { dishId: 'd_sernik', wineId: 'w_tokaji', status: 'approved', role: 'primary', rank: 1, comment: 'Sea buckthorn and Aszú share the same bright acidity.', commentPl: 'Rokitnik i aszú łączy ta sama żywa kwasowość.' }
 ];

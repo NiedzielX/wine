@@ -1,4 +1,4 @@
-import { MENU_FIELDS, WINE_FIELDS, type ImportKind } from './types';
+import { MENU_FIELDS, TRANSLATION_FIELDS, WINE_FIELDS, type ImportKind } from './types';
 import { normKey } from './normalize';
 
 /**
@@ -25,6 +25,28 @@ const SYNONYMS: Record<ImportKind, Record<string, string[]>> = {
   }
 };
 
+/**
+ * Headers of the translation columns: the field's words followed by a language word, so `name_pl`, „Nazwa (PL)”,
+ * „opis EN”, „Tasting note – English” or „Region po polsku” are recognised (spec 2026-10-15-bilingual-content, R5).
+ */
+const LANGUAGE_WORDS = { pl: ['pl', 'polski', 'polish', 'po polsku', 'polska'], en: ['en', 'eng', 'english', 'angielski', 'po angielsku', 'angielska'] } as const;
+const TRANSLATED_WORDS: Record<ImportKind, Record<string, string[]>> = {
+  menu: {
+    name: ['name', 'dish', 'dish name', 'danie', 'nazwa', 'nazwa dania'],
+    description: ['description', 'opis', 'opis dania', 'skladniki', 'ingredients', 'desc']
+  },
+  wines: {
+    tasting_note: ['tasting note', 'tasting notes', 'note', 'notes', 'notatka', 'notatka degustacyjna', 'opis', 'opis wina', 'description'],
+    region: ['region', 'apelacja', 'appellation'],
+    country: ['country', 'kraj']
+  }
+};
+for (const kind of ['menu', 'wines'] as const) {
+  for (const [base, words] of Object.entries(TRANSLATED_WORDS[kind])) {
+    for (const lang of ['pl', 'en'] as const) SYNONYMS[kind][`${base}_${lang}`] = words.flatMap((w) => LANGUAGE_WORDS[lang].map((l) => `${w} ${l}`));
+  }
+}
+
 /** Column order used when a file has no recognisable header. */
 const DEFAULT_ORDER: Record<ImportKind, string[][]> = {
   menu: [['name', 'price'], ['name', 'description', 'price'], ['category', 'name', 'description', 'price']],
@@ -37,11 +59,16 @@ function matchField(kind: ImportKind, cell: string): string | null {
   for (const [field, words] of Object.entries(SYNONYMS[kind])) {
     if (words.some((w) => normKey(w) === k)) return field;
   }
-  // "Price (PLN)", "Cena za butelkę": the header word followed by more words
+  // "Price (PLN)", "Cena za butelkę": the header word followed by more words; the longest such word wins, so
+  // "Opis EN (krótki)" is the English description, not the description
+  let best: { field: string; length: number } | null = null;
   for (const [field, words] of Object.entries(SYNONYMS[kind])) {
-    if (words.some((w) => k.startsWith(`${normKey(w)} `))) return field;
+    for (const w of words) {
+      const n = normKey(w);
+      if (k.startsWith(`${n} `) && (!best || n.length > best.length)) best = { field, length: n.length };
+    }
   }
-  return null;
+  return best?.field ?? null;
 }
 
 export interface MappedTable {
@@ -81,8 +108,10 @@ export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
     notes.push(`No header row was found, so the columns were read in this order: ${order.join(', ')}.`);
   }
   const fields = kind === 'menu' ? MENU_FIELDS : WINE_FIELDS;
+  // a translation column is in a record only when the file has it: absent = keep, present and empty = warn
+  const translated = TRANSLATION_FIELDS[kind].filter((f) => f in map);
   const records = rows.slice(start).filter((r) => r.some((c) => c.trim() !== '')).map((r) =>
-    Object.fromEntries(fields.map((f) => [f, f in map ? (r[map[f]] ?? '').trim() : ''])));
+    Object.fromEntries([...fields, ...translated].map((f) => [f, f in map ? (r[map[f]] ?? '').trim() : ''])));
   return { records, notes };
 }
 

@@ -105,6 +105,16 @@ describe('row mappers: database rows become domain values, with defaults for mis
   const dish = { id: 'd1', name: 'Pike', description: 'desc', category: 'Mains', price: '98.50', status: 'published', profile };
   const wine = { id: 'w1', producer: 'P', name: 'N', vintage: null, region: 'R', country: 'C', grapes: ['G'], glassPrice: '52', glassPourMl: 150, bottlePrice: '240', bottleSizeMl: 750, active: true, listNumber: null, colourHex: '#fff', tastingNote: 'note', profile: { ...profile, sweetness: 0, acidity: 3, tannin: 2, body: 3, alcohol: 13, fruitiness: 3, oak: 0, aromatic: 3, freshness: 3, style: 'white', adventurous: false } };
 
+  it('translations: a missing or unknown value reads as "none", stored JSON is cleaned (spec 2026-10-15-bilingual-content)', () => {
+    expect(toRestaurant(restaurant as never)).toMatchObject({ contentLocale: 'en', translations: {} });
+    expect(toRestaurant({ ...restaurant, contentLocale: 'de', translations: { pl: { city: 'Warszawa', x: 1 } } } as never)).toMatchObject({ contentLocale: 'en', translations: { pl: { city: 'Warszawa' } } });
+    expect(toRestaurant({ ...restaurant, contentLocale: 'pl' } as never).contentLocale).toBe('pl');
+    const polluted = JSON.parse('{"pl":{"name":"Szczupak","__proto__":{"a":1}},"__proto__":{"x":1}}');
+    expect(toDish({ ...dish, translations: polluted } as never).translations).toEqual({ pl: { name: 'Szczupak' } });
+    expect(toWine({ ...wine, translations: { en: { region: ' R ' } } } as never).translations).toEqual({ en: { region: 'R' } });
+    expect(toPublishedPairing({ id: 'p', dishId: 'd', wineId: 'w', status: 'approved', role: null, rank: null, comment: null, modelScore: 1, source: 'engine', updatedBy: 'x', updatedAt: '' }).commentTranslations).toEqual({});
+  });
+
   it('restaurant, dish and wine', () => {
     expect(toRestaurant(restaurant as never)).toMatchObject({ id: 'r1', publishedAt: at.toISOString(), settings: { showUnreviewed: true, showScores: false } });
     // a restaurant without stored settings gets the defaults, never undefined

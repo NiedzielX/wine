@@ -21,7 +21,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   const q = first(sp.q);
   const category = first(sp.category);
-  const menu = await (await getRequestScope()).cradle.adminService.menu(slug, { q, category: category || undefined });
+  const menu = await (await getRequestScope()).cradle.adminService.menu(slug, { q, category: category || undefined }, (await getI18n()).locale);
   if (!menu) notFound();
   const path = `/admin/${slug}/menu`;
   const { locale, t } = await getI18n();

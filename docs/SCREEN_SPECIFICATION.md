@@ -24,7 +24,8 @@ Wspólne zasady:
 - **Empty**: zaproszenie do działania, nie nastrój (`?demo=empty`).
 - **Success**: toast w dolnej części ekranu (`role=status`) z tym samym czasownikiem co przycisk („Publish changes” → „Published 12 changes”).
 - Wszystkie publiczne endpointy gościa są cache’owane (CDN, `stale-while-revalidate`); rekomendacje dla par bez filtrów są wyliczane przy publikacji.
-- **Język (spec `2026-10-15-polish-language`):** aplikacja gościa jest po polsku i po angielsku. Język wybiera parametr `lang=pl|en` w URL, bez niego nagłówek `Accept-Language` przeglądarki (pierwszy z `pl`/`en`), w ostateczności angielski; gość nie dostaje ciasteczek. Przełącznik „PL | EN” jest na G0 w prawym górnym rogu nagłówka restauracji, na pozostałych ekranach gościa w top barze po prawej (na G3 obok „Refine”); aktywny język ma `aria-current`. Linki i formularze GET niosą `lang` tylko wtedy, gdy był jawnie w URL. Tłumaczone są etykiety (także kategorie: Przystawki, Dania główne, Desery), uzasadnienia silnika, słowa smaku i komunikaty; wartości w URL (`styles=red`, kotwice kategorii), nazwy i opisy dań i win oraz notatki sommeliera zostają bez zmian. Ceny przez `Intl` (`pl`: „1 234 zł” ze spacją niełamliwą). Teksty angielskie w tym dokumencie mają polskie odpowiedniki w `packages/app/src/i18n/pl.ts`. **Panel (A0–A13)** też jest po polsku i po angielsku: język z ciasteczka `wm_lang` (ustawia je przełącznik „PL | EN” w stopce nawigacji bocznej i w prawym górnym rogu ekranu logowania — zwykły formularz z akcją serwerową, bez JS, wraca na tę samą stronę), bez ciasteczka z `Accept-Language`, w ostateczności angielski. Komunikaty po zmianie (flash), błędy logowania, uwagi importu i kroki Setup są tłumaczone po kodzie; daty `09.10.2026, 17:40` i kwoty przez `Intl`. Tytuły kart: „%s | Panel Wine Match”. Słownictwo: Pulpit, Menu, Karta win, Parowania, Do przeglądu, Publikacja, Import menu / win, Ustawienia, Kod QR, Wyloguj; role par: Podstawowe, Alternatywa, Najlepsza cena. Uzasadnienia silnika w panelu idą w języku panelu; nazwy dań i win oraz notatki sommeliera bez zmian.
+- **Język (spec `2026-10-15-polish-language`):** aplikacja gościa jest po polsku i po angielsku. Język wybiera parametr `lang=pl|en` w URL, bez niego nagłówek `Accept-Language` przeglądarki (pierwszy z `pl`/`en`), w ostateczności angielski; gość nie dostaje ciasteczek. Przełącznik języka (od 2026-10-15 „Polski / English”, niżej) jest na G0 w prawym górnym rogu nagłówka restauracji, na pozostałych ekranach gościa w top barze po prawej (na G3 obok „Refine”); aktywny język ma `aria-current`. Linki i formularze GET niosą `lang` tylko wtedy, gdy był jawnie w URL. Tłumaczone są etykiety (także kategorie: Przystawki, Dania główne, Desery), uzasadnienia silnika, słowa smaku i komunikaty; wartości w URL (`styles=red`, kotwice kategorii) zostają bez zmian; treści restauracji — patrz „Treści dwujęzyczne” niżej. Ceny przez `Intl` (`pl`: „1 234 zł” ze spacją niełamliwą). Teksty angielskie w tym dokumencie mają polskie odpowiedniki w `packages/app/src/i18n/pl.ts`. **Panel (A0–A13)** też jest po polsku i po angielsku: język z ciasteczka `wm_lang` (ustawia je przełącznik „Polski / English” w górnym pasku panelu i w prawym górnym rogu ekranu logowania — zwykły formularz z akcją serwerową, bez JS, wraca na tę samą stronę), bez ciasteczka z `Accept-Language`, w ostateczności angielski. Komunikaty po zmianie (flash), błędy logowania, uwagi importu i kroki Setup są tłumaczone po kodzie; daty `09.10.2026, 17:40` i kwoty przez `Intl`. Tytuły kart: „%s | Panel Wine Match”. Słownictwo: Pulpit, Menu, Karta win, Parowania, Do przeglądu, Publikacja, Import menu / win, Ustawienia, Kod QR, Wyloguj; role par: Podstawowe, Alternatywa, Najlepsza cena. Uzasadnienia silnika w panelu idą w języku panelu.
+- **Treści dwujęzyczne i przełącznik „Polski / English” (spec `2026-10-15-bilingual-content`):** nazwy i opisy dań, notatki degustacyjne, regiony i kraje win, notatki sommeliera oraz hasło i miasto restauracji mają wersje PL i EN. Gość widzi wersję w swoim języku z **ostatniej publikacji** (brak tłumaczenia → tekst bazowy, bez znacznika); panel — bieżące tłumaczenia w języku panelu. Nazwy win i producentów się nie zmieniają. Publiczne API `/api/v1` zwraca teksty bazowe. Przełącznik ma etykiety „Polski” i „English” (każda we własnym języku, `aria-current` na aktywnym, `aria-label` z pełną nazwą); poniżej 640 px widać „PL” / „EN”. Jest **na górze** każdego ekranu: gość — top bar po prawej, na G0 prawy górny róg nagłówka restauracji; panel — górny pasek treści (desktop) albo wiersz nagłówka nad nawigacją (wąski ekran), a nie stopka nawigacji; A0 — prawy górny róg. Działa bez JS i mieści się przy 390 px. Nagłówek restauracji (G0) pokazuje adres z miastem i hasło restauracji w języku gościa.
 - Każdy event gościa niesie: `restaurantId`, `sessionId` (anonimowy, losowy, w sessionStorage), `menuVersion`, `engineVersion`, `ts`.
 
 ---
@@ -273,7 +274,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 |---|---|
 | Cel | Edycja dania i potwierdzenie jego profilu smakowego |
 | Użytkownik | Sommelier |
-| Funkcje | edycja pól; suwaki profilu 0–5; główny składnik; metoda; podgląd „Top matches with this profile” na żywo; „Save and update suggestions”; „Manage pairings” → A6; „View as guest” |
+| Funkcje | edycja pól; suwaki profilu 0–5; główny składnik; metoda; podgląd „Top matches with this profile” na żywo; „Save and update suggestions”; „Manage pairings” → A6; „View as guest”; **„Translations / Tłumaczenia”** (od 2026-10-15): kolumny Polski i English z polami Name i Description (placeholder = tekst bazowy, puste pole = tekst bazowy), „Save translations”, flash „Translations saved. Guests see them after you publish.”; konflikt wersji (ktoś zmienił tłumaczenia) → komunikat `version_conflict`; za długi tekst → „Check the translations…”. Zapis: akcja serwerowa → `TranslationService.setDishTranslations` (uprawnienie `import.manage`), zmiana liczy się do „Publish”. Role bez `import.manage` widzą pola tylko do odczytu |
 | Komponenty UI | panel Details (formularz 2-kolumnowy), panel podglądu (top 5 win z % i uzasadnieniem), panel Taste profile (siatka suwaków z wartością) |
 | Dane wejściowe | Dish, DishProfile, wines |
 | Dane wyjściowe | zaktualizowany Dish i DishProfile (`source: confirmed`); przeliczone pairingi |
@@ -330,7 +331,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 |---|---|
 | Cel | Pełna kontrola sommeliera nad parami danego dania |
 | Użytkownik | Sommelier |
-| Funkcje | lista dań z licznikami; **Approved for guests**: rola (Primary / Alternative / Best value), góra / dół, notatka dla gości, Reject, Delete (dla par ręcznych); **Engine suggestions**: Approve / Reject / Approve all; **Add your own pairing**: wino (z wynikiem silnika), rola, notatka; **Rejected**: Restore; **What guests see now** |
+| Funkcje | lista dań z licznikami; **Approved for guests**: rola (Primary / Alternative / Best value), góra / dół, notatka dla gości (pole bazowe w języku treści oraz pola „Note in Polski” / „Note in English” — `comment_pl`, `comment_en`, każde ≤ 140 znaków; wiersz pokazuje notatkę w języku panelu), Reject, Delete (dla par ręcznych); **Engine suggestions**: Approve / Reject / Approve all; **Add your own pairing**: wino (z wynikiem silnika), rola, notatka; **Rejected**: Restore; **What guests see now** |
 | Komponenty UI | układ 2-kolumnowy: lista dań (sticky) + panele; wiersz pary: pozycja (serif), wino, ceny, odznaki statusu i roli, wynik silnika, „Unpublished change”, notatka (italic) |
 | Dane wejściowe | Dish, pairings, wines |
 | Dane wyjściowe | Pairing (status, role, rank, comment), SommelierDecision |
@@ -368,7 +369,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 |---|---|
 | Cel | Wczytać menu z pliku bez ręcznego przepisywania |
 | Użytkownik | Sommelier, GM |
-| Funkcje | krok 1: upload (drag & drop / wybór), „Use sample file”, „Download CSV template”; krok 2: edycja komórek, odznaczanie wierszy, kolumna Drafted profile, kolumna Checks, Start over, Import selected dishes; krok 3: linki do Review i Menu |
+| Funkcje | krok 1: upload (drag & drop / wybór), „Use sample file”, „Download CSV template”, podpowiedź o kolumnach tłumaczeń (`_pl` / `_en`); krok 2: edycja komórek (kolumny tłumaczeń z pliku są pokazane obok bazowych; pusta komórka tłumaczenia → ostrzeżenie „Empty translation: the current one is kept.”), odznaczanie wierszy, kolumna Drafted profile, kolumna Checks, Start over, Import selected dishes; krok 3: linki do Review i Menu |
 | Komponenty UI | stepper 3 kroków; strefa upuszczania; tabela edytowalna; baner podsumowania |
 | Dane wejściowe | plik CSV / XLSX / PDF ≤ 10 MB |
 | Dane wyjściowe | ImportJob, Dish[] (`draft`), DishProfile[] (`draft`), Pairing[] (`suggested`) |
@@ -387,7 +388,7 @@ Jak A8, z różnicami:
 
 | Pole | Opis |
 |---|---|
-| Dane wejściowe | kolumny: producer, wine, vintage, region, grape, style, glass price, bottle price |
+| Dane wejściowe | kolumny: producer, wine, vintage, region, grape, style, glass price, bottle price; opcjonalnie `tasting_note_pl/_en`, `region_pl/_en`, `country_pl/_en` |
 | Dane wyjściowe | Wine[] (`active`), WineProfile[] (domyślne szczepu i stylu), nowe Pairing[] dla wszystkich dań |
 | Walidacje | producent i cena butelki wymagane; brak szczepu → ostrzeżenie (nie blokuje); rocznik 4 cyfry lub NV |
 | API | `POST /imports/wines`, pozostałe jak A8 |
@@ -398,7 +399,7 @@ Jak A8, z różnicami:
 |---|---|
 | Cel | Prowadzić nową restaurację od założenia do QR na stołach |
 | Użytkownik | GM, Sommelier, System Admin |
-| Funkcje | formularz Restaurant details (nazwa, publiczny link, adres, Wine Director); 8 kroków ze statusem i przyciskiem; „Regenerate suggestions”; „Reset demo data” (tylko mockup) |
+| Funkcje | formularz Restaurant details (nazwa, publiczny link, adres, Wine Director); karta **„Content language and translations”** (od 2026-10-15): język tekstów bazowych (`contentLocale`: Polski / English, z ostrzeżeniem, że zmiana niczego nie tłumaczy) oraz hasło i miasto po polsku i angielsku, „Save” → flash „Content language and translations saved…” (uprawnienie `import.manage`); 8 kroków ze statusem i przyciskiem; „Regenerate suggestions”; „Reset demo data” (tylko mockup) |
 | Komponenty UI | panel formularza; checklista (ikona statusu, tytuł, szczegół, akcja) |
 | Dane wejściowe | Restaurant, liczniki danych |
 | Dane wyjściowe | Restaurant; nowe propozycje |

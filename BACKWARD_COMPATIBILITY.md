@@ -46,6 +46,8 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 | `session` przechowuje tylko skrót tokenu | zapis tokenu jawnym tekstem |
 | Identyfikatory UUID, daty `timestamptz`, miękkie usuwanie `deletedAt` | zmiana typu klucza lub rezygnacja z miękkiego usuwania |
 
+**Kolumny addytywne z 2026-10-15** (spec `2026-10-15-bilingual-content`, migracja `Migration20261015140000_bilingual_content`): `dish.translations`, `wine.translations`, `restaurant.translations` (jsonb not null default `'{}'`), `pairing.comment_translations` (jsonb not null default `'{}'`), `restaurant.content_locale` (text not null default `'en'`). Kształt JSON (`{pl?: {…}, en?: {…}}`) i nazwy pól w nim są kontraktem jak kolumny. Migawka `published_version.snapshot` ma odtąd opcjonalne `content` i `pairings[].commentTranslations`; migawka bez nich jest czytana jako „bez tłumaczeń”.
+
 **Ścieżka:** expand → migrate → contract w osobnych PR-ach: najpierw dodaj nową kolumnę lub tabelę i pisz do obu, potem przenieś dane migracją, dopiero w kolejnym PR-ze usuń stare. PR z migracją zawiera test `up` i `down` (`npm run test:db`) i plan wycofania w opisie. `npm run schema:check -w @wine-match/db` musi pokazywać zgodność. Zmiana modelu aktualizuje [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
 
 ## 4. Konfiguracja i zmienne środowiskowe
@@ -80,6 +82,7 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 | Pola menu `category, name, description, price` i win `producer, name, vintage, region, country, grape, style, glassPrice, bottlePrice` | usunięcie pola, zmiana znaczenia |
 | Synonimy nagłówków PL/EN (`SYNONYMS`) i kolejność bez nagłówka (`DEFAULT_ORDER`) | usunięcie synonimu albo zmiana kolejności: pliki restauracji, które działały, przestają się wczytywać |
 | Obsługiwane formaty: CSV (UTF-8, Windows-1250, BOM), XLSX, PDF tekstowy | wycofanie formatu lub kodowania |
+| Kolumny tłumaczeń (od 2026-10-15): menu `name_pl`, `name_en`, `description_pl`, `description_en`; wina `tasting_note_pl`, `tasting_note_en`, `region_pl`, `region_en`, `country_pl`, `country_en`, z synonimami nagłówków (słowo pola + `pl`/`polski`/`polish`/`po polsku` albo `en`/`english`/`angielski`/`po angielsku`, np. „Nazwa (PL)”, „opis EN”). Kolumna obecna i pusta = bez zmiany (ostrzeżenie `translation_empty`); kolumny nie ma = tłumaczenia bez zmian | usunięcie nazwy lub synonimu; zmiana znaczenia pustej komórki (np. kasowanie tłumaczenia) |
 | `IMPORT_LIMITS` (10 MB, 2000 wierszy) | obniżenie limitu |
 | Przykładowe pliki `/api/v1/import-samples/{menu\|wines}` | zmiana nagłówka bez zmiany parsera |
 

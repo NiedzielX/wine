@@ -1,5 +1,7 @@
 import type { DecisionRecord, Dish, ImportJob, Level, Pairing, Restaurant, Wine } from '@wine-match/core';
-import { DEFAULT_RESTAURANT_SETTINGS } from '@wine-match/core';
+import {
+  DEFAULT_RESTAURANT_SETTINGS, DISH_TEXT_FIELDS, RESTAURANT_TEXT_FIELDS, WINE_TEXT_FIELDS, cleanCommentTranslations, cleanTranslations, isLocale
+} from '@wine-match/core';
 import type { DishRow, ImportJobRow, PairingRow, PublishedSnapshot, RestaurantRow, SommelierDecisionRow, WineRow } from './entities';
 
 const lvl = (n: number) => Math.max(0, Math.min(5, n)) as Level;
@@ -9,7 +11,8 @@ export function toRestaurant(r: RestaurantRow): Restaurant {
   return {
     id: r.id, slug: r.slug, name: r.name, tagline: r.tagline, address: r.address, city: r.city,
     currency: r.currency as Restaurant['currency'], wineDirector: r.wineDirector,
-    publishedAt: iso(r.publishedAt), settings: { ...DEFAULT_RESTAURANT_SETTINGS, ...r.settings }
+    publishedAt: iso(r.publishedAt), settings: { ...DEFAULT_RESTAURANT_SETTINGS, ...r.settings },
+    contentLocale: isLocale(r.contentLocale) ? r.contentLocale : 'en', translations: cleanTranslations(r.translations, RESTAURANT_TEXT_FIELDS)
   };
 }
 
@@ -22,7 +25,8 @@ export function toDish(d: DishRow): Dish {
       intensity: lvl(p.intensity), fat: lvl(p.fat), salt: lvl(p.salt), sweetness: lvl(p.sweetness), acidity: lvl(p.acidity),
       spice: lvl(p.spice), umami: lvl(p.umami), smoke: lvl(p.smoke), creaminess: lvl(p.creaminess),
       protein: p.protein, cooking: p.cooking, source: p.source
-    }
+    },
+    translations: cleanTranslations(d.translations, DISH_TEXT_FIELDS)
   };
 }
 
@@ -37,20 +41,21 @@ export function toWine(w: WineRow): Wine {
       sweetness: lvl(p.sweetness), acidity: lvl(p.acidity), tannin: lvl(p.tannin), body: lvl(p.body), alcohol: Number(p.alcohol),
       fruitiness: lvl(p.fruitiness), oak: lvl(p.oak), aromatic: lvl(p.aromatic), freshness: lvl(p.freshness),
       style: p.style, adventurous: p.adventurous
-    }
+    },
+    translations: cleanTranslations(w.translations, WINE_TEXT_FIELDS)
   };
 }
 
 export function toPairing(p: PairingRow): Pairing {
   return {
     id: p.id, dishId: p.dish.id, wineId: p.wine.id, status: p.status, role: p.role ?? null, rank: p.rank ?? null,
-    comment: p.comment ?? null, modelScore: p.modelScore, source: p.source, updatedBy: p.updatedBy,
+    comment: p.comment ?? null, commentTranslations: cleanCommentTranslations(p.commentTranslations), modelScore: p.modelScore, source: p.source, updatedBy: p.updatedBy,
     updatedAt: p.updatedAt.toISOString(), dirty: p.dirty, version: p.version
   };
 }
 
 export function toPublishedPairing(p: PublishedSnapshot['pairings'][number]): Pairing {
-  return { ...p, dirty: false };
+  return { ...p, commentTranslations: cleanCommentTranslations(p.commentTranslations), dirty: false };
 }
 
 export function toDecision(d: SommelierDecisionRow): DecisionRecord {

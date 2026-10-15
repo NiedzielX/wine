@@ -13,6 +13,7 @@ export const pl = {
   common: {
     language: 'Język',
     languageNames: { pl: 'Polski', en: 'English' },
+    languageShort: { pl: 'PL', en: 'EN' },
     back: 'Wstecz',
     close: 'Zamknij'
   },
@@ -290,7 +291,9 @@ export const pl = {
         import_cancelled: () => 'Import anulowany. Nic nie zostało zmienione.',
         details: () => 'Dane zapisane.',
         details_slug: () => 'Dane zapisane. Adres aplikacji gościa się zmienił: wydrukuj nowe kody QR, stare już nie działają.',
-        suggestions: (n: number) => `Dodano propozycje silnika: ${n}.`
+        suggestions: (n: number) => `Dodano propozycje silnika: ${n}.`,
+        translations: () => 'Tłumaczenia zapisane. Goście zobaczą je po publikacji.',
+        content: () => 'Język treści i tłumaczenia zapisane. Goście zobaczą je po publikacji.'
       },
       errors: {
         version_conflict: 'Ktoś przed chwilą zmienił to parowanie. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
@@ -325,6 +328,7 @@ export const pl = {
         invalid_kind: 'Importuj menu albo kartę win.',
         slug_taken: 'Inna restauracja używa już tej nazwy w adresie. Wybierz inną.',
         validation_failed: 'Sprawdź dane. Nazwa w adresie może zawierać tylko małe litery, cyfry i myślniki (od 2 do 40 znaków) i nie może być słowem zastrzeżonym.',
+        translation_invalid: 'Sprawdź tłumaczenia: któreś jest za długie.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
     },
@@ -513,6 +517,9 @@ export const pl = {
       notePlaceholder: 'Wyświetlana jako „Dlaczego pasuje”. 140 znaków.',
       noteLabel: 'Notatka dla gości',
       saveNote: 'Zapisz notatkę',
+      noteIn: (lang: string) => `Notatka — ${lang}`,
+      noteBase: 'Notatka bazowa',
+      noteTranslationsHelp: 'Goście widzą notatkę w swoim języku; puste pole pokazuje notatkę bazową.',
       suggestionsTitle: 'Propozycje silnika',
       suggestionsText: 'Goście widzą je jako „Najlepsze dopasowanie”, nigdy jako Twoją rekomendację, dopóki ich nie zatwierdzisz.',
       approveAll: (n: number) => `Zatwierdź wszystkie (${n})`,
@@ -606,6 +613,21 @@ export const pl = {
       link: 'Link',
       linkText: 'Ten sam adres do menu, na stronę internetową albo do wiadomości.'
     },
+    translations: {
+      title: 'Tłumaczenia',
+      text: 'Goście i panel widzą wersję w swoim języku. Puste pole pokazuje tekst bazowy.',
+      base: (lang: string) => `Tekst bazowy (${lang})`,
+      field: (field: string, lang: string) => `${field} (${lang})`,
+      fields: { name: 'Nazwa', description: 'Opis', tastingNote: 'Notatka degustacyjna', region: 'Region', country: 'Kraj', tagline: 'Hasło', city: 'Miasto' },
+      save: 'Zapisz tłumaczenia',
+      afterPublish: 'Goście zobaczą zmiany po publikacji.',
+      readOnly: 'Twoja rola nie może zmieniać tłumaczeń.',
+      contentTitle: 'Język treści i tłumaczenia',
+      contentText: 'Język, w którym napisano menu, kartę win i notatki (teksty bazowe), oraz hasło i miasto w obu językach.',
+      contentLocale: 'Język tekstów bazowych',
+      contentWarning: 'Zmiana tego języka niczego nie tłumaczy: mówi tylko, w jakim języku są teksty bazowe.',
+      saveContent: 'Zapisz'
+    },
     setup: {
       title: 'Ustawienia',
       description: 'Wszystko, co prowadzi restaurację od pustego konta do gości skanujących kod.',
@@ -661,6 +683,8 @@ export const pl = {
         wines: { noun: (n: number) => plural(n, 'wino', 'wina', 'win'), columns: 'Producent, Wino, Rocznik, Region, Szczep, Styl, Cena kieliszka, Cena butelki', hint: 'Nowe wina od razu trafiają do karty i dostają propozycje parowań do Twojego przeglądu.', updates: 'ceny' }
       },
       columns: {
+        name_pl: 'Nazwa (PL)', name_en: 'Nazwa (EN)', description_pl: 'Opis (PL)', description_en: 'Opis (EN)',
+        tasting_note_pl: 'Notatka degustacyjna (PL)', tasting_note_en: 'Notatka degustacyjna (EN)', region_pl: 'Region (PL)', region_en: 'Region (EN)', country_pl: 'Kraj (PL)', country_en: 'Kraj (EN)',
         category: 'Kategoria', name: 'Nazwa', description: 'Opis', price: 'Cena (zł)',
         producer: 'Producent', wineName: 'Wino', vintage: 'Rocznik', region: 'Region', country: 'Kraj', grape: 'Szczep', style: 'Styl', glassPrice: 'Kieliszek', bottlePrice: 'Butelka'
       },
@@ -675,6 +699,7 @@ export const pl = {
       pricesAnd: 'i',
       pricesAfter: 'są w porządku. PDF jest czytany jako tekst i jest mniej dokładny: sprawdź każdy wiersz.',
       sample: 'Pobierz przykładowy plik CSV',
+      translationsHint: 'Opcjonalne kolumny z tłumaczeniami: dodaj _pl lub _en do nazwy kolumny (name_pl, description_en, tasting_note_pl, region_en, country_pl).',
       recent: 'Ostatnie importy',
       recentResult: (created: number, updated: number) => `nowe ${created}, zaktualizowane ${updated}`,
       continue: 'Kontynuuj',
@@ -744,7 +769,9 @@ export const pl = {
         bottle_price_missing: () => 'Brak ceny butelki.',
         bottle_price_invalid: (p: IssueParams) => `„${p.value}” nie jest ceną.`,
         glass_price_invalid: (p: IssueParams) => `„${p.value}” nie jest ceną.`,
-        glass_price_not_lower: () => 'Cena kieliszka musi być niższa niż cena butelki.'
+        glass_price_not_lower: () => 'Cena kieliszka musi być niższa niż cena butelki.',
+        translation_empty: () => 'Puste tłumaczenie: zostaje dotychczasowe.',
+        translation_too_long: () => 'Tłumaczenie jest za długie.'
       }
     }
   }

@@ -30,7 +30,7 @@ function Kpi({ label, value, detail, lead = false }: { label: string; value: str
 /** A1 — dashboard: the state of the wine program (catalog KPIs) and what needs attention. */
 export default async function DashboardPage({ params }: Props) {
   const { slug } = await params;
-  const o = await (await getRequestScope()).cradle.adminService.overview(slug);
+  const o = await (await getRequestScope()).cradle.adminService.overview(slug, (await getI18n()).locale);
   if (!o) notFound();
   const base = `/admin/${slug}`;
   const { dishes, wines, pairings, primaryCoverage, review } = o;

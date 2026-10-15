@@ -1,12 +1,14 @@
 import type { Dish, DishCategory, Pairing, Wine } from '../domain/types';
+import type { DishTranslations, WineTranslations } from '../i18n/content';
 import type { ImportJob, ImportResult, ImportRow } from '../import/types';
 
 /** Everything an import changes, applied in ONE transaction together with closing the job. */
 export interface ImportPlan {
   newDishes: Dish[];
-  dishUpdates: Array<{ id: string; description: string; category: DishCategory; price: number }>;
+  /** `translations`, when present, replaces the dish's translations (the plan merges the file's values into the current ones) */
+  dishUpdates: Array<{ id: string; description: string; category: DishCategory; price: number; translations?: DishTranslations }>;
   newWines: Wine[];
-  wineUpdates: Array<{ id: string; glassPrice: number | null; bottlePrice: number }>;
+  wineUpdates: Array<{ id: string; glassPrice: number | null; bottlePrice: number; translations?: WineTranslations }>;
   /** engine suggestions for the new items (status "suggested": they do not change what guests see) */
   newPairings: Pairing[];
   result: ImportResult;

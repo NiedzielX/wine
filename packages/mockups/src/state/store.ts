@@ -147,7 +147,7 @@ export function addManualPairing(dishId: string, wineId: string, role: PairingRo
   let p = state.pairings.find((x) => x.dishId === dishId && x.wineId === wineId);
   if (!p) {
     p = {
-      id: newId('p'), dishId, wineId, status: 'approved', role: null, rank: null, comment: null,
+      id: newId('p'), dishId, wineId, status: 'approved', role: null, rank: null, comment: null, commentTranslations: {},
       modelScore: pairingScore(dish, wine).score, source: 'sommelier', updatedBy: SOMMELIER, updatedAt: nowIso(), dirty: true
     };
     state.pairings.push(p);

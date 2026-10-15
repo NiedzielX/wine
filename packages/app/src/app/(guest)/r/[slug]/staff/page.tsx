@@ -15,7 +15,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 export default async function StaffPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { q, prefs, services, t, locale, lang, href, langHrefs } = await guestContext(searchParams);
-  const menu = await services.catalogService.publishedMenu(slug);
+  const menu = await services.catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
   const dish = menu.dishes.find((d) => d.id === q.dish) ?? menu.dishes[0];
   const data = dish ? await services.recommendationService.forDish(slug, dish.id, prefs, undefined, locale) : null;

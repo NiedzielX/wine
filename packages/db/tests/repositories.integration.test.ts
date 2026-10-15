@@ -1,7 +1,7 @@
 import { Migrator } from '@mikro-orm/migrations';
 import { MikroORM } from '@mikro-orm/postgresql';
 import {
-  AdminService, AuthService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, RestaurantService, authContract, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset,
+  AdminService, AuthService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset,
   createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, type Repositories
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
@@ -10,6 +10,7 @@ import { inject } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ormConfig } from '../src/config';
+import { Migration20261015140000_bilingual_content } from '../src/migrations/Migration20261015140000_bilingual_content';
 import { PairingEntity } from '../src/entities';
 import { PgAuthRepository } from '../src/repositories/auth';
 import { PgImportRepository } from '../src/repositories/import';
@@ -18,7 +19,7 @@ import { NodeSessionTokens, ScryptPasswordHasher, hashPassword, verifyPassword }
 import { RestaurantEntity } from '../src/entities';
 import { readFileSync } from 'node:fs';
 import {
-  PgDishRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
+  PgContentWriteRepository, PgDishRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
   PgRestaurantWriteRepository, PgWineRepository, PgWineWriteRepository
 } from '../src/repositories';
 import { DemoSeeder } from '../src/seeders/DemoSeeder';
@@ -60,6 +61,7 @@ function pgRepos(orm: MikroORM): Repositories {
     wineWriteRepository: new PgWineWriteRepository({ em }),
     restaurantWriteRepository: new PgRestaurantWriteRepository({ em }),
     publishRepository: new PgPublishRepository({ em }),
+    contentWriteRepository: new PgContentWriteRepository({ em }),
     importRepository: new PgImportRepository({ em })
   };
 }
@@ -74,7 +76,8 @@ function services(repos: Repositories) {
     rec: new RecommendationService(repos),
     admin: new AdminService(repos),
     imp: new ImportService({ ...repos, importFileParser: new NodeImportFileParser(), clock, idGenerator }),
-    restaurantSvc: new RestaurantService(repos)
+    restaurantSvc: new RestaurantService(repos),
+    tr: new TranslationService(repos)
   };
 }
 
@@ -276,6 +279,73 @@ run('PostgreSQL', () => {
       const raw = await orm.em.getConnection().execute<Array<{ storage_key: string | null; file_size: number; file_name: string }>>("select storage_key, file_size, file_name from import_job where id = '" + job.id + "'");
       expect(raw[0]).toMatchObject({ storage_key: null, file_name: 'menu.xlsx' });
       expect(raw[0].file_size).toBeGreaterThan(1000);
+    });
+  });
+
+  describe('bilingual content on PostgreSQL (spec 2026-10-15-bilingual-content)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const fixture = (name: string) => ({ name, bytes: new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url))) });
+    const columns = async (table: string) => (await orm.em.getConnection().execute<Array<{ column_name: string; column_default: string | null; is_nullable: string }>>(
+      'select column_name, column_default, is_nullable from information_schema.columns where table_name = ? order by column_name', [table]));
+
+    it('the migration adds the columns with their defaults, and down removes them again (AC5)', async () => {
+      expect((await columns('dish')).find((c) => c.column_name === 'translations')).toMatchObject({ is_nullable: 'NO', column_default: "'{}'::jsonb" });
+      expect((await columns('restaurant')).find((c) => c.column_name === 'content_locale')).toMatchObject({ is_nullable: 'NO', column_default: "'en'::text" });
+      expect((await columns('pairing')).some((c) => c.column_name === 'comment_translations')).toBe(true);
+      // the real migration class, its SQL run statement by statement
+      const migration = new Migration20261015140000_bilingual_content(orm.em.getDriver(), orm.config);
+      const run = async (fn: 'up' | 'down') => {
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      await run('down');
+      expect((await columns('dish')).some((c) => c.column_name === 'translations')).toBe(false);
+      expect((await columns('restaurant')).some((c) => c.column_name === 'content_locale')).toBe(false);
+      await run('up');
+      expect((await columns('wine')).some((c) => c.column_name === 'translations')).toBe(true);
+      await resetData(orm);
+    });
+
+    it('the seeder fills the translations of a database seeded before them, once, without overwriting edits', async () => {
+      const conn = orm.em.getConnection();
+      await conn.execute(`update dish set translations = '{}'; update wine set translations = '{}'; update restaurant set translations = '{}'; update pairing set comment_translations = '{}'`);
+      await conn.execute(`update published_version set snapshot = snapshot - 'content'`);
+      const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+      await conn.execute(`update dish set translations = '{"pl":{"name":"Kaczka (edytowana)"}}' where id = ?`, [duck.id]);
+      expect((await pgRepos(orm).publishRepository.publishedContent(ds.restaurant.id)).dishes.size).toBe(0);   // old snapshot: read as {}
+      await new DemoSeeder().run(orm.em.fork());
+      await new DemoSeeder().run(orm.em.fork());
+      const repos = pgRepos(orm);
+      expect((await repos.dishRepository.findById(ds.restaurant.id, duck.id))!.translations).toEqual({ pl: { name: 'Kaczka (edytowana)' } });
+      const tartare = ds.dishes.find((d) => d.name === 'Beef tartare')!;
+      expect((await repos.dishRepository.findById(ds.restaurant.id, tartare.id))!.translations).toEqual(tartare.translations);
+      expect((await repos.restaurantRepository.findBySlug('halka'))!.translations).toEqual(ds.restaurant.translations);
+      expect((await repos.publishRepository.publishedContent(ds.restaurant.id)).dishes.get(tartare.id)).toEqual(tartare.translations);
+    });
+
+    it('imports a real CSV with translation columns into the database (AC3)', async () => {
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'menu', fixture('menu-translations.csv'), MARTA);
+      expect(job.rows[0].issues.some((i) => i.code === 'translation_empty')).toBe(true);
+      await s.imp.confirm('halka', job.id, MARTA, [{ rowNumber: 2, include: true }]);
+      const dishes = await pgRepos(orm).dishRepository.listByRestaurant(ds.restaurant.id);
+      expect(dishes.find((d) => d.name === 'Plum tart')!.translations).toEqual({ pl: { name: 'Tarta śliwkowa', description: 'Pieczona tarta ze śliwkami, lody waniliowe' } });
+      const duck = dishes.find((d) => d.name === 'Duck breast')!;
+      // the empty Polish description cell kept the demo's translation
+      expect(duck.translations).toEqual({ pl: { name: 'Pierś z kaczki', description: ds.dishes.find((d) => d.id === duck.id)!.translations.pl!.description }, en: { name: 'Duck breast', description: 'Roasted duck, sour cherry jus' } });
+    });
+
+    it('two editors save the same dish translation: the second one gets a version conflict (AC4)', async () => {
+      const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+      const seen = translationsVersion(duck.translations);
+      await services(pgRepos(orm)).tr.setDishTranslations('halka', duck.id, { pl: { name: 'Kaczka A' } }, MARTA, seen);
+      await expect(services(pgRepos(orm)).tr.setDishTranslations('halka', duck.id, { pl: { name: 'Kaczka B' } }, TOMASZ, seen)).rejects.toBeInstanceOf(VersionConflictError);
+      expect((await pgRepos(orm).dishRepository.findById(ds.restaurant.id, duck.id))!.translations.pl!.name).toBe('Kaczka A');
+      const s = services(pgRepos(orm));
+      expect((await s.publish.preview('halka')).pendingContent).toBe(1);
+      await s.publish.publish('halka', MARTA);
+      expect((await services(pgRepos(orm)).rec.forDish('halka', duck.id, {}, undefined, 'pl'))!.dish.name).toBe('Kaczka A');
     });
   });
 });

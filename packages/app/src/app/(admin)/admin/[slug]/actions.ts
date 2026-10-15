@@ -1,6 +1,6 @@
 'use server';
 
-import { act, str, version } from '@/server/action-runner';
+import { act, localeFields, str, translationsOrInvalid, version } from '@/server/action-runner';
 
 /**
  * Server actions of the dashboard: plain form posts that call a service and redirect back with the
@@ -24,8 +24,32 @@ export async function setPairingRole(form: FormData) {
   return act(form, 'pairings.decide', async ({ c, slug, actor, form: f }) => { await c.sommelierService.setRole(slug, str(f, 'pairingId'), str(f, 'role'), actor, version(f)); return { saved: 'role' }; });
 }
 
+/** The note and, when the form has them, its Polish and English versions (`comment_pl`, `comment_en`). */
 export async function savePairingNote(form: FormData) {
-  return act(form, 'pairings.decide', async ({ c, slug, actor, form: f }) => { await c.sommelierService.setComment(slug, str(f, 'pairingId'), str(f, 'comment'), actor, version(f)); return { saved: 'note' }; });
+  return act(form, 'pairings.decide', async ({ c, slug, actor, form: f }) => {
+    if (f.has('comment_pl') || f.has('comment_en')) {
+      const translations = Object.fromEntries((['pl', 'en'] as const).filter((l) => f.has(`comment_${l}`)).map((l) => [l, str(f, `comment_${l}`)]));
+      return translationsOrInvalid(async () => { await c.sommelierService.setNote(slug, str(f, 'pairingId'), { comment: str(f, 'comment'), translations }, actor, version(f)); return { saved: 'note' }; });
+    }
+    await c.sommelierService.setComment(slug, str(f, 'pairingId'), str(f, 'comment'), actor, version(f));
+    return { saved: 'note' };
+  });
+}
+
+/** A3 "Translations": the dish's name and description in Polish and English (spec 2026-10-15-bilingual-content, R6). */
+export async function saveDishTranslations(form: FormData) {
+  return act(form, 'import.manage', async ({ c, slug, actor, form: f }) => translationsOrInvalid(async () => {
+    await c.translationService.setDishTranslations(slug, str(f, 'dishId'), localeFields(f, ['name', 'description']), actor, str(f, 'version') || undefined);
+    return { saved: 'translations' };
+  }));
+}
+
+/** A5 "Translations": tasting note, region and country in Polish and English. */
+export async function saveWineTranslations(form: FormData) {
+  return act(form, 'import.manage', async ({ c, slug, actor, form: f }) => translationsOrInvalid(async () => {
+    await c.translationService.setWineTranslations(slug, str(f, 'wineId'), localeFields(f, ['tastingNote', 'region', 'country']), actor, str(f, 'version') || undefined);
+    return { saved: 'translations' };
+  }));
 }
 
 export async function movePairing(form: FormData) {

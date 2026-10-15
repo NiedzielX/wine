@@ -2,15 +2,20 @@ import type { AuthUser, Membership, SessionRecord } from '../auth/types';
 import type { DemoDataset } from '../demo/dataset';
 import type { Dish, EntityStatus, Pairing, Restaurant, RestaurantSettings, Wine } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
+import {
+  contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
+  type ContentSnapshot, type DishTranslations, type WineTranslations
+} from '../i18n/content';
 import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
 import type { ImportPlan, ImportRepository } from '../ports/import';
 import type {
-  DecisionRecord, DishRepository, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
-  PublishRepository, Repositories, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, WineRepository, WineWriteRepository
+  ContentWriteRepository, DecisionRecord, DishRepository, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
+  PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
-interface StoredVersion { info: PublishedVersionInfo; pairings: Pairing[] }
+/** `content` is null for a version published before translations existed (read as `{}`). */
+interface StoredVersion { info: PublishedVersionInfo; pairings: Pairing[]; content: ContentSnapshot | null }
 
 const isReviewed = (p: Pairing) => p.status === 'approved' || p.status === 'modified';
 /** What a published version keeps: the decisions guests need (reviewed and rejected pairings). */
@@ -46,7 +51,8 @@ export class MemoryStore {
       // version 1 is the state the demo restaurant was published in
       s.versions.set(id, [{
         info: { id: `${id}:v1`, number: 1, changesCount: 0, publishedBy: d.restaurant.wineDirector, publishedAt: d.restaurant.publishedAt ?? '1970-01-01T00:00:00.000Z' },
-        pairings: pairings.filter(publishable).map((p) => ({ ...p, dirty: false, version: undefined }))
+        pairings: pairings.filter(publishable).map((p) => ({ ...p, dirty: false, version: undefined })),
+        content: contentSnapshot(d.restaurant, d.dishes, d.wines)
       }]);
     }
     return s;
@@ -215,22 +221,56 @@ export class MemoryPublishRepository implements PublishRepository {
     return new Set(this.store.decisions.filter((d) => d.restaurantId === restaurantId && d.at > since).map((d) => d.pairingId)).size;
   }
 
-  async publish(restaurantId: string, input: { actor: string; at: string; id: string }) {
+  async publishedContent(restaurantId: string) {
+    const v = this.store.latest(restaurantId);
+    if (v) return readContentSnapshot(v.content);
+    const r = this.store.restaurants.find((x) => x.id === restaurantId);
+    return r ? currentContent(r, this.store.dishes.get(restaurantId) ?? [], this.store.wines.get(restaurantId) ?? []) : readContentSnapshot(null);
+  }
+
+  async publish(restaurantId: string, input: { actor: string; at: string; id: string; contentChanges?: number }) {
     const pairings = this.store.pairings.get(restaurantId);
     const restaurant = this.store.restaurants.find((r) => r.id === restaurantId);
     if (!pairings || !restaurant) throw new NotFoundError('Restaurant');
     const drafts = (this.store.dishes.get(restaurantId) ?? []).filter((d) => d.status === 'draft');
     const info: PublishedVersionInfo = {
       id: input.id, number: (this.store.latest(restaurantId)?.info.number ?? 0) + 1,
-      changesCount: (await this.pendingPairingChanges(restaurantId)) + drafts.length, publishedBy: input.actor, publishedAt: input.at
+      changesCount: (await this.pendingPairingChanges(restaurantId)) + drafts.length + (input.contentChanges ?? 0), publishedBy: input.actor, publishedAt: input.at
     };
     const list = this.store.versions.get(restaurantId) ?? [];
-    list.push({ info, pairings: copy(pairings.filter(publishable)).map((p) => ({ ...p, dirty: false, version: undefined })) });
+    const content = contentSnapshot(restaurant, this.store.dishes.get(restaurantId) ?? [], this.store.wines.get(restaurantId) ?? []);
+    list.push({ info, pairings: copy(pairings.filter(publishable)).map((p) => ({ ...p, dirty: false, version: undefined })), content });
     this.store.versions.set(restaurantId, list);
     pairings.forEach((p) => { p.dirty = false; });
     drafts.forEach((d) => { d.status = 'published'; });
     restaurant.publishedAt = input.at;
     return { ...info };
+  }
+}
+
+export class MemoryContentWriteRepository implements ContentWriteRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async setDishTranslations(restaurantId: string, dishId: string, next: DishTranslations, expected?: DishTranslations) {
+    const d = (this.store.dishes.get(restaurantId) ?? []).find((x) => x.id === dishId);
+    if (!d) throw new NotFoundError('Dish');
+    if (expected !== undefined && !sameTranslations(d.translations, expected)) throw new VersionConflictError();
+    d.translations = copy(next);
+  }
+
+  async setWineTranslations(restaurantId: string, wineId: string, next: WineTranslations, expected?: WineTranslations) {
+    const w = (this.store.wines.get(restaurantId) ?? []).find((x) => x.id === wineId);
+    if (!w) throw new NotFoundError('Wine');
+    if (expected !== undefined && !sameTranslations(w.translations, expected)) throw new VersionConflictError();
+    w.translations = copy(next);
+  }
+
+  async setRestaurantContent(restaurantId: string, next: RestaurantContent, expected?: RestaurantContent) {
+    const r = this.store.restaurants.find((x) => x.id === restaurantId);
+    if (!r) throw new NotFoundError('Restaurant');
+    if (expected !== undefined && !sameTranslations({ contentLocale: r.contentLocale, translations: r.translations }, expected)) throw new VersionConflictError();
+    r.contentLocale = next.contentLocale;
+    r.translations = copy(next.translations);
   }
 }
 
@@ -335,11 +375,13 @@ export class MemoryImportRepository implements ImportRepository {
       const d = dishes.find((x) => x.id === u.id);
       if (!d) throw new NotFoundError('Dish');
       Object.assign(d, { description: u.description, category: u.category, price: u.price });
+      if (u.translations) d.translations = copy(u.translations);
     }
     for (const u of plan.wineUpdates) {
       const w = wines.find((x) => x.id === u.id);
       if (!w) throw new NotFoundError('Wine');
       Object.assign(w, { glassPrice: u.glassPrice, bottlePrice: u.bottlePrice });
+      if (u.translations) w.translations = copy(u.translations);
     }
     dishes.push(...copy(plan.newDishes));
     wines.push(...copy(plan.newWines));
@@ -362,6 +404,7 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     wineWriteRepository: new MemoryWineWriteRepository(store),
     restaurantWriteRepository: new MemoryRestaurantWriteRepository(store),
     publishRepository: new MemoryPublishRepository(store),
+    contentWriteRepository: new MemoryContentWriteRepository(store),
     importRepository: new MemoryImportRepository(store)
   };
 }

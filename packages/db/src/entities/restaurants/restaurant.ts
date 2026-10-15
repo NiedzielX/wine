@@ -1,5 +1,5 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/postgresql';
-import type { RestaurantSettings } from '@wine-match/core';
+import type { RestaurantSettings, RestaurantTranslations } from '@wine-match/core';
 
 export const RestaurantEntity = defineEntity({
   name: 'Restaurant',
@@ -17,6 +17,10 @@ export const RestaurantEntity = defineEntity({
     status: p.enum(['onboarding', 'active', 'paused', 'archived'] as const).default('onboarding'),
     publishedAt: p.datetime().nullable(),
     externalRefs: p.json<Record<string, string>>().nullable(),
+    /** the language of the base content fields, `pl` or `en` (spec 2026-10-15-bilingual-content, R2) */
+    contentLocale: p.text().default('en'),
+    /** tagline and city in other languages */
+    translations: p.json<RestaurantTranslations>().defaultRaw(`'{}'`),
     createdAt: p.datetime().onCreate(() => new Date()),
     updatedAt: p.datetime().onCreate(() => new Date()).onUpdate(() => new Date())
   }

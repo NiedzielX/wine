@@ -1,4 +1,5 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/postgresql';
+import type { DishTranslations } from '@wine-match/core';
 import { RestaurantEntity } from '../restaurants/restaurant';
 
 /** Taste profile, embedded in the dish table as profile_* columns (1:1, always loaded with the dish). */
@@ -36,6 +37,8 @@ export const DishEntity = defineEntity({
     status: p.enum(['draft', 'published', 'hidden'] as const).default('draft'),
     sortOrder: p.integer().default(0),
     profile: () => p.embedded(DishProfileEmbeddable).prefix('profile_'),
+    /** name and description in other languages (spec 2026-10-15-bilingual-content, R9) */
+    translations: p.json<DishTranslations>().defaultRaw(`'{}'`),
     externalRef: p.string().nullable(),
     deletedAt: p.datetime().nullable(),
     createdAt: p.datetime().onCreate(() => new Date()),

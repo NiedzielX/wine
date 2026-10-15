@@ -1,7 +1,8 @@
 import { UniqueConstraintViolationException } from '@mikro-orm/core';
-import type { EntityManager } from '@mikro-orm/postgresql';
+import { LockMode, type EntityManager } from '@mikro-orm/postgresql';
 import {
-  ENGINE_VERSION, InvariantError, NotFoundError, VersionConflictError,
+  ENGINE_VERSION, InvariantError, NotFoundError, VersionConflictError, contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
+  type ContentWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
   type WineRepository, type WineWriteRepository
@@ -130,7 +131,7 @@ export class PgPairingWriteRepository implements PairingWriteRepository {
             const p = op.pairing;
             em.create(PairingEntity, {
               id: p.id, restaurant: em.getReference(RestaurantEntity, restaurantId), dish: em.getReference(DishEntity, p.dishId), wine: em.getReference(WineEntity, p.wineId),
-              status: p.status, role: p.role, rank: p.rank, comment: p.comment, modelScore: p.modelScore, factors: null, engineVersion: ENGINE_VERSION,
+              status: p.status, role: p.role, rank: p.rank, comment: p.comment, commentTranslations: p.commentTranslations ?? {}, modelScore: p.modelScore, factors: null, engineVersion: ENGINE_VERSION,
               source: p.source, dirty: true, updatedBy: p.updatedBy, updatedAt: new Date(p.updatedAt)
             });
           } else {
@@ -145,6 +146,7 @@ export class PgPairingWriteRepository implements PairingWriteRepository {
               if (patch.role !== undefined) e.role = patch.role;
               if (patch.rank !== undefined) e.rank = patch.rank;
               if (patch.comment !== undefined) e.comment = patch.comment;
+              if (patch.commentTranslations !== undefined) e.commentTranslations = { ...patch.commentTranslations };
               e.dirty = true;
               e.updatedBy = patch.updatedBy;
               e.updatedAt = new Date(patch.updatedAt);
@@ -247,7 +249,20 @@ export class PgPublishRepository implements PublishRepository {
     return countPending(this.em, restaurantId, (await latestVersion(this.em, restaurantId))?.publishedAt);
   }
 
-  async publish(restaurantId: string, input: { actor: string; at: string; id: string }) {
+  async publishedContent(restaurantId: string) {
+    const v = await latestVersion(this.em, restaurantId);
+    if (v) return readContentSnapshot(v.snapshot.content);
+    // never published: the current translations (like the pairings)
+    const r = await this.em.findOne(RestaurantEntity, { id: restaurantId });
+    if (!r) return readContentSnapshot(null);
+    const [dishes, wines] = await Promise.all([
+      this.em.find(DishEntity, { restaurant: restaurantId, deletedAt: null }),
+      this.em.find(WineEntity, { restaurant: restaurantId, deletedAt: null })
+    ]);
+    return currentContent(toRestaurant(r), dishes.map(toDish), wines.map(toWine));
+  }
+
+  async publish(restaurantId: string, input: { actor: string; at: string; id: string; contentChanges?: number }) {
     try {
       return await this.em.transactional(async (em) => {
         const restaurant = await em.findOneOrFail(RestaurantEntity, { id: restaurantId });
@@ -255,14 +270,19 @@ export class PgPublishRepository implements PublishRepository {
         const pending = await countPending(em, restaurantId, last?.publishedAt);
         const reviewed = await em.find(PairingEntity, { restaurant: restaurantId, status: { $in: [...PUBLISHABLE] } }, { orderBy: { id: 'asc' } });
         const drafts = await em.find(DishEntity, { restaurant: restaurantId, status: 'draft', deletedAt: null });
+        const [allDishes, allWines] = await Promise.all([
+          em.find(DishEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' } }),
+          em.find(WineEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' } })
+        ]);
         const snapshot: PublishedSnapshot = {
+          content: contentSnapshot(toRestaurant(restaurant), allDishes.map(toDish), allWines.map(toWine)),
           pairings: reviewed.map((p) => ({
             id: p.id, dishId: p.dish.id, wineId: p.wine.id, status: p.status as 'approved' | 'modified' | 'rejected', role: p.role ?? null, rank: p.rank ?? null,
-            comment: p.comment ?? null, modelScore: p.modelScore, source: p.source, updatedBy: p.updatedBy, updatedAt: p.updatedAt.toISOString()
+            comment: p.comment ?? null, commentTranslations: { ...(p.commentTranslations ?? {}) }, modelScore: p.modelScore, source: p.source, updatedBy: p.updatedBy, updatedAt: p.updatedAt.toISOString()
           }))
         };
         const version = em.create(PublishedVersionEntity, {
-          id: input.id, restaurant, number: (last?.number ?? 0) + 1, snapshot, changesCount: pending + drafts.length,
+          id: input.id, restaurant, number: (last?.number ?? 0) + 1, snapshot, changesCount: pending + drafts.length + (input.contentChanges ?? 0),
           publishedBy: input.actor, publishedAt: new Date(input.at)
         });
         // a native update: clearing the flag must not count as a change of the pairing (no version bump)
@@ -271,6 +291,58 @@ export class PgPublishRepository implements PublishRepository {
         restaurant.publishedAt = new Date(input.at);
         await em.flush();
         return toInfo(version);
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+}
+
+/**
+ * Writes of translated content (spec 2026-10-15-bilingual-content). Each write locks the row (`FOR UPDATE`), compares
+ * what is stored with what the caller saw and writes in the same transaction, so two editors cannot overwrite each other.
+ */
+export class PgContentWriteRepository implements ContentWriteRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  async setDishTranslations(restaurantId: string, dishId: string, next: DishTranslations, expected?: DishTranslations) {
+    try {
+      await this.em.transactional(async (em) => {
+        const d = await em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!d) throw new NotFoundError('Dish');
+        if (expected !== undefined && !sameTranslations(d.translations ?? {}, expected)) throw new VersionConflictError();
+        d.translations = { ...next };
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async setWineTranslations(restaurantId: string, wineId: string, next: WineTranslations, expected?: WineTranslations) {
+    try {
+      await this.em.transactional(async (em) => {
+        const w = await em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!w) throw new NotFoundError('Wine');
+        if (expected !== undefined && !sameTranslations(w.translations ?? {}, expected)) throw new VersionConflictError();
+        w.translations = { ...next };
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async setRestaurantContent(restaurantId: string, next: RestaurantContent, expected?: RestaurantContent) {
+    try {
+      await this.em.transactional(async (em) => {
+        const r = await em.findOne(RestaurantEntity, { id: restaurantId }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!r) throw new NotFoundError('Restaurant');
+        if (expected !== undefined && !sameTranslations({ contentLocale: r.contentLocale, translations: r.translations ?? {} }, expected)) throw new VersionConflictError();
+        r.contentLocale = next.contentLocale;
+        r.translations = { ...next.translations };
+        await em.flush();
       });
     } finally {
       this.em.clear();
