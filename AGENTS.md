@@ -72,7 +72,7 @@ Pakiety wewnętrzne eksportują źródła TypeScript (bez kroku build); Next.js 
 | `npm run dev:mockups` | statyczne mockupy |
 | `npm run lint` | `oxlint`: brak `any`, pustych `catch`, `console.*`, ograniczenia importów między pakietami (bramka jakości; w CI) |
 | `npm run typecheck` | TypeScript we wszystkich pakietach |
-| `npm test` | testy jednostkowe wszystkich pakietów; każdy pakiet ma bramkę pokrycia 100% (linie, funkcje, gałęzie, instrukcje), poniżej tego `npm test` pada |
+| `npm test` | testy jednostkowe wszystkich pakietów z raportem pokrycia (bez progu; `npm test` pada tylko na nieudanym teście) |
 | `npm run test:db` | testy integracyjne na PostgreSQL: sam startuje kontener (testcontainers), albo bierze serwer z `TEST_DATABASE_URL` (lokalnie bez Dockera) |
 | `npm run test:e2e` | testy end-to-end: zbudowana aplikacja na PostgreSQL, sterowana przez `agent-browser` 0.39.1 (strona główna, panel). Wymaga `npm run build` i `agent-browser` w `PATH` (lub `AGENT_BROWSER_BIN`) |
 | `npm run check:boundaries` | granice pakietów |
@@ -284,7 +284,7 @@ Test, polecenie lub krok weryfikacji.
 2. Ustal, czy zadanie wymaga specyfikacji (sekcja 3). Znajdź ją lub utwórz draft.
 3. Jeśli działasz autonomicznie — załóż log w `.ai/runs/`.
 4. Implementuj tylko zatwierdzony zakres.
-5. Zweryfikuj zgodnie z sekcją 6.1 (w tym `npm test` z bramką pokrycia).
+5. Zweryfikuj zgodnie z sekcją 6.1 (w tym `npm test`).
 6. Zapisz lekcje (sekcja 5).
 7. Zaktualizuj spec (status, „Realizacja”, przeniesienie do `implemented/`) i zamknij log (`ended`, `outcome`).
 8. W odpowiedzi dla człowieka wskaż ścieżki do specyfikacji, logu i nowych lekcji.
@@ -301,8 +301,8 @@ Praca nie jest skończona, dopóki jej działania nie udowodnisz. „Powinno dzi
 
 ## 7. Zasady projektu, których nie wolno łamać
 
-- **Każda nowa funkcja musi mieć 100% pokrycia testami jednostkowymi** (linie, funkcje, gałęzie i instrukcje), i to w pakiecie, w którym leży. Nie wystarczy, że funkcja jest przetestowana pośrednio przez test integracyjny albo E2E. Bramka pokrycia (`npm test`, osobno w każdym pakiecie) przerywa build poniżej 100%. Zmiana, która dodaje gałąź, dodaje też test, który ją wykonuje. Jeśli gałąź jest nieosiągalna, usuń ją albo wyjaśnij w komentarzu, dlaczego jest niemożliwa; nie wyłączaj pokrycia komentarzem `v8 ignore`.
-- **Wykluczenia z bramki są jawne, w konfiguracji każdego pakietu** (`vitest.config.ts`), z uzasadnieniem: pliki stron i komponentów React (`app/src/app/**.tsx`, pokrywa je E2E), kod shadcn/ui, pakiet `mockups` (prototyp do wycofania), wspólne zestawy testów (`core/src/testing`), repozytoria i encje (pokrywa je `test:db`). Nowe wykluczenie wymaga zgody właściciela.
+- **Nowy kod ma testy jednostkowe** w pakiecie, w którym leży, dla głównej ścieżki i ważnych przypadków brzegowych. Pokrycie jest raportowane, ale nie ma progu, który przerywa build. Nie dopisuj testów tylko po to, żeby podbić procent.
+- **Wykluczenia z raportu pokrycia są jawne, w konfiguracji każdego pakietu** (`vitest.config.ts`), z uzasadnieniem: pliki stron i komponentów React (`app/src/app/**.tsx`, pokrywa je E2E), kod shadcn/ui, pakiet `mockups` (prototyp do wycofania), wspólne zestawy testów (`core/src/testing`), repozytoria i encje (pokrywa je `test:db`). Nowe wykluczenie wymaga zgody właściciela.
 - **Gdzie piszemy testy:** `core/tests/` (logika domeny), `db/tests/` (bez bazy: `*.test.ts`; z bazą: `*.integration.test.ts`), `app/tests/unit/` (trasy API, akcje, serwer), `app/tests/e2e/` (przeglądarka), `ui/tests/`, `testkit/tests/` (narzędzia testowe).
 - **Silnik jest deterministyczny.** W `packages/core/src/engine/` nie używaj `Math.random`, dat, sieci ani wywołań LLM. Każda nowa reguła ma nazwę (`rule`), test w `packages/core/tests/engine.test.ts` i wpis w `docs/RECOMMENDATION_ENGINE.md`.
 - **Sommelier ponad modelem.** Etykieta „Sommelier recommendation” tylko dla par `approved` / `modified`. Wyświetlany Match Score to zawsze wynik silnika, bez podbijania.

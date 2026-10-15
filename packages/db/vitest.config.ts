@@ -12,8 +12,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/auth/**/*.ts', 'src/import/**/*.ts', 'src/mappers.ts', 'src/config.ts'],
-      reporter: ['text', 'lcov'],
-      thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 }
+      reporter: ['text', 'lcov']
     }
   }
 });

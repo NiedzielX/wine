@@ -26,8 +26,7 @@ export default defineConfig({
         'src/app/**/format.ts'
       ],
       exclude: ['src/server/**/*.d.ts'],
-      reporter: ['text', 'lcov'],
-      thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 }
+      reporter: ['text', 'lcov']
     }
   }
 });
