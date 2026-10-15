@@ -49,7 +49,7 @@ export function AdminShell({ restaurant, reviewCount, publishCount, user, locale
  * (`as="div"`) must not be, or the streamed page would briefly have two.
  */
 export function Page({ children, as: Tag = 'main' }: { children: ReactNode; as?: 'main' | 'div' }) {
-  return <Tag className="mx-auto max-w-6xl px-4 py-6 lg:px-10 lg:py-8">{children}</Tag>;
+  return <Tag className="mx-auto w-full px-4 py-6 lg:px-10 lg:py-8">{children}</Tag>;
 }
 
 export function PageHeader({ title, description, back, actions }: { title: string; description?: ReactNode; back?: { href: string; label: string }; actions?: ReactNode }) {

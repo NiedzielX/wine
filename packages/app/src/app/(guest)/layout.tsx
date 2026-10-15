@@ -15,7 +15,7 @@ export default async function GuestLayout({ children }: { children: ReactNode })
   return (
     <html lang={await getLocale()}>
       <body>
-        <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col lg:max-w-[1200px] bg-paper sm:shadow-[0_0_0_1px_var(--color-line)]">{children}</div>
+        <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col bg-paper sm:shadow-[0_0_0_1px_var(--color-line)] md:max-w-none md:shadow-none">{children}</div>
       </body>
     </html>
   );
