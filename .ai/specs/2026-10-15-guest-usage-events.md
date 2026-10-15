@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-10-15
 owner: Filip
 related: [issue #11, #12, #13, #14, .ai/specs/product-brief.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-15-restaurant-bootstrap-cli.md]
@@ -35,19 +35,19 @@ Zapis zdarzeń lejka gościa (landing → menu → danie → wina → wino → w
 
 | # | Pytanie | Przyjęta odpowiedź | Uzasadnienie |
 |---|---|---|---|
-| Q1 | Gdzie żyje `sessionId`? | Parametr URL `sid` (UUID v4) w każdym linku i formularzu gościa; brak/zły = nowa sesja. Docs poprawione. ⚠ NEEDS HUMAN CONFIRMATION | Jedyna opcja zgodna z R05 (bez JS, bez storage). Koszt do akceptacji: udostępniony link w środku ścieżki łączy dwie osoby w jedną sesję (zaniżenie sesji); `sid` trafia do logów dostępu i historii przeglądarki. Ignorowanie `sid` później jest trywialne — trwałe są tylko nazwa parametru (§1 BC) i niezmiennik „każdy link go niesie”. |
+| Q1 | Gdzie żyje `sessionId`? | Parametr URL `sid` (UUID v4) w każdym linku i formularzu gościa; brak/zły = nowa sesja. Docs poprawione. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Jedyna opcja zgodna z R05 (bez JS, bez storage). Koszt do akceptacji: udostępniony link w środku ścieżki łączy dwie osoby w jedną sesję (zaniżenie sesji); `sid` trafia do logów dostępu i historii przeglądarki. Ignorowanie `sid` później jest trywialne — trwałe są tylko nazwa parametru (§1 BC) i niezmiennik „każdy link go niesie”. |
 | Q2 | Jedna spec czy trzy (S01–S03)? | Jedna, trzy fazy = trzy PR‑y. | S02/S03 nie działają bez mechanizmu S01. |
 | Q3 | Zmiana schematu? | Nie. `source`, `context`, `menuVersion` idą do `props`. | Kolumny wystarczają; brak ryzyka §3 BC. |
 | Q4 | `POST /public/events`? | Odłożone; w docs „planowane”. | Nowa publiczna trasa = kontrakt §2 BC; żadne AC jej nie wymaga. |
 | Q5 | Zakres zdarzeń? | AC (`guest_session_started`, `dish_viewed`, `recommendations_viewed`, `wine_selected`, `staff_lookup`) + `menu_viewed`, `wine_viewed`, `table_recommendation_viewed`. | Jedna linia na stronę; bez nich lejek stolika i wino→wybór są niepoliczalne. |
-| Q6 | AC #13: „wino nieaktywne → not-found”, a G8 dziś pokazuje „This wine is no longer available” (200). | Zostaje obecny ekran (wino spoza karty dalej 404); w obu przypadkach **brak** `wine_selected`. ⚠ NEEDS HUMAN CONFIRMATION | Spec analityki nie zmienia UX gościa; odstępstwo od literalnego AC. |
+| Q6 | AC #13: „wino nieaktywne → not-found”, a G8 dziś pokazuje „This wine is no longer available” (200). | Zostaje obecny ekran (wino spoza karty dalej 404); w obu przypadkach **brak** `wine_selected`. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Spec analityki nie zmienia UX gościa; odstępstwo od literalnego AC. |
 | Q7 | Odświeżenie / powrót = duplikat? | Akceptujemy duplikaty; KPI liczą unikalne (sesja, obiekt). Otwarcie `sheet=filters` nie zapisuje. | Deduplikacja nieproporcjonalna w MVP; E04 Q8 liczy unikalne pary. |
 | Q8 | `qr` vs `link`? | G0 bez `sid` → `qr`; inna strona gościa bez `sid` → `link`. | Kody QR bez zmian (§1 BC); ręcznie wpisany `/r/halka` = `qr` (znane przybliżenie). |
 | Q9 | Kiedy `staff_lookup`? | Tylko przy jawnym `dish=` istniejącym w menu. Kelner ma własny `sid`; link „For staff” nie niesie `sid` gościa; wszystkie linki i formularz G9 (w tym „Back”) niosą `sid` kelnera. | Literalnie „wybiera danie”; sesje kelnera się nie mieszają. |
 | Q10 | Zapis synchroniczny czy po odpowiedzi? | `after()` z `next/server`, ostatnia instrukcja przed `return`; błąd → `logger.warn`. Utrata zdarzenia przy padnięciu procesu akceptowana. | AC #12.3; brak latencji. |
 | Q11 | Boty, podglądy, ruch własny? | Pomijamy: prefetch, nagłówek `x-wine-match-synthetic: 1` (kontrakt dla smoke/CI/monitoringu, Q14), pusty UA i UA pasujący do listy `NON_GUEST_UA` (bot, crawl, spider, slurp, preview, facebookexternalhit, whatsapp, telegrambot, slackbot, discordbot, linkedinbot, twitterbot, embedly, curl/, wget/, python-requests, go-http-client, uptime, pingdom). Limity zapisu odłożone. | Pierwsze sesje pilota nie mogą zawierać naszych smoke'ów i podglądów linków. Lista nie zawiera `HeadlessChrome` — E2E musi zapisywać. |
 | Q12 | Wygasanie, retencja, partycje? | Brak w MVP. | Wolumen pilota mały; podział po przerwie można zrobić w zapytaniu. |
-| Q13 | Czy zapis podlega konwencji komend (§1.3: `actor`, `expectedVersion`, `DomainError`)? | Nie — telemetria nie jest komendą. ⚠ NEEDS HUMAN CONFIRMATION | Wyjątek od prawa repo (§1.3) — zatwierdza owner razem ze speciem. |
+| Q13 | Czy zapis podlega konwencji komend (§1.3: `actor`, `expectedVersion`, `DomainError`)? | Nie — telemetria nie jest komendą. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Wyjątek od prawa repo (§1.3) — zatwierdza owner razem ze speciem. |
 | Q14 | Jak oznaczyć ruch własny? | Nagłówek żądania `x-wine-match-synthetic: 1` (stała `SYNTHETIC_TRAFFIC_HEADER` w `app/src/server/usage-events.ts`). Wysyłają go: `scripts/smoke.mjs` (każde żądanie, oba tryby), `curl` w runbooku i monitoring (E05-S02). E2E **nie** wysyła. | Działa dla `curl` i probe'ów bez znajomości URL‑i; zarezerwowany `sid` musiałby krążyć w linkach. Podrobienie nagłówka tylko ukrywa własne zdarzenia — nieszkodliwe. |
 | Q15 | Wersja menu (`menuVersion` z SCREEN_SPECIFICATION)? | `props.menuVersion = restaurant.publishedAt` (ISO lub `null`) w każdym zdarzeniu. | Pozwala E04-S03 powiązać zdarzenie z migawką bez migracji; restauracja jest już załadowana. |
 | Q16 | Definicja sesji gościa? | Sesja z `guest_session_started` (bez zmian; E04 Q9 na tym stoi). | Start zapisywany w tym samym `insert` co pierwsze zdarzenie strony (atomowo); utrata pierwszego zapisu tylko zaniża sesje — E04 pomija zdarzenia sesji bez startu we wszystkich KPI, więc konwersja nie rośnie. |
@@ -165,7 +165,7 @@ D01 (analityka w MVP) — realizowane; D04 — licznik sesji i wyborów, sam Att
 
 ## Fazy i zależności
 - **Faza 1 — #12:** sesja, port/serwis/repozytoria, filtry `shouldRecord`, propagacja `sid` na **wszystkich** stronach (z G9 i komponentami), zdarzenia G0–G3, nagłówek w `smoke.mjs`, docs + BC. **Czeka na Q1 i Q13.**
-- **Faza 2 — #13:** `wine_viewed`, `wine_selected`, `table_recommendation_viewed`. **Czeka na Q6.**
+- **Faza 2 — #13:** `wine_viewed`, `wine_selected`, `table_recommendation_viewed`. Q6 potwierdzone 2026-10-15.
 - **Faza 3 — #14:** `staff_lookup`, sesja kelnera bez startu.
 - **Kolejność scalania (Q17):** E02 F1 przed E03 F1; E04 F1 po E02 F1–F3. E05-S02 dodaje nagłówek do `curl`/monitoringu w runbooku i do `smoke --production` (kontrakt Q14).
 
@@ -202,7 +202,7 @@ D01 (analityka w MVP) — realizowane; D04 — licznik sesji i wyborów, sam Att
 - [ ] AC6a (#12, R6) Strona kończąca się 404 nie zapisuje zdarzeń. *E2E.*
 - [ ] AC6b (#12, R6) Żądanie z `x-wine-match-synthetic: 1` albo z UA z listy `NON_GUEST_UA` daje 200 i zero nowych wierszy; `npm run smoke` na `postgres` nie zmienia liczby wierszy `guest_interaction`. *Test `shouldRecord` + E2E (fetch z nagłówkiem).*
 - [ ] AC7 (#13) `/r/{slug}/selected/{wineId}?dish=…&sid=…`: `wine_selected` z `wineId`, `serving`, `dishId`, `context: 'dish'` w tej samej sesji. *E2E.*
-- [ ] AC8 (#13) Wino nieaktywne („no longer available”) lub spoza karty (404): brak `wine_selected`. *E2E/SSR.* (Q6 ⚠)
+- [ ] AC8 (#13) Wino nieaktywne („no longer available”) lub spoza karty (404): brak `wine_selected`. *E2E/SSR.* (Q6 ✅)
 - [ ] AC9 (#13) Stolik → „Select” butelki: `wine_selected` z `context: 'table'` i `dishIds`. *E2E.*
 - [ ] AC10 (#14, R4) `/r/{slug}/staff?dish={id}`: `staff_lookup` z `dishId` i `props.source = 'staff'`, bez `guest_session_started`. *E2E.*
 - [ ] AC11 (#14, R7) `countGuestSessions` nie wlicza sesji kelnera. *Kontrakt (memory i PostgreSQL).*
@@ -236,9 +236,9 @@ Dokumentacja (R9) — pozycja checklisty PR (CODE_REVIEW §3), nie AC.
 | 21 | Zapis tylko w eksporcie domyślnym strony, nie w `generateMetadata`? | Tak | agent-default |
 | 22 | E04 nie łączy sesji (E02) z rachunkami (E03) w jeden wskaźnik? | Tak | agent-default |
 | 23 | Bramki faz: F1 czeka na Q1 i Q13, F2 na Q6, F3 bez dodatkowych? | Tak | agent-default |
-| 24 | `sid` w URL (Q1) jako trwały parametr §1 BC? | Rekomendacja: tak | ⚠ owner |
-| 25 | Ekran wina nieaktywnego bez zmian, odstępstwo od literalnego AC #13 (Q6)? | Rekomendacja: tak | ⚠ owner |
-| 26 | Telemetria poza konwencją komend §1.3 (Q13)? | Rekomendacja: tak | ⚠ owner |
+| 24 | `sid` w URL (Q1) jako trwały parametr §1 BC? | Rekomendacja: tak | owner ✅ |
+| 25 | Ekran wina nieaktywnego bez zmian, odstępstwo od literalnego AC #13 (Q6)? | Rekomendacja: tak | owner ✅ |
+| 26 | Telemetria poza konwencją komend §1.3 (Q13)? | Rekomendacja: tak | owner ✅ |
 | 27 | `recommendations_viewed` zapisuje `tier` każdego wina w chwili wyświetlenia? (z review E04) | Tak | agent-default |
 | 28 | Konwersja w E04 tylko ścieżka dania; stolik zapisany, ale poza konwersją? (z review E04) | Tak | agent-default |
 
@@ -247,5 +247,6 @@ Dokumentacja (R9) — pozycja checklisty PR (CODE_REVIEW §3), nie AC.
 - 2026-10-15 — cross-model review (Sonnet 5.5): 13 accepted, 1 rejected. Accepted: Q1 złagodzone ryzyko (nadal ⚠); Q6 zostaje ⚠; propagacja `sid` przez komponenty i G9 w F1; filtr ruchu własnego/botów + AC6b; typowane `props`; `menuVersion`; limit pamięci; mniej metod (serwis bez `countGuestSessions`; port zostaje — konsument E04); mock `after` zamiast `defer`; reguła `source` w tabeli; TLDR; usunięte research/narracja przeglądu/duplikaty; AC2 bez grep, AC13 → checklista. Cross-spec przyjęte: nagłówek syntetyczny (kontrakt), restauracja bez menu, kolejność scalania, jednostki sesja vs rachunek, Wymagania R1–R9, bramki faz. Rejected: definicja sesji przez wykluczenie — E04 Q9 stoi na `guest_session_started`, a start jest w tym samym `insert` co pierwsze zdarzenie (utrata = tylko zaniżenie, bez zawyżenia konwersji).
 - 2026-10-15 — grill: 26 questions, 3 left for owner (Q1, Q6, Q13)
 - 2026-10-15 — from E04 review: `items: [{ wineId, tier }]` w `recommendations_viewed`, zakres konwersji (tylko danie), pomocnik `seedUsageEvents` dla testów E04.
+- 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 
 ## Realizacja

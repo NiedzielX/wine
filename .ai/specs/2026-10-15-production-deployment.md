@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-10-15
 owner: Filip
 related: [issue #23, #24, #25, .ai/specs/product-brief.md, .ai/specs/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md]
@@ -14,11 +14,11 @@ Maintainer nie ma dziś jak wdrożyć Wine Match poza swoją maszyną: brak obra
 | # | Pytanie | Przyjęta odpowiedź | Uzasadnienie |
 |---|---|---|---|
 | Q1 | Rozdzielić spec? Zależność od #24? | Jeden spec, trzy fazy = trzy osobno scalane PR-y. **Faza 1 nie zależy od E05-S01**; Fazy 2 (AC7 w jobie `image`) i 3 (runbook, ręczna próba, historia GM/QR) wymagają scalonego `restaurant:create` (E05-S01). Kolejność PR: E05-S01 → E05-S02 F1 → E02 → E03 → E05-S02 F2/F3 (F2/F3 mogą iść równolegle z E02/E03 po E05-S01). | Wcześniejsze „działa bez #24” było sprzeczne z AC7 i historią GM. |
-| Q2 | Dostawca hostingu (product brief Q08) | Obraz OCI niezależny od dostawcy + runbook. Cel referencyjny: jedna VM w UE (np. Hetzner/OVH), Docker Compose, PostgreSQL 16 w kontenerze z wolumenem lub zarządzany, TLS na reverse proxy operatora. **⚠ NEEDS HUMAN CONFIRMATION** | Decyzja produktowa (Q08). Od odpowiedzi zależą tylko sekcje runbooka, nie kod. |
+| Q2 | Dostawca hostingu (product brief Q08) | Obraz OCI niezależny od dostawcy + runbook. Cel referencyjny: jedna VM w UE (np. Hetzner/OVH), Docker Compose, PostgreSQL 16 w kontenerze z wolumenem lub zarządzany, TLS na reverse proxy operatora. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Decyzja produktowa (Q08). Od odpowiedzi zależą tylko sekcje runbooka, nie kod. |
 | Q3 | Migracje przy starcie aplikacji czy osobno? | Osobny jednorazowy krok (`migrator`, `npm run db:migrate`) przed startem nowej wersji; aplikacja nigdy nie migruje sama. | Jawny kod wyjścia, brak wyścigu przy >1 replice, punkt na `pg_dump` przed migracją. |
 | Q4 | Next.js `output: 'standalone'`? | Nie w tej iteracji: `next start` na zależnościach produkcyjnych (ta sama ścieżka co `boot:check` i e2e). | MikroORM ładuje sterowniki dynamicznie (`serverExternalPackages`); odwracalne. |
 | Q5 | Healthcheck | `GET /api/v1/health`; jednometodowy port `SystemHealth` rejestrowany w kontenerze DI (bez osobnej klasy serwisu); awaria budowy kontenera → 503, nie 500; nieudana inicjalizacja kontenera/ORM nie jest buforowana. `HEALTHCHECK` obrazu = żywotność (proces odpowiada), 200 = gotowość. | Zgodne z §1.3 (trasy bez `@wine-match/db`); odzyskanie po awarii bazy bez restartu. |
-| Q6 | `PUBLIC_BASE_URL` w produkcji | Fail-closed: w produkcji (każde `DATA_SOURCE`) `PUBLIC_BASE_URL` musi być ustawiony, mieć schemat `https://` i host publiczny (R4); inaczej kod 1. Jedyny wyjątek: nowa zmienna `ALLOW_LOCAL_BASE_URL=true` (loguje ostrzeżenie przy starcie). `AUTH_COOKIE_SECURE` nie wpływa już na tę regułę. **⚠ NEEDS HUMAN CONFIRMATION** | Zaostrzenie kontraktu BC §4 (dziś tylko ostrzeżenie) + nowa zmienna (addytywna wg BC §4). Wyjątek przez `AUTH_COOKIE_SECURE=false` był fail-open: to flaga, którą operator przełącza, gdy „logowanie nie działa” za proxy. |
+| Q6 | `PUBLIC_BASE_URL` w produkcji | Fail-closed: w produkcji (każde `DATA_SOURCE`) `PUBLIC_BASE_URL` musi być ustawiony, mieć schemat `https://` i host publiczny (R4); inaczej kod 1. Jedyny wyjątek: nowa zmienna `ALLOW_LOCAL_BASE_URL=true` (loguje ostrzeżenie przy starcie). `AUTH_COOKIE_SECURE` nie wpływa już na tę regułę. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Zaostrzenie kontraktu BC §4 (dziś tylko ostrzeżenie) + nowa zmienna (addytywna wg BC §4). Wyjątek przez `AUTH_COOKIE_SECURE=false` był fail-open: to flaga, którą operator przełącza, gdy „logowanie nie działa” za proxy. |
 | Q7 | Smoke na produkcji | Pełny smoke tylko na **instancji próbnej** (czysta baza, migracje, `db:seed` z `ALLOW_DEMO_DATA=true`); na produkcji tryb `--production` (tylko GET, bez kont demo, niezależny od treści menu). | Konta demo nie mogą istnieć na prawdziwej instalacji; pełny smoke przełącza `active` wina i tworzy anulowane importy. |
 | Q8 | Publikacja obrazu do rejestru | Poza zakresem: CI buduje i testuje obraz w PR, maintainer buduje go z tagu git na hoście. Push do GHCR = follow-up. | Żadne AC nie wymaga rejestru. |
 | Q9 | Kopie zapasowe | Runbook wymaga `pg_dump` przed każdą migracją; polityka kopii dostawcy po stronie operatora. | Bez nowej infrastruktury w repo. |
@@ -127,7 +127,7 @@ unset USER_PASSWORD
 
 ## Ryzyka i otwarte pytania
 - **Wycofanie** wg Q11; `migration:down` na produkcji zabronione w runbooku (utrata danych, np. `sales_record` z E03). PR z migracją dalej niesie plan wycofania (SDLC).
-- **R4 zmienia kontrakt BC §4** (`risk-high`, `security`): instalacja bez `PUBLIC_BASE_URL`, z `http://` lub hostem lokalnym przestanie startować; e2e (`global-setup.ts`), `boot:check` (przypadki d, e), testy jednostkowe (`gaps.test.ts`) i CI muszą dostać `ALLOW_LOCAL_BASE_URL=true`. Dziś brak instalacji produkcyjnych; wpis „💥 Breaking” w PR i README. ⚠ Q6.
+- **R4 zmienia kontrakt BC §4** (`risk-high`, `security`): instalacja bez `PUBLIC_BASE_URL`, z `http://` lub hostem lokalnym przestanie startować; e2e (`global-setup.ts`), `boot:check` (przypadki d, e), testy jednostkowe (`gaps.test.ts`) i CI muszą dostać `ALLOW_LOCAL_BASE_URL=true`. Dziś brak instalacji produkcyjnych; wpis „💥 Breaking” w PR i README. ✅ Q6.
 - **Nieodwracalność QR** — dlatego R4 i krok weryfikacji QR w runbooku.
 - **Sekrety:** żadna wartość env w obrazie ani argumentach budowania; hasło właściciela przez dziedziczone `-e USER_PASSWORD`; logi redagują `DATABASE_URL`.
 - **Zależność od E05-S01** (Q1) i od E02 dla R7 (nagłówek działa dopiero, gdy E02 go respektuje).
@@ -139,13 +139,13 @@ unset USER_PASSWORD
 ## Decisions in play
 - **D09** (active) — przygotować pilotaż teraz; ten spec go realizuje.
 - **D05** (active) — Halka tylko jako demo: wymuszone kodem (R5).
-- **Q08** (open) — wybór dostawcy u Filipa (⚠ Q2).
-- **BC §1** (adres QR), **BC §4** (fail-closed) — §4 zaostrzane przez R4 (⚠ Q6).
+- **Q08** (open) — wybór dostawcy u Filipa (✅ Q2).
+- **BC §1** (adres QR), **BC §4** (fail-closed) — §4 zaostrzane przez R4 (✅ Q6).
 
 ## 📋 Phasing
-- **Faza 1 — aplikacja gotowa na produkcję (PR 1, bez zależności):** R3, R4, R5, R6, R7. Kroki 1–2 czekają na ⚠ Q6; kroki 3–6 tylko na zatwierdzenie speca.
+- **Faza 1 — aplikacja gotowa na produkcję (PR 1, bez zależności):** R3, R4, R5, R6, R7. Kroki 1–2 czekają na ✅ Q6; kroki 3–6 tylko na zatwierdzenie speca.
 - **Faza 2 — obraz i próba (PR 2, po E05-S01):** R1, R2, R9.
-- **Faza 3 — runbook (PR 3, po E05-S01):** R8, ręczna próba; sekcja hostingu czeka na ⚠ Q2.
+- **Faza 3 — runbook (PR 3, po E05-S01):** R8, ręczna próba; sekcja hostingu czeka na ✅ Q2.
 
 ## 📋 Implementation Plan
 **Faza 1**
@@ -173,13 +173,13 @@ unset USER_PASSWORD
 | # | Pytanie | Odpowiedź | Zaakceptował |
 |---|---|---|---|
 | 1 | Jeden spec z trzema PR-ami zamiast podziału? | Tak (Q1) | agent-default |
-| 2 | Wyjątek R4 przez nową `ALLOW_LOCAL_BASE_URL`, nie `AUTH_COOKIE_SECURE=false`? | Tak (Q6) | ⚠ owner |
-| 3 | W produkcji wymagać `https://` (błąd, nie ostrzeżenie)? | Tak (R4) | ⚠ owner (część Q6) |
+| 2 | Wyjątek R4 przez nową `ALLOW_LOCAL_BASE_URL`, nie `AUTH_COOKIE_SECURE=false`? | Tak (Q6) | owner ✅ |
+| 3 | W produkcji wymagać `https://` (błąd, nie ostrzeżenie)? | Tak (R4) | owner ✅ (część Q6) |
 | 4 | Strażnik produkcji w `DemoSeeder`? | Tak (Q10, R5) | agent-default |
 | 5 | Jawna zależność od E05-S01 i kolejność PR? | Tak (Q1) | agent-default |
 | 6 | Wycofanie na produkcji = poprzedni obraz / poprawka w przód / `pg_dump`; `down` tylko w próbie? | Tak (Q11) | agent-default |
 | 7 | Nagłówek `X-Wine-Match-Synthetic: 1` na ruchu syntetycznym? | Tak (Q12, R7) | agent-default |
-| 8 | Dostawca hostingu? | VM w UE + Compose | ⚠ owner (Q2) |
+| 8 | Dostawca hostingu? | VM w UE + Compose | owner ✅ (Q2) |
 | 9 | Hosty odrzucane przez R4: IP, jednoczłonowe, `.localhost/.local/.internal/.lan/.home.arpa`? | Tak | agent-default |
 | 10 | `ALLOW_LOCAL_BASE_URL` w produkcji loguje `warn`? | Tak | agent-default |
 | 11 | R4 obejmuje też `memory` + `ALLOW_DEMO_DATA=true`? | Tak | agent-default |
@@ -202,6 +202,7 @@ unset USER_PASSWORD
 - 2026-10-15 — draft (om-spec-writing --autonomous)
 - 2026-10-15 — cross-model review (Sonnet 5.5): 15 accepted, 1 rejected. Accepted: Decision Q6 (osobna zmienna), Decision Q2 (zostaje ⚠), High seeder (Q10/R5), High Q6 fail-open + https + LAN (R4/AC4), Medium start command + build bez makiet, Medium health (503, reset bufora, liveness/readiness, test odzyskania), Medium zależność od E05-S01 + `restaurant:create`, Medium smoke a zdarzenia (R7), Medium uproszczenie sprawdzenia QR, Low osobne pliki env, Low wycofanie/contract/`down`, Low README smoke, Low R4 dla `memory`+demo, Low `DEMO_RESTAURANT_SLUG`, Low `USER_PASSWORD`; z Medium „scope cohesion” przyjęte uproszczenie health. Rejected: podział na osobne specy — fazy są już osobnymi PR-ami (Q1), a jeden plik trzyma wspólne decyzje (R4, Q11). Cross-spec: 1, 2, 3, 4, 5, 6, 7, 9, 10, 11 uwzględnione.
 - 2026-10-15 — grill: 25 questions, 3 left for owner (Q2, Q6 obejmujące #2 i #3)
+- 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 
 ## Realizacja
 (Uzupełnia agent po implementacji.)

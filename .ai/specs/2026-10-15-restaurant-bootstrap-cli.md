@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-10-15
 owner: Filip
 related: [issue #23, issue #24, .ai/specs/product-brief.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-15-guest-usage-events.md]
@@ -20,9 +20,9 @@ Maintainer nie ma dziś jak założyć prawdziwej restauracji: tworzy ją tylko 
 | A5 | Wymagane pola? | Wymagane: `--name`, `--slug`, `--address`, `--city`, `--wine-director`, `--owner-email`, `--owner-name`. Waluta `PLN`, `settings` = `DEFAULT_RESTAURANT_SETTINGS`, `status: 'onboarding'`, `publishedAt: null`. | `updateDetails` wymaga adresu (inaczej pierwszy zapis formularza pada), strona gościa pokazuje `{address}, {city}` i „Wine list by {wineDirector}” — bez domyślnego publikowania nazwiska właściciela. |
 | A6 | Niezastosowane migracje? | Skrypt otwiera ORM z konfiguracją CLI (`src/mikro-orm.config.ts`, z `Migrator`), sprawdza `migrator.getPending()` (nazwa API do potwierdzenia w MikroORM 7.2.2) i przy niepustej liście kończy się błędem z podpowiedzią `npm run db:migrate`; tego samego ORM używa do zapisu. Sam migracji nie uruchamia. | `getOrm()` używa `ormConfig` bez `Migrator`. Fail-closed; migracja to osobny krok wdrożenia (E05-S02). |
 | A7 | Dane demo / `DATA_SOURCE`? | Zawsze `DATABASE_URL` (brak = błąd); nie woła `DemoSeeder`, nie czyta `DATA_SOURCE`, `ALLOW_DEMO_DATA` ani `PUBLIC_BASE_URL`. | D05; brak bazy nie może cicho przejść w tryb pamięci. |
-| A8 | Hasło właściciela: kto je zna i jak trafia do właściciela? | `USER_PASSWORD` (≥ `MIN_PASSWORD_LENGTH` = 12), nigdy w argumentach ani na wyjściu. Na pilotaż: maintainer przekazuje hasło poza systemem jednorazowym kanałem; osobny ticket „właściciel zmienia hasło” (lub link zaproszenia) przed drugim lokalem; reguła przekazania w README. ⚠ NEEDS HUMAN CONFIRMATION | Risk-high auth: maintainer zna hasło do czasu zmiany, a zmiany hasła w UI nie ma. Do potwierdzenia: czy GM pilota akceptuje hasło znane maintainerowi. |
+| A8 | Hasło właściciela: kto je zna i jak trafia do właściciela? | `USER_PASSWORD` (≥ `MIN_PASSWORD_LENGTH` = 12), nigdy w argumentach ani na wyjściu. Na pilotaż: maintainer przekazuje hasło poza systemem jednorazowym kanałem; osobny ticket „właściciel zmienia hasło” (lub link zaproszenia) przed drugim lokalem; reguła przekazania w README. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Risk-high auth: maintainer zna hasło do czasu zmiany, a zmiany hasła w UI nie ma. Do potwierdzenia: czy GM pilota akceptuje hasło znane maintainerowi. |
 | A9 | Kody wyjścia? | `0` sukces, `1` każdy błąd — jak `user:create`. | Skrypty wdrożeniowe sprawdzają `!= 0`. |
-| A10 | Zapis bez portu i bez `actor` (AGENTS §1.3)? | Wyjątek dla poleceń operatora w `packages/db/scripts/` (precedens: `create-user.ts`, `DemoSeeder`); jedno zdanie w AGENTS §1.3. ⚠ NEEDS HUMAN CONFIRMATION | Port + implementacja w pamięci + przypadek kontraktu dla operacji tylko-PostgreSQL to więcej powierzchni; ale zmianę prawa repozytorium zatwierdza człowiek. |
+| A10 | Zapis bez portu i bez `actor` (AGENTS §1.3)? | Wyjątek dla poleceń operatora w `packages/db/scripts/` (precedens: `create-user.ts`, `DemoSeeder`); jedno zdanie w AGENTS §1.3. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Port + implementacja w pamięci + przypadek kontraktu dla operacji tylko-PostgreSQL to więcej powierzchni; ale zmianę prawa repozytorium zatwierdza człowiek. |
 | A11 | Jak podać `USER_PASSWORD` w kontenerze? | Tylko ze środowiska wywołującego: `docker compose run --rm -e USER_PASSWORD migrate …` (sama nazwa zmiennej, wartość wczytana bez echa), nigdy `-e USER_PASSWORD=…` ani flaga. Snippet w API Contracts; runbook E05-S02 go cytuje. | Wartość nie trafia do historii powłoki ani do `ps`; `--rm` usuwa kontener z env po zakończeniu. |
 | A12 | Co widzi gość świeżej restauracji i czy to zmieniamy? | Opisane w UI/UX (stan faktyczny). Ukrywanie restauracji `onboarding` przed gośćmi poza zakresem — osobne zgłoszenie. | Brak wycieku: widać tylko dane podane do publikacji; E05-S02 smoke opiera się na 200 z `/r/{slug}`. |
 
@@ -114,7 +114,7 @@ Next: the owner imports the menu on the Setup screen.
 
 ## 📝 Risks & Impact Review
 - **Auth / data scoping (risk-high, SDLC):** dowody w PR — test ścieżki odmowy (właściciel nowej restauracji → panel/API Halki: 403), drugi recenzent, `needs-qa`, bez self-QA.
-- **Hasło znane maintainerowi (A8, ⚠).**
+- **Hasło znane maintainerowi (A8, ✅).**
 - **`--allow-existing-account`:** nadaje `owner` istniejącemu kontu tylko przy jawnej fladze; ta sama zdolność co `user:create --role owner`.
 - **Nowa chroniona powierzchnia:** flagi, kody wyjścia i semantyka `USER_PASSWORD` w BC §5.
 - **Odwracalność:** bez polecenia usuwania. Cofnięcie pomyłki przed importem — README podaje dokładnie (jedna transakcja `psql`):
@@ -126,7 +126,7 @@ Next: the owner imports the menu on the Setup screen.
   COMMIT;
   ```
   Sesje znikają kaskadowo z kontem; konto z innymi członkostwami zostaje. Jeśli ostatni `DELETE` pada na kluczu obcym (dania, wina, importy, zdarzenia gościa, publikacje), restauracja jest w użyciu: `ROLLBACK` i `status = 'archived'`.
-- **A10 (⚠):** zapis poza portem, ograniczony do skryptów operatora.
+- **A10 (✅):** zapis poza portem, ograniczony do skryptów operatora.
 - **Kolejność PR:** ten spec przed E05-S02 (oba zmieniają BC §5 i README; E05-S02 używa `restaurant:create`).
 
 ## 📝 Decisions in play
@@ -179,10 +179,10 @@ D05 (Halka tylko demo) — respektowana. D09 — realizuje punkt 4 „Now”. Q0
 | 10 | Gość świeżej restauracji — zmieniać? | Opisać stan faktyczny; ukrywanie `onboarding` poza zakresem | agent-default |
 | 11 | Cofnięcie pomyłki? | Dokładny SQL w README, bez polecenia usuwania | agent-default |
 | 12 | E2E przez `bootstrapRestaurant` czy prawdziwe CLI? | Prawdziwe `restaurant:create` w `global-setup` | agent-default |
-| 13 | Przekazanie hasła na pilotaż (A8)? | Akceptacja na pilotaż + ticket „zmiana hasła” + reguła w README | ⚠ owner |
-| 14 | Wyjątek w AGENTS §1.3 (A10)? | Jedno zdanie dla skryptów operatora | ⚠ owner |
+| 13 | Przekazanie hasła na pilotaż (A8)? | Akceptacja na pilotaż + ticket „zmiana hasła” + reguła w README | owner ✅ |
+| 14 | Wyjątek w AGENTS §1.3 (A10)? | Jedno zdanie dla skryptów operatora | owner ✅ |
 | 15 | Kolejność względem E05-S02? | Ten spec pierwszy | agent-default |
-| 16 | Które fazy czekają na ⚠? | Faza 2 na A8 i A10; Faza 1 niezależna | agent-default |
+| 16 | Które fazy czekają na ✅? | Faza 2 na A8 i A10; Faza 1 niezależna | agent-default |
 | 17 | Co trafia do BC §5? | Flagi (z `--allow-existing-account`), kody wyjścia, semantyka `USER_PASSWORD` | agent-default |
 | 18 | Format wg AGENTS §3? | Dodane „Cel i zakres” i R1–R9; reszta formatu `om-spec-writing` | agent-default |
 
@@ -190,5 +190,6 @@ D05 (Halka tylko demo) — respektowana. D09 — realizuje punkt 4 „Now”. Q0
 - 2026-10-15 — draft (om-spec-writing --autonomous)
 - 2026-10-15 — cross-model review (Sonnet 5.5): 13 accepted, 0 rejected (1 partially). Accepted: mechanizm migracji (A6); istniejący e-mail — częściowo: opt-in `--allow-existing-account` zamiast domyślnego łączenia (A4); lżejsza struktura (A2, tylko `validateSlug` w `core`, jedna wstrzykiwana zależność); `--address` wymagane (A5); fakt `publishedMenu` (A12); ścieżka względna zamiast surowego `PUBLIC_BASE_URL`; dokładny SQL cofnięcia; historie (usunięte ścieżki błędów, dodane przekazanie); numeracja i narracja przeglądu usunięte; A8/A10 zostają ⚠. Cross-spec: #3 (A11), #5 (UI/UX), #7 (kolejność), #9 (R1–R9), #10, #11 (Phasing).
 - 2026-10-15 — grill: 18 questions, 2 left for owner (A8, A10)
+- 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 
 ## Realizacja

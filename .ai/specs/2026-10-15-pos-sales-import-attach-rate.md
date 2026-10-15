@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-10-15
 owner: Filip
 related: [issue #15, #16, #17, #18, .ai/specs/product-brief.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-production-deployment.md]
@@ -11,21 +11,21 @@ related: [issue #15, #16, #17, #18, .ai/specs/product-brief.md, .ai/specs/2026-1
 
 GM / właściciel nie ma dziś jak wgrać sprzedaży z POS, więc North Star (Wine Attach Rate, D04) jest niemierzalny, a A05 nie ma baseline'u. **Proponujemy:** czwarty rodzaj importu `sales` na istniejącym potoku importu (CSV/XLSX → podgląd z błędami → atomowe zatwierdzenie), nową tabelę `sales_record` (pozycje rachunków, bez danych osobowych) i jedną metodę `SalesKpiService.getSalesKpis(slug, period)`, która liczy Wine Attach Rate i KPI sprzedażowe dla okresu — punkt wejścia dla dashboardu KPI (E04, #21).
 
-**Bramka akceptacji (AGENTS §3):** spec nie może przejść w `approved`, dopóki właściciel nie odpowie na Q2, Q7, Q17 (⚠). Faza 1 czeka na Q2 i Q17 (format pliku, tożsamość rachunku), obie fazy na Q7 (definicja liczona już w podglądzie fazy 1).
+**Akceptacja (AGENTS §3):** `approved` przez właściciela (Filip) 2026-10-15 — wszystkie decyzje ✅ przyjęte zgodnie z rekomendacją; bramki faz z sekcji Fazy są spełnione.
 
 ## Resolved assumptions (autonomous defaults)
 
-Uruchomienie `--autonomous` (prośba product ownera). Każde założenie można nadpisać przed `approved`. ⚠ = wciąż czeka na właściciela.
+Uruchomienie `--autonomous` (prośba product ownera). Każde założenie można nadpisać przed `approved`. ✅ = potwierdzone przez właściciela 2026-10-15.
 
 | # | Pytanie | Przyjęta odpowiedź | Uzasadnienie |
 |---|---|---|---|
 | Q1 | Rozdzielić import (#16) i wskaźnik (#18) na dwie specyfikacje? | **Nie** — jedna spec, dwie fazy (import + podgląd; karta okresu i serwis dla E04). | Kontrakt `getSalesKpis` i model danych projektujemy razem; fazy wdrażalne osobnymi PR-ami. |
-| Q2 | Jaki format eksportu POS (Q03, #6 nieznane)? | Ogólny plik **pozycji rachunku** (jeden wiersz = jedna pozycja) z kolumnami z `DATA_MODEL.md` „SalesRecord”, rozpoznawanymi przez synonimy PL/EN; bez presetów dostawców POS. **⚠ NEEDS HUMAN CONFIRMATION** | Format pilotażu nieznany (Q03 briefu, otwarte pytanie właściciela); jeśli POS eksportuje tylko sumy rachunków, potrzebny drugi tryb mapowania. Synonimy dopisuje się bez łamania (BC §6). |
+| Q2 | Jaki format eksportu POS (Q03, #6 nieznane)? | Ogólny plik **pozycji rachunku** (jeden wiersz = jedna pozycja) z kolumnami z `DATA_MODEL.md` „SalesRecord”, rozpoznawanymi przez synonimy PL/EN; bez presetów dostawców POS. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Format pilotażu nieznany (Q03 briefu, otwarte pytanie właściciela); jeśli POS eksportuje tylko sumy rachunków, potrzebny drugi tryb mapowania. Synonimy dopisuje się bez łamania (BC §6). |
 | Q3 | Jak klasyfikować typ pozycji (`food` / `wine_glass` / `wine_bottle` / `other`)? | Kolumna typu/kategorii **wymagana**. Wartość ze słownika → typ wprost; ogólne „wino/wina” → `wine_bottle` z ostrzeżeniem; **nierozpoznana wartość → błąd `unmapped_category`** (wiersz odznaczony), a podgląd pokazuje **jedno pole wyboru na każdą odrębną nierozpoznaną wartość** („Wina białe → wine bottle”), stosowane do wszystkich jej wierszy. | Klasyfikacja wprost zmienia North Star; cicha zamiana na `other` dałaby ~0% zamiast odmowy (fail-closed). Jedna decyzja na wartość zamiast edycji do 2000 wierszy. |
 | Q4 | Jak uniknąć duplikatów przy ponownym wgraniu? | **Zastąpienie po rachunku, miękkie:** zatwierdzenie w jednej transakcji ustawia `replaced_at`, `replaced_by_job_id` na aktywnych `sales_record` restauracji o kluczu (`business_date`, `check_id`) obecnym w importowanych rachunkach i wstawia nowe. Rachunek importuje się **w całości albo wcale**. Podgląd mówi, ile rachunków zostanie zastąpionych. | Ten sam plik → ten sam stan; poprawiony eksport nadpisuje zamiast podwajać; nic nie jest kasowane, więc odwracalne SQL-em. Koszt: plik podzielony w środku rachunku — druga część zastępuje pierwszą. |
 | Q5 | Limit wierszy dla sprzedaży? | Bez zmian: `IMPORT_LIMITS` (10 MB, 2000 wierszy); w UI wskazówka „dziel plik po całych dniach”. Podniesienie limitu z podglądem agregatów per rachunek i tylko wierszy z problemami — osobna spec, gdy pilotaż pokaże koszt. | Najmniejszy zakres; BC §6 pozwala limit podnieść później bez łamania. 4 tygodnie baseline'u (C03) = kilka–kilkanaście plików. |
 | Q6 | Kto może wgrywać sprzedaż? | Istniejące `import.manage` (owner, manager, sommelier); kelner — nie. | Bez zmiany tabeli uprawnień (risk-high, CODE_REVIEW §3). |
-| Q7 | Definicja Wine Attach Rate. | **Rachunki z jedzeniem i winem / rachunki z jedzeniem** (wynik ≤ 100%); jednostka = **rachunek** (stolik), nie gość. Rachunki barowe (samo wino) nie liczą się do licznika. W tym samym PR-ze fazy 2 `docs/PRODUCT_CONCEPT.md` §6 i słownik briefu dostają to doprecyzowanie. **⚠ NEEDS HUMAN CONFIRMATION** | `PRODUCT_CONCEPT.md` §6 i brief: „zamówienia z ≥1 winem / zamówienia z jedzeniem” — licznik nie jest tam ograniczony do rachunków z jedzeniem. Nasza wersja jest ograniczona i porównywalna, ale to zmiana definicji North Star (D04, owner Filip). Uwaga: per rachunek ≠ per gość, więc „+5 pp” z A05 nie przekłada się 1:1. |
+| Q7 | Definicja Wine Attach Rate. | **Rachunki z jedzeniem i winem / rachunki z jedzeniem** (wynik ≤ 100%); jednostka = **rachunek** (stolik), nie gość. Rachunki barowe (samo wino) nie liczą się do licznika. W tym samym PR-ze fazy 2 `docs/PRODUCT_CONCEPT.md` §6 i słownik briefu dostają to doprecyzowanie. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | `PRODUCT_CONCEPT.md` §6 i brief: „zamówienia z ≥1 winem / zamówienia z jedzeniem” — licznik nie jest tam ograniczony do rachunków z jedzeniem. Nasza wersja jest ograniczona i porównywalna, ale to zmiana definicji North Star (D04, owner Filip). Uwaga: per rachunek ≠ per gość, więc „+5 pp” z A05 nie przekłada się 1:1. |
 | Q8 | Zwroty / storna (ujemna ilość lub kwota)? | Przyjmujemy; rachunek „ma wino/jedzenie”, gdy **suma** ilości danego typu > 0. | Tak modelują to otwarte POS-y (Odoo: zwrot = linia z ujemną ilością). |
 | Q9 | Kwota netto czy brutto? | Tylko **netto** (`net_amount`). Kolumna „brutto” nie jest mapowana. | #16 i `DATA_MODEL.md`; stała podstawa KPI. |
 | Q10 | Dopasowywać pozycje do `dish` / `wine`? | **Nie**; `dish_id` / `wine_id` (i nazwa pozycji) dojdą addytywnie z osobną spec. | Wskaźnik ich nie potrzebuje. |
@@ -35,7 +35,7 @@ Uruchomienie `--autonomous` (prośba product ownera). Każde założenie można 
 | Q14 | PDF dla sprzedaży? | Odmowa `unsupported_format` (tylko CSV i XLSX). | Eksport POS to tabela. |
 | Q15 | Klucz główny `sales_record`? | **UUID**, jak wszystkie tabele (BC §3); `DATA_MODEL.md` aktualizowany. | Jeden typ klucza; `IdGenerator` z `core`. |
 | Q16 | Niejednoznaczne daty `03/04/2026`? | Kolejność dnia i miesiąca ustalana dla **całego pliku**: składnik > 12 rozstrzyga; sprzeczność → błąd wierszy; same niejednoznaczne → `DD/MM` z notatką. | Cicha zamiana dnia z miesiącem psuje okresy. |
-| Q17 | Tożsamość rachunku i dnia biznesowego. | Kolumna rachunku = **numer rachunku/paragonu unikalny w dniu biznesowym**, nie numer stolika (synonimy nie obejmują „stolik/table”). Kolumna daty = **dzień biznesowy**: wartość z godziną (tekst z czasem, seryjna Excela z częścią ułamkową) → błąd „Use the business day column, not a timestamp”, bez obcinania. Plik, w którym ten sam `check_id` występuje w ≥ 2 dniach, dostaje notatkę informacyjną. **⚠ NEEDS HUMAN CONFIRMATION** | Numer stolika używany przez kilka grup w dniu albo rachunek po północy rozbity na dwie daty fałszują wskaźnik i zastępowanie. Zależy od formatu pilotażu (Q03); jeśli POS daje tylko znaczniki czasu, potrzebne ustawienie „koniec dnia biznesowego” (osobna decyzja). |
+| Q17 | Tożsamość rachunku i dnia biznesowego. | Kolumna rachunku = **numer rachunku/paragonu unikalny w dniu biznesowym**, nie numer stolika (synonimy nie obejmują „stolik/table”). Kolumna daty = **dzień biznesowy**: wartość z godziną (tekst z czasem, seryjna Excela z częścią ułamkową) → błąd „Use the business day column, not a timestamp”, bez obcinania. Plik, w którym ten sam `check_id` występuje w ≥ 2 dniach, dostaje notatkę informacyjną. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Numer stolika używany przez kilka grup w dniu albo rachunek po północy rozbity na dwie daty fałszują wskaźnik i zastępowanie. Zależy od formatu pilotażu (Q03); jeśli POS daje tylko znaczniki czasu, potrzebne ustawienie „koniec dnia biznesowego” (osobna decyzja). |
 | Q18 | Przechowywać nazwę pozycji? | **Nie.** `itemName` jest opcjonalną kolumną widoczną w podglądzie (rozpoznanie wiersza), ale nie trafia do `sales_record`. | Q10 odracza dopasowanie; tekst wolny może zawierać notatki z danymi osobowymi. Dodanie kolumny później jest addytywne. |
 | Q19 | Wycofanie migracji i pojedynczego importu. | Produkcja: **nigdy `migration:down` dla `sales_record`, gdy tabela ma dane**; wycofanie wdrożenia = poprzedni obraz, schemat zostaje (tabela addytywna, stary kod jej nie dotyka). Pojedynczy import: udokumentowany SQL po `import_job_id` / `replaced_by_job_id` w `docs/` (runbook), bez UI; przycisk „Revert this import” — kolejna spec. | `down` usuwa dane, których restauracja może już nie mieć w plikach; BC §3 expand → contract. |
 | Q20 | Kolejność scalania. | **Po E02** (sugerowana kolejność: E05-S01 → E05-S02 F1 → E02 → E03 → E04). E03 rebase'uje się na zmiany E02 w `Repositories`, `memory-repositories.ts`, `repository-contract.ts`, `container.ts`, `docs/DATA_MODEL.md`. | Wspólne pliki; AGENTS §8 (jedna spec = jeden worktree). |
@@ -242,9 +242,9 @@ Nowy ekran **A13 Import sales** `/admin/[slug]/import/sales` (wpis w `docs/SCREE
 
 ## 📝 Decisions in play
 
-- **D04** (North Star z eksportu POS, owner Filip) — realizowana; definicja Q7 ⚠.
+- **D04** (North Star z eksportu POS, owner Filip) — realizowana; definicja Q7 ✅.
 - **D01** (opcjonalny import sprzedaży z CSV w MVP) — realizowana (CSV + XLSX).
-- **D09** — Q2/Q17 to przyjęte założenia, oznaczone ⚠.
+- **D09** — Q2/Q17 to przyjęte założenia, oznaczone ✅.
 - **N04** (bez integracji z POS) — przestrzegana.
 - **A05**, **Q03**, **C03** — spec daje narzędzie do baseline'u, nie rozstrzyga ich.
 
@@ -294,13 +294,13 @@ Gałąź po scaleniu E02 (Q20). Każdy krok zostawia działającą aplikację.
 
 | # | Pytanie | Odpowiedź | Przyjęte przez |
 |---|---|---|---|
-| G1 | Attach rate = rachunki z jedzeniem i winem / rachunki z jedzeniem? | Tak (Q7) | ⚠ owner |
+| G1 | Attach rate = rachunki z jedzeniem i winem / rachunki z jedzeniem? | Tak (Q7) | owner ✅ |
 | G2 | Jednostka wskaźnika = rachunek, tekst UI mówi „checks”? | Tak | agent-default |
 | G3 | Nierozpoznana kategoria = błąd (fail-closed), nie `other`? | Tak (Q3) | agent-default |
 | G4 | Przypisanie kategorii raz na odrębną wartość (`valueMap`), nie per wiersz? | Tak | agent-default |
 | G5 | Usunąć z synonimów `type`, `typ`, `order`; nie dodawać `stolik`/`table`? | Tak | agent-default |
-| G6 | Kolumna rachunku = numer rachunku unikalny w dniu, nie stolik? | Tak (Q17) | ⚠ owner |
-| G7 | Data z godziną → błąd zamiast obcinania? | Tak (Q17) | ⚠ owner |
+| G6 | Kolumna rachunku = numer rachunku unikalny w dniu, nie stolik? | Tak (Q17) | owner ✅ |
+| G7 | Data z godziną → błąd zamiast obcinania? | Tak (Q17) | owner ✅ |
 | G8 | „Cały rachunek albo nic” liczone raz w planie, bez kaskady zaznaczeń; ostrzeżenie pochodne? | Tak | agent-default |
 | G9 | Limit 2000 wierszy bez zmian; podgląd agregatów — osobna spec? | Tak (Q5) | agent-default |
 | G10 | Nie przechowywać nazwy pozycji? | Tak (Q18) | agent-default |
@@ -314,7 +314,7 @@ Gałąź po scaleniu E02 (Q20). Każdy krok zostawia działającą aplikację.
 | G18 | Scalanie po E02 (E05-S01 → E05-S02 F1 → E02 → E03)? | Tak (Q20) | agent-default |
 | G19 | Zakaz `migration:down` w produkcji po pierwszym imporcie; wycofanie = poprzedni obraz? | Tak (Q19) | agent-default |
 | G20 | Dopisać `sales_record` do BC §3? | Tak | agent-default |
-| G21 | Aktualizacja `PRODUCT_CONCEPT.md` §6 i briefu w fazie 2? | Tak, warunkowo od G1 | ⚠ owner (z G1) |
+| G21 | Aktualizacja `PRODUCT_CONCEPT.md` §6 i briefu w fazie 2? | Tak, warunkowo od G1 | owner ✅ (z G1) |
 | G22 | Spec niezatwierdzalna przed Q2/Q7/Q17; faza 1 czeka na wszystkie trzy? | Tak | agent-default |
 | G23 | Smoke A13 tylko GET? | Tak | agent-default |
 | G24 | E04 nie łączy attach rate (rachunki) z sesjami w jednym ilorazie? | Tak | agent-default |
@@ -324,3 +324,7 @@ Gałąź po scaleniu E02 (Q20). Każdy krok zostawia działającą aplikację.
 - 2026-10-15 — draft (om-spec-writing --autonomous)
 - 2026-10-15 — cross-model review (Sonnet 5.5): 13 accepted, 2 rejected. Przyjęte: Q7 ⚠ + jednostka per rachunek; nierozpoznana kategoria = błąd + `valueMap`, węższe synonimy; Q17 tożsamość rachunku / znaczniki czasu; faza 1 zawiera `computeSalesKpis` i rejestrację `salesRepository`; bez kaskady „cały rachunek”; SQL wycofania importu (bez UI); unia `ImportPlan`, `action`/`matchId` dla sprzedaży, bez `existing()`; klucz i kolejność advisory lock; bez `item_name`, złagodzone „bez danych osobowych”; ograniczenie `checkTotals` opisane; higiena (numeracja, AC10 z testem, skrócone synonimy); smoke A13 tylko GET; cross-spec 6/7/8/9/10/11 (wycofanie, kolejność, metryki, R1–R12, usunięta narracja przeglądu, bramka faz). Odrzucone: przebudowa podglądu na agregaty z wyższym limitem (zostaje Q5, osobna spec); zawężenie `SalesKpis` / usunięcie `source` (konsumuje E04). Kontrakt `getSalesKpis` / `dataRange` bez zmian — nie łamie E04.
 - 2026-10-15 — grill: 24 questions, 3 left for owner (G1/G21 → Q7, G6 → Q17, G7 → Q17; plus Q2 z draftu)
+- 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
+
+## Realizacja
+(Uzupełnia agent po implementacji.)
