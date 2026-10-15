@@ -10,3 +10,8 @@ next-env.d.ts
 coverage
 test-results
 playwright-report
+
+# agent pipeline: per-run QA state (om-prepare-test-env / om-auto-qa-pr)
+.ai/qa/artifacts_*/
+.ai/qa/test-env.json
+.ai/qa/test-env.env
