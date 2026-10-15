@@ -66,6 +66,7 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 | Role `owner`, `manager`, `sommelier`, `waiter` | [packages/core/src/auth/types.ts](packages/core/src/auth/types.ts) | usunięcie lub zmiana nazwy roli (wiersze `membership` w bazie) |
 | Uprawnienia `panel.view`, `pairings.decide`, `wines.toggle`, `publish`, `settings.change`, `import.manage`, `restaurant.edit` i ich przypisanie do ról | [packages/core/src/auth/permissions.ts](packages/core/src/auth/permissions.ts) | odebranie lub nadanie uprawnienia istniejącej roli |
 | Ciasteczko `wm_session` (httpOnly, SameSite=Lax, 12 h) | [packages/app/src/server/auth.ts](packages/app/src/server/auth.ts) | zmiana nazwy (wylogowuje wszystkich), osłabienie atrybutów |
+| Ciasteczko `wm_lang` (`pl` / `en`, język panelu; httpOnly, SameSite=Lax, `Secure` w produkcji, `Path=/admin`, 1 rok; od 2026-10-15) — czytane tylko dla `/admin/*`, nigdy na stronach gościa | [packages/app/src/server/lang-cookie.ts](packages/app/src/server/lang-cookie.ts), `src/proxy.ts` | zmiana nazwy lub wartości (użytkownicy wracają do języka przeglądarki), czytanie go na trasach gościa |
 | CLI `npm run user:create -- --email --name --role --restaurant`, hasło z `USER_PASSWORD` (min. 12 znaków) | `packages/db/scripts/create-user.ts` | zmiana flag lub zachowania dla istniejącego konta |
 
 **Ścieżka:** zmiana ról lub uprawnień wymaga specyfikacji, aktualizacji [docs/USER_ROLES.md](docs/USER_ROLES.md), testu ścieżki odmowy i drugiej osoby w review.

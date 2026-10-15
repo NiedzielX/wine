@@ -5,11 +5,14 @@ import { Flash, ReadOnlyNotice } from '../../../_components/flash';
 import { first } from '../../../_components/format';
 import { DoneStep, PreviewStep, UploadStep } from '../../../_components/import-screen';
 import { requireAccess } from '@/server/auth';
+import { getI18n } from '@/server/i18n';
 import { isDomainError } from '@/server/domain-errors';
 import { getRequestScope } from '@/server/request-scope';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Import wine list' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).t.admin.meta.importWines };
+}
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -22,6 +25,8 @@ export default async function ImportWinesPage({ params, searchParams }: Props) {
   const { importService } = (await getRequestScope()).cradle;
   const jobId = first(sp.job);
   const path = `/admin/${slug}/import/wines`;
+  const { locale, t } = await getI18n();
+  const m = t.admin.import;
 
   let body;
   if (jobId) {
@@ -30,15 +35,15 @@ export default async function ImportWinesPage({ params, searchParams }: Props) {
       throw e;
     });
     if (!job || job.kind !== 'wines') notFound();
-    body = job.status === 'preview_ready' ? <PreviewStep slug={slug} job={job} back={`${path}?job=${job.id}`} /> : <DoneStep slug={slug} job={job} />;
+    body = job.status === 'preview_ready' ? <PreviewStep slug={slug} job={job} back={`${path}?job=${job.id}`} locale={locale} t={t} /> : <DoneStep slug={slug} job={job} locale={locale} t={t} />;
   } else {
-    body = <UploadStep slug={slug} kind="wines" recent={await importService.recent(slug, 'wines')} back={path} />;
+    body = <UploadStep slug={slug} kind="wines" recent={await importService.recent(slug, 'wines')} back={path} locale={locale} t={t} />;
   }
 
   return (
     <Page>
-      <PageHeader title="Import wine list" description="Bring your wines in from a file. You check every row before anything is saved." />
-      {!canImport && <ReadOnlyNotice>Your role cannot import files.</ReadOnlyNotice>}
+      <PageHeader title={m.winesTitle} description={m.winesDescription} />
+      {!canImport && <ReadOnlyNotice>{m.readOnly}</ReadOnlyNotice>}
       <Flash saved={first(sp.saved)} error={first(sp.error)} n={first(sp.n)} />
       {canImport ? body : null}
     </Page>

@@ -5,26 +5,31 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Fragment } from 'react';
 
-interface Props { slug: string; reviewCount: number; publishCount: number }
+/** Ready-made texts from the dictionary (a client component gets texts, not dictionary functions). */
+export interface NavLabels {
+  label: string; dashboard: string; menu: string; wines: string; pairings: string; review: string; publish: string;
+  restaurant: string; importMenu: string; importWines: string; setup: string; qr: string;
+}
+interface Props { slug: string; reviewCount: number; publishCount: number; labels: NavLabels }
 
 /** Sidebar navigation of the dashboard. Client component only for the active-link state. */
-export function AdminNav({ slug, reviewCount, publishCount }: Props) {
+export function AdminNav({ slug, reviewCount, publishCount, labels: l }: Props) {
   const pathname = usePathname();
   const base = `/admin/${slug}`;
   const items: Array<{ href: string; label: string; exact?: boolean; count?: number; group?: string }> = [
-    { href: base, label: 'Dashboard', exact: true },
-    { href: `${base}/menu`, label: 'Menu' },
-    { href: `${base}/wines`, label: 'Wine list' },
-    { href: `${base}/pairings`, label: 'Pairings' },
-    { href: `${base}/review`, label: 'Review queue', count: reviewCount },
-    { href: `${base}/publish`, label: 'Publish', count: publishCount },
-    { href: `${base}/import/menu`, label: 'Import menu', group: 'Restaurant' },
-    { href: `${base}/import/wines`, label: 'Import wines' },
-    { href: `${base}/setup`, label: 'Setup' },
-    { href: `${base}/qr`, label: 'QR code' }
+    { href: base, label: l.dashboard, exact: true },
+    { href: `${base}/menu`, label: l.menu },
+    { href: `${base}/wines`, label: l.wines },
+    { href: `${base}/pairings`, label: l.pairings },
+    { href: `${base}/review`, label: l.review, count: reviewCount },
+    { href: `${base}/publish`, label: l.publish, count: publishCount },
+    { href: `${base}/import/menu`, label: l.importMenu, group: l.restaurant },
+    { href: `${base}/import/wines`, label: l.importWines },
+    { href: `${base}/setup`, label: l.setup },
+    { href: `${base}/qr`, label: l.qr }
   ];
   return (
-    <nav aria-label="Dashboard" className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+    <nav aria-label={l.label} className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
       {items.map((i) => {
         const active = i.exact ? pathname === i.href : pathname === i.href || pathname.startsWith(`${i.href}/`);
         return (

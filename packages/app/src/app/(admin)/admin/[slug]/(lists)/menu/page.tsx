@@ -5,10 +5,13 @@ import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { DishStatusBadge, ProfileBadge } from '../../../_components/badges';
 import { first, zl } from '../../../_components/format';
+import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Menu' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).t.admin.meta.menu };
+}
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -21,28 +24,31 @@ export default async function MenuPage({ params, searchParams }: Props) {
   const menu = await (await getRequestScope()).cradle.adminService.menu(slug, { q, category: category || undefined });
   if (!menu) notFound();
   const path = `/admin/${slug}/menu`;
+  const { locale, t } = await getI18n();
+  const m = t.admin.menu;
+  const category_ = (c: string) => t.admin.categories[c] ?? c;
 
   return (
     <Page>
-      <PageHeader title="Menu" description={`${menu.total} dishes. Taste profiles drive the pairing engine; check each draft profile before relying on it.`} />
+      <PageHeader title={m.title} description={m.description(menu.total)} />
       <form action={path} method="get" className="mb-4 flex flex-wrap items-center gap-2">
-        <Input name="q" type="search" defaultValue={q} placeholder="Search dishes" aria-label="Search dishes" className="max-w-xs" />
-        <NativeSelect name="category" defaultValue={category} aria-label="Category" className="w-auto">
-          <NativeSelectOption value="">All categories</NativeSelectOption>
-          {menu.categories.map((c) => <NativeSelectOption key={c} value={c}>{c}</NativeSelectOption>)}
+        <Input name="q" type="search" defaultValue={q} placeholder={m.search} aria-label={m.search} className="max-w-xs" />
+        <NativeSelect name="category" defaultValue={category} aria-label={m.category} className="w-auto">
+          <NativeSelectOption value="">{m.allCategories}</NativeSelectOption>
+          {menu.categories.map((c) => <NativeSelectOption key={c} value={c}>{category_(c)}</NativeSelectOption>)}
         </NativeSelect>
-        <Button type="submit" variant="secondary">Filter</Button>
-        {(q || category) && <Button asChild variant="ghost"><Link href={path}>Clear</Link></Button>}
+        <Button type="submit" variant="secondary">{t.admin.common.filter}</Button>
+        {(q || category) && <Button asChild variant="ghost"><Link href={path}>{t.admin.common.clear}</Link></Button>}
       </form>
       <Card className="py-0">
         {menu.rows.length === 0 ? (
-          <EmptyState title="No dishes found" description={menu.total === 0 ? 'This restaurant has no dishes yet.' : 'Try another search or category.'} action={menu.total === 0 ? <Button asChild><Link href={`/admin/${slug}/import/menu`}>Import your menu</Link></Button> : undefined} />
+          <EmptyState title={m.noneTitle} description={menu.total === 0 ? m.noneEmpty : m.noneFiltered} action={menu.total === 0 ? <Button asChild><Link href={`/admin/${slug}/import/menu`}>{m.importMenu}</Link></Button> : undefined} />
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Dish</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Price</TableHead>
-                <TableHead>Status</TableHead><TableHead>Taste profile</TableHead><TableHead className="text-right">Pairings</TableHead>
+                <TableHead>{m.dish}</TableHead><TableHead>{m.category}</TableHead><TableHead className="text-right">{m.price}</TableHead>
+                <TableHead>{m.status}</TableHead><TableHead>{m.profile}</TableHead><TableHead className="text-right">{m.pairings}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -52,13 +58,13 @@ export default async function MenuPage({ params, searchParams }: Props) {
                     <Link href={`${path}/${r.dish.id}`} className="font-medium underline-offset-4 hover:underline">{r.dish.name}</Link>
                     <div className="text-xs text-muted-foreground">{r.dish.description}</div>
                   </TableCell>
-                  <TableCell>{r.dish.category}</TableCell>
-                  <TableCell className="text-right tabular-nums">{zl(r.dish.price)}</TableCell>
-                  <TableCell><DishStatusBadge status={r.dish.status} /></TableCell>
-                  <TableCell><ProfileBadge source={r.dish.profile.source} /></TableCell>
+                  <TableCell>{category_(r.dish.category)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{zl(r.dish.price, locale)}</TableCell>
+                  <TableCell><DishStatusBadge status={r.dish.status} t={t} /></TableCell>
+                  <TableCell><ProfileBadge source={r.dish.profile.source} t={t} /></TableCell>
                   <TableCell className="text-right tabular-nums">
-                    <b className="font-semibold">{r.approved}</b> approved
-                    {r.suggested > 0 && <div className="text-xs text-muted-foreground">{r.suggested} to review</div>}
+                    <b className="font-semibold">{r.approved}</b> {m.approved}
+                    {r.suggested > 0 && <div className="text-xs text-muted-foreground">{m.toReview(r.suggested)}</div>}
                   </TableCell>
                 </TableRow>
               ))}

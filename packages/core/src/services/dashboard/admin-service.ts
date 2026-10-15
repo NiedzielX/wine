@@ -1,12 +1,16 @@
 import type { Dish, Pairing, PairingRole, PairingStatus, Restaurant, Wine, WineStyle } from '../../domain/types';
 import type { DecisionRecord } from '../../ports/repositories';
 import { pairingScore } from '../../engine/scoring';
+import type { Locale } from '../../i18n/locale';
 import type { Repositories } from '../../ports/repositories';
 import { orderReviewed } from '../pairings/pairing-rules';
 
 export type AdminServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository'>;
 
-/** Read models for the restaurant / sommelier dashboard. Read-only: writes arrive with Phase 3. */
+/**
+ * Read models for the restaurant / sommelier dashboard. Read-only: writes arrive with Phase 3.
+ * `locale` only changes the language of the engine's explanations (`why`); scores and order never depend on it.
+ */
 
 const isApproved = (p: Pairing) => p.status === 'approved' || p.status === 'modified';
 const ci = (s: string) => s.toLocaleLowerCase('en');
@@ -83,7 +87,15 @@ export interface PairingWorkbench {
 }
 
 export type SetupStepKey = 'details' | 'menu' | 'wines' | 'profiles' | 'pairings' | 'publish' | 'qr';
-export interface SetupStep { key: SetupStepKey; title: string; detail: string; done: boolean }
+/**
+ * `title` and `detail` are English. `state` names which detail applies and `values` holds its numbers, so the
+ * dashboard can say the same in the user's language (spec 2026-10-15-polish-language, R13).
+ */
+export interface SetupStep { key: SetupStepKey; title: string; detail: string; done: boolean; state: SetupStepState; values: Record<string, number> }
+export type SetupStepState =
+  | 'details' | 'menu_done' | 'menu_empty' | 'wines_done' | 'wines_empty'
+  | 'profiles_no_menu' | 'profiles_done' | 'profiles_drafts' | 'pairings'
+  | 'publish_never' | 'publish_pending' | 'publish_done' | 'qr_done' | 'qr_wait';
 export interface SetupView { restaurant: Restaurant; steps: SetupStep[]; published: boolean }
 
 const TOP = 5;
@@ -154,13 +166,25 @@ export class AdminService {
     const { dishes, wines, pairings, review } = o;
     const live = !!last && o.dishes.published > 0;
     const steps: SetupStep[] = [
-      { key: 'details', title: 'Restaurant details', done: true, detail: `${o.restaurant.name}, ${o.restaurant.address}, ${o.restaurant.city}. Guest address name: ${o.restaurant.slug}.` },
-      { key: 'menu', title: 'Import your menu', done: dishes.total > 0, detail: dishes.total > 0 ? `${dishes.total} dishes on the menu.` : 'Upload a CSV, Excel or PDF file.' },
-      { key: 'wines', title: 'Import your wine list', done: wines.total > 0, detail: wines.total > 0 ? `${wines.active} wines on the list, ${wines.byGlass} by the glass.` : 'Upload a CSV, Excel or PDF file.' },
-      { key: 'profiles', title: 'Check the taste profiles', done: dishes.total > 0 && dishes.draftProfiles === 0, detail: dishes.total === 0 ? 'Import a menu first.' : dishes.draftProfiles === 0 ? 'Every dish profile is confirmed.' : `${dishes.draftProfiles} of ${dishes.total} dish profiles are still drafts.` },
-      { key: 'pairings', title: 'Review the pairings', done: pairings.approved > 0 && review.suggestions === 0, detail: `${pairings.approved} approved, ${review.suggestions} suggestions to review.` },
-      { key: 'publish', title: 'Publish', done: live && o.unpublishedChanges === 0, detail: !last ? 'Not published yet.' : o.unpublishedChanges > 0 ? `${o.unpublishedChanges} unpublished changes.` : 'Guests see the latest version.' },
-      { key: 'qr', title: 'Print the QR code', done: live, detail: live ? 'Put the code on your tables.' : 'Publish first, then print the code.' }
+      { key: 'details', title: 'Restaurant details', done: true, state: 'details', values: {}, detail: `${o.restaurant.name}, ${o.restaurant.address}, ${o.restaurant.city}. Guest address name: ${o.restaurant.slug}.` },
+      dishes.total > 0
+        ? { key: 'menu', title: 'Import your menu', done: true, state: 'menu_done', values: { dishes: dishes.total }, detail: `${dishes.total} dishes on the menu.` }
+        : { key: 'menu', title: 'Import your menu', done: false, state: 'menu_empty', values: {}, detail: 'Upload a CSV, Excel or PDF file.' },
+      wines.total > 0
+        ? { key: 'wines', title: 'Import your wine list', done: true, state: 'wines_done', values: { active: wines.active, byGlass: wines.byGlass }, detail: `${wines.active} wines on the list, ${wines.byGlass} by the glass.` }
+        : { key: 'wines', title: 'Import your wine list', done: false, state: 'wines_empty', values: {}, detail: 'Upload a CSV, Excel or PDF file.' },
+      dishes.total === 0
+        ? { key: 'profiles', title: 'Check the taste profiles', done: false, state: 'profiles_no_menu', values: {}, detail: 'Import a menu first.' }
+        : dishes.draftProfiles === 0
+          ? { key: 'profiles', title: 'Check the taste profiles', done: true, state: 'profiles_done', values: {}, detail: 'Every dish profile is confirmed.' }
+          : { key: 'profiles', title: 'Check the taste profiles', done: false, state: 'profiles_drafts', values: { drafts: dishes.draftProfiles, dishes: dishes.total }, detail: `${dishes.draftProfiles} of ${dishes.total} dish profiles are still drafts.` },
+      { key: 'pairings', title: 'Review the pairings', done: pairings.approved > 0 && review.suggestions === 0, state: 'pairings', values: { approved: pairings.approved, suggestions: review.suggestions }, detail: `${pairings.approved} approved, ${review.suggestions} suggestions to review.` },
+      !last
+        ? { key: 'publish', title: 'Publish', done: false, state: 'publish_never', values: {}, detail: 'Not published yet.' }
+        : o.unpublishedChanges > 0
+          ? { key: 'publish', title: 'Publish', done: false, state: 'publish_pending', values: { changes: o.unpublishedChanges }, detail: `${o.unpublishedChanges} unpublished changes.` }
+          : { key: 'publish', title: 'Publish', done: live, state: 'publish_done', values: {}, detail: 'Guests see the latest version.' },
+      { key: 'qr', title: 'Print the QR code', done: live, state: live ? 'qr_done' : 'qr_wait', values: {}, detail: live ? 'Put the code on your tables.' : 'Publish first, then print the code.' }
     ];
     return { restaurant: o.restaurant, steps, published: live };
   }
@@ -172,7 +196,7 @@ export class AdminService {
     return { restaurant: d.restaurant, pairings: d.pairings.filter((p) => (!filter.dishId || p.dishId === filter.dishId) && (!filter.status || p.status === filter.status)) };
   }
 
-  async pairingWorkbench(slug: string, dishId: string): Promise<PairingWorkbench | null> {
+  async pairingWorkbench(slug: string, dishId: string, locale: Locale = 'en'): Promise<PairingWorkbench | null> {
     const d = await this.load(slug);
     const dish = d?.dishes.find((x) => x.id === dishId);
     if (!d || !dish) return null;
@@ -182,7 +206,7 @@ export class AdminService {
       const wine = wineById.get(p.wineId) ?? null;
       const pinned = p.role === 'primary';
       return {
-        ...p, wine, why: p.comment ?? (wine ? pairingScore(dish, wine).why : ''),
+        ...p, wine, why: p.comment ?? (wine ? pairingScore(dish, wine, locale).why : ''),
         canMoveUp: !pinned && i > 0 && list[i - 1].role !== 'primary',
         canMoveDown: !pinned && i < list.length - 1
       };
@@ -197,7 +221,7 @@ export class AdminService {
       approved: approvedList.map(withWine),
       suggested: mine.filter((p) => p.status === 'suggested').sort(byScore).map(withWine),
       rejected: mine.filter((p) => p.status === 'rejected').sort(byScore).map(withWine),
-      addable: d.wines.filter((w) => w.active && !taken.has(w.id)).map((wine) => ({ wine, ...pairingScore(dish, wine) }))
+      addable: d.wines.filter((w) => w.active && !taken.has(w.id)).map((wine) => ({ wine, ...pairingScore(dish, wine, locale) }))
         .sort((a, b) => b.score - a.score || a.wine.id.localeCompare(b.wine.id)).map(({ wine, score, why }) => ({ wine, score, why })),
       history,
       menu: (await this.menu(slug))!.rows,
@@ -205,13 +229,13 @@ export class AdminService {
     };
   }
 
-  async dishDetail(slug: string, dishId: string): Promise<DishDetail | null> {
+  async dishDetail(slug: string, dishId: string, locale: Locale = 'en'): Promise<DishDetail | null> {
     const d = await this.load(slug);
     const dish = d?.dishes.find((x) => x.id === dishId);
     if (!d || !dish) return null;
     const topMatches = d.wines
       .filter((w) => w.active)
-      .map((wine) => ({ wine, ...pairingScore(dish, wine) }))
+      .map((wine) => ({ wine, ...pairingScore(dish, wine, locale) }))
       .sort((a, b) => b.score - a.score || a.wine.id.localeCompare(b.wine.id))
       .slice(0, TOP)
       .map(({ wine, score, why }) => ({ wine, score, why }));
@@ -235,13 +259,13 @@ export class AdminService {
     };
   }
 
-  async wineDetail(slug: string, wineId: string): Promise<WineDetail | null> {
+  async wineDetail(slug: string, wineId: string, locale: Locale = 'en'): Promise<WineDetail | null> {
     const d = await this.load(slug);
     const wine = d?.wines.find((w) => w.id === wineId);
     if (!d || !wine) return null;
     const bestDishes = d.dishes
       .filter((x) => x.status !== 'hidden')
-      .map((dish) => ({ dish, ...pairingScore(dish, wine) }))
+      .map((dish) => ({ dish, ...pairingScore(dish, wine, locale) }))
       .sort((a, b) => b.score - a.score || a.dish.id.localeCompare(b.dish.id))
       .slice(0, TOP)
       .map(({ dish, score, why }) => ({ dish, score, why }));
@@ -254,7 +278,7 @@ export class AdminService {
     return { restaurant: d.restaurant, wine, bestDishes, approvedFor };
   }
 
-  async reviewQueue(slug: string): Promise<ReviewQueue | null> {
+  async reviewQueue(slug: string, locale: Locale = 'en'): Promise<ReviewQueue | null> {
     const d = await this.load(slug);
     if (!d) return null;
     const wineById = new Map(d.wines.map((w) => [w.id, w]));
@@ -265,7 +289,7 @@ export class AdminService {
         .sort((a, b) => b.modelScore - a.modelScore || a.id.localeCompare(b.id))
         .flatMap((pairing) => {
           const wine = wineById.get(pairing.wineId);
-          return wine ? [{ pairing, wine, why: pairingScore(dish, wine).why }] : [];
+          return wine ? [{ pairing, wine, why: pairingScore(dish, wine, locale).why }] : [];
         });
       if (items.length === 0) continue;
       groups.push({ dish, hasPrimary: d.pairings.some((p) => p.dishId === dish.id && isApproved(p) && p.role === 'primary'), items });

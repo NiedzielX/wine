@@ -49,6 +49,19 @@ export function safeNext(next: string | null | undefined): string | null {
 }
 
 /**
+ * Where the language switch returns to: the page it was on, if that is a dashboard page (`safeNext`), or the
+ * sign-in page with its own validated `next`. Anything else goes to `/admin` (no open redirect).
+ */
+export function languageBack(back: string | null | undefined): string {
+  const value = back ?? '';
+  if (value === '/admin/login' || value.startsWith('/admin/login?')) {
+    const next = safeNext(new URL(value, 'http://local').searchParams.get('next'));
+    return next ? `/admin/login?next=${encodeURIComponent(next)}` : '/admin/login';
+  }
+  return safeNext(value) ?? '/admin';
+}
+
+/**
  * For pages and layouts. Not signed in → sign-in page (and back here afterwards);
  * signed in without access to this restaurant → 403.
  */

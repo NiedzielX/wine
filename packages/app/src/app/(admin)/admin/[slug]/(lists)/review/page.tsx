@@ -10,9 +10,12 @@ import { first } from '../../../_components/format';
 import { approveAllPairings, approvePairing, rejectPairing } from '../../actions';
 import { getRequestScope } from '@/server/request-scope';
 import { requireAccess } from '@/server/auth';
+import { getI18n } from '@/server/i18n';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Review queue' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).t.admin.meta.review };
+}
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -21,7 +24,9 @@ export default async function ReviewPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const sp = await searchParams;
   const decide = (await requireAccess(slug)).can('pairings.decide');
-  const q = await (await getRequestScope()).cradle.adminService.reviewQueue(slug);
+  const { locale, t } = await getI18n();
+  const m = t.admin.review;
+  const q = await (await getRequestScope()).cradle.adminService.reviewQueue(slug, locale);
   if (!q) notFound();
   const { progress, groups } = q;
   const common = { slug, back: `/admin/${slug}/review` };
@@ -30,24 +35,24 @@ export default async function ReviewPage({ params, searchParams }: Props) {
   return (
     <Page>
       <PageHeader
-        title="Review queue"
-        description="Pairings the engine proposed for your list. Nothing here is labelled as a sommelier recommendation until you approve it."
-        actions={decide && progress.suggestions > 0 ? <ActionButton action={approveAllPairings} fields={{ ...common, dishId: '' }} variant="default" size="default">Approve all {progress.suggestions}</ActionButton> : undefined}
+        title={m.title}
+        description={m.description}
+        actions={decide && progress.suggestions > 0 ? <ActionButton action={approveAllPairings} fields={{ ...common, dishId: '' }} variant="default" size="default">{m.approveAll(progress.suggestions)}</ActionButton> : undefined}
       />
-      {!decide && <ReadOnlyNotice>You can follow the review queue. Only the Wine Director approves or rejects pairings.</ReadOnlyNotice>}
+      {!decide && <ReadOnlyNotice>{m.readOnly}</ReadOnlyNotice>}
       <Flash saved={first(sp.saved)} error={first(sp.error)} n={first(sp.n)} />
       <Card className="mb-6">
         <CardContent className="grid gap-2.5">
           <div className="flex flex-wrap justify-between gap-2 text-sm">
-            <b className="font-semibold">{progress.reviewedDishes} of {progress.dishesWithPairings} dishes have at least one approved pairing</b>
-            <span className="text-muted-foreground">{progress.suggestions} suggestions left</span>
+            <b className="font-semibold">{m.progress(progress.reviewedDishes, progress.dishesWithPairings)}</b>
+            <span className="text-muted-foreground">{m.left(progress.suggestions)}</span>
           </div>
-          <Progress value={pct} aria-label="Review progress" />
+          <Progress value={pct} aria-label={m.progressLabel} />
         </CardContent>
       </Card>
 
       {groups.length === 0 ? (
-        <Alert><AlertTitle>Everything is reviewed</AlertTitle><AlertDescription>Guests see your approved pairings first, with the engine filling any remaining places.</AlertDescription></Alert>
+        <Alert><AlertTitle>{m.doneTitle}</AlertTitle><AlertDescription>{m.doneText}</AlertDescription></Alert>
       ) : (
         <div className="grid gap-4">
           {groups.map((g) => (
@@ -55,12 +60,12 @@ export default async function ReviewPage({ params, searchParams }: Props) {
               <CardHeader className="flex flex-row items-center justify-between gap-3 border-b bg-muted/50 py-3">
                 <div className="min-w-0">
                   <CardTitle className="font-serif text-lg font-medium">{g.dish.name}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{g.dish.category}</p>
+                  <p className="text-xs text-muted-foreground">{t.admin.categories[g.dish.category] ?? g.dish.category}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {!g.hasPrimary && <Badge variant="outline">No primary pick yet</Badge>}
-                  {decide && <ActionButton action={approveAllPairings} fields={{ ...common, dishId: g.dish.id }}>Approve all for this dish</ActionButton>}
-                  <Button asChild variant="outline" size="sm"><Link href={`/admin/${slug}/pairings/${g.dish.id}`}>Open pairings</Link></Button>
+                  {!g.hasPrimary && <Badge variant="outline">{m.noPrimary}</Badge>}
+                  {decide && <ActionButton action={approveAllPairings} fields={{ ...common, dishId: g.dish.id }}>{m.approveDish}</ActionButton>}
+                  <Button asChild variant="outline" size="sm"><Link href={`/admin/${slug}/pairings/${g.dish.id}`}>{m.openPairings}</Link></Button>
                 </div>
               </CardHeader>
               <CardContent className="divide-y px-0">
@@ -72,9 +77,9 @@ export default async function ReviewPage({ params, searchParams }: Props) {
                       <p className="text-xs text-muted-foreground">{i.why}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <ScoreBadge score={i.pairing.modelScore} />
-                      {decide && <ActionButton action={approvePairing} fields={{ ...common, pairingId: i.pairing.id, version: i.pairing.version }}>Approve</ActionButton>}
-                      {decide && <ActionButton action={rejectPairing} fields={{ ...common, pairingId: i.pairing.id, version: i.pairing.version }} variant="ghost">Reject</ActionButton>}
+                      <ScoreBadge score={i.pairing.modelScore} t={t} />
+                      {decide && <ActionButton action={approvePairing} fields={{ ...common, pairingId: i.pairing.id, version: i.pairing.version }}>{m.approve}</ActionButton>}
+                      {decide && <ActionButton action={rejectPairing} fields={{ ...common, pairingId: i.pairing.id, version: i.pairing.version }} variant="ghost">{m.reject}</ActionButton>}
                     </div>
                   </div>
                 ))}

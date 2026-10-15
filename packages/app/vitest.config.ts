@@ -23,7 +23,9 @@ export default defineConfig({
         'src/app/**/actions.ts',
         'src/app/**/auth-actions.ts',
         'src/app/**/import-actions.ts',
-        'src/app/**/format.ts'
+        'src/app/**/format.ts',
+        'src/app/**/messages.ts',
+        'src/app/**/language-actions.ts'
       ],
       exclude: ['src/server/**/*.d.ts'],
       reporter: ['text', 'lcov']

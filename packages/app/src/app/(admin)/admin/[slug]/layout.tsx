@@ -1,8 +1,10 @@
-import { roleLabel } from '@wine-match/core';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { AdminShell } from '../_components/admin-shell';
-import { requireAccess } from '@/server/auth';
+import { ErrorTextsProvider } from '../_components/error-texts';
+import { requireAccess, safeNext } from '@/server/auth';
+import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
 type Props = { children: ReactNode; params: Promise<{ slug: string }> };
@@ -16,14 +18,19 @@ export default async function RestaurantAdminLayout({ children, params }: Props)
   const access = await requireAccess(slug);
   const overview = await (await getRequestScope()).cradle.adminService.overview(slug);
   if (!overview) notFound();
+  const { locale, t } = await getI18n();
+  const back = safeNext((await headers()).get('x-pathname')) ?? `/admin/${slug}`;
   return (
     <AdminShell
       restaurant={overview.restaurant}
       reviewCount={overview.review.suggestions}
       publishCount={overview.unpublishedChanges}
-      user={{ name: access.principal.user.name, role: roleLabel(access.membership.role) }}
+      user={{ name: access.principal.user.name, role: t.admin.roles[access.membership.role] }}
+      locale={locale}
+      t={t}
+      back={back}
     >
-      {children}
+      <ErrorTextsProvider value={t.admin.error}>{children}</ErrorTextsProvider>
     </AdminShell>
   );
 }

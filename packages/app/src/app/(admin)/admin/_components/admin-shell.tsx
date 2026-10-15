@@ -1,12 +1,22 @@
-import type { Restaurant } from '@wine-match/core';
+import type { Locale, Restaurant } from '@wine-match/core';
 import Link from 'next/link';
 import { Button } from '@wine-match/ui';
 import { logout } from '../auth-actions';
 import type { ReactNode } from 'react';
+import type { Dictionary } from '@/i18n/en';
 import { AdminNav } from './admin-nav';
+import { LanguageSwitch } from './language-switch';
+
+/** Tooltips of the language switch: each language by its own name ("Polski", "English"). */
+export const languageTitles = (t: Dictionary): Record<Locale, string> => t.common.languageNames;
 
 /** Frame of every dashboard page: sidebar (desktop) or top bar (narrow screens) + content. */
-export function AdminShell({ restaurant, reviewCount, publishCount, user, children }: { restaurant: Restaurant; reviewCount: number; publishCount: number; user: { name: string; role: string }; children: ReactNode }) {
+export function AdminShell({ restaurant, reviewCount, publishCount, user, locale, t, back, children }: {
+  restaurant: Restaurant; reviewCount: number; publishCount: number; user: { name: string; role: string };
+  /** interface language and its texts; `back` is the current page, where the language switch returns */
+  locale: Locale; t: Dictionary; back: string; children: ReactNode;
+}) {
+  const { nav } = t.admin;
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
       <aside className="flex flex-col gap-4 border-b bg-sidebar p-4 print:hidden lg:sticky lg:top-0 lg:h-dvh lg:gap-6 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:py-6">
@@ -17,13 +27,16 @@ export function AdminShell({ restaurant, reviewCount, publishCount, user, childr
             <small className="hidden text-xs text-muted-foreground lg:block">{restaurant.address}, {restaurant.city}</small>
           </div>
         </div>
-        <AdminNav slug={restaurant.slug} reviewCount={reviewCount} publishCount={publishCount} />
+        <AdminNav slug={restaurant.slug} reviewCount={reviewCount} publishCount={publishCount} labels={{ label: nav.label, dashboard: nav.dashboard, menu: nav.menu, wines: nav.wines, pairings: nav.pairings, review: nav.review, publish: nav.publish, restaurant: nav.restaurant, importMenu: nav.importMenu, importWines: nav.importWines, setup: nav.setup, qr: nav.qr }} />
         <div className="hidden px-3 text-sm lg:mt-auto lg:block">
-          <Link href={`/r/${restaurant.slug}`} className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Open guest app</Link>
+          <Link href={`/r/${restaurant.slug}`} className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{t.admin.common.openGuestApp}</Link>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t pt-3 text-sm lg:flex-col lg:items-stretch lg:gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-2">
           <div className="min-w-0"><b className="block truncate font-medium">{user.name}</b><small className="text-xs text-muted-foreground">{user.role}</small></div>
-          <form action={logout}><Button type="submit" variant="outline" size="sm" className="lg:w-full">Sign out</Button></form>
+          <div className="flex items-center gap-2 lg:justify-between">
+            <LanguageSwitch locale={locale} back={back} label={t.admin.language.label} titles={languageTitles(t)} />
+            <form action={logout}><Button type="submit" variant="outline" size="sm">{nav.signOut}</Button></form>
+          </div>
         </div>
       </aside>
       <div className="min-w-0">{children}</div>
