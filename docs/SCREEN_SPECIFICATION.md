@@ -24,6 +24,7 @@ Wspólne zasady:
 - **Empty**: zaproszenie do działania, nie nastrój (`?demo=empty`).
 - **Success**: toast w dolnej części ekranu (`role=status`) z tym samym czasownikiem co przycisk („Publish changes” → „Published 12 changes”).
 - Wszystkie publiczne endpointy gościa są cache’owane (CDN, `stale-while-revalidate`); rekomendacje dla par bez filtrów są wyliczane przy publikacji.
+- **Język (spec `2026-10-15-polish-language`):** aplikacja gościa jest po polsku i po angielsku. Język wybiera parametr `lang=pl|en` w URL, bez niego nagłówek `Accept-Language` przeglądarki (pierwszy z `pl`/`en`), w ostateczności angielski; gość nie dostaje ciasteczek. Przełącznik „PL | EN” jest na G0 w prawym górnym rogu nagłówka restauracji, na pozostałych ekranach gościa w top barze po prawej (na G3 obok „Refine”); aktywny język ma `aria-current`. Linki i formularze GET niosą `lang` tylko wtedy, gdy był jawnie w URL. Tłumaczone są etykiety (także kategorie: Przystawki, Dania główne, Desery), uzasadnienia silnika, słowa smaku i komunikaty; wartości w URL (`styles=red`, kotwice kategorii), nazwy i opisy dań i win oraz notatki sommeliera zostają bez zmian. Ceny przez `Intl` (`pl`: „1 234 zł” ze spacją niełamliwą). Teksty angielskie w tym dokumencie mają polskie odpowiedniki w `packages/app/src/i18n/pl.ts`.
 - Każdy event gościa niesie: `restaurantId`, `sessionId` (anonimowy, losowy, w sessionStorage), `menuVersion`, `engineVersion`, `ts`.
 
 ---

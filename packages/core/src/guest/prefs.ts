@@ -1,5 +1,6 @@
 import type { GuestPreferences, WineStyle } from '../domain/types';
 import { DEFAULT_PREFS } from '../domain/types';
+import type { Locale, Localized } from '../i18n/locale';
 
 /**
  * Guest state lives in the URL (no cookies, no storage): this module parses it, serialises it and
@@ -9,9 +10,33 @@ export type QueryInput = Record<string, string | string[] | undefined>;
 
 export const WINE_STYLES: WineStyle[] = ['sparkling', 'white', 'rose', 'orange', 'red', 'sweet'];
 
+/** English style labels; kept for existing callers (the dashboard). New code uses `styleLabel(style, locale)`. */
 export const STYLE_LABELS: Record<WineStyle, string> = {
   sparkling: 'Sparkling', white: 'White', rose: 'Rosé', orange: 'Orange', red: 'Red', sweet: 'Sweet'
 };
+
+const STYLE_LABELS_PL: Record<WineStyle, string> = {
+  sparkling: 'Musujące', white: 'Białe', rose: 'Różowe', orange: 'Pomarańczowe', red: 'Czerwone', sweet: 'Słodkie'
+};
+
+/** The label of a wine style in the interface language. Only the label is translated: `styles=red` stays in the URL. */
+export function styleLabel(style: WineStyle, locale: Locale = 'en'): string {
+  return (locale === 'pl' ? STYLE_LABELS_PL : STYLE_LABELS)[style];
+}
+
+const SUMMARY: Record<'glass' | 'bottle' | 'lighter' | 'fuller' | 'classic' | 'adventurous', Localized> = {
+  glass: { en: 'By the glass', pl: 'Na kieliszki' },
+  bottle: { en: 'By the bottle', pl: 'Na butelki' },
+  lighter: { en: 'Lighter', pl: 'Lżejsze' },
+  fuller: { en: 'Fuller', pl: 'Pełniejsze' },
+  classic: { en: 'Classic', pl: 'Klasyczne' },
+  adventurous: { en: 'Adventurous', pl: 'Odważne' }
+};
+
+/** "Up to 60 zł" / "Do 60 zł" (a non-breaking space before the currency in Polish). */
+export function upToPrice(maxPrice: number, locale: Locale = 'en'): string {
+  return locale === 'pl' ? `Do ${maxPrice}\u00a0zł` : `Up to ${maxPrice} zł`;
+}
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const list = (v: string | string[] | undefined) =>
@@ -73,14 +98,13 @@ export function budgetOptions(serving: GuestPreferences['serving']): number[] {
 }
 
 /** Labels for the active preferences, for the chips above the list. */
-export function prefsSummary(p: GuestPreferences): string[] {
+export function prefsSummary(p: GuestPreferences, locale: Locale = 'en'): string[] {
   const s: string[] = [];
-  if (p.serving === 'glass') s.push('By the glass');
-  if (p.serving === 'bottle') s.push('By the bottle');
-  if (p.styles.length) s.push(WINE_STYLES.filter((x) => p.styles.includes(x)).map((x) => STYLE_LABELS[x]).join(', '));
-  if (p.maxPrice !== null) s.push(`Up to ${p.maxPrice} zł`);
-  if (p.weight !== 'any') s.push(p.weight === 'lighter' ? 'Lighter' : 'Fuller');
-  if (p.mood !== 'any') s.push(p.mood === 'classic' ? 'Classic' : 'Adventurous');
+  if (p.serving !== 'any') s.push(SUMMARY[p.serving][locale]);
+  if (p.styles.length) s.push(WINE_STYLES.filter((x) => p.styles.includes(x)).map((x) => styleLabel(x, locale)).join(', '));
+  if (p.maxPrice !== null) s.push(upToPrice(p.maxPrice, locale));
+  if (p.weight !== 'any') s.push(SUMMARY[p.weight][locale]);
+  if (p.mood !== 'any') s.push(SUMMARY[p.mood][locale]);
   return s;
 }
 

@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-15] [Next.js 16 nadpisuje `Vary` stron App Routera](lessons/2026-10-15-nextjs-vary-header-overwritten.md) — `Vary` z proxy i `next.config` nie dochodzi do klienta; sprawdzaj nagłówki `curl -D -` na `next start`.
 - [2026-10-15] [Dokument „do wdrożenia” może dotyczyć innego produktu](lessons/2026-10-15-adopting-a-foreign-standard.md) — sprawdź, czy dotyczy repozytorium, zapisz mapowanie reguł i odstępstwa, weryfikuj każdą regułę na kodzie.
 - [2026-10-15] [Klucze od klienta nie trafiają do zwykłego obiektu jako słownika](lessons/2026-10-15-client-chosen-keys.md) — `constructor` i `__proto__` gubią się w `obj[k] ??= …`; używaj `Map` / `Object.fromEntries`.
 - [2026-10-15] [Konfiguracja zawodzi zamykająco, ale budowanie nie może jej wymagać](lessons/2026-10-15-config-fails-closed-and-boot-without-env.md) — leniwy `env()`, `force-dynamic`, `instrumentation.ts`, `boot:check`.

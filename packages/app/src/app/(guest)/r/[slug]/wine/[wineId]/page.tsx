@@ -1,19 +1,22 @@
-import { STYLE_LABELS, parseDishIds } from '@wine-match/core';
+import { parseDishIds, styleLabel } from '@wine-match/core';
 import { MatchGlass } from '@wine-match/ui/brand/match-glass';
 import type { Metadata } from 'next';
-import { BottomBar, Button, EmptyState, Score, Seal, TopBar } from '../../../../_components/guest-ui';
-import { guestContext, hrefWith, notFound, type SearchParams } from '@/server/guest-page';
+import { BottomBar, Button, EmptyState, LanguageSwitch, Score, Seal, TopBar } from '../../../../_components/guest-ui';
+import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
+import { formatPrice, getI18n } from '@/server/i18n';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = { title: 'Wine' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getI18n()).t.guest.meta.wine };
+}
 
 type Props = { params: Promise<{ slug: string; wineId: string }>; searchParams: SearchParams };
 
-function Dots({ label, value }: { label: string; value: number }) {
+function Dots({ label, value, valueLabel }: { label: string; value: number; valueLabel: string }) {
   return (
     <div className="grid grid-cols-[96px_1fr] items-center text-[14.5px]">
       <span>{label}</span>
-      <span role="img" aria-label={`${value} of 5`} className="inline-flex gap-1">
+      <span role="img" aria-label={valueLabel} className="inline-flex gap-1">
         {[1, 2, 3, 4, 5].map((i) => <i key={i} className={`block size-[9px] rounded-full ${i <= value ? 'bg-wine' : 'bg-line'}`} />)}
       </span>
     </div>
@@ -23,22 +26,24 @@ function Dots({ label, value }: { label: string; value: number }) {
 /** G7 — wine details. Context: `?dish=<id>` (from a dish) or `?table=<ids>` (from the table result). */
 export default async function WinePage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
-  const { q, prefs, services } = await guestContext(searchParams);
+  const { q, prefs, services, t, locale, lang, href, langHrefs } = await guestContext(searchParams);
   const tableIds = parseDishIds({ dishes: q.table });
   const fromTable = tableIds.length > 0;
   const dishId = typeof q.dish === 'string' ? q.dish : undefined;
-  const data = await services.recommendationService.wineDetails(slug, wineId, dishId);
+  const data = await services.recommendationService.wineDetails(slug, wineId, dishId, locale);
   if (!data) notFound();
   const { restaurant, wine, dish, match } = data;
-  const backHref = fromTable ? `/r/${slug}/table/result${hrefWith('', prefs, { dishes: tableIds.join(',') })}`
-    : dish ? `/r/${slug}/dish/${dish.id}/wines${hrefWith('', prefs)}` : `/r/${slug}/menu`;
+  const backHref = fromTable ? href(`/r/${slug}/table/result`, prefs, { dishes: tableIds.join(',') })
+    : dish ? href(`/r/${slug}/dish/${dish.id}/wines`, prefs) : href(`/r/${slug}/menu`);
+  const langSwitch = <LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${slug}/wine/${wine.id}`)} t={t} />;
+  const w = t.guest.wine;
 
   if (!wine.active) {
     return (
       <>
-        <TopBar back={backHref} title={restaurant.name} />
+        <TopBar back={backHref} title={restaurant.name} t={t} langSwitch={langSwitch} />
         <main className="flex-1 px-5 lg:mx-auto lg:w-full lg:max-w-[720px]">
-          <EmptyState title="This wine is no longer available" text="It may have sold out tonight. Your other matches are still waiting." action={<Button href={backHref} variant="secondary">See other wines</Button>} />
+          <EmptyState title={w.unavailableTitle} text={w.unavailableText} action={<Button href={backHref} variant="secondary">{w.seeOther}</Button>} />
         </main>
       </>
     );
@@ -52,60 +57,61 @@ export default async function WinePage({ params, searchParams }: Props) {
 
   return (
     <>
-      <TopBar back={backHref} title={restaurant.name} />
+      <TopBar back={backHref} title={restaurant.name} t={t} langSwitch={langSwitch} />
       <form action={`/r/${slug}/selected/${wine.id}`} method="get" className="flex flex-1 flex-col">
         {dish && <input type="hidden" name="dish" value={dish.id} />}
         {fromTable && <input type="hidden" name="table" value={tableIds.join(',')} />}
+        {lang && <input type="hidden" name="lang" value={lang} />}
         <main className="flex-1 px-5 pt-5 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">
           <div className="grid grid-cols-[1fr_auto] items-start gap-4">
             <div>
               <h1 className="font-serif text-[32px] leading-[1.08]">{wine.name}</h1>
               <p className="mt-1.5 text-ink-2">{wine.producer}</p>
             </div>
-            {match ? <Score score={match.matchScore} colour={wine.colour} showScores={showScores} size={52} /> : <MatchGlass score={70} colour={wine.colour} size={52} className="text-ink-2" />}
+            {match ? <Score score={match.matchScore} colour={wine.colour} showScores={showScores} size={52} t={t} /> : <MatchGlass score={70} colour={wine.colour} size={52} className="text-ink-2" />}
           </div>
 
           {match && dish && (
             <div className={`mt-6 grid gap-1.5 rounded-[10px] p-4 ${match.sommelier ? 'bg-brass-soft' : 'bg-paper'}`}>
               <p className={`flex items-center gap-1.5 text-[13.5px] font-semibold ${match.sommelier ? 'text-brass' : 'text-ink-2'}`}>
-                {match.sommelier ? <><Seal className="size-3.5" />{restaurant.wineDirector}, Wine Director</> : `Why it works with the ${dish.name.toLowerCase()}`}
+                {match.sommelier ? <><Seal className="size-3.5" />{w.director(restaurant.wineDirector)}</> : w.whyWith(dish.name)}
               </p>
               <p className="text-[15.5px]">{match.why}</p>
             </div>
           )}
 
           <dl className="my-6 grid grid-cols-2 gap-x-5 gap-y-3.5 border-y border-line py-4">
-            <div><dt className="text-[13px] text-ink-3">Region</dt><dd className="mt-0.5 text-[15px]">{wine.region}, {wine.country}</dd></div>
-            <div><dt className="text-[13px] text-ink-3">Vintage</dt><dd className="mt-0.5 text-[15px]">{wine.vintage === 'NV' ? 'Non-vintage' : wine.vintage}</dd></div>
-            <div><dt className="text-[13px] text-ink-3">Grapes</dt><dd className="mt-0.5 text-[15px]">{wine.grapes.join(', ')}</dd></div>
-            <div><dt className="text-[13px] text-ink-3">Style</dt><dd className="mt-0.5 text-[15px]">{STYLE_LABELS[p.style]}, {p.alcohol}% abv</dd></div>
+            <div><dt className="text-[13px] text-ink-3">{w.region}</dt><dd className="mt-0.5 text-[15px]">{wine.region}, {wine.country}</dd></div>
+            <div><dt className="text-[13px] text-ink-3">{w.vintage}</dt><dd className="mt-0.5 text-[15px]">{wine.vintage === 'NV' ? w.nonVintage : wine.vintage}</dd></div>
+            <div><dt className="text-[13px] text-ink-3">{w.grapes}</dt><dd className="mt-0.5 text-[15px]">{wine.grapes.join(', ')}</dd></div>
+            <div><dt className="text-[13px] text-ink-3">{w.style}</dt><dd className="mt-0.5 text-[15px]">{w.abv(styleLabel(p.style, locale), p.alcohol)}</dd></div>
           </dl>
 
           <p className="font-serif text-xl leading-[1.45] italic">{wine.tastingNote}</p>
           <div className="mt-5 grid gap-2.5">
-            <Dots label="Body" value={p.body} />
-            <Dots label="Acidity" value={p.acidity} />
-            <Dots label="Tannin" value={p.tannin} />
-            <Dots label="Sweetness" value={p.sweetness} />
+            <Dots label={w.body} value={p.body} valueLabel={w.dots(p.body)} />
+            <Dots label={w.acidity} value={p.acidity} valueLabel={w.dots(p.acidity)} />
+            <Dots label={w.tannin} value={p.tannin} valueLabel={w.dots(p.tannin)} />
+            <Dots label={w.sweetness} value={p.sweetness} valueLabel={w.dots(p.sweetness)} />
           </div>
 
           <fieldset className="mt-6 grid grid-cols-2 gap-2.5 border-0 p-0">
-            <legend className="sr-only">How would you like it?</legend>
+            <legend className="sr-only">{w.howServed}</legend>
             <label className={radio}>
               <input type="radio" name="serving" value="glass" className="sr-only" defaultChecked={defaultServing === 'glass'} disabled={!glassOk} />
-              <span>Glass, {wine.glassPour} ml</span>
-              <b className="tabular-nums">{glassOk ? `${wine.glassPrice} zł` : 'Bottle only'}</b>
-              {!glassOk && <small className="text-[13px] text-ink-3">Not poured by the glass</small>}
+              <span>{w.glass(wine.glassPour)}</span>
+              <b className="tabular-nums">{wine.glassPrice !== null ? formatPrice(wine.glassPrice, locale) : w.bottleOnly}</b>
+              {!glassOk && <small className="text-[13px] text-ink-3">{w.notByGlass}</small>}
             </label>
             <label className={radio}>
               <input type="radio" name="serving" value="bottle" className="sr-only" defaultChecked={defaultServing === 'bottle'} />
-              <span>Bottle, {wine.bottleSize} ml</span>
-              <b className="tabular-nums">{wine.bottlePrice} zł</b>
+              <span>{w.bottle(wine.bottleSize)}</span>
+              <b className="tabular-nums">{formatPrice(wine.bottlePrice, locale)}</b>
             </label>
           </fieldset>
         </main>
         <BottomBar>
-          <button type="submit" className="inline-flex min-h-11 items-center justify-center rounded-full border border-wine bg-wine px-5 text-[15px] font-semibold text-on-wine hover:bg-wine-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">Choose this wine</button>
+          <button type="submit" className="inline-flex min-h-11 items-center justify-center rounded-full border border-wine bg-wine px-5 text-[15px] font-semibold text-on-wine hover:bg-wine-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">{w.choose}</button>
         </BottomBar>
       </form>
     </>

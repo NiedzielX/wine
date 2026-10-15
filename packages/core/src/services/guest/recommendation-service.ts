@@ -3,6 +3,7 @@ import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS } from '../../domain/types';
 import { recommendForDish, type RecommendationItem, type RecommendationResult } from '../../engine/recommend';
 import { recommendForTable, type TableResult } from '../../engine/table';
 import type { Repositories } from '../../ports/repositories';
+import type { Locale } from '../../i18n/locale';
 
 export type RecommendationServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository'>;
 
@@ -33,7 +34,8 @@ export class RecommendationService {
     this.repos = deps;
   }
 
-  async forDish(slug: string, dishId: string, prefs: Partial<GuestPreferences> = {}, limit?: number): Promise<DishRecommendations | null> {
+  /** `locale` sets the language of the engine's texts; the public API passes none, so its answers stay in English. */
+  async forDish(slug: string, dishId: string, prefs: Partial<GuestPreferences> = {}, limit?: number, locale: Locale = 'en'): Promise<DishRecommendations | null> {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
     const dish = await this.repos.dishRepository.findById(restaurant.id, dishId);
@@ -42,14 +44,14 @@ export class RecommendationService {
       this.repos.wineRepository.listByRestaurant(restaurant.id, { activeOnly: true }),
       this.repos.pairingRepository.listPublishedByDish(restaurant.id, dish.id)
     ]);
-    const result = recommendForDish(dish, wines, pairings, { ...DEFAULT_PREFS, ...prefs }, limit);
+    const result = recommendForDish(dish, wines, pairings, { ...DEFAULT_PREFS, ...prefs }, limit, locale);
     const settings = restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS;
     if (!settings.showUnreviewed) result.items = result.items.filter((i) => i.tier < 2);
     return { restaurant, dish, result };
   }
 
   /** A wine of the restaurant, optionally scored against the dish the guest is looking at. */
-  async wineDetails(slug: string, wineId: string, dishId?: string): Promise<WineDetails | null> {
+  async wineDetails(slug: string, wineId: string, dishId?: string, locale: Locale = 'en'): Promise<WineDetails | null> {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
     const wine = await this.repos.wineRepository.findById(restaurant.id, wineId);
@@ -62,12 +64,12 @@ export class RecommendationService {
         this.repos.wineRepository.listByRestaurant(restaurant.id, { activeOnly: true }),
         this.repos.pairingRepository.listPublishedByDish(restaurant.id, dish.id)
       ]);
-      match = recommendForDish(dish, wines, pairings, DEFAULT_PREFS, wines.length).items.find((i) => i.wine.id === wine.id) ?? null;
+      match = recommendForDish(dish, wines, pairings, DEFAULT_PREFS, wines.length, locale).items.find((i) => i.wine.id === wine.id) ?? null;
     }
     return { restaurant, wine, dish, match };
   }
 
-  async forTable(slug: string, dishIds: string[], prefs: Partial<GuestPreferences> = {}): Promise<{ restaurant: Restaurant; result: TableResult } | null> {
+  async forTable(slug: string, dishIds: string[], prefs: Partial<GuestPreferences> = {}, locale: Locale = 'en'): Promise<{ restaurant: Restaurant; result: TableResult } | null> {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
     const all = await this.repos.dishRepository.listByRestaurant(restaurant.id, { statuses: ['published'] });
@@ -77,7 +79,7 @@ export class RecommendationService {
       this.repos.wineRepository.listByRestaurant(restaurant.id, { activeOnly: true }),
       this.repos.pairingRepository.listPublishedByRestaurant(restaurant.id)
     ]);
-    return { restaurant, result: recommendForTable(dishes, wines, pairings, { ...DEFAULT_PREFS, ...prefs }) };
+    return { restaurant, result: recommendForTable(dishes, wines, pairings, { ...DEFAULT_PREFS, ...prefs }, undefined, locale) };
   }
 }
 

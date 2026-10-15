@@ -1,5 +1,6 @@
 import type { Dish, GuestPreferences, Pairing, Wine } from '../domain/types';
 import { passesHardFilters, preferenceAdjustment, priceFor, recommendForDish } from './recommend';
+import type { Locale } from '../i18n/locale';
 import { pairingScore } from './scoring';
 
 /**
@@ -50,7 +51,9 @@ export function recommendForTable(
   wines: Wine[],
   pairings: Pairing[],
   prefs: GuestPreferences,
-  limit = 3
+  limit = 3,
+  /** language of the one-line reasons; English by default (the public API) */
+  locale: Locale = 'en'
 ): TableResult {
   const savoury = dishes.filter((d) => d.category !== 'Desserts');
   const scored = savoury.length > 0 ? savoury : dishes;
@@ -73,7 +76,7 @@ export function recommendForTable(
     const weakest = perDish.reduce((m, x) => (x.score < m.score ? x : m), perDish[0]);
     const overall = Math.round(TABLE_MEAN_WEIGHT * mean + TABLE_MIN_WEIGHT * weakest.score);
     const { price, serving } = priceFor(wine, tablePrefs.serving);
-    items.push({ wine, overall, perDish, weakest, price, serving, why: tableWhy(perDish) });
+    items.push({ wine, overall, perDish, weakest, price, serving, why: tableWhy(perDish, locale) });
   }
 
   items.sort((a, b) => compareTableItems(a, b, prefs));
@@ -82,7 +85,7 @@ export function recommendForTable(
   const splitSuggested = scored.length > 1 && (!top[0] || top[0].overall < COMPROMISE_THRESHOLD || top[0].weakest.score < WEAK_DISH_THRESHOLD);
   const split = splitSuggested
     ? scored.flatMap((dish) => {
-        const r = recommendForDish(dish, wines, pairings, { ...prefs, serving: 'glass' }, 1);
+        const r = recommendForDish(dish, wines, pairings, { ...prefs, serving: 'glass' }, 1, locale);
         return r.items[0] ? [{ dish, wine: r.items[0].wine, score: r.items[0].matchScore }] : [];
       })
     : [];
@@ -90,10 +93,17 @@ export function recommendForTable(
   return { items: top, setAside, splitSuggested, split };
 }
 
-function tableWhy(perDish: TableDishScore[]): string {
+/** The one-line reason under a table wine. Polish keeps dish names as written (no declension), in quotes. */
+export function tableWhy(perDish: TableDishScore[], locale: Locale = 'en'): string {
   const sorted = [...perDish].sort((a, b) => b.score - a.score);
   const best = sorted[0];
   const worst = sorted[sorted.length - 1];
+  if (locale === 'pl') {
+    if (perDish.length === 1) return `Najlepiej pasuje do dania „${best.dish.name}”.`;
+    if (worst.score >= 80) return 'Pasuje do wszystkich dań na stole.';
+    if (worst.score >= 70) return `Najlepiej pasuje do dania „${best.dish.name}”, a do „${worst.dish.name}” też dobrze.`;
+    return `Najlepiej pasuje do dania „${best.dish.name}”, przy „${worst.dish.name}” to kompromis.`;
+  }
   if (perDish.length === 1) return `Best with the ${best.dish.name.toLowerCase()}.`;
   if (worst.score >= 80) return 'Works across every dish on the table.';
   if (worst.score >= 70) return `Strongest with the ${best.dish.name.toLowerCase()}, still good with the ${worst.dish.name.toLowerCase()}.`;
