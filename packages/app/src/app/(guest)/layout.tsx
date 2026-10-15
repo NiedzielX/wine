@@ -14,7 +14,7 @@ export default function GuestLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col bg-paper sm:shadow-[0_0_0_1px_var(--color-line)]">{children}</div>
+        <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col lg:max-w-[1200px] bg-paper sm:shadow-[0_0_0_1px_var(--color-line)]">{children}</div>
       </body>
     </html>
   );

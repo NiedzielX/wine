@@ -2,7 +2,7 @@ import { STYLE_LABELS, WINE_STYLES, budgetOptions, parseDishIds } from '@wine-ma
 import type { Metadata } from 'next';
 import { ModeSwitch, TopBar } from '../../../_components/guest-ui';
 import { SelectionCount } from '../../../_components/selection-count';
-import { CATEGORIES, guestContext, notFound, type SearchParams } from '@/server/guest-page';
+import { CATEGORIES, guestContext, hrefWith, notFound, type SearchParams } from '@/server/guest-page';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Pair for the table' };
@@ -21,10 +21,14 @@ export default async function TablePage({ params, searchParams }: Props) {
 
   return (
     <>
-      <TopBar back={`/r/${slug}`} title={menu.restaurant.name} />
+      <TopBar back={hrefWith(`/r/${slug}`, prefs)} title={menu.restaurant.name} />
       <form id="table-form" action={`/r/${slug}/table/result`} method="get" className="flex flex-1 flex-col">
-        <main className="flex-1 px-5 pt-5 pb-6">
-          <ModeSwitch slug={slug} mode="table" />
+        <main className="flex-1 px-5 pt-5 pb-6 lg:mx-auto lg:w-full lg:max-w-[720px]">
+          {/* preferences the form does not ask for travel on to the result (spec: guest-short-path-and-desktop R6) */}
+          {prefs.serving !== 'any' && <input type="hidden" name="serving" value={prefs.serving} />}
+          {prefs.weight !== 'any' && <input type="hidden" name="weight" value={prefs.weight} />}
+          {prefs.mood !== 'any' && <input type="hidden" name="mood" value={prefs.mood} />}
+          <ModeSwitch dishHref={hrefWith(`/r/${slug}/menu`, prefs)} tableHref={hrefWith(`/r/${slug}/table`, prefs)} mode="table" />
           <p className="text-ink-2">Tick everything your table is ordering. We’ll find one bottle that works across all of it.</p>
           {CATEGORIES.map((c) => {
             const list = menu.dishes.filter((d) => d.category === c);
@@ -61,7 +65,7 @@ export default async function TablePage({ params, searchParams }: Props) {
             </fieldset>
           </details>
         </main>
-        <div className="pointer-events-none sticky bottom-0 z-10 grid gap-2 bg-gradient-to-t from-paper from-70% to-transparent px-5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom))] *:pointer-events-auto">
+        <div className="pointer-events-none sticky bottom-0 z-10 grid gap-2 bg-gradient-to-t from-paper from-70% to-transparent px-5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom))] *:pointer-events-auto lg:pointer-events-auto lg:static lg:mx-auto lg:w-full lg:max-w-[720px] lg:bg-none lg:pb-8">
           <SelectionCount formId="table-form" name="dish" />
           <button type="submit" className="inline-flex min-h-11 items-center justify-center rounded-full border border-wine bg-wine px-5 text-[15px] font-semibold text-on-wine hover:bg-wine-deep disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">Find a bottle for the table</button>
         </div>

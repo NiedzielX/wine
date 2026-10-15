@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
     // TypeScript 7 is a native compiler without the classic JS API: type-check through the tsc CLI.
     useTypeScriptCli: true
   },
+  async redirects() {
+    // G2 (dish details) became part of G3: old links and printed material keep working (BACKWARD_COMPATIBILITY.md §1).
+    // A config redirect is a real 308 and keeps the whole query string (preferences, `sid`, `sheet`).
+    return [{ source: '/r/:slug/dish/:dishId', destination: '/r/:slug/dish/:dishId/wines', permanent: true }];
+  },
   async headers() {
     const baseline = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },

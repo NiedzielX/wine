@@ -8,10 +8,10 @@ Każdy flow ma diagram, opis kroków z adresem ekranu w mockupie (hash route) or
 
 ```mermaid
 flowchart LR
-  QR([Scan QR]) --> L[Restaurant landing<br>/r/halka]
-  L -->|Choose your dish| M[Dish list<br>/r/halka/menu]
-  M -->|tap dish| D[Dish details + quick preferences<br>/r/halka/dish/:id]
-  D -->|Show matching wines| R[Wine recommendations<br>/r/halka/dish/:id/wines]
+  QR([Scan QR]) --> L[Restaurant landing + menu<br>/r/halka]
+  L -->|tap dish| R[Wine recommendations + quick preferences<br>/r/halka/dish/:id/wines]
+  M[Dish list<br>/r/halka/menu] -->|tap dish| R
+  R -->|Back| M
   R -->|Refine| F[[Filters sheet<br>?sheet=filters]]
   F -->|Show N wines| R
   R -->|tap wine| W[Wine details<br>/r/halka/wine/:id?dish=]
@@ -23,17 +23,14 @@ flowchart LR
 
 | Krok | Ekran | Akcja gościa | System |
 |---|---|---|---|
-| 1 | Landing | skan QR | `GET /public/restaurants/{slug}`, event `guest_session_started` |
-| 2 | Landing | „Choose your dish” | `GET /public/restaurants/{slug}/menu` |
-| 3 | Dish list | wybór dania | event `dish_viewed` |
-| 4 | Dish details | opcjonalnie: kieliszek / butelka, kolor, budżet | preferencje w sesji |
-| 5 | Dish details | „Show matching wines” | `GET /dishes/{id}/recommendations?…`, event `recommendations_viewed` |
-| 6 | Recommendations | opcjonalnie: „Refine” → arkusz filtrów | przeliczenie listy, event `filter_changed` |
+| 1 | Landing z menu | skan QR | nagłówek restauracji i menu na jednym ekranie, eventy `guest_session_started`, `menu_viewed` |
+| 2 | Landing z menu | wybór dania | `GET /dishes/{id}/recommendations?…`, event `recommendations_viewed` |
+| 3 | Recommendations | opcjonalnie: szybkie preferencje (By the glass / By the bottle / Red / White / Sparkling) albo „More…” → arkusz filtrów | przeliczenie listy; preferencje zostają w URL dla kolejnych dań |
 | 7 | Recommendations | wybór wina | event `recommendation_clicked`, `wine_viewed` |
 | 8 | Wine details | kieliszek / butelka → „Choose this wine” | event `wine_selected` |
 | 9 | Confirmation | pokazanie telefonu kelnerowi | event `selection_shown_to_waiter` |
 
-**Najkrótsza ścieżka do listy win: 3 dotknięcia** (Choose your dish → danie → Show matching wines). Do wyboru wina: 5.
+**Najkrótsza ścieżka do listy win: 1 dotknięcie** (danie na stronie z kodu QR). Do wyboru wina: 3. Stare adresy `/r/{slug}/dish/{id}` przekierowują (308) na listę win. Na desktopie (≥ 1024 px) menu zostaje w lewej kolumnie obok win (spec `2026-10-15-guest-short-path-and-desktop`).
 
 ---
 

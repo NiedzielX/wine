@@ -14,10 +14,10 @@ W mockupie adresy są hash-routami (`index.html#/r/halka/menu`). Indeks wszystki
 ## Guest application
 
 ```
-G0  Restaurant landing ........................ /r/{slug}
+G0  Restaurant landing + menu ................. /r/{slug}
  ├─ G1  Dish list ............................. /r/{slug}/menu
- │   └─ G2  Dish details (+ quick preferences) . /r/{slug}/dish/{dishId}
- │       └─ G3  Wine recommendations ........... /r/{slug}/dish/{dishId}/wines
+ │   └─ (G2 → 308 na G3) ....................... /r/{slug}/dish/{dishId}
+ │       └─ G3  Dish + wine recommendations .... /r/{slug}/dish/{dishId}/wines
  │           ├─ G4  Filters (bottom sheet) ..... /r/{slug}/dish/{dishId}/wines?sheet=filters
  │           └─ G7  Wine details ............... /r/{slug}/wine/{wineId}?dish={dishId}
  │               └─ G8  Selection confirmation . /r/{slug}/selected/{wineId}?serving=&dish=
@@ -32,11 +32,12 @@ Stany systemowe: unknown restaurant (dowolny błędny slug), ?demo=loading|empty
 
 ```mermaid
 flowchart TD
-  G0[G0 Landing] --> G1[G1 Dish list]
+  G0[G0 Landing + menu] --> G3
+  G0 --> G1[G1 Dish list]
   G0 --> G5[G5 Whole table]
   G0 --> G9[G9 Staff lookup]
   G1 <--> G5
-  G1 --> G2[G2 Dish details] --> G3[G3 Recommendations]
+  G1 --> G3[G3 Dish + recommendations]
   G3 <--> G4[G4 Filters sheet]
   G3 --> G7[G7 Wine details] --> G8[G8 Confirmation]
   G5 --> G6[G6 Best wine for table] --> G7
@@ -46,8 +47,9 @@ flowchart TD
 **Zasady nawigacji gościa**
 - Każdy ekran poza G0 ma przycisk „Back” w top barze, prowadzący do logicznego rodzica (nie do historii przeglądarki), więc wejście z udostępnionego linku też ma sensowny powrót.
 - Ikona filtrów w top barze jest widoczna tylko na G3.
-- Główne akcje są w przyklejonym dolnym pasku w zasięgu kciuka (G2, G5, G7).
-- Preferencje gościa (kieliszek / butelka, styl, budżet, body, mood) i wybór stolika są trzymane w sesji przeglądarki między ekranami.
+- Główne akcje są w przyklejonym dolnym pasku w zasięgu kciuka (G5, G7); na desktopie pasek jest zwykłym blokiem pod treścią.
+- Preferencje gościa (kieliszek / butelka, styl, budżet, body, mood) i wybór stolika są trzymane wyłącznie w parametrach URL i przechodzą między ekranami w linkach (bez ciasteczek i pamięci przeglądarki).
+- Desktop (≥ 1024 px): G0 i G1 — nagłówek restauracji po lewej, menu po prawej; G3 — menu z bieżącym daniem po lewej, wina po prawej, filtry jako panel z prawej; G5–G9 w kolumnie do 720 px.
 
 ## Restaurant / Sommelier dashboard
 

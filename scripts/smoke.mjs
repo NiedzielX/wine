@@ -57,12 +57,14 @@ const recs = await json(`/api/v1/dishes/${duck}/recommendations?restaurant=${slu
 const wine = recs.items[0].wine.id;
 const R = `/r/${slug}`;
 
-await check('root redirects to the restaurant', '/', { has: ['Choose your dish'] });
-await check('G0 landing', R, { has: ['Choose your dish', 'Pair a bottle for the table', 'Wine Director'] });
+await check('root redirects to the restaurant', '/', { has: ['Pick your dish'] });
+await check('G0 landing with the menu', R, { has: ['Pick your dish', 'Duck breast', 'Pair a bottle for the table', 'Wine Director', `${R}/dish/${duck}/wines`] });
+await check('G0 keeps preferences in dish links', `${R}?serving=glass`, { has: [`${R}/dish/${duck}/wines?serving=glass`] });
 await check('G1 dish list', `${R}/menu`, { has: ['Beef tartare', 'Duck breast', 'Sommelier pairing available', 'One dish', 'Whole table'] });
-await check('G2 dish details', `${R}/dish/${duck}`, { has: ['Duck breast', 'Show matching wines', 'Glass or bottle', 'Budget'] });
-await check('G2 unknown dish', `${R}/dish/00000000-0000-4000-8000-000000000000`, { has: ['isn’t on tonight’s menu'] });
-await check('G3 recommendations', `${R}/dish/${duck}/wines`, { has: ['Sommelier recommendation', 'Pinot and sour cherry jus', 'Also good with this dish', 'Savigny'], hasNot: ['AI recommendation', 'Powered by AI'] });
+await check('G2 redirects to the wines with the whole query', `${R}/dish/${duck}?serving=glass&sheet=filters`, { status: 308, redirect: 'manual', location: `${R}/dish/${duck}/wines?serving=glass&sheet=filters` });
+await check('G3 unknown dish', `${R}/dish/00000000-0000-4000-8000-000000000000/wines`, { status: 404 });
+await check('G3 recommendations', `${R}/dish/${duck}/wines`, { has: ['Sommelier recommendation', 'Pinot and sour cherry jus', 'Also good with this dish', 'Savigny', 'Roasted duck breast', 'Quick preferences', 'aria-current="page"'], hasNot: ['AI recommendation', 'Powered by AI'] });
+await check('G3 quick chip toggles off', `${R}/dish/${duck}/wines?serving=glass`, { has: [`href="${R}/dish/${duck}/wines"`, `${R}/menu?serving=glass`] });
 await check('G3 filter: glass', `${R}/dish/${duck}/wines?serving=glass`, { has: ['By the glass', 'Glass 64 zł'], hasNot: ['Bottle 380 zł'] });
 await check('G3 filter: budget too low', `${R}/dish/${dish('Dry-aged ribeye, 300 g')}/wines?serving=glass&maxPrice=45`, { has: ['Nothing matches under 45 zł'] });
 await check('G4 filters sheet', `${R}/dish/${duck}/wines?sheet=filters`, { has: ['role="dialog"', 'Refine', 'Reset', 'Mood', 'Body'] });

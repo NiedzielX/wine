@@ -39,7 +39,7 @@ Zapis zdarzeń lejka gościa (landing → menu → danie → wina → wino → w
 | Q2 | Jedna spec czy trzy (S01–S03)? | Jedna, trzy fazy = trzy PR‑y. | S02/S03 nie działają bez mechanizmu S01. |
 | Q3 | Zmiana schematu? | Nie. `source`, `context`, `menuVersion` idą do `props`. | Kolumny wystarczają; brak ryzyka §3 BC. |
 | Q4 | `POST /public/events`? | Odłożone; w docs „planowane”. | Nowa publiczna trasa = kontrakt §2 BC; żadne AC jej nie wymaga. |
-| Q5 | Zakres zdarzeń? | AC (`guest_session_started`, `dish_viewed`, `recommendations_viewed`, `wine_selected`, `staff_lookup`) + `menu_viewed`, `wine_viewed`, `table_recommendation_viewed`. | Jedna linia na stronę; bez nich lejek stolika i wino→wybór są niepoliczalne. |
+| Q5 | Zakres zdarzeń? | AC (`guest_session_started`, ~~`dish_viewed`~~ (usunięte 2026-10-15, spec `2026-10-15-guest-short-path-and-desktop` A7), `recommendations_viewed`, `wine_selected`, `staff_lookup`) + `menu_viewed`, `wine_viewed`, `table_recommendation_viewed`. | Jedna linia na stronę; bez nich lejek stolika i wino→wybór są niepoliczalne. |
 | Q6 | AC #13: „wino nieaktywne → not-found”, a G8 dziś pokazuje „This wine is no longer available” (200). | Zostaje obecny ekran (wino spoza karty dalej 404); w obu przypadkach **brak** `wine_selected`. ✅ potwierdzone przez właściciela (Filip, 2026-10-15) | Spec analityki nie zmienia UX gościa; odstępstwo od literalnego AC. |
 | Q7 | Odświeżenie / powrót = duplikat? | Akceptujemy duplikaty; KPI liczą unikalne (sesja, obiekt). Otwarcie `sheet=filters` nie zapisuje. | Deduplikacja nieproporcjonalna w MVP; E04 Q8 liczy unikalne pary. |
 | Q8 | `qr` vs `link`? | G0 bez `sid` → `qr`; inna strona gościa bez `sid` → `link`. | Kody QR bez zmian (§1 BC); ręcznie wpisany `/r/halka` = `qr` (znane przybliżenie). |
@@ -121,7 +121,6 @@ Brak nowych tras HTTP.
 | G0 bez `sid` | `guest_session_started` | – | `source: 'qr'` |
 | inna strona gościa bez `sid` | `guest_session_started` | – | `source: 'link'` |
 | G1 menu | `menu_viewed` | – | – |
-| G2 danie | `dish_viewed` | dish | `prefs` |
 | G3 wina (bez `sheet`) | `recommendations_viewed` | dish | `wineIds` (kolejność wyświetlenia), `items: [{ wineId, tier }]` (`tier` jak w API: `sommelier_primary` \| `sommelier` \| `engine`, stan w chwili wyświetlenia), `prefs` |
 | G6 wynik stolika | `table_recommendation_viewed` | – | `dishIds`, `wineIds` |
 | G7 wino | `wine_viewed` | dish?, wine | `context` |
@@ -193,7 +192,7 @@ D01 (analityka w MVP) — realizowane; D04 — licznik sesji i wyborów, sam Att
 - **#14** Kelner otwiera `/r/halka/staff`, wybiera danie, „Show” → ranking jak dziś → zapis `staff_lookup` pod własnym `sid`, bez startu sesji → KPI sesji gości nie rośnie od pracy personelu.
 
 ## Kryteria akceptacji
-- [ ] AC1 (#12, R1) Bez JS `/r/halka` → menu → danie → wina: w `guest_interaction` są `guest_session_started`, `menu_viewed`, `dish_viewed`, `recommendations_viewed` (z `dishId`, `wineIds`, `engineVersion`, `menuVersion`) z tym samym `session_id` i `restaurant_id` Halki. *E2E na PostgreSQL.*
+- [ ] AC1 (#12, R1) Bez JS `/r/halka` → menu → danie → wina: w `guest_interaction` są `guest_session_started`, `menu_viewed`, `recommendations_viewed` (z `dishId`, `wineIds`, `engineVersion`, `menuVersion`) z tym samym `session_id` i `restaurant_id` Halki. *E2E na PostgreSQL.*
 - [ ] AC2 (#12, R2) Żadna odpowiedź tej ścieżki nie ma `Set-Cookie`. *E2E: nagłówki odpowiedzi.*
 - [ ] AC3 (#12, R5) Gdy repozytorium rzuca, `trackUsage` nie przepuszcza wyjątku i loguje `warn`. *Test jednostkowy (mock `after`).*
 - [ ] AC4 (#12, R2) Link bez `sid` (`/r/halka/dish/{id}/wines?serving=glass`) renderuje się jak dotąd, zapisuje sesję `source: link`, a linki na stronie niosą nowy `sid`. *Test SSR + kontrakt.*
@@ -248,5 +247,7 @@ Dokumentacja (R9) — pozycja checklisty PR (CODE_REVIEW §3), nie AC.
 - 2026-10-15 — grill: 26 questions, 3 left for owner (Q1, Q6, Q13)
 - 2026-10-15 — from E04 review: `items: [{ wineId, tier }]` w `recommendations_viewed`, zakres konwersji (tylko danie), pomocnik `seedUsageEvents` dla testów E04.
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
+
+- 2026-10-15 — superseded częściowo przez `2026-10-15-guest-short-path-and-desktop` (approved przez właściciela): G2 to przekierowanie 308, zdarzenie `dish_viewed` usunięte; wejście w danie liczy `recommendations_viewed`; `menu_viewed` także na G0.
 
 ## Realizacja

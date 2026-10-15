@@ -18,11 +18,12 @@ describe('home page and the guest path', () => {
     expect(await browser.waitForUrl('/r/halka')).toMatch(/\/r\/halka$/);
   });
 
-  it('the landing page names the restaurant and offers both ways to pair', async () => {
+  it('the landing page names the restaurant and shows the menu right away', async () => {
     await browser.open(`${baseUrl()}/r/halka`);
     expect(await browser.text('h1')).toBe('Halka');
-    const page = await browser.waitForPageText('Pair a bottle for the table');
-    expect(page).toContain('Choose your dish');
+    const page = await browser.waitForPageText('Pick your dish');
+    expect(page).toContain('Pair a bottle for the table');
+    expect(page).toContain('Duck breast');
   });
 
   it('the menu lists the dishes by section', async () => {
@@ -31,10 +32,10 @@ describe('home page and the guest path', () => {
     expect(page).toContain('Starters');
   });
 
-  it('a dish opens with its taste and the next step', async () => {
+  it('one tap on a dish shows its wines and the quick preferences', async () => {
     await browser.clickRole('link', 'Duck breast');
-    expect(await browser.waitForUrl('/dish/')).toContain('/dish/');
-    // the next step sits in the bottom bar, outside <main>
-    expect(await browser.waitForPageText('Show matching wines')).toContain('Show matching wines');
+    expect(await browser.waitForUrl('/wines')).toContain('/wines');
+    const page = await browser.waitForPageText('Sommelier recommendation');
+    expect(page).toContain('By the glass');
   });
 });

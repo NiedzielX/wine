@@ -29,7 +29,7 @@ export default async function TableResultPage({ params, searchParams }: Props) {
     return (
       <>
         <TopBar back={`/r/${slug}/table`} title={menu.restaurant.name} />
-        <main className="flex-1 px-5"><EmptyState title="Add at least two dishes" text="A table pairing needs two or more dishes. For a single dish, use the menu." action={<Button href={tablePath}>Choose dishes</Button>} /></main>
+        <main className="flex-1 px-5 lg:mx-auto lg:w-full lg:max-w-[720px]"><EmptyState title="Add at least two dishes" text="A table pairing needs two or more dishes. For a single dish, use the menu." action={<Button href={tablePath}>Choose dishes</Button>} /></main>
       </>
     );
   }
@@ -45,7 +45,7 @@ export default async function TableResultPage({ params, searchParams }: Props) {
   return (
     <>
       <TopBar back={tablePath} title={restaurant.name} />
-      <main className="flex-1 px-5 pt-5 pb-10">
+      <main className="flex-1 px-5 pt-5 pb-10 lg:mx-auto lg:w-full lg:max-w-[720px]">
         <h1 className="font-serif text-[28px] leading-tight">Best wine for your table</h1>
         <p className="mt-1 text-[14.5px] text-ink-2">{chosen.length} dishes: {chosen.map((d) => d.name).join(', ')}</p>
         {result.setAside.length > 0 && <Notice>Desserts are paired separately. Tap {result.setAside.map((d) => d.name).join(' or ')} in the menu after your mains.</Notice>}
@@ -99,7 +99,7 @@ export default async function TableResultPage({ params, searchParams }: Props) {
                 <h2 className="text-[15px] font-semibold">Or by the glass, dish by dish</h2>
                 <p className="mt-1 mb-1.5 text-sm text-ink-2">These dishes pull in different directions, so a glass each may suit you better.</p>
                 {result.split.map((s) => (
-                  <Link key={s.dish.id} href={`/r/${slug}/wine/${s.wine.id}?dish=${s.dish.id}`} className="grid grid-cols-[1fr_auto] gap-2 border-b border-[#d4ccd0] py-2.5 text-[14.5px] last:border-b-0">
+                  <Link key={s.dish.id} href={`/r/${slug}/wine/${s.wine.id}${hrefWith('', prefs, { dish: s.dish.id })}`} className="grid grid-cols-[1fr_auto] gap-2 border-b border-[#d4ccd0] py-2.5 text-[14.5px] last:border-b-0">
                     <span><b>{s.dish.name}</b><br /><span className="text-ink-2">{s.wine.producer} {s.wine.name}</span></span>
                     <span className="tabular-nums">{s.wine.glassPrice ?? s.wine.bottlePrice} zł</span>
                   </Link>
