@@ -96,3 +96,15 @@ open('empty.csv', 'w').write('')
 open('header-only.csv', 'w').write('name,price\n')
 open('binary.csv', 'wb').write(bytes(range(256)) * 4)
 print('fixtures written')
+
+# ---------- translation columns (spec 2026-10-15-bilingual-content, R5): written by Python's csv module, UTF-8
+import csv
+with open('menu-translations.csv', 'w', newline='', encoding='utf-8') as f:
+    w = csv.writer(f)
+    w.writerow(['Category', 'Name', 'Description', 'Price', 'name_pl', 'Opis (PL)', 'Nazwa EN', 'description_en'])
+    w.writerow(['Desserts', 'Plum tart', 'Baked plum tart, vanilla ice cream', '36', 'Tarta śliwkowa', 'Pieczona tarta ze śliwkami, lody waniliowe', '', ''])
+    w.writerow(['Mains', 'Duck breast', 'Roasted duck breast, sour cherry jus, beetroot, toasted buckwheat', '112', 'Pierś z kaczki', '', 'Duck breast', 'Roasted duck, sour cherry jus'])
+with open('wines-translations.csv', 'w', newline='', encoding='utf-8') as f:
+    w = csv.writer(f, delimiter=';')
+    w.writerow(['Producent', 'Wino', 'Rocznik', 'Region', 'Kraj', 'Szczep', 'Kolor', 'Butelka', 'tasting_note_pl', 'Tasting note (EN)', 'Region PL', 'kraj_pl'])
+    w.writerow(['Weingut Keller', 'Riesling trocken', '2022', 'Rheinhessen', 'Germany', 'Riesling', 'Białe', '240', 'Brzoskwinia, łupek, rześka kwasowość.', 'Peach, slate, crisp acidity.', 'Hesja Reńska', 'Niemcy'])

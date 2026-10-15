@@ -142,3 +142,27 @@ describe('refused files', () => {
     await refuses('menu.csv', 'too_many_rows', many);
   });
 });
+
+describe('translation columns in a real file (spec 2026-10-15-bilingual-content, R5)', () => {
+  it('reads _pl / _en columns and Polish and English header synonyms, empty cells included', async () => {
+    const { mapTable, buildRows } = await import('@wine-match/core');
+    const f = await parse('menu-translations.csv') as { rows: string[][] };
+    const t = mapTable('menu', f.rows);
+    expect(t.records[0]).toEqual({
+      category: 'Desserts', name: 'Plum tart', description: 'Baked plum tart, vanilla ice cream', price: '36',
+      name_pl: 'Tarta śliwkowa', description_pl: 'Pieczona tarta ze śliwkami, lody waniliowe', name_en: '', description_en: ''
+    });
+    expect(t.records[1]).toMatchObject({ name_pl: 'Pierś z kaczki', description_pl: '', name_en: 'Duck breast', description_en: 'Roasted duck, sour cherry jus' });
+    const rows = buildRows('menu', t.records, { dishes: [], wines: [] });
+    expect(rows[0].issues.filter((i) => i.code === 'translation_empty').map((i) => i.field)).toEqual(['name_en', 'description_en']);
+  });
+
+  it('reads a semicolon-separated wine list with translated tasting note, region and country', async () => {
+    const { mapTable } = await import('@wine-match/core');
+    const t = mapTable('wines', (await parse('wines-translations.csv') as { rows: string[][] }).rows);
+    expect(t.records[0]).toMatchObject({
+      producer: 'Weingut Keller', region: 'Rheinhessen', country: 'Germany', tasting_note_pl: 'Brzoskwinia, łupek, rześka kwasowość.',
+      tasting_note_en: 'Peach, slate, crisp acidity.', region_pl: 'Hesja Reńska', country_pl: 'Niemcy'
+    });
+  });
+});

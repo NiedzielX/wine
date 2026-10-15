@@ -4,6 +4,7 @@ import { pairingScore } from '../../engine/scoring';
 import type { Locale } from '../../i18n/locale';
 import type { Repositories } from '../../ports/repositories';
 import { orderReviewed } from '../pairings/pairing-rules';
+import { countContentChanges, localizeComment, localizeDish, localizeRestaurant, localizeWine } from '../../i18n/content';
 
 export type AdminServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository'>;
 
@@ -24,7 +25,7 @@ export interface RestaurantOverview {
   primaryCoverage: { withPrimary: number; published: number; without: Dish[] };
   /** dishes with at least one approved pairing, out of dishes that have any pairing */
   review: { reviewedDishes: number; dishesWithPairings: number; suggestions: number };
-  /** unpublished work: pairings with a decision since the last publish plus draft dishes */
+  /** unpublished work: pairings with a decision since the last publish, draft dishes and changed translations */
   unpublishedChanges: number;
 }
 
@@ -37,7 +38,10 @@ export interface ScoredDish { dish: Dish; score: number; why: string }
 
 export interface DishDetail {
   restaurant: Restaurant;
+  /** in the panel's language */
   dish: Dish;
+  /** as stored: the base fields and every translation (the translation form) */
+  source: Dish;
   topMatches: ScoredWine[];
   pairings: { approved: number; suggested: number; rejected: number; hasPrimary: boolean };
 }
@@ -49,6 +53,8 @@ export interface WineListView { restaurant: Restaurant; rows: AdminWineRow[]; to
 export interface WineDetail {
   restaurant: Restaurant;
   wine: Wine;
+  /** as stored (the translation form) */
+  source: Wine;
   bestDishes: ScoredDish[];
   approvedFor: Array<{ dish: Dish; role: PairingRole | null; status: Pairing['status'] }>;
 }
@@ -63,6 +69,8 @@ export interface ReviewQueue {
 
 export interface WorkbenchPairing extends Pairing {
   wine: Wine | null;
+  /** the sommelier's note in the panel's language (`comment` / `commentTranslations` stay as stored, for the form) */
+  note: string | null;
   /** the sommelier's note, or the engine's explanation */
   why: string;
   canMoveUp: boolean;
@@ -96,7 +104,7 @@ export type SetupStepState =
   | 'details' | 'menu_done' | 'menu_empty' | 'wines_done' | 'wines_empty'
   | 'profiles_no_menu' | 'profiles_done' | 'profiles_drafts' | 'pairings'
   | 'publish_never' | 'publish_pending' | 'publish_done' | 'qr_done' | 'qr_wait';
-export interface SetupView { restaurant: Restaurant; steps: SetupStep[]; published: boolean }
+export interface SetupView { restaurant: Restaurant; /** as stored (the content form) */ source: Restaurant; steps: SetupStep[]; published: boolean }
 
 const TOP = 5;
 
@@ -107,7 +115,11 @@ export class AdminService {
     this.repos = deps;
   }
 
-  private async load(slug: string) {
+  /**
+   * The current data; with `locale` the restaurant, dishes and wines are shown in that language (spec
+   * 2026-10-15-bilingual-content, R3: the panel shows the current translations, not the published ones). `raw` is as stored.
+   */
+  private async load(slug: string, locale?: Locale) {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
     const [dishes, wines, pairings] = await Promise.all([
@@ -115,14 +127,23 @@ export class AdminService {
       this.repos.wineRepository.listByRestaurant(restaurant.id),
       this.repos.pairingRepository.listByRestaurant(restaurant.id)
     ]);
-    return { restaurant, dishes, wines, pairings };
+    const raw = { restaurant, dishes, wines };
+    if (!locale) return { restaurant, dishes, wines, pairings, raw };
+    return {
+      restaurant: localizeRestaurant(restaurant, locale), dishes: dishes.map((x) => localizeDish(x, locale)), wines: wines.map((x) => localizeWine(x, locale)),
+      pairings, raw
+    };
   }
 
-  async overview(slug: string): Promise<RestaurantOverview | null> {
-    const d = await this.load(slug);
+  async overview(slug: string, locale?: Locale): Promise<RestaurantOverview | null> {
+    const d = await this.load(slug, locale);
     if (!d) return null;
     const { restaurant, dishes, wines, pairings } = d;
-    const pending = await this.repos.publishRepository.pendingPairingChanges(restaurant.id);
+    const [pairingChanges, publishedContent] = await Promise.all([
+      this.repos.publishRepository.pendingPairingChanges(restaurant.id),
+      this.repos.publishRepository.publishedContent(restaurant.id)
+    ]);
+    const pending = pairingChanges + countContentChanges(d.raw, publishedContent);
     const published = dishes.filter((x) => x.status === 'published');
     const primaryIds = new Set(pairings.filter((p) => isApproved(p) && p.role === 'primary').map((p) => p.dishId));
     const pairedIds = new Set(pairings.map((p) => p.dishId));
@@ -145,8 +166,8 @@ export class AdminService {
     };
   }
 
-  async menu(slug: string, filter: MenuFilter = {}): Promise<MenuView | null> {
-    const d = await this.load(slug);
+  async menu(slug: string, filter: MenuFilter = {}, locale?: Locale): Promise<MenuView | null> {
+    const d = await this.load(slug, locale);
     if (!d) return null;
     const term = ci((filter.q ?? '').trim());
     const rows = d.dishes
@@ -159,8 +180,9 @@ export class AdminService {
   }
 
   /** The onboarding checklist of the Setup screen: what is done and what is next. */
-  async setup(slug: string): Promise<SetupView | null> {
-    const o = await this.overview(slug);
+  async setup(slug: string, locale?: Locale): Promise<SetupView | null> {
+    const o = await this.overview(slug, locale);
+    const source = await this.repos.restaurantRepository.findBySlug(slug);
     if (!o) return null;
     const last = await this.repos.publishRepository.latest(o.restaurant.id);
     const { dishes, wines, pairings, review } = o;
@@ -186,7 +208,7 @@ export class AdminService {
           : { key: 'publish', title: 'Publish', done: live, state: 'publish_done', values: {}, detail: 'Guests see the latest version.' },
       { key: 'qr', title: 'Print the QR code', done: live, state: live ? 'qr_done' : 'qr_wait', values: {}, detail: live ? 'Put the code on your tables.' : 'Publish first, then print the code.' }
     ];
-    return { restaurant: o.restaurant, steps, published: live };
+    return { restaurant: o.restaurant, source: source ?? o.restaurant, steps, published: live };
   }
 
   /** Current pairings (including unpublished changes), optionally for one dish and/or one status. */
@@ -197,7 +219,7 @@ export class AdminService {
   }
 
   async pairingWorkbench(slug: string, dishId: string, locale: Locale = 'en'): Promise<PairingWorkbench | null> {
-    const d = await this.load(slug);
+    const d = await this.load(slug, locale);
     const dish = d?.dishes.find((x) => x.id === dishId);
     if (!d || !dish) return null;
     const wineById = new Map(d.wines.map((w) => [w.id, w]));
@@ -205,8 +227,9 @@ export class AdminService {
     const withWine = (p: Pairing, i: number, list: Pairing[]): WorkbenchPairing => {
       const wine = wineById.get(p.wineId) ?? null;
       const pinned = p.role === 'primary';
+      const note = localizeComment(p, locale);
       return {
-        ...p, wine, why: p.comment ?? (wine ? pairingScore(dish, wine, locale).why : ''),
+        ...p, wine, note, why: note ?? (wine ? pairingScore(dish, wine, locale).why : ''),
         canMoveUp: !pinned && i > 0 && list[i - 1].role !== 'primary',
         canMoveDown: !pinned && i < list.length - 1
       };
@@ -224,13 +247,13 @@ export class AdminService {
       addable: d.wines.filter((w) => w.active && !taken.has(w.id)).map((wine) => ({ wine, ...pairingScore(dish, wine, locale) }))
         .sort((a, b) => b.score - a.score || a.wine.id.localeCompare(b.wine.id)).map(({ wine, score, why }) => ({ wine, score, why })),
       history,
-      menu: (await this.menu(slug))!.rows,
+      menu: (await this.menu(slug, {}, locale))!.rows,
       hasUnpublishedChanges: mine.some((p) => p.dirty)
     };
   }
 
   async dishDetail(slug: string, dishId: string, locale: Locale = 'en'): Promise<DishDetail | null> {
-    const d = await this.load(slug);
+    const d = await this.load(slug, locale);
     const dish = d?.dishes.find((x) => x.id === dishId);
     if (!d || !dish) return null;
     const topMatches = d.wines
@@ -241,13 +264,13 @@ export class AdminService {
       .map(({ wine, score, why }) => ({ wine, score, why }));
     const ps = d.pairings.filter((p) => p.dishId === dish.id);
     return {
-      restaurant: d.restaurant, dish, topMatches,
+      restaurant: d.restaurant, dish, source: d.raw.dishes.find((x) => x.id === dish.id) ?? dish, topMatches,
       pairings: { approved: ps.filter(isApproved).length, suggested: ps.filter((p) => p.status === 'suggested').length, rejected: ps.filter((p) => p.status === 'rejected').length, hasPrimary: ps.some((p) => isApproved(p) && p.role === 'primary') }
     };
   }
 
-  async wines(slug: string, filter: WineFilter = {}): Promise<WineListView | null> {
-    const d = await this.load(slug);
+  async wines(slug: string, filter: WineFilter = {}, locale?: Locale): Promise<WineListView | null> {
+    const d = await this.load(slug, locale);
     if (!d) return null;
     const term = ci((filter.q ?? '').trim());
     const rows = d.wines
@@ -260,7 +283,7 @@ export class AdminService {
   }
 
   async wineDetail(slug: string, wineId: string, locale: Locale = 'en'): Promise<WineDetail | null> {
-    const d = await this.load(slug);
+    const d = await this.load(slug, locale);
     const wine = d?.wines.find((w) => w.id === wineId);
     if (!d || !wine) return null;
     const bestDishes = d.dishes
@@ -275,11 +298,11 @@ export class AdminService {
         const dish = d.dishes.find((x) => x.id === p.dishId);
         return dish ? [{ dish, role: p.role, status: p.status }] : [];
       });
-    return { restaurant: d.restaurant, wine, bestDishes, approvedFor };
+    return { restaurant: d.restaurant, wine, source: d.raw.wines.find((x) => x.id === wine.id) ?? wine, bestDishes, approvedFor };
   }
 
   async reviewQueue(slug: string, locale: Locale = 'en'): Promise<ReviewQueue | null> {
-    const d = await this.load(slug);
+    const d = await this.load(slug, locale);
     if (!d) return null;
     const wineById = new Map(d.wines.map((w) => [w.id, w]));
     const groups: ReviewGroup[] = [];

@@ -1,4 +1,6 @@
 import type { ImportRepository } from './import';
+import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
+import type { Locale } from '../i18n/locale';
 import type { Dish, EntityStatus, Pairing, PairingRole, PairingStatus, Restaurant, RestaurantSettings, Wine } from '../domain/types';
 
 /**
@@ -42,6 +44,7 @@ export interface PairingPatch {
   role?: PairingRole | null;
   rank?: number | null;
   comment?: string | null;
+  commentTranslations?: CommentTranslations;
   updatedBy: string;
   updatedAt: string;
 }
@@ -123,7 +126,26 @@ export interface PublishRepository {
    * Atomically: snapshot of reviewed and rejected pairings as the new version, clear the
    * changed flags, release draft dishes, stamp the restaurant. Returns the new version.
    */
-  publish(restaurantId: string, input: { actor: string; at: string; id: string }): Promise<PublishedVersionInfo>;
+  publish(restaurantId: string, input: { actor: string; at: string; id: string; contentChanges?: number }): Promise<PublishedVersionInfo>;
+  /**
+   * The translations guests see (spec 2026-10-15-bilingual-content, R4): those of the latest published version.
+   * A restaurant that was never published shows its current translations; a version published before translations
+   * existed has none (read as `{}`). The snapshot also carries `commentTranslations` of the published pairings.
+   */
+  publishedContent(restaurantId: string): Promise<PublishedContent>;
+}
+
+export interface RestaurantContent { contentLocale: Locale; translations: RestaurantTranslations }
+
+/**
+ * Writes of translated content. Each write is atomic: when `expected` is given and the stored translations differ
+ * from it, nothing changes and VersionConflictError is thrown. Unknown ids (or another restaurant's) → NotFoundError.
+ * The change reaches guests on the next publish.
+ */
+export interface ContentWriteRepository {
+  setDishTranslations(restaurantId: string, dishId: string, next: DishTranslations, expected?: DishTranslations): Promise<void>;
+  setWineTranslations(restaurantId: string, wineId: string, next: WineTranslations, expected?: WineTranslations): Promise<void>;
+  setRestaurantContent(restaurantId: string, next: RestaurantContent, expected?: RestaurantContent): Promise<void>;
 }
 
 /** The repositories a data source must provide, registered in the DI container under these names. */
@@ -136,5 +158,6 @@ export interface Repositories {
   wineWriteRepository: WineWriteRepository;
   restaurantWriteRepository: RestaurantWriteRepository;
   publishRepository: PublishRepository;
+  contentWriteRepository: ContentWriteRepository;
   importRepository: ImportRepository;
 }

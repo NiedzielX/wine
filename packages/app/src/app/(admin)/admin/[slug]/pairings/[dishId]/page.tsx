@@ -31,7 +31,7 @@ export default async function PairingsPage({ params, searchParams }: Props) {
   const w = await adminService.pairingWorkbench(slug, dishId, locale);
   if (!w) notFound();
   const { dish } = w;
-  const guest = await recommendationService.forDish(slug, dish.id);
+  const guest = await recommendationService.forDish(slug, dish.id, {}, undefined, locale);
   const guestItems = guest?.result.items ?? [];
   const path = `/admin/${slug}/pairings/${dish.id}`;
   const common = { slug, back: path };
@@ -86,7 +86,7 @@ export default async function PairingsPage({ params, searchParams }: Props) {
                         {p.dirty && <Badge variant="outline" className="border-brass text-brass">{m.unpublished}</Badge>}
                       </div>
                     </div>
-                    {p.comment && <p className="mt-2 text-sm text-muted-foreground italic">“{p.comment}”</p>}
+                    {p.note && <p className="mt-2 text-sm text-muted-foreground italic">“{p.note}”</p>}
                     {decide && (
                       <>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -105,10 +105,20 @@ export default async function PairingsPage({ params, searchParams }: Props) {
                       {p.source === 'sommelier' && <ActionButton action={deletePairing} fields={pair(p)} variant="ghost" title={m.deleteTitle}>{m.delete}</ActionButton>}
                     </div>
                     <details className="mt-2">
-                      <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">{p.comment ? m.editNote : m.addNote}</summary>
-                      <form action={savePairingNote} className="mt-2 grid max-w-lg gap-2">
+                      <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">{p.comment || p.note ? m.editNote : m.addNote}</summary>
+                      <form action={savePairingNote} className="mt-2 grid max-w-2xl gap-2">
                         <Hidden fields={pair(p)} />
-                        <Textarea name="comment" maxLength={140} defaultValue={p.comment ?? ''} placeholder={m.notePlaceholder} aria-label={m.noteLabel} />
+                        <label className="grid gap-1 text-sm"><span className="text-muted-foreground">{m.noteBase} ({t.common.languageNames[w.restaurant.contentLocale]})</span>
+                          <Textarea name="comment" maxLength={140} defaultValue={p.comment ?? ''} placeholder={m.notePlaceholder} aria-label={m.noteLabel} />
+                        </label>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {(['pl', 'en'] as const).map((l) => (
+                            <label key={l} lang={l} className="grid gap-1 text-sm"><span className="text-muted-foreground">{m.noteIn(t.common.languageNames[l])}</span>
+                              <Textarea name={`comment_${l}`} maxLength={140} defaultValue={p.commentTranslations[l] ?? ''} placeholder={p.comment ?? m.notePlaceholder} />
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{m.noteTranslationsHelp}</p>
                         <div><Button type="submit" size="sm" variant="outline">{m.saveNote}</Button></div>
                       </form>
                     </details>

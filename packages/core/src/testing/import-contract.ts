@@ -34,7 +34,7 @@ export function importContract(name: string, setup: () => Promise<{ repos: Repos
     const dish = (over: Partial<Dish> = {}): Dish => ({ ...structuredClone(ds.dishes[0]), id: uuid(), name: 'Plum tart', category: 'Desserts', price: 36, status: 'draft', ...over });
     const wine = (over: Partial<Wine> = {}): Wine => ({ ...structuredClone(ds.wines[0]), id: uuid(), producer: 'Weingut Keller', name: 'Riesling trocken', vintage: 2022, listNumber: 500, active: true, ...over });
     const pairing = (dishId: string, wineId: string): Pairing => ({
-      id: uuid(), dishId, wineId, status: 'suggested', role: null, rank: null, comment: null, modelScore: 81, source: 'engine', updatedBy: 'Wine Match engine', updatedAt: AT, dirty: false
+      id: uuid(), dishId, wineId, status: 'suggested', role: null, rank: null, comment: null, commentTranslations: {}, modelScore: 81, source: 'engine', updatedBy: 'Wine Match engine', updatedAt: AT, dirty: false
     });
     const plan = (over: Partial<ImportPlan> = {}): ImportPlan => ({ newDishes: [], dishUpdates: [], newWines: [], wineUpdates: [], newPairings: [], result: { created: 0, updated: 0, skipped: 0, suggestions: 0 }, ...over });
 
@@ -98,6 +98,27 @@ export function importContract(name: string, setup: () => Promise<{ repos: Repos
       // the new dish goes at the end of the menu
       const all = await repos.dishRepository.listByRestaurant(rid());
       t.expect(all[all.length - 1].id).toBe(newDish.id);
+    });
+
+    t.it('confirm writes translations of new and updated dishes and wines (spec 2026-10-15-bilingual-content, R5)', async () => {
+      const j = job();
+      await repos.importRepository.create(j);
+      const newDish = dish({ translations: { pl: { name: 'Tarta śliwkowa' } } });
+      const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+      const morgon = ds.wines.find((w) => w.name === 'Morgon')!;
+      await repos.importRepository.confirm(rid(), j.id, plan({
+        newDishes: [newDish],
+        dishUpdates: [{ id: duck.id, description: duck.description, category: duck.category, price: duck.price, translations: { pl: { name: 'Kaczka', description: 'Nowy opis' }, en: { name: 'Duck' } } }],
+        wineUpdates: [{ id: morgon.id, glassPrice: morgon.glassPrice, bottlePrice: morgon.bottlePrice, translations: { pl: { region: 'Beaujolais (PL)' } } }]
+      }), AT);
+      t.expect((await repos.dishRepository.findById(rid(), newDish.id))!.translations).toEqual({ pl: { name: 'Tarta śliwkowa' } });
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.translations).toEqual({ pl: { name: 'Kaczka', description: 'Nowy opis' }, en: { name: 'Duck' } });
+      t.expect((await repos.wineRepository.findById(rid(), morgon.id))!.translations).toEqual({ pl: { region: 'Beaujolais (PL)' } });
+      // an update without translations keeps them
+      const k = job();
+      await repos.importRepository.create(k);
+      await repos.importRepository.confirm(rid(), k.id, plan({ dishUpdates: [{ id: duck.id, description: 'x', category: duck.category, price: duck.price }] }), AT);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.translations).toEqual({ pl: { name: 'Kaczka', description: 'Nowy opis' }, en: { name: 'Duck' } });
     });
 
     t.it('confirm works once: a second confirm of the same job is refused and changes nothing', async () => {

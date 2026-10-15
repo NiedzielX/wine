@@ -24,7 +24,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
   const data = await services.recommendationService.forDish(slug, dishId, prefs, undefined, locale);
   if (!data) notFound();
   const { restaurant, dish, result } = data;
-  const menu = await services.catalogService.publishedMenu(slug);
+  const menu = await services.catalogService.publishedMenu(slug, locale);
   const coverage = await services.catalogService.pairingCoverage(restaurant.id);
   const showScores = restaurant.settings?.showScores ?? true;
   const path = `/r/${slug}/dish/${dish.id}/wines`;

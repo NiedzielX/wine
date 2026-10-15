@@ -28,7 +28,7 @@ export function generateSuggestions(
     for (const { w, s } of ranked) {
       out.push({
         id: idFor(dish.id, w.id), dishId: dish.id, wineId: w.id, status: 'suggested', role: null, rank: null,
-        comment: null, modelScore: s, source: 'engine', updatedBy: ENGINE_AUTHOR, updatedAt: generatedAt, dirty: false
+        comment: null, commentTranslations: {}, modelScore: s, source: 'engine', updatedBy: ENGINE_AUTHOR, updatedAt: generatedAt, dirty: false
       });
     }
   }

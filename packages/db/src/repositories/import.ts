@@ -53,18 +53,20 @@ export class PgImportRepository implements ImportRepository {
           const d = await em.findOne(DishEntity, { id: u.id, restaurant: restaurantId, deletedAt: null });
           if (!d) throw new NotFoundError('Dish');
           Object.assign(d, { description: u.description, category: u.category, price: u.price });
+          if (u.translations) d.translations = { ...u.translations };
         }
         for (const u of plan.wineUpdates) {
           const w = await em.findOne(WineEntity, { id: u.id, restaurant: restaurantId, deletedAt: null });
           if (!w) throw new NotFoundError('Wine');
           Object.assign(w, { glassPrice: u.glassPrice, bottlePrice: u.bottlePrice });
+          if (u.translations) w.translations = { ...u.translations };
         }
 
         const last = await em.find(DishEntity, { restaurant: restaurantId }, { orderBy: { sortOrder: 'desc' }, limit: 1 });
         let order = (last[0]?.sortOrder ?? -1) + 1;
         for (const d of plan.newDishes) {
           em.create(DishEntity, {
-            id: d.id, restaurant, name: d.name, description: d.description, category: d.category, price: d.price, status: d.status, sortOrder: order++,
+            id: d.id, restaurant, name: d.name, description: d.description, category: d.category, price: d.price, status: d.status, sortOrder: order++, translations: d.translations ?? {},
             profile: { ...d.profile, draftedBy: 'rules-1.0', confirmedAt: null }
           });
         }
@@ -72,14 +74,14 @@ export class PgImportRepository implements ImportRepository {
           em.create(WineEntity, {
             id: w.id, restaurant, producer: w.producer, name: w.name, vintage: w.vintage === 'NV' ? null : w.vintage, region: w.region, country: w.country,
             grapes: w.grapes, listNumber: w.listNumber ?? 0, glassPrice: w.glassPrice, glassPourMl: w.glassPour, bottlePrice: w.bottlePrice,
-            bottleSizeMl: w.bottleSize, active: w.active, colourHex: w.colour, tastingNote: w.tastingNote, profile: { ...w.profile, source: 'grape_defaults' }
+            bottleSizeMl: w.bottleSize, active: w.active, colourHex: w.colour, tastingNote: w.tastingNote, translations: w.translations ?? {}, profile: { ...w.profile, source: 'grape_defaults' }
           });
         }
         await em.flush();
         for (const p of plan.newPairings) {
           em.create(PairingEntity, {
             id: p.id, restaurant, dish: em.getReference(DishEntity, p.dishId), wine: em.getReference(WineEntity, p.wineId), status: 'suggested', role: null,
-            rank: null, comment: null, modelScore: p.modelScore, factors: null, engineVersion: ENGINE_VERSION, source: 'engine', dirty: false,
+            rank: null, comment: null, commentTranslations: {}, modelScore: p.modelScore, factors: null, engineVersion: ENGINE_VERSION, source: 'engine', dirty: false,
             updatedBy: p.updatedBy, updatedAt: new Date(p.updatedAt)
           });
         }

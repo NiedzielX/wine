@@ -4,7 +4,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { DishStatusBadge, ProfileBadge, ScoreBadge } from '../../../_components/badges';
-import { zl } from '../../../_components/format';
+import { first, zl } from '../../../_components/format';
+import { Flash } from '../../../_components/flash';
+import { TranslationsCard } from '../../../_components/translations-form';
+import { saveDishTranslations } from '../../actions';
+import { TEXT_LIMITS, translationsVersion } from '@wine-match/core';
+import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
@@ -13,18 +18,21 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getI18n()).t.admin.meta.dish };
 }
 
-type Props = { params: Promise<{ slug: string; dishId: string }> };
+type Props = { params: Promise<{ slug: string; dishId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const SCALES = ['intensity', 'fat', 'salt', 'sweetness', 'acidity', 'spice', 'umami', 'smoke', 'creaminess'] as const;
 
 /** A3 — dish details: data, taste profile and the wines the engine ranks first for it. */
-export default async function DishPage({ params }: Props) {
+export default async function DishPage({ params, searchParams }: Props) {
   const { slug, dishId } = await params;
+  const sp = await searchParams;
+  const canTranslate = (await requireAccess(slug)).can('import.manage');
   const { locale, t } = await getI18n();
   const m = t.admin.dish;
   const d = await (await getRequestScope()).cradle.adminService.dishDetail(slug, dishId, locale);
   if (!d) notFound();
-  const { dish, topMatches, pairings } = d;
+  const { dish, source, topMatches, pairings } = d;
+  const tm = t.admin.translations.fields;
   const p = dish.profile;
 
   return (
@@ -38,6 +46,7 @@ export default async function DishPage({ params }: Props) {
           {dish.status === 'published' && <Button asChild variant="outline"><Link href={`/r/${slug}/dish/${dish.id}`}>{t.admin.common.viewAsGuest}</Link></Button>}
         </>}
       />
+      <Flash saved={first(sp.saved)} error={first(sp.error)} n={first(sp.n)} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card>
           <CardHeader><CardTitle>{m.details}</CardTitle></CardHeader>
@@ -94,6 +103,15 @@ export default async function DishPage({ params }: Props) {
             <Badge variant="outline" className="mt-5">{t.admin.common.scale}</Badge>
           </CardContent>
         </Card>
+
+        <TranslationsCard
+          action={saveDishTranslations} hidden={{ slug, back: `/admin/${slug}/menu/${dish.id}`, dishId: dish.id }} t={t} canEdit={canTranslate}
+          contentLocale={d.restaurant.contentLocale} translations={source.translations} version={translationsVersion(source.translations)}
+          fields={[
+            { key: 'name', label: tm.name, base: source.name, max: TEXT_LIMITS.name },
+            { key: 'description', label: tm.description, base: source.description, max: TEXT_LIMITS.description, multiline: true }
+          ]}
+        />
       </div>
     </Page>
   );

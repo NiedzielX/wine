@@ -1,4 +1,4 @@
-import { WINE_STYLES, styleLabel, type ImportIssue, type ImportJob, type ImportKind, type ImportRow, type Locale } from '@wine-match/core';
+import { TRANSLATION_FIELDS, WINE_STYLES, styleLabel, type ImportIssue, type ImportJob, type ImportKind, type ImportRow, type Locale } from '@wine-match/core';
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, NativeSelect, NativeSelectOption } from '@wine-match/ui';
 import Link from 'next/link';
 import { cancelImport, confirmImport, saveImportRows, uploadImport } from '../[slug]/import-actions';
@@ -27,6 +27,14 @@ const COLUMNS: Record<ImportKind, Array<{ key: string; label: ColumnKey; width: 
     { key: 'style', label: 'style', width: 'w-32', kind: 'style' }, { key: 'glassPrice', label: 'glassPrice', width: 'w-20', kind: 'price' }, { key: 'bottlePrice', label: 'bottlePrice', width: 'w-24', kind: 'price' }
   ]
 };
+
+/** The translation columns this file has (spec 2026-10-15-bilingual-content, R5): shown next to the base columns. */
+function columnsOf(job: ImportJob) {
+  const extra = TRANSLATION_FIELDS[job.kind]
+    .filter((k) => job.rows.some((r) => Object.hasOwn(r.fields, k)))
+    .map((k) => ({ key: k, label: k as ColumnKey, width: k.startsWith('description') || k.startsWith('tasting_note') ? 'w-72' : 'w-48' }));
+  return [...COLUMNS[job.kind], ...extra];
+}
 
 const CATEGORIES = ['Starters', 'Mains', 'Desserts'] as const;
 
@@ -57,6 +65,7 @@ export function UploadStep({ slug, kind, recent, back, locale, t }: { slug: stri
         <CardHeader><CardTitle>{m.formatTitle}</CardTitle><CardDescription>{m.formatText}</CardDescription></CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <p><b className="font-medium">{m.columnsLabel}</b> {l.columns}</p>
+          <p className="text-muted-foreground">{m.translationsHint}</p>
           <p className="text-muted-foreground">{m.pricesBefore} <code>58,50</code> {m.pricesAnd} <code>58.50 zł</code> {m.pricesAfter}</p>
           <p><Link className="underline underline-offset-4" href={`/api/v1/import-samples/${kind}`}>{m.sample}</Link></p>
         </CardContent>
@@ -95,7 +104,7 @@ function StatusBadge({ status, t }: { status: ImportJob['status']; t: Dictionary
 export function PreviewStep({ slug, job, back, locale, t }: { slug: string; job: ImportJob; back: string; locale: Locale; t: Dictionary }) {
   const m = t.admin.import;
   const l = m.kinds[job.kind];
-  const cols = COLUMNS[job.kind];
+  const cols = columnsOf(job);
   const ticked = job.rows.filter((r) => r.include).length;
   const errors = job.rows.filter(hasError).length;
   const updates = job.rows.filter((r) => r.action === 'update').length;

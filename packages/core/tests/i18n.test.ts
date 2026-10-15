@@ -118,7 +118,7 @@ describe('guest labels in Polish', () => {
 });
 
 describe('RecommendationService locale', () => {
-  it('answers in English unless a locale is passed; the sommelier note is never translated', async () => {
+  it('answers in English unless a locale is passed; the sommelier note follows its translation (spec 2026-10-15-bilingual-content)', async () => {
     const { buildDemoDataset } = await import('../src/demo/dataset');
     const { createMemoryRepositories, MemoryStore } = await import('../src/memory/memory-repositories');
     const { RecommendationService } = await import('../src/services/guest/recommendation-service');
@@ -127,7 +127,8 @@ describe('RecommendationService locale', () => {
     const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
     const en = (await svc.forDish('halka', duck.id))!.result.items;
     const pl = (await svc.forDish('halka', duck.id, {}, undefined, 'pl'))!.result.items;
-    expect(pl[0].why).toBe(en[0].why);   // the sommelier's note, as written
+    expect(en[0].why).toBe('Pinot and sour cherry jus — our signature match.');
+    expect(pl[0].why).toBe('Pinot noir i sos wiśniowy — nasze firmowe połączenie.');
     const engineRow = en.findIndex((i) => !i.sommelier?.comment);
     expect(pl[engineRow].why).not.toBe(en[engineRow].why);
     const table = (await svc.forTable('halka', ds.dishes.slice(0, 3).map((d) => d.id), {}, 'pl'))!;

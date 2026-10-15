@@ -4,6 +4,8 @@ import { pairingScore } from '../../engine/scoring';
 import { NotFoundError, ValidationError, VersionConflictError } from '../../errors';
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import type { PairingChangeSet, Repositories } from '../../ports/repositories';
+import { commentTranslationsSchema } from '../../validators/catalog/translations.schema';
+import { parseWith } from '../../validators/parse';
 import { DishPlan, addManual, approve, approveAllSuggested, move, reject, removeManual, restore, setComment, setRole, type PlanContext } from './pairing-rules';
 
 export type SommelierServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'pairingWriteRepository' | 'wineWriteRepository'> & {
@@ -72,6 +74,12 @@ export class SommelierService {
 
   setComment(slug: string, pairingId: string, comment: string, actor: Actor, expectedVersion?: number) {
     return this.onPairing(slug, pairingId, actor, expectedVersion, (plan) => setComment(plan, pairingId, comment));
+  }
+
+  /** The note with its translations (A6, spec 2026-10-15-bilingual-content): `translations` goes through its schema. */
+  async setNote(slug: string, pairingId: string, input: { comment: string; translations: unknown }, actor: Actor, expectedVersion?: number): Promise<void> {
+    const translations = parseWith(commentTranslationsSchema, input.translations, 'Check the note.');
+    return this.onPairing(slug, pairingId, actor, expectedVersion, (plan) => setComment(plan, pairingId, input.comment, translations));
   }
 
   move(slug: string, pairingId: string, direction: 'up' | 'down', actor: Actor, expectedVersion?: number) {

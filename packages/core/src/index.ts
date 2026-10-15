@@ -5,6 +5,7 @@
 export * from './domain/types';
 export * from './errors';
 export * from './i18n/locale';
+export * from './i18n/content';
 export * from './logging/logger';
 export * from './logging/redact';
 export * from './config/env';
@@ -30,6 +31,8 @@ export * from './ports/runtime';
 export * from './ports/auth';
 export * from './services/guest/recommendation-service';
 export * from './services/catalog/catalog-service';
+export * from './services/catalog/translation-rules';
+export * from './services/catalog/translation-service';
 export * from './services/dashboard/admin-service';
 export * from './services/pairings/pairing-rules';
 export * from './services/pairings/sommelier-service';

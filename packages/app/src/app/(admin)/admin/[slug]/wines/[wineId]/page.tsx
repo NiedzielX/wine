@@ -5,7 +5,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { ActiveBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
-import { vintageLabel, zl } from '../../../_components/format';
+import { first, vintageLabel, zl } from '../../../_components/format';
+import { Flash } from '../../../_components/flash';
+import { TranslationsCard } from '../../../_components/translations-form';
+import { saveWineTranslations } from '../../actions';
+import { TEXT_LIMITS, translationsVersion } from '@wine-match/core';
+import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
@@ -14,18 +19,21 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getI18n()).t.admin.meta.wine };
 }
 
-type Props = { params: Promise<{ slug: string; wineId: string }> };
+type Props = { params: Promise<{ slug: string; wineId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const SCALES = ['body', 'acidity', 'tannin', 'sweetness', 'fruitiness', 'oak', 'aromatic', 'freshness'] as const;
 
 /** A5 — wine details: listing, prices, profile and the dishes it suits best. */
-export default async function WinePage({ params }: Props) {
+export default async function WinePage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
+  const sp = await searchParams;
+  const canTranslate = (await requireAccess(slug)).can('import.manage');
   const { locale, t } = await getI18n();
   const m = t.admin.wine;
   const d = await (await getRequestScope()).cradle.adminService.wineDetail(slug, wineId, locale);
   if (!d) notFound();
-  const { wine: w, bestDishes, approvedFor } = d;
+  const { wine: w, source, bestDishes, approvedFor } = d;
+  const tm = t.admin.translations.fields;
   const p = w.profile;
 
   return (
@@ -35,6 +43,7 @@ export default async function WinePage({ params }: Props) {
         title={`${w.producer} ${w.name}`}
         description={`${vintageLabel(w, locale)}, ${w.region}, ${w.country}. ${w.grapes.join(', ')}.`}
       />
+      <Flash saved={first(sp.saved)} error={first(sp.error)} n={first(sp.n)} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card>
           <CardHeader>
@@ -96,6 +105,16 @@ export default async function WinePage({ params }: Props) {
             ))}
           </CardContent>
         </Card>
+
+        <TranslationsCard
+          action={saveWineTranslations} hidden={{ slug, back: `/admin/${slug}/wines/${w.id}`, wineId: w.id }} t={t} canEdit={canTranslate}
+          contentLocale={d.restaurant.contentLocale} translations={source.translations} version={translationsVersion(source.translations)}
+          fields={[
+            { key: 'tastingNote', label: tm.tastingNote, base: source.tastingNote, max: TEXT_LIMITS.tastingNote, multiline: true },
+            { key: 'region', label: tm.region, base: source.region, max: TEXT_LIMITS.region },
+            { key: 'country', label: tm.country, base: source.country, max: TEXT_LIMITS.country }
+          ]}
+        />
       </div>
     </Page>
   );

@@ -8,6 +8,8 @@ import type { Repositories } from '../ports/repositories';
 import type { Clock, IdGenerator } from '../ports/runtime';
 import { linesToRows, mapTable } from './mapping';
 import { STYLE_COLOURS } from './normalize';
+import { planDishTranslations, planWineTranslations } from '../services/catalog/translation-rules';
+import type { DishTranslations, WineTranslations } from '../i18n/content';
 import { IMPORT_LIMITS, type ImportFileParser, type ImportJob, type ImportKind, type ImportResult, type RowEdit } from './types';
 import { buildRows, revalidate, type ExistingItems } from './validate';
 
@@ -19,6 +21,33 @@ export type ImportServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dis
 };
 
 const num = (s: string) => Number(s);
+
+/**
+ * The translations a row brings: `{ pl: { name } }` from `name_pl` etc. Only non-empty cells: an empty translation
+ * cell changes nothing (spec 2026-10-15-bilingual-content, edge cases). Keys come from our own field list.
+ */
+function rowTranslations(f: Record<string, string>, map: Record<string, string>): Record<string, Record<string, string>> {
+  const out = new Map<string, Map<string, string>>();
+  for (const [column, field] of Object.entries(map)) {
+    const v = Object.hasOwn(f, column) ? f[column].trim() : '';
+    if (!v) continue;
+    const lang = column.slice(-2);
+    if (!out.has(lang)) out.set(lang, new Map());
+    out.get(lang)!.set(field, v);
+  }
+  return Object.fromEntries([...out].map(([l, m]) => [l, Object.fromEntries(m)]));
+}
+const DISH_COLUMNS = { name_pl: 'name', name_en: 'name', description_pl: 'description', description_en: 'description' };
+const WINE_COLUMNS = {
+  tasting_note_pl: 'tastingNote', tasting_note_en: 'tastingNote', region_pl: 'region', region_en: 'region', country_pl: 'country', country_en: 'country'
+};
+/** Merges the row's values into the current translations, per field (a language the row leaves out is kept). */
+function mergeInto<T extends DishTranslations | WineTranslations>(current: T, add: Record<string, Record<string, string>>): T {
+  return Object.fromEntries((['pl', 'en'] as const).flatMap((l) => {
+    const merged = { ...(current[l] ?? {}), ...(Object.hasOwn(add, l) ? add[l] : {}) };
+    return Object.keys(merged).length ? [[l, merged]] : [];
+  })) as T;
+}
 
 /**
  * Import of the menu or the wine list: upload → preview with checks → corrections → one atomic save.
@@ -129,11 +158,19 @@ export class ImportService {
     if (job.kind === 'menu') {
       for (const r of chosen) {
         const f = r.fields;
-        if (r.action === 'update' && r.matchId) plan.dishUpdates.push({ id: r.matchId, description: f.description, category: f.category as Dish['category'], price: num(f.price) });
-        else {
+        const tr = rowTranslations(f, DISH_COLUMNS);
+        const has = Object.keys(tr).length > 0;
+        if (r.action === 'update' && r.matchId) {
+          const current = ctx.dishes.find((d) => d.id === r.matchId)?.translations ?? {};
+          plan.dishUpdates.push({
+            id: r.matchId, description: f.description, category: f.category as Dish['category'], price: num(f.price),
+            ...(has ? { translations: planDishTranslations(current, mergeInto(current, tr)).next } : {})
+          });
+        } else {
           plan.newDishes.push({
             id: id(), name: f.name, description: f.description, category: f.category as Dish['category'], price: num(f.price),
-            status: 'draft', profile: draftDishProfile(f.name, f.description, f.category as Dish['category'])
+            status: 'draft', profile: draftDishProfile(f.name, f.description, f.category as Dish['category']),
+            translations: has ? planDishTranslations({}, tr).next : {}
           });
         }
       }
@@ -141,15 +178,21 @@ export class ImportService {
       let next = Math.max(100, ...ctx.wines.map((w) => w.listNumber ?? 0)) + 1;
       for (const r of chosen) {
         const f = r.fields;
+        const tr = rowTranslations(f, WINE_COLUMNS);
+        const has = Object.keys(tr).length > 0;
         if (r.action === 'update' && r.matchId) {
-          plan.wineUpdates.push({ id: r.matchId, glassPrice: f.glassPrice ? num(f.glassPrice) : null, bottlePrice: num(f.bottlePrice) });
+          const current = ctx.wines.find((w) => w.id === r.matchId)?.translations ?? {};
+          plan.wineUpdates.push({
+            id: r.matchId, glassPrice: f.glassPrice ? num(f.glassPrice) : null, bottlePrice: num(f.bottlePrice),
+            ...(has ? { translations: planWineTranslations(current, mergeInto(current, tr)).next } : {})
+          });
         } else {
           const profile = draftWineProfile(f.grape, f.style);
           plan.newWines.push({
             id: id(), producer: f.producer, name: f.name, vintage: f.vintage === 'NV' ? 'NV' : num(f.vintage), region: f.region, country: f.country,
             grapes: f.grape ? f.grape.split(/\s*[,/]\s*/).filter(Boolean) : [], glassPrice: f.glassPrice ? num(f.glassPrice) : null,
             glassPour: profile.style === 'sweet' ? 75 : 150, bottlePrice: num(f.bottlePrice), bottleSize: 750, active: true, listNumber: next++,
-            colour: STYLE_COLOURS[profile.style], tastingNote: '', profile
+            colour: STYLE_COLOURS[profile.style], tastingNote: '', profile, translations: has ? planWineTranslations({}, tr).next : {}
           });
         }
       }

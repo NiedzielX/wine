@@ -3,7 +3,7 @@ import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
   AdminService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, RestaurantService, MemoryStore, PublishService, RecommendationService,
-  SommelierService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser,
+  SommelierService, TranslationService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser,
   type PasswordHasher, type Repositories, type SessionTokens
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
@@ -34,6 +34,7 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   adminService: AdminService;
   sommelierService: SommelierService;
   publishService: PublishService;
+  translationService: TranslationService;
 }
 
 export type DataSource = 'memory' | 'postgres';
@@ -58,6 +59,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     // loaded on first use: the PDF and spreadsheet libraries are not needed by guest pages
     importFileParser: asValue<ImportFileParser>({ parse: async (file) => new (await import('@wine-match/db/import')).NodeImportFileParser().parse(file) }),
     publishService: asClass(PublishService).scoped(),
+    translationService: asClass(TranslationService).scoped(),
     // time and identity come from outside so core stays deterministic and testable
     clock: asValue<Clock>({ now: () => new Date() }),
     idGenerator: asValue<IdGenerator>({ uuid: () => randomUUID() }),
@@ -82,6 +84,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       wineWriteRepository: asClass(db.PgWineWriteRepository).scoped(),
       restaurantWriteRepository: asClass(db.PgRestaurantWriteRepository).scoped(),
       publishRepository: asClass(db.PgPublishRepository).scoped(),
+      contentWriteRepository: asClass(db.PgContentWriteRepository).scoped(),
       authRepository: asClass(db.PgAuthRepository).scoped(),
       importRepository: asClass(db.PgImportRepository).scoped()
     });
@@ -97,6 +100,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       wineWriteRepository: asValue(repos.wineWriteRepository),
       restaurantWriteRepository: asValue(repos.restaurantWriteRepository),
       publishRepository: asValue(repos.publishRepository),
+      contentWriteRepository: asValue(repos.contentWriteRepository),
       authRepository: asValue<AuthRepository>(new MemoryAuthRepository(store)),
       importRepository: asValue(repos.importRepository)
     });

@@ -35,17 +35,25 @@ export function TopBar({ back, title, right, t, langSwitch }: { back?: string; t
 }
 
 /**
- * "PL | EN": links to the same page with `lang` set (`hrefs` built by `langHref`). The active language is marked
- * `aria-current`. `tone="light"` sits on the dark restaurant hero. Each target is at least 44 × 44 px.
+ * "Polski | English" (spec 2026-10-15-bilingual-content, R7): links to the same page with `lang` set (`hrefs` built by
+ * `langHref`), each language named in itself. Below 640 px the visible text is "PL" / "EN" so the bar fits at 390 px;
+ * the accessible name stays the full one. The active language is marked `aria-current`. `tone="light"` sits on the
+ * dark restaurant hero. Each target is at least 44 × 44 px. Works without JavaScript.
  */
 export function LanguageSwitch({ locale, hrefs, t, tone = 'ink' }: { locale: Locale; hrefs: Record<Locale, string>; t: Dictionary; tone?: 'ink' | 'light' }) {
   const colour = tone === 'light' ? 'text-on-wine/70 aria-[current=true]:text-on-wine' : 'text-ink-3 aria-[current=true]:text-ink';
-  const link = `grid min-h-11 min-w-11 place-items-center rounded-full text-[13.5px] font-semibold tracking-wide aria-[current=true]:underline aria-[current=true]:underline-offset-4 focus-visible:outline-2 focus-visible:outline-wine ${colour}`;
+  const link = `grid min-h-11 min-w-11 place-items-center rounded-full px-1.5 text-[13.5px] font-semibold tracking-wide aria-[current=true]:underline aria-[current=true]:underline-offset-4 focus-visible:outline-2 focus-visible:outline-wine ${colour}`;
+  const one = (l: Locale) => (
+    <a href={hrefs[l]} lang={l} hrefLang={l} aria-label={t.common.languageNames[l]} aria-current={locale === l ? 'true' : undefined} className={link}>
+      <span aria-hidden="true" className="sm:hidden">{t.common.languageShort[l]}</span>
+      <span aria-hidden="true" className="hidden sm:inline">{t.common.languageNames[l]}</span>
+    </a>
+  );
   return (
     <nav aria-label={t.common.language} className="flex shrink-0 items-center">
-      <a href={hrefs.pl} lang="pl" hrefLang="pl" title={t.common.languageNames.pl} aria-current={locale === 'pl' ? 'true' : undefined} className={link}>PL</a>
+      {one('pl')}
       <span aria-hidden="true" className={tone === 'light' ? 'text-on-wine/40' : 'text-line'}>|</span>
-      <a href={hrefs.en} lang="en" hrefLang="en" title={t.common.languageNames.en} aria-current={locale === 'en' ? 'true' : undefined} className={link}>EN</a>
+      {one('en')}
     </nav>
   );
 }

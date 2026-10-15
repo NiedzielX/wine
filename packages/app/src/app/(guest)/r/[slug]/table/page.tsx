@@ -16,7 +16,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 export default async function TablePage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { q, prefs, services, t, locale, lang, href, langHrefs } = await guestContext(searchParams);
-  const menu = await services.catalogService.publishedMenu(slug);
+  const menu = await services.catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
   const selected = new Set(parseDishIds(q));
   const budgets = budgetOptions('bottle');

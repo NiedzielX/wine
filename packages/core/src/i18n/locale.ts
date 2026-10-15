@@ -1,7 +1,7 @@
 /**
  * Interface languages of Wine Match (spec 2026-10-15-polish-language, R1–R2). Pure and runtime-agnostic:
  * the app's proxy picks the language with `pickLocale`, the engine and guest helpers take a `Locale`.
- * Restaurant content (dish and wine names, sommelier notes) is never translated.
+ * Restaurant content has its own translations (`i18n/content.ts`, spec 2026-10-15-bilingual-content).
  */
 export type Locale = 'pl' | 'en';
 

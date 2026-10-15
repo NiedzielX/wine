@@ -1,4 +1,6 @@
 /** Shared domain types. Mirrors docs/DATA_MODEL.md. */
+import type { CommentTranslations, DishTranslations, RestaurantTranslations, WineTranslations } from '../i18n/content';
+import type { Locale } from '../i18n/locale';
 
 export type Level = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -40,6 +42,8 @@ export interface Dish {
   price: number;
   status: EntityStatus;
   profile: DishProfile;
+  /** name and description in other languages (spec 2026-10-15-bilingual-content); `{}` = base fields only */
+  translations: DishTranslations;
 }
 
 export interface WineProfile {
@@ -80,6 +84,8 @@ export interface Wine {
   colour: string;
   tastingNote: string;
   profile: WineProfile;
+  /** tasting note, region and country in other languages; the wine's and producer's names are never translated */
+  translations: WineTranslations;
 }
 
 export type PairingStatus = 'suggested' | 'approved' | 'modified' | 'rejected';
@@ -94,6 +100,8 @@ export interface Pairing {
   /** Manual rank set by the sommelier (1 = first); null means ordered by score */
   rank: number | null;
   comment: string | null;
+  /** the note in other languages (the base note is `comment`) */
+  commentTranslations: CommentTranslations;
   /** Engine score at generation time */
   modelScore: number;
   source: 'engine' | 'sommelier';
@@ -125,6 +133,10 @@ export interface Restaurant {
   wineDirector: string;
   publishedAt: string | null;
   settings?: RestaurantSettings;
+  /** the language of the base content fields (dish names, notes, tagline, city) */
+  contentLocale: Locale;
+  /** tagline and city in other languages */
+  translations: RestaurantTranslations;
 }
 
 export interface GuestPreferences {

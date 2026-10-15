@@ -53,6 +53,20 @@ export function repositoryContract(
       t.expect(await repos.wineRepository.findById(ds.restaurant.id, '00000000-0000-4000-8000-000000000000')).toBeNull();
     });
 
+    t.it('keeps the content language and every translation as stored (spec 2026-10-15-bilingual-content)', async () => {
+      const r = (await repos.restaurantRepository.findBySlug(ds.restaurant.slug))!;
+      t.expect({ contentLocale: r.contentLocale, translations: r.translations }).toEqual({ contentLocale: ds.restaurant.contentLocale, translations: ds.restaurant.translations });
+      const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+      t.expect((await repos.dishRepository.findById(ds.restaurant.id, duck.id))!.translations).toEqual(duck.translations);
+      const noted = ds.pairings.find((p) => Object.keys(p.commentTranslations).length > 0)!;
+      t.expect((await repos.pairingRepository.findById(ds.restaurant.id, noted.id))!.commentTranslations).toEqual(noted.commentTranslations);
+      const published = await repos.publishRepository.publishedContent(ds.restaurant.id);
+      t.expect(published.dishes.get(duck.id)).toEqual(duck.translations);
+      t.expect(published.restaurant).toEqual(ds.restaurant.translations);
+      t.expect((await repos.pairingRepository.listPublishedByDish(ds.restaurant.id, noted.dishId)).find((p) => p.id === noted.id)!.commentTranslations).toEqual(noted.commentTranslations);
+      t.expect((await repos.publishRepository.publishedContent('00000000-0000-4000-8000-000000000000')).dishes.size).toBe(0);
+    });
+
     t.it('returns pairings by restaurant and by dish with the sommelier fields intact', async () => {
       const all = await repos.pairingRepository.listByRestaurant(ds.restaurant.id);
       t.expect(all.length).toBe(ds.pairings.length);

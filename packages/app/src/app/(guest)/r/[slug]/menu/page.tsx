@@ -17,7 +17,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { prefs, services, t, locale, href, langHrefs } = await guestContext(searchParams);
   const { catalogService } = services;
-  const menu = await catalogService.publishedMenu(slug);
+  const menu = await catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
   const coverage = await catalogService.pairingCoverage(menu.restaurant.id);
 

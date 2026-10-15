@@ -1,7 +1,7 @@
 'use server';
 
-import { IMPORT_LIMITS, type RowEdit } from '@wine-match/core';
-import { act, str } from '@/server/action-runner';
+import { IMPORT_LIMITS, TRANSLATION_FIELDS, type RowEdit } from '@wine-match/core';
+import { act, localeFields, str, translationsOrInvalid } from '@/server/action-runner';
 
 /**
  * Server actions of the import screens and of Setup. The preview is a form: every row has fields named
@@ -19,9 +19,10 @@ function editsFrom(f: FormData, fields: readonly string[]): RowEdit[] {
   })).filter((e) => Number.isInteger(e.rowNumber) && e.rowNumber > 0);
 }
 
+/** The base fields and the translation columns; `editsFrom` reads only those the form has. */
 const FIELDS = {
-  menu: ['category', 'name', 'description', 'price'],
-  wines: ['producer', 'name', 'vintage', 'region', 'country', 'grape', 'style', 'glassPrice', 'bottlePrice']
+  menu: ['category', 'name', 'description', 'price', ...TRANSLATION_FIELDS.menu],
+  wines: ['producer', 'name', 'vintage', 'region', 'country', 'grape', 'style', 'glassPrice', 'bottlePrice', ...TRANSLATION_FIELDS.wines]
 } as const;
 
 export async function uploadImport(form: FormData) {
@@ -75,6 +76,14 @@ export async function saveRestaurantDetails(form: FormData) {
     });
     return { saved: next.slug !== slug ? 'details_slug' : 'details', to: `/admin/${next.slug}/setup` };
   });
+}
+
+/** A10: the language of the base texts, and the tagline and city in Polish and English (spec 2026-10-15-bilingual-content, R6). */
+export async function saveRestaurantContent(form: FormData) {
+  return act(form, 'import.manage', async ({ c, slug, actor, form: f }) => translationsOrInvalid(async () => {
+    await c.translationService.setRestaurantContent(slug, { contentLocale: str(f, 'contentLocale'), translations: localeFields(f, ['tagline', 'city']) }, actor, str(f, 'version') || undefined);
+    return { saved: 'content', to: `/admin/${slug}/setup` };
+  }));
 }
 
 export async function generateSuggestions(form: FormData) {

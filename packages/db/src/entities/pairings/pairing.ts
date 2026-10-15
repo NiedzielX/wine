@@ -1,4 +1,5 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/postgresql';
+import type { CommentTranslations } from '@wine-match/core';
 import { DishEntity } from '../catalog/dish';
 import { RestaurantEntity } from '../restaurants/restaurant';
 import { WineEntity } from '../catalog/wine';
@@ -16,6 +17,8 @@ export const PairingEntity = defineEntity({
     role: p.enum(['primary', 'alternative', 'best_value'] as const).nullable(),
     rank: p.integer().columnType('smallint').nullable(),
     comment: p.string().length(140).nullable(),
+    /** the note in other languages (spec 2026-10-15-bilingual-content, R9) */
+    commentTranslations: p.json<CommentTranslations>().defaultRaw(`'{}'`),
     modelScore: p.integer().columnType('smallint'),
     factors: p.json<Array<{ rule: string; delta: number }>>().nullable(),
     engineVersion: p.string().length(40),

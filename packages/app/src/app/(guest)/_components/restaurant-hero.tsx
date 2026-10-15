@@ -38,7 +38,7 @@ export function RestaurantHero({ restaurant: r, actions, compact = false, short 
     <section className={`flex flex-col justify-between bg-wine-deep px-6 text-on-wine ${compact ? 'min-h-[calc(100dvh-57px)] py-8' : 'pt-[calc(28px+env(safe-area-inset-top))] pb-7 lg:min-h-dvh lg:py-10'}`}>
       <div>
         <div className={`flex items-start justify-between gap-3 ${langSwitch ? '-mt-3 -mr-3' : ''}`}>
-          <p className={`text-sm opacity-80 ${langSwitch ? 'pt-3' : ''}`}>{r.address}, {r.city}</p>
+          <p className={`min-w-0 text-sm opacity-80 ${langSwitch ? 'pt-3' : ''}`}>{r.address}, {r.city}{r.tagline && <><br /><span>{r.tagline}</span></>}</p>
           {langSwitch}
         </div>
         <h1 className={`mt-4 mb-3.5 font-serif leading-[0.9] font-normal tracking-tight ${compact ? 'text-[clamp(48px,5vw,72px)]' : 'text-[clamp(56px,18vw,104px)]'}`}>{r.name}</h1>

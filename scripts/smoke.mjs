@@ -83,13 +83,29 @@ await check('G0 in English without Accept-Language', R, { has: ['<html lang="en"
 await check('G0 in English for an English browser', R, { headers: { 'accept-language': 'en-GB' }, has: ['Pick your dish'] });
 await check('G0 links do not carry a language from the browser', R, { headers: PL, has: [`href="${R}/dish/${duck}/wines"`], hasNot: [`${R}/dish/${duck}/wines?lang=`] });
 await check('G0 ?lang=en wins over a Polish browser and travels in the links', `${R}?lang=en`, { headers: PL, has: ['<html lang="en"', 'Pick your dish', `${R}/dish/${duck}/wines?lang=en`, `${R}/table?lang=en`, `${R}/staff?lang=en`, 'aria-current="true"'], hasNot: ['Wybierz danie'] });
-await check('G3 in Polish: engine reason translated, sommelier note as written', `${R}/dish/${duck}/wines`, { headers: PL, has: ['<html lang="pl"', 'Rekomendacja sommeliera', 'Pinot and sour cherry jus', 'Też pasuje do tego dania', 'Świeża kwasowość równoważy bogactwo potrawy', 'Na kieliszki', 'Więcej…', 'Czerwone', 'Kieliszek 64\u00a0zł', 'dopasowanie'], hasNot: ['Also good with this dish', 'AI'] });
+await check('G3 in Polish: engine reason translated, sommelier note in Polish', `${R}/dish/${duck}/wines`, { headers: PL, has: ['<html lang="pl"', 'Rekomendacja sommeliera', 'Pinot noir i sos wiśniowy', 'Też pasuje do tego dania', 'Świeża kwasowość równoważy bogactwo potrawy', 'Na kieliszki', 'Więcej…', 'Czerwone', 'Kieliszek 64\u00a0zł', 'dopasowanie'], hasNot: ['Also good with this dish', 'AI'] });
 await check('G3 ?lang=pl without a header', `${R}/dish/${duck}/wines?lang=pl&serving=glass`, { has: ['Rekomendacja sommeliera', `${R}/menu?serving=glass&amp;lang=pl`] });
 await check('G3 budget notice in Polish', `${R}/dish/${dish('Dry-aged ribeye, 300 g')}/wines?serving=glass&maxPrice=45`, { headers: PL, has: ['Nic nie mieści się w budżecie do 45\u00a0zł'] });
 await check('G5 in Polish keeps an explicit language in the form', `${R}/table?lang=pl`, { has: ['Dania główne', 'Znajdź butelkę dla stolika', 'name="lang" value="pl"'] });
 await check('G7 in Polish keeps an explicit language in the form', `${R}/wine/${wine}?dish=${duck}&lang=pl`, { has: ['Wybierz to wino', 'name="lang" value="pl"', 'Marta Wierzbicka, Wine Director'] });
 await check('G8 in Polish', `${R}/selected/${wine}?serving=glass&dish=${duck}`, { headers: PL, has: ['Pokaż to kelnerowi.', '1 kieliszek, 150 ml, 64\u00a0zł'] });
 await check('unknown restaurant in Polish', '/r/nope', { status: 404, headers: PL, has: ['To menu jest niedostępne'] });
+// --- bilingual content (spec 2026-10-15-bilingual-content): Polish content, English with ?lang=en, the API keeps the base
+await check('AC1 G0 in Polish: Polish dish names and descriptions, Warszawa', `${R}?lang=pl`, { has: ['Pierś z kaczki', 'Tatar wołowy', 'Śledź bałtycki', 'Sernik pieczony', 'Siekana ręcznie polędwica', 'Warszawa'], hasNot: ['Duck breast', 'Baltic herring', 'Warsaw<'] });
+await check('AC1 G1 menu in Polish', `${R}/menu`, { headers: PL, has: ['Pierś z kaczki', 'Comber z jelenia'], hasNot: ['Duck breast'] });
+await check('AC1 G3 duck in Polish: Polish note and wine region', `${R}/dish/${duck}/wines?lang=pl`, { has: ['Pierś z kaczki', 'Pinot noir i sos wiśniowy — nasze firmowe połączenie.', 'Burgundia'], hasNot: ['Pinot and sour cherry jus', 'Burgundy'] });
+await check('AC1 G7 wine in Polish: tasting note, region and country', `${R}/wine/${wine}?dish=${duck}&lang=pl`, { has: ['Czerwone owoce, runo leśne', 'Francja'], hasNot: ['forest floor'] });
+await check('AC1 G6 table in Polish', `${R}/table/result?dish=${tartare}&dish=${risotto}&dish=${duck}&lang=pl`, { has: ['Pierś z kaczki', 'Tatar wołowy'] });
+await check('AC1 G9 staff in Polish', `${R}/staff?dish=${duck}&lang=pl`, { has: ['Pierś z kaczki'] });
+await check('AC1 ?lang=en: English content even for a Polish browser', `${R}/dish/${duck}/wines?lang=en`, { headers: PL, has: ['Duck breast', 'Pinot and sour cherry jus', 'Burgundy'], hasNot: ['Pierś z kaczki'] });
+await check('AC1 G0 ?lang=en: Warsaw', `${R}?lang=en`, { headers: PL, has: ['Warsaw', 'Duck breast'], hasNot: ['Warszawa', 'Pierś z kaczki'] });
+for (const [name, path] of [['G0', R], ['G3', `${R}/dish/${duck}/wines`], ['G5', `${R}/table`], ['G7', `${R}/wine/${wine}?dish=${duck}`]]) {
+  await check(`AC2 ${name} has the "Polski / English" switch at the top`, path, { has: ['aria-label="Polski"', 'aria-label="English"', '>Polski<', '>English<', '>PL<', '>EN<'] });
+}
+await check('AC2 A0 sign-in has the "Polski / English" switch', '/admin/login', { cookie: '', has: ['aria-label="Polski"', 'aria-label="English"', '>Polski<', '>English<'] });
+const apiMenuPl = await (await fetch(`${base}/api/v1/public/restaurants/${slug}/menu?lang=pl`, { headers: PL })).text();
+expect('AC6 API menu keeps the base (English) names with a Polish browser and ?lang=pl', apiMenuPl.includes('Duck breast') && apiMenuPl.includes('Beef tartare') && !apiMenuPl.includes('Pierś z kaczki') && !apiMenuPl.includes('Warszawa'), apiMenuPl.slice(0, 200));
+
 const apiPl = await (await fetch(`${base}/api/v1/dishes/${duck}/recommendations?restaurant=${slug}`, { headers: PL })).json();
 expect('API recommendations stay English with a Polish browser', JSON.stringify(apiPl.items.map((i) => i.why)) === JSON.stringify(recs.items.map((i) => i.why)) && apiPl.items.some((i) => /^[A-Z][a-z]/.test(i.why) && !/[ąęłśżź]/.test(i.why)), JSON.stringify(apiPl.items.map((i) => i.why)));
 
@@ -269,7 +285,7 @@ await check('A2 menu', `${A}/menu`, { has: ['Beef tartare', 'Draft, needs check'
 await check('A2 menu: text filter', `${A}/menu?q=porcini`, { has: ['Wild mushroom risotto'], hasNot: ['Beef tartare'] });
 await check('A2 menu: category filter', `${A}/menu?category=Desserts`, { has: ['Dark chocolate tart'], hasNot: ['Duck breast'] });
 await check('A2 menu: no results', `${A}/menu?q=zzzz`, { has: ['No dishes found', 'Try another search or category.'] });
-await check('A3 dish details', `${A}/menu/${duck}`, { has: ['Duck breast', 'Top matches with this profile', 'Taste profile', 'Manage pairings', 'View as guest'] });
+await check('A3 dish details', `${A}/menu/${duck}`, { has: ['Duck breast', 'Top matches with this profile', 'Taste profile', 'Manage pairings', 'View as guest', 'Translations', 'name="name_pl"', 'value="Pierś z kaczki"', 'name="description_en"', 'Save translations'] });
 await check('A3 unknown dish', `${A}/menu/00000000-0000-4000-8000-000000000000`, { status: 404 });
 await check('A4 wine list', `${A}/wines`, { has: ['Wine list', '19 active wines', 'Hidden', 'Bottle only', 'Hochar'] });
 await check('A4 wine list: style filter', `${A}/wines?style=sweet`, { has: ['Royal Tokaji'], hasNot: ['Marcel Lapierre'] });
@@ -277,7 +293,7 @@ await check('A4 wine list: no results', `${A}/wines?q=zzzz`, { has: ['No wines f
 const list = await (await fetch(`${base}${A}/wines`, { headers: { cookie: SESSION } })).text();
 const hidden = /href="[^"]*\/wines\/([0-9a-f-]{36})"[^>]*>Château Musar/.exec(list)?.[1];
 if (hidden) await check('A5 wine details of a hidden wine', `${A}/wines/${hidden}`, { has: ['Hidden from guests', 'Château Musar'] });
-await check('A5 wine details', `${A}/wines/${wine}`, { has: ['Listing and prices', 'Best dishes for this wine', 'Wine profile', 'Approved pairings', 'Duck breast'] });
+await check('A5 wine details', `${A}/wines/${wine}`, { has: ['Listing and prices', 'Best dishes for this wine', 'Wine profile', 'Approved pairings', 'Duck breast', 'Translations', 'name="tastingNote_pl"', 'name="country_en"'] });
 await check('A5 unknown wine', `${A}/wines/00000000-0000-4000-8000-000000000000`, { status: 404 });
 await check('A6 pairings index redirects to a dish', `${A}/pairings`, { has: ['What guests see now', 'Approved for guests'] });
 await check('A6 pairings of a dish', `${A}/pairings/${duck}`, { has: ['Pairings: Duck breast', 'Sommelier approved', 'Primary', 'What guests see now'] });
@@ -307,6 +323,10 @@ await check('A4 wine list in Polish: styles, prices with NBSP', `${A}/wines`, { 
 await check('A6 pairings in Polish: roles, flash by code, Polish engine reasons', `${A}/pairings/${duck}?saved=approved`, { cookie: PLC, has: ['Parowanie zatwierdzone.', 'Zatwierdzone dla gości', 'Podstawowe', 'Najlepsza cena', 'Propozycje silnika', 'Co teraz widzą goście', 'Ustaw rolę'], hasNot: ['Approved for guests', 'Set role'] });
 await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą zmienił to parowanie'] });
 await check('A7 review queue in Polish', `${A}/review`, { cookie: PLC, has: ['Do przeglądu', 'Zatwierdź', 'Odrzuć', 'Otwórz parowania'] });
+await check('A3 dish in Polish: content in the panel language', `${A}/menu/${duck}`, { cookie: PLC, has: ['Pierś z kaczki', 'Tłumaczenia', 'Zapisz tłumaczenia'] });
+await check('A6 note form in Polish has PL and EN fields', `${A}/pairings/${duck}`, { cookie: PLC, has: ['name="comment_pl"', 'name="comment_en"', 'Pinot noir i sos wiśniowy'] });
+await check('A10 content language and translations', `${A}/setup`, { has: ['Content language and translations', 'name="contentLocale"', 'name="city_pl"', 'value="Warszawa"'] });
+await check('A1 panel has the language switch at the top', A, { has: ['aria-label="Polski"', 'aria-label="English"', '>Polski<', '>English<'] });
 await check('A10 setup in Polish', `${A}/setup`, { cookie: PLC, has: ['Lista kroków', 'Dane restauracji', 'Zaimportuj menu', 'Wydrukuj kod QR', 'W szkicu: 4 z 15 profili dań.'] });
 await check('A11 publish in Polish', `${A}/publish`, { cookie: PLC, has: ['Przed publikacją', 'Opublikuj zmiany', 'Ostatnia publikacja:'] });
 await check('A12 QR in Polish', `${A}/qr`, { cookie: PLC, has: ['Kod QR', 'Drukuj stojak na stolik'] });

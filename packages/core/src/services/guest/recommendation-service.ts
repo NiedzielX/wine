@@ -4,8 +4,10 @@ import { recommendForDish, type RecommendationItem, type RecommendationResult } 
 import { recommendForTable, type TableResult } from '../../engine/table';
 import type { Repositories } from '../../ports/repositories';
 import type { Locale } from '../../i18n/locale';
+import { localizeDish, localizePairing, localizeRestaurant, localizeWine, withPublishedContent } from '../../i18n/content';
+import type { Pairing } from '../../domain/types';
 
-export type RecommendationServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository'>;
+export type RecommendationServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository'>;
 
 export interface DishRecommendations {
   restaurant: Restaurant;
@@ -34,52 +36,78 @@ export class RecommendationService {
     this.repos = deps;
   }
 
-  /** `locale` sets the language of the engine's texts; the public API passes none, so its answers stay in English. */
-  async forDish(slug: string, dishId: string, prefs: Partial<GuestPreferences> = {}, limit?: number, locale: Locale = 'en'): Promise<DishRecommendations | null> {
-    const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
-    if (!restaurant) return null;
-    const dish = await this.repos.dishRepository.findById(restaurant.id, dishId);
-    if (!dish || dish.status !== 'published') return null;
-    const [wines, pairings] = await Promise.all([
-      this.repos.wineRepository.listByRestaurant(restaurant.id, { activeOnly: true }),
-      this.repos.pairingRepository.listPublishedByDish(restaurant.id, dish.id)
+  /**
+   * The content in the guest's language (spec 2026-10-15-bilingual-content): the translations of the latest publish,
+   * the sommelier's note in that language. Without a locale (the public API) everything stays as stored.
+   */
+  private async content(restaurant: Restaurant, locale: Locale | undefined) {
+    if (!locale) {
+      const same = <T>(x: T) => x;
+      return { restaurant, dish: same<Dish>, wine: same<Wine>, pairing: same<Pairing> };
+    }
+    const pub = withPublishedContent(await this.repos.publishRepository.publishedContent(restaurant.id));
+    return {
+      restaurant: localizeRestaurant(pub.restaurant(restaurant), locale),
+      dish: (d: Dish) => localizeDish(pub.dish(d), locale),
+      wine: (w: Wine) => localizeWine(pub.wine(w), locale),
+      pairing: (p: Pairing) => localizePairing(p, locale)
+    };
+  }
+
+  /**
+   * `locale` sets the language of the engine's texts and of the restaurant's content; the public API passes none, so
+   * its answers stay in English with the base content (BACKWARD_COMPATIBILITY §2).
+   */
+  async forDish(slug: string, dishId: string, prefs: Partial<GuestPreferences> = {}, limit?: number, locale?: Locale): Promise<DishRecommendations | null> {
+    const found = await this.repos.restaurantRepository.findBySlug(slug);
+    if (!found) return null;
+    const raw = await this.repos.dishRepository.findById(found.id, dishId);
+    if (!raw || raw.status !== 'published') return null;
+    const [wines, pairings, c] = await Promise.all([
+      this.repos.wineRepository.listByRestaurant(found.id, { activeOnly: true }),
+      this.repos.pairingRepository.listPublishedByDish(found.id, raw.id),
+      this.content(found, locale)
     ]);
-    const result = recommendForDish(dish, wines, pairings, { ...DEFAULT_PREFS, ...prefs }, limit, locale);
-    const settings = restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS;
+    const dish = c.dish(raw);
+    const result = recommendForDish(dish, wines.map(c.wine), pairings.map(c.pairing), { ...DEFAULT_PREFS, ...prefs }, limit, locale ?? 'en');
+    const settings = found.settings ?? DEFAULT_RESTAURANT_SETTINGS;
     if (!settings.showUnreviewed) result.items = result.items.filter((i) => i.tier < 2);
-    return { restaurant, dish, result };
+    return { restaurant: c.restaurant, dish, result };
   }
 
   /** A wine of the restaurant, optionally scored against the dish the guest is looking at. */
-  async wineDetails(slug: string, wineId: string, dishId?: string, locale: Locale = 'en'): Promise<WineDetails | null> {
+  async wineDetails(slug: string, wineId: string, dishId?: string, locale?: Locale): Promise<WineDetails | null> {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
-    const wine = await this.repos.wineRepository.findById(restaurant.id, wineId);
-    if (!wine) return null;
+    const rawWine = await this.repos.wineRepository.findById(restaurant.id, wineId);
+    if (!rawWine) return null;
+    const c = await this.content(restaurant, locale);
+    const wine = c.wine(rawWine);
     const found = dishId ? await this.repos.dishRepository.findById(restaurant.id, dishId) : null;
-    const dish = found && found.status === 'published' ? found : null;
+    const dish = found && found.status === 'published' ? c.dish(found) : null;
     let match: RecommendationItem | null = null;
     if (dish && wine.active) {
       const [wines, pairings] = await Promise.all([
         this.repos.wineRepository.listByRestaurant(restaurant.id, { activeOnly: true }),
         this.repos.pairingRepository.listPublishedByDish(restaurant.id, dish.id)
       ]);
-      match = recommendForDish(dish, wines, pairings, DEFAULT_PREFS, wines.length, locale).items.find((i) => i.wine.id === wine.id) ?? null;
+      match = recommendForDish(dish, wines.map(c.wine), pairings.map(c.pairing), DEFAULT_PREFS, wines.length, locale ?? 'en').items.find((i) => i.wine.id === wine.id) ?? null;
     }
-    return { restaurant, wine, dish, match };
+    return { restaurant: c.restaurant, wine, dish, match };
   }
 
-  async forTable(slug: string, dishIds: string[], prefs: Partial<GuestPreferences> = {}, locale: Locale = 'en'): Promise<{ restaurant: Restaurant; result: TableResult } | null> {
+  async forTable(slug: string, dishIds: string[], prefs: Partial<GuestPreferences> = {}, locale?: Locale): Promise<{ restaurant: Restaurant; result: TableResult } | null> {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
     const all = await this.repos.dishRepository.listByRestaurant(restaurant.id, { statuses: ['published'] });
-    const dishes = dishIds.map((id) => all.find((d) => d.id === id)).filter((d): d is Dish => !!d);
-    if (dishes.length < 2) throw new TableNeedsTwoDishesError();
-    const [wines, pairings] = await Promise.all([
+    const picked = dishIds.map((id) => all.find((d) => d.id === id)).filter((d): d is Dish => !!d);
+    if (picked.length < 2) throw new TableNeedsTwoDishesError();
+    const [wines, pairings, c] = await Promise.all([
       this.repos.wineRepository.listByRestaurant(restaurant.id, { activeOnly: true }),
-      this.repos.pairingRepository.listPublishedByRestaurant(restaurant.id)
+      this.repos.pairingRepository.listPublishedByRestaurant(restaurant.id),
+      this.content(restaurant, locale)
     ]);
-    return { restaurant, result: recommendForTable(dishes, wines, pairings, { ...DEFAULT_PREFS, ...prefs }, undefined, locale) };
+    return { restaurant: c.restaurant, result: recommendForTable(picked.map(c.dish), wines.map(c.wine), pairings.map(c.pairing), { ...DEFAULT_PREFS, ...prefs }, undefined, locale ?? 'en') };
   }
 }
 

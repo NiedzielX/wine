@@ -1,4 +1,5 @@
 import { defineEntity, p, type InferEntity } from '@mikro-orm/postgresql';
+import type { WineTranslations } from '@wine-match/core';
 import { RestaurantEntity } from '../restaurants/restaurant';
 
 /** Wine profile, embedded in the wine table as profile_* columns. */
@@ -46,6 +47,8 @@ export const WineEntity = defineEntity({
     tastingNote: p.text().default(''),
     stockQty: p.integer().nullable(),
     profile: () => p.embedded(WineProfileEmbeddable).prefix('profile_'),
+    /** tasting note, region and country in other languages (spec 2026-10-15-bilingual-content, R9) */
+    translations: p.json<WineTranslations>().defaultRaw(`'{}'`),
     externalRef: p.string().nullable(),
     deletedAt: p.datetime().nullable(),
     createdAt: p.datetime().onCreate(() => new Date()),

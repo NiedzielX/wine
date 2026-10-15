@@ -1,6 +1,6 @@
 import { draftWineProfile } from '../engine/drafts';
 import { formatPrice, normKey, normaliseCategory, normaliseStyle, normaliseVintage, parsePrice } from './normalize';
-import { MENU_FIELDS, WINE_FIELDS, type ImportIssue, type ImportIssueCode, type ImportKind, type ImportRow, type RowEdit } from './types';
+import { MENU_FIELDS, TRANSLATION_FIELDS, WINE_FIELDS, type ImportIssue, type ImportIssueCode, type ImportKind, type ImportRow, type RowEdit } from './types';
 
 /** What already exists in the restaurant: used to recognise updates. */
 export interface ExistingItems {
@@ -19,8 +19,17 @@ const warn = (field: string, code: Code, message: string, params?: Record<string
 /** Checks one row and writes the normalised values back ("58,50 zł" → "58.5", "Przystawki" → "Starters"). */
 function evaluate(kind: ImportKind, rowNumber: number, input: Record<string, string>, existing: ExistingItems, seen: Map<string, number>): Evaluated {
   // only the known columns survive: an unexpected key is dropped here even if a caller let it through
-  const f: Record<string, string> = Object.fromEntries((kind === 'menu' ? MENU_FIELDS : WINE_FIELDS).map((k) => [k, (input[k] ?? '').trim()]));
+  const f: Record<string, string> = Object.fromEntries([
+    ...(kind === 'menu' ? MENU_FIELDS : WINE_FIELDS).map((k) => [k, (Object.hasOwn(input, k) ? input[k] ?? '' : '').trim()]),
+    // translation columns only when the file has them (spec 2026-10-15-bilingual-content, R5)
+    ...TRANSLATION_FIELDS[kind].filter((k) => Object.hasOwn(input, k)).map((k) => [k, (input[k] ?? '').trim()])
+  ]);
   const issues: ImportIssue[] = [];
+  for (const k of TRANSLATION_FIELDS[kind]) {
+    if (!Object.hasOwn(f, k)) continue;
+    if (f[k] === '') issues.push(warn(k, 'translation_empty', 'Empty translation: the current one is kept.', { column: k }));
+    else if (f[k].length > (k.startsWith('description') || k.startsWith('tasting_note') ? 1000 : 120)) issues.push(err(k, 'translation_too_long', 'The translation is too long.', { column: k }));
+  }
   let key = '';
   let matchId: string | null = null;
 
