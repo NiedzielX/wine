@@ -22,7 +22,7 @@ export default async function StaffPage({ params, searchParams }: Props) {
   return (
     <>
       <TopBar back={`/r/${slug}`} title="Pairing lookup" />
-      <main className="flex-1 px-5 pt-5 pb-8">
+      <main className="flex-1 px-5 pt-5 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">
         <p className="mb-3 text-ink-2">For the floor team. Same pairings the guest sees, ordered by the Wine Director’s picks.</p>
         {dish ? (
           <>

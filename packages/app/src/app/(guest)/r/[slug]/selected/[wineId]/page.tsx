@@ -24,7 +24,7 @@ export default async function SelectedPage({ params, searchParams }: Props) {
     return (
       <>
         <TopBar back={`/r/${slug}/menu`} title={restaurant.name} />
-        <main className="flex-1 px-5"><EmptyState title="This wine is no longer available" text="It may have sold out tonight. Please choose another." action={<Button href={`/r/${slug}/menu`} variant="secondary">Back to menu</Button>} /></main>
+        <main className="flex-1 px-5 lg:mx-auto lg:w-full lg:max-w-[720px]"><EmptyState title="This wine is no longer available" text="It may have sold out tonight. Please choose another." action={<Button href={`/r/${slug}/menu`} variant="secondary">Back to menu</Button>} /></main>
       </>
     );
   }
@@ -35,7 +35,7 @@ export default async function SelectedPage({ params, searchParams }: Props) {
   return (
     <>
       <TopBar back={back} title={restaurant.name} />
-      <main className="flex-1 px-5 pt-6 pb-8">
+      <main className="flex-1 px-5 pt-6 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">
         <div className="grid justify-items-center gap-3.5 text-center">
           <MatchGlass score={100} colour={wine.colour} size={54} className="text-ink-2" />
           <p className="max-w-[30ch] text-[15.5px] text-ink-2">Show this to your waiter.</p>
@@ -47,7 +47,7 @@ export default async function SelectedPage({ params, searchParams }: Props) {
             {dish ? <span className="text-ink-3">With the {dish.name.toLowerCase()}</span> : tableIds.length > 0 ? <span className="text-ink-3">For the table</span> : null}
           </div>
           <div className="mt-2 grid w-full gap-2">
-            <Button href={`/r/${slug}/menu`} variant="secondary">Pair another dish</Button>
+            <Button href={hrefWith(`/r/${slug}/menu`, prefs)} variant="secondary">Pair another dish</Button>
             <Button href={`/r/${slug}`} variant="quiet">Done</Button>
           </div>
         </div>

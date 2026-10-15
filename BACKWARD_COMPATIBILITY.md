@@ -17,7 +17,7 @@ Kod QR na stoliku to fizyczny wydruk, którego nie da się zaktualizować.
 | Parametry URL gościa: `serving`, `styles` (lista po przecinku w stałej kolejności), `maxPrice`, `weight`, `mood`, `dish`, `dishes`, `table`, `sheet` | [packages/core/src/guest/prefs.ts](packages/core/src/guest/prefs.ts) | zmiana nazwy lub wartości; zapisane i udostępnione linki przestają działać |
 | Przekierowanie `/` → `/r/{DEMO_RESTAURANT_SLUG}` | `packages/app/src/app/(guest)/` | zmiana domyślnego celu bez zmiany konfiguracji |
 
-**Ścieżka:** stary adres musi dalej działać jako przekierowanie 308 na nowy, bezterminowo (wydruki żyją latami). Zmiana sluga restauracji wymaga przekierowania ze starego sluga albo świadomej decyzji właściciela restauracji o ponownym druku kodów, zapisanej w PR-ze.
+**Ścieżka:** stary adres musi dalej działać jako przekierowanie 308 na nowy, bezterminowo (wydruki żyją latami). Przykład: `/r/{slug}/dish/{dishId}` (dawny ekran dania G2) od 2026-10-15 przekierowuje 308 na `/r/{slug}/dish/{dishId}/wines` z całym query (`next.config.ts` → `redirects()`). Zmiana sluga restauracji wymaga przekierowania ze starego sluga albo świadomej decyzji właściciela restauracji o ponownym druku kodów, zapisanej w PR-ze.
 
 ## 2. REST API `/api/v1`
 

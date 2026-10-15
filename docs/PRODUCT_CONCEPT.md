@@ -117,5 +117,5 @@ Wszystkie KPI są widoczne w dashboardzie panelu (ekran *Dashboard*). W mockupie
 1. **Sommelier jest autorytetem.** Model nigdy nie wyświetla się jako ważniejszy od człowieka. Etykieta „Sommelier recommendation” pojawia się tylko przy parach zatwierdzonych przez sommeliera.
 2. **Uczciwy wynik.** Match Score pokazuje surowy wynik silnika. Zatwierdzenie sommeliera zmienia kolejność, a nie liczbę.
 3. **Zero kosztu per zapytanie.** Rekomendacje liczy własny, deterministyczny silnik. LLM — jeśli w ogóle — tylko lokalnie i tylko przy imporcie danych.
-4. **Trzy dotknięcia.** Od zeskanowania kodu do listy win: QR → danie → „Show matching wines”. Bez rejestracji i onboardingu.
+4. **Jedno dotknięcie.** Od zeskanowania kodu do listy win: QR → danie. Preferencje są opcjonalne i zostają na kolejne dania. Bez rejestracji i onboardingu.
 5. **Głos restauracji, nie technologii.** Bez „AI recommendation”, „Ask AI”, „Powered by AI”.

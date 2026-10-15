@@ -1,4 +1,4 @@
-import type { GuestPreferences, RecommendationItem, Wine } from '@wine-match/core';
+import { STYLE_LABELS, withServing, withStyleToggled, type Dish, type GuestPreferences, type RecommendationItem, type Wine, type WineStyle } from '@wine-match/core';
 import { MatchGlass } from '@wine-match/ui/brand/match-glass';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -53,7 +53,8 @@ export function Button({ href, children, variant = 'primary', className = '' }: 
 /** Sticky bottom bar for the main action (thumb reach). */
 export function BottomBar({ children }: { children: ReactNode }) {
   // the bar itself lets taps through to the content behind its gradient; only the controls catch them
-  return <div className="pointer-events-none sticky bottom-0 z-10 grid gap-2 bg-gradient-to-t from-paper from-70% to-transparent px-5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom))] *:pointer-events-auto">{children}</div>;
+  // on desktop it is a plain block under the content: no thumb reach to optimise for
+  return <div className="pointer-events-none sticky bottom-0 z-10 grid gap-2 bg-gradient-to-t from-paper from-70% to-transparent px-5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom))] *:pointer-events-auto lg:pointer-events-auto lg:static lg:mx-auto lg:w-full lg:max-w-[720px] lg:bg-none lg:pb-8">{children}</div>;
 }
 
 export function EmptyState({ title, text, action }: { title: string; text: string; action?: ReactNode }) {
@@ -145,13 +146,95 @@ export function RecoFooter({ director, restaurant }: { director: string; restaur
   );
 }
 
-/** One dish / whole table switch above the menu and the table selection. */
-export function ModeSwitch({ slug, mode }: { slug: string; mode: 'dish' | 'table' }) {
+/** One dish / whole table switch above the menu and the table selection. Links carry the guest's preferences. */
+export function ModeSwitch({ dishHref, tableHref, mode }: { dishHref: string; tableHref: string; mode: 'dish' | 'table' }) {
   const base = 'rounded-full py-2.5 text-center text-[14.5px] font-semibold text-ink-2 aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-sm';
   return (
     <nav aria-label="Pairing mode" className="mb-5 grid grid-cols-2 rounded-full bg-[#ebe7e9] p-1">
-      <Link href={`/r/${slug}/menu`} aria-current={mode === 'dish' ? 'page' : undefined} className={base}>One dish</Link>
-      <Link href={`/r/${slug}/table`} aria-current={mode === 'table' ? 'page' : undefined} className={base}>Whole table</Link>
+      <Link href={dishHref} aria-current={mode === 'dish' ? 'page' : undefined} className={base}>One dish</Link>
+      <Link href={tableHref} aria-current={mode === 'table' ? 'page' : undefined} className={base}>Whole table</Link>
     </nav>
+  );
+}
+
+const MENU_CATEGORIES = ['Starters', 'Mains', 'Desserts'] as const;
+
+/**
+ * The published dishes grouped by category. Every row links straight to the dish's wines (`hrefFor`),
+ * so the guest is one tap from a recommendation; `currentId` marks the dish on screen.
+ */
+export function DishList({ dishes, coverage, hrefFor, currentId, stickyTop = 'top-[57px]', compact = false }: {
+  dishes: Dish[];
+  coverage: Map<string, { hasPrimary: boolean }>;
+  hrefFor: (dish: Dish) => string;
+  currentId?: string;
+  /** offset of the sticky category chips: under the top bar, or 0 where there is none */
+  stickyTop?: string;
+  /** smaller rows for the desktop side column */
+  compact?: boolean;
+}) {
+  const present = MENU_CATEGORIES.filter((c) => dishes.some((d) => d.category === c));
+  return (
+    <div>
+      <nav aria-label="Menu sections" className={`sticky ${stickyTop} z-10 -mx-5 flex gap-1.5 overflow-x-auto bg-paper px-5 py-2.5`}>
+        {present.map((c) => <a key={c} href={`#cat-${c.toLowerCase()}`} className="inline-flex min-h-9 items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-sm font-medium">{c}</a>)}
+      </nav>
+      {present.map((c) => (
+        <section key={c} id={`cat-${c.toLowerCase()}`} className="scroll-mt-28">
+          <h2 className={`mb-1 font-serif ${compact ? 'mt-5 text-[22px]' : 'mt-7 text-[26px]'}`}>{c}</h2>
+          {dishes.filter((d) => d.category === c).map((d) => {
+            const current = d.id === currentId;
+            return (
+              <Link key={d.id} href={hrefFor(d)} aria-current={current ? 'page' : undefined}
+                className="-mx-3 grid scroll-mt-28 grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-1 rounded-xl border-b border-line px-3 py-4 last:border-b-0 hover:bg-ink/[0.03] focus-visible:outline-2 focus-visible:outline-wine aria-[current=page]:bg-surface aria-[current=page]:shadow-[inset_3px_0_0_var(--color-wine)]">
+                <span className={`font-serif leading-tight ${compact ? 'text-lg' : 'text-xl'}`}>{d.name}</span>
+                <span className="text-[15px] text-ink-2 tabular-nums">{d.price} zł</span>
+                {!compact && <span className="col-span-2 text-[14.5px] leading-snug text-ink-2">{d.description}</span>}
+                {coverage.get(d.id)?.hasPrimary && <span className="col-span-2 mt-1 flex items-center gap-1.5 text-[13.5px] text-brass"><Seal className="size-3.5" />Sommelier pairing available</span>}
+              </Link>
+            );
+          })}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+const QUICK_STYLES: WineStyle[] = ['red', 'white', 'sparkling'];
+
+/** How many active preferences the quick row does not show (they live in "More"). */
+export function hiddenPrefCount(p: GuestPreferences): number {
+  return p.styles.filter((s) => !QUICK_STYLES.includes(s)).length + (p.maxPrice !== null ? 1 : 0) + (p.weight !== 'any' ? 1 : 0) + (p.mood !== 'any' ? 1 : 0);
+}
+
+/**
+ * One scrollable row of the most used preferences. Each chip is a link that toggles its value,
+ * so a second tap clears it; "More" opens the full filters sheet and counts what the row hides.
+ */
+export function QuickPrefs({ prefs, hrefFor, moreHref }: { prefs: GuestPreferences; hrefFor: (p: GuestPreferences) => string; moreHref: string }) {
+  const hidden = hiddenPrefCount(prefs);
+  const serving = (s: 'glass' | 'bottle') => hrefFor(withServing(prefs, prefs.serving === s ? 'any' : s));
+  return (
+    <nav aria-label="Quick preferences" className="-mx-5 flex gap-1.5 overflow-x-auto px-5 py-1 [scrollbar-width:none]">
+      <Chip href={moreHref} active={hidden > 0}>More{hidden > 0 ? ` · ${hidden}` : '…'}</Chip>
+      <Chip href={serving('glass')} active={prefs.serving === 'glass'}>By the glass</Chip>
+      <Chip href={serving('bottle')} active={prefs.serving === 'bottle'}>By the bottle</Chip>
+      {QUICK_STYLES.map((s) => <Chip key={s} href={hrefFor(withStyleToggled(prefs, s))} active={prefs.styles.includes(s)}>{STYLE_LABELS[s]}</Chip>)}
+    </nav>
+  );
+}
+
+/**
+ * Desktop two-column layout (from `lg`): the side column on the left, the main content on the right.
+ * The main content comes first in the DOM so keyboard and screen-reader users start with it.
+ * Below `lg` the side column is not shown: the page is the main content alone.
+ */
+export function GuestColumns({ main, aside, asideLabel, underTopBar = true }: { main: ReactNode; aside: ReactNode; asideLabel: string; /** false on pages without the sticky top bar (the landing page) */ underTopBar?: boolean }) {
+  const stick = underTopBar ? 'lg:top-[57px] lg:max-h-[calc(100dvh-57px)]' : 'lg:top-0 lg:max-h-dvh';
+  return (
+    <div className="flex flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
+      <div className="flex min-w-0 flex-1 flex-col">{main}</div>
+      <aside aria-label={asideLabel} className={`hidden min-w-0 lg:sticky lg:order-first lg:block lg:self-start ${stick} lg:overflow-y-auto lg:border-r lg:border-line`}>{aside}</aside>
+    </div>
   );
 }

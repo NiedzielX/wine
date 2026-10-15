@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { Button } from '../../_components/guest-ui';
+import { Button, DishList, GuestColumns } from '../../_components/guest-ui';
+import { RestaurantHero, WineDirectorNote } from '../../_components/restaurant-hero';
+import { guestContext, hrefWith, notFound, type SearchParams } from '@/server/guest-page';
 import { getRequestScope } from '@/server/request-scope';
 
 export const dynamic = 'force-dynamic';
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -14,39 +14,45 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: menu?.restaurant.name ?? 'Menu' };
 }
 
-/** G0 — restaurant landing: what the QR code opens. */
-export default async function LandingPage({ params }: Props) {
+/**
+ * G0 — what the QR code opens: the restaurant's header with the menu right under it, so a guest is
+ * one tap from the wines for their dish. On desktop the header is the left column.
+ */
+export default async function LandingPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const menu = await (await getRequestScope()).cradle.catalogService.publishedMenu(slug);
+  const { prefs, services } = await guestContext(searchParams);
+  const { catalogService } = services;
+  const menu = await catalogService.publishedMenu(slug);
   if (!menu) notFound();
   const r = menu.restaurant;
-  const initials = r.wineDirector.split(' ').map((x) => x[0]).join('');
   const hasMenu = menu.dishes.length > 0;
+  const coverage = hasMenu ? await catalogService.pairingCoverage(r.id) : new Map<string, { hasPrimary: boolean }>();
+  const tableAction = <Button href={hrefWith(`/r/${r.slug}/table`, prefs)} variant="ghost" className="mt-8 w-full lg:w-auto">Pair a bottle for the table</Button>;
 
-  return (
+  const main = (
     <main className="flex flex-1 flex-col">
-      <section className="flex min-h-[78dvh] flex-col justify-between bg-wine-deep px-6 pt-[calc(28px+env(safe-area-inset-top))] pb-7 text-on-wine">
-        <div>
-          <p className="text-sm opacity-80">{r.address}, {r.city}</p>
-          <h1 className="mt-4 mb-3.5 font-serif text-[clamp(64px,22vw,104px)] leading-[0.9] font-normal tracking-tight">{r.name}</h1>
-          <p className="max-w-[30ch] text-lg leading-snug opacity-90">Find the wine for what you’re eating tonight, from our own list.</p>
-        </div>
+      <div className="lg:hidden"><RestaurantHero restaurant={r} actions={hasMenu ? tableAction : undefined} short /></div>
+      <div id="menu" className="scroll-mt-4 px-5 pt-6 pb-10 lg:pt-10">
         {hasMenu ? (
-          <div className="mt-8 grid gap-2.5">
-            <Button href={`/r/${r.slug}/menu`} variant="light">Choose your dish</Button>
-            <Button href={`/r/${r.slug}/table`} variant="ghost">Pair a bottle for the table</Button>
-          </div>
+          <>
+            <h2 className="font-serif text-[28px] leading-tight">Pick your dish</h2>
+            <p className="mt-1 text-ink-2">We’ll show the wines from our list that go with it.</p>
+            <DishList dishes={menu.dishes} coverage={coverage} stickyTop="top-0" hrefFor={(d) => hrefWith(`/r/${r.slug}/dish/${d.id}/wines`, prefs)} />
+          </>
         ) : (
-          <p className="mt-8 rounded-xl bg-white/10 px-4 py-3 text-[15px]">Tonight’s menu is being updated. Your waiter can suggest a wine in the meantime.</p>
+          <p className="rounded-xl bg-brass-soft px-4 py-3 text-[15px] text-[#5d4720]">Tonight’s menu is being updated. Your waiter can suggest a wine in the meantime.</p>
         )}
-      </section>
-      <div className="grid gap-4 px-6 pt-5 pb-8">
-        <div className="flex items-center gap-3">
-          <span className="grid size-[42px] place-items-center rounded-full bg-brass-soft font-serif text-[17px] text-brass" aria-hidden="true">{initials}</span>
-          <p><b>Wine list by {r.wineDirector}</b><br /><small className="text-[13px] text-ink-3">Wine Director. Every recommendation follows her pairings.</small></p>
-        </div>
-        <Link className="text-sm text-ink-2 underline" href={`/r/${r.slug}/staff`}>For staff: quick pairing lookup</Link>
+        <div className="mt-10 lg:hidden"><WineDirectorNote restaurant={r} /></div>
       </div>
     </main>
+  );
+
+  return (
+    <GuestColumns
+      main={main}
+      asideLabel="Restaurant"
+      underTopBar={false}
+      aside={<RestaurantHero restaurant={r} actions={hasMenu ? tableAction : undefined} />}
+    />
   );
 }

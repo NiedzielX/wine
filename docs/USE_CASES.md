@@ -30,14 +30,10 @@ Lista: UC-01 – UC-14. Odwołania do ekranów według [SCREEN_MAP.md](SCREEN_MA
 | **Preconditions** | Restauracja opublikowana; co najmniej jedno danie ze statusem `published`; co najmniej jedno aktywne wino |
 
 **Main flow**
-1. System pokazuje ekran startowy restauracji (nazwa, adres, kto układał kartę).
-2. Gość wybiera „Choose your dish”.
-3. System pokazuje menu podzielone na Starters / Mains / Desserts; dania z pairingiem sommeliera mają oznaczenie.
-4. Gość wybiera danie.
-5. System pokazuje szczegóły dania (opis, cena, smak w słowach) i opcjonalne szybkie preferencje.
-6. Gość wybiera „Show matching wines” (z preferencjami albo bez).
-7. System wylicza ranking (`GET /dishes/{id}/recommendations`) i pokazuje 2–4 wina: pierwsze jako „Sommelier recommendation” lub „Best match”, pozostałe jako „Also good with this dish”. Każde: nazwa, producent, region, rocznik, cena kieliszka / butelki, Match Score, „Why it works”.
-8. Gość wybiera wino (przechodzi do UC-04).
+1. System pokazuje ekran startowy restauracji (nazwa, adres) i od razu pod nim menu podzielone na Starters / Mains / Desserts; dania z pairingiem sommeliera mają oznaczenie.
+2. Gość wybiera danie.
+3. System pokazuje danie (opis, cena, smak w słowach) i rząd szybkich preferencji (opcjonalnych; raz wybrane przechodzą na kolejne dania w URL), a pod nim wylicza ranking (`GET /dishes/{id}/recommendations`) i pokazuje 2–4 wina: pierwsze jako „Sommelier recommendation” lub „Best match”, pozostałe jako „Also good with this dish”. Każde: nazwa, producent, region, rocznik, cena kieliszka / butelki, Match Score, „Why it works”.
+4. Gość wybiera wino (przechodzi do UC-04).
 
 **Alternative flows**
 - A1: Gość od razu przechodzi do „Pair a bottle for the table” → UC-03.
@@ -51,7 +47,7 @@ Lista: UC-01 – UC-14. Odwołania do ekranów według [SCREEN_MAP.md](SCREEN_MA
 - E4: Brak sieci / błąd API → error state z „Try again”; ostatnia lista z cache PWA, jeśli dostępna.
 - E5: Wino sprzedało się w trakcie wieczoru (`active=false`) → znika z listy przy kolejnym zapytaniu.
 
-**Expected result:** gość w maksymalnie 3 dotknięciach widzi uporządkowaną listę win z tej restauracji z ceną i uzasadnieniem. Zapisane eventy: `guest_session_started`, `menu_viewed`, `dish_viewed`, `recommendations_viewed`.
+**Expected result:** gość jednym dotknięciem (danie na stronie z kodu QR) widzi uporządkowaną listę win z tej restauracji z ceną i uzasadnieniem. Zapisane eventy: `guest_session_started`, `menu_viewed`, `recommendations_viewed`.
 
 ---
 

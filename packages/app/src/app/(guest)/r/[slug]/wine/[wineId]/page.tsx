@@ -37,7 +37,7 @@ export default async function WinePage({ params, searchParams }: Props) {
     return (
       <>
         <TopBar back={backHref} title={restaurant.name} />
-        <main className="flex-1 px-5">
+        <main className="flex-1 px-5 lg:mx-auto lg:w-full lg:max-w-[720px]">
           <EmptyState title="This wine is no longer available" text="It may have sold out tonight. Your other matches are still waiting." action={<Button href={backHref} variant="secondary">See other wines</Button>} />
         </main>
       </>
@@ -56,7 +56,7 @@ export default async function WinePage({ params, searchParams }: Props) {
       <form action={`/r/${slug}/selected/${wine.id}`} method="get" className="flex flex-1 flex-col">
         {dish && <input type="hidden" name="dish" value={dish.id} />}
         {fromTable && <input type="hidden" name="table" value={tableIds.join(',')} />}
-        <main className="flex-1 px-5 pt-5 pb-8">
+        <main className="flex-1 px-5 pt-5 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">
           <div className="grid grid-cols-[1fr_auto] items-start gap-4">
             <div>
               <h1 className="font-serif text-[32px] leading-[1.08]">{wine.name}</h1>

@@ -36,8 +36,8 @@ Wspólne zasady:
 |---|---|
 | Cel | Przywitać gościa, wyjaśnić w jednym zdaniu, do czego służy, i zbudować zaufanie (karta ułożona przez sommeliera) |
 | Użytkownik | Gość (po skanie QR) |
-| Funkcje | „Choose your dish” → G1; „Pair a bottle for the table” → G5; link „For staff” → G9 |
-| Komponenty UI | Hero w kolorze bordo z nazwą restauracji (Bodoni Moda), adres, lead, mały kieliszek; 2 przyciski; karta kuratora (inicjały, Wine Director) |
+| Funkcje | menu (jak G1) od razu pod nagłówkiem: wybór dania → G3 (z preferencjami z URL); „Pair a bottle for the table” → G5; link „For staff” → G9 (pod menu na telefonie) |
+| Komponenty UI | Hero w kolorze bordo z nazwą restauracji (Bodoni Moda), adres, lead, przycisk „Pair a bottle for the table”; nagłówek „Pick your dish” i lista dań; karta kuratora (inicjały, Wine Director) — na telefonie pod menu, na desktopie w lewej kolumnie |
 | Dane wejściowe | `slug` z URL |
 | Dane wyjściowe | sesja gościa (sessionId) |
 | Loading | tło hero od razu (kolor marki), nazwa i przyciski po pobraniu danych restauracji |
@@ -47,7 +47,7 @@ Wspólne zasady:
 | Walidacje | slug `[a-z0-9-]{2,40}`; restauracja aktywna i opublikowana |
 | Permissions | publiczny |
 | API | `GET /public/restaurants/{slug}` |
-| Analytics | `guest_session_started {source: qr}` |
+| Analytics | `guest_session_started {source: qr}`, `menu_viewed` |
 
 ## G1 Dish list — `/r/{slug}/menu`
 
@@ -55,7 +55,7 @@ Wspólne zasady:
 |---|---|
 | Cel | Szybki wybór dania, które gość zamawia |
 | Użytkownik | Gość |
-| Funkcje | przełącznik One dish / Whole table; skok do sekcji (Starters, Mains, Desserts); wybór dania → G2 |
+| Funkcje | przełącznik One dish / Whole table; skok do sekcji (Starters, Mains, Desserts); wybór dania → G3 (z preferencjami z URL) |
 | Komponenty UI | top bar z Back; segmented control; przyklejony pasek chipów kategorii; wiersze dań (nazwa serif, cena, opis, oznaczenie „Sommelier pairing available”) |
 | Dane wejściowe | menu opublikowane: dania `published`, kategorie, ceny |
 | Dane wyjściowe | wybrane `dishId` |
@@ -68,24 +68,9 @@ Wspólne zasady:
 | API | `GET /public/restaurants/{slug}/menu` |
 | Analytics | `menu_viewed` |
 
-## G2 Dish details — `/r/{slug}/dish/{dishId}`
+## G2 Dish details — `/r/{slug}/dish/{dishId}` (wycofany 2026-10-15)
 
-| Pole | Opis |
-|---|---|
-| Cel | Potwierdzić wybór dania i opcjonalnie zebrać szybkie preferencje (scenariusz 3) bez onboardingu |
-| Użytkownik | Gość |
-| Funkcje | szybkie preferencje: Glass / Bottle / Either, kolor lub styl, budżet (progi zależne od serwowania); „Show matching wines” → G3 |
-| Komponenty UI | nazwa dania (duży serif), opis, cena; „taste chips” (np. Full-flavoured, Rich, Sweet and sour notes) z profilu; grupy chipów; przyklejony przycisk |
-| Dane wejściowe | Dish + DishProfile; preferencje z sesji |
-| Dane wyjściowe | `GuestPreferences` (sesja) |
-| Loading | skeleton nagłówka i 3 grup chipów |
-| Empty | n/d |
-| Error | danie nieistniejące / ukryte → „This dish isn’t on tonight’s menu” + Back to menu |
-| Success | n/d |
-| Walidacje | zmiana Glass ↔ Bottle zeruje budżet |
-| Permissions | publiczny |
-| API | dane z G1 (cache); bez dodatkowego zapytania |
-| Analytics | `dish_viewed {dishId}`, `quick_preference_set {dishId, …patch}` |
+Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.md`): adres odpowiada **308** na `/r/{slug}/dish/{dishId}/wines` z całym query (`BACKWARD_COMPATIBILITY.md` §1). Opis dania i „taste chips” są w nagłówku G3, szybkie preferencje w rzędzie chipów na G3. Event `dish_viewed` usunięty — wejście w danie liczy `recommendations_viewed`.
 
 ## G3 Wine recommendations — `/r/{slug}/dish/{dishId}/wines`
 
@@ -93,7 +78,7 @@ Wspólne zasady:
 |---|---|
 | Cel | Pokazać 2–4 najlepiej pasujące wina z karty restauracji, z ceną i krótkim uzasadnieniem |
 | Użytkownik | Gość |
-| Funkcje | karta „Best match” / „Sommelier recommendation”; lista „Also good with this dish”; chipy aktywnych filtrów; „Refine” → G4; wybór wina → G7 |
+| Funkcje | nagłówek dania (nazwa, cena, opis, „taste chips”); rząd szybkich preferencji: „More…” (→ G4, z liczbą filtrów spoza rzędu), By the glass, By the bottle, Red, White, Sparkling — każdy chip to link, drugie kliknięcie wyłącza; karta „Best match” / „Sommelier recommendation”; lista „Also good with this dish”; „Refine” w top barze → G4; wybór wina → G7. Desktop (≥ 1024 px): menu z bieżącym daniem w lewej kolumnie, wina w prawej, G4 jako panel z prawej |
 | Komponenty UI | nagłówek „For your {dish}”, licznik; **Match glass** (kieliszek wypełniony kolorem wina do poziomu wyniku) + procent; odznaki: Sommelier recommendation (pieczęć, mosiądz), Best value (szałwia); cena z ikoną kieliszka / butelki; „Why it works”; nota zaufania o Wine Director |
 | Dane wejściowe | `dishId`, `GuestPreferences` |
 | Dane wyjściowe | lista `RecommendationItem` |
@@ -104,7 +89,7 @@ Wspólne zasady:
 | Walidacje | tylko wina aktywne; bez par odrzuconych; twarde filtry (serwowanie, styl, budżet); procent ukryty, jeśli restauracja wyłączyła „Show match percentages” |
 | Permissions | publiczny |
 | API | `GET /dishes/{id}/recommendations?serving=&styles=&maxPrice=&weight=&mood=&limit=4` |
-| Analytics | `recommendations_viewed {dishId, wineIds[], prefs}`, `recommendation_clicked {dishId, wineId}` |
+| Analytics | `recommendations_viewed {dishId, wineIds[], prefs}` (także jako wejście w danie — zastępuje `dish_viewed`), `recommendation_clicked {dishId, wineId}` |
 
 ## G4 Filters — bottom sheet na G3 (`?sheet=filters`)
 
