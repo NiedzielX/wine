@@ -3,9 +3,14 @@ import { DISHES, WINES } from '../src/demo/halka';
 import type { Dish, Pairing, Wine } from '../src/domain/types';
 import { DEFAULT_PREFS } from '../src/domain/types';
 import { draftDishProfile, draftWineProfile, parseCsv, rowsToMenu } from '../src/engine/drafts';
-import { MIN_MODEL_SCORE, recommendForDish } from '../src/engine/recommend';
-import { pairingScore } from '../src/engine/scoring';
-import { recommendForTable } from '../src/engine/table';
+import { ENGINE_FACTS } from '../src/engine/facts';
+import { BEST_VALUE_WINDOW, BUDGET_FALLBACK_COUNT, DEFAULT_LIMIT, MIN_MODEL_SCORE, recommendForDish, SOMMELIER_BOOST } from '../src/engine/recommend';
+import { BASE_SCORE, MAX_SCORE, pairingScore } from '../src/engine/scoring';
+import {
+  COMPROMISE_THRESHOLD, recommendForTable, TABLE_LIMIT, TABLE_MAINS_WEIGHT, TABLE_MEAN_WEIGHT, TABLE_MIN_WEIGHT, TABLE_REJECTED_CAP,
+  TABLE_SOMMELIER_BONUS, WEAK_DISH_THRESHOLD
+} from '../src/engine/table';
+import * as CoreIndex from '../src/index';
 
 const dish = (id: string) => DISHES.find((d) => d.id === id) as Dish;
 const wine = (id: string) => WINES.find((w) => w.id === id) as Wine;
@@ -157,5 +162,44 @@ describe('import drafting', () => {
 describe('import drafting edge cases', () => {
   it('treats a vegetable "steak" as vegetable, not beef', () => {
     expect(draftDishProfile('Grilled cauliflower steak', 'charred, tahini', 'Mains').protein).toBe('vegetable');
+  });
+});
+
+describe('ENGINE_FACTS', () => {
+  it('is frozen', () => {
+    expect(Object.isFrozen(ENGINE_FACTS)).toBe(true);
+    expect(() => { (ENGINE_FACTS as { baseScore: number }).baseScore = 1; }).toThrow(TypeError);
+  });
+
+  it('holds exactly the constants the engine uses', () => {
+    expect(ENGINE_FACTS).toEqual({
+      baseScore: BASE_SCORE,
+      maxScore: MAX_SCORE,
+      minModelScore: MIN_MODEL_SCORE,
+      sommelierRankBoost: SOMMELIER_BOOST,
+      dishLimit: DEFAULT_LIMIT,
+      budgetFallbackCount: BUDGET_FALLBACK_COUNT,
+      bestValueWindow: BEST_VALUE_WINDOW,
+      tableLimit: TABLE_LIMIT,
+      tableMeanWeight: TABLE_MEAN_WEIGHT,
+      tableMinWeight: TABLE_MIN_WEIGHT,
+      tableMainsWeight: TABLE_MAINS_WEIGHT,
+      tableSommelierBonus: TABLE_SOMMELIER_BONUS,
+      tableRejectedCap: TABLE_REJECTED_CAP,
+      compromiseThreshold: COMPROMISE_THRESHOLD,
+      weakDishThreshold: WEAK_DISH_THRESHOLD
+    });
+  });
+
+  it('is exported from the package entry point', () => {
+    expect(CoreIndex.ENGINE_FACTS).toBe(ENGINE_FACTS);
+  });
+
+  it('drives the engine: the list limits and the score cap are the named constants', () => {
+    const ribeye = dish('d_ribeye');
+    expect(recommendForDish(ribeye, WINES, [], DEFAULT_PREFS).items).toHaveLength(ENGINE_FACTS.dishLimit);
+    expect(recommendForDish(ribeye, WINES, [], { ...DEFAULT_PREFS, maxPrice: 0 }).items).toHaveLength(ENGINE_FACTS.budgetFallbackCount);
+    expect(recommendForTable([ribeye, dish('d_duck')], WINES, [], DEFAULT_PREFS).items).toHaveLength(ENGINE_FACTS.tableLimit);
+    for (const d of DISHES) for (const w of WINES) expect(pairingScore(d, w).score).toBeLessThanOrEqual(ENGINE_FACTS.maxScore);
   });
 });
