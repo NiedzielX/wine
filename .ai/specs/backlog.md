@@ -49,9 +49,9 @@ Positioning accepted by the product owner on 2026-10-16. Specs approved by the p
 | E09 | #46 | Recommendation code ("show the waiter: W7K") and sales attribution without POS integration | .ai/specs/2026-10-16-recommendation-code.md | E02 F1–F2; E03 F2 for phase 3 | no |
 | E10 | #50 | Opportunities in the sommelier panel (no POS in the MVP) | .ai/specs/2026-10-16-sommelier-opportunities.md | E07 F1b; E02/E04 F3 for S4; E09 F1 for S5 | no |
 
-| E07-F1a #37 · E07-F1b #38 · E07-F2 #39 · E07-F3 #40 |
-| E08-F1 #42 · E08-F2 #43 · E08-F3 #44 · E08-F4 #45 |
-| E09-F1 #47 · E09-F2 #48 · E09-F3 #49 |
+- Phases: E07-F1a #37 · E07-F1b #38 · E07-F2 #39 · E07-F3 #40
+- Phases: E08-F1 #42 · E08-F2 #43 · E08-F3 #44 · E08-F4 #45
+- Phases: E09-F1 #47 · E09-F2 #48 · E09-F3 #49
 | E10-F1 #51 · E10-F2 #52 · E10-F3 #53 · E10-F4 #54 |
 
 Merge order: E07 F1a (core) → E08 F1 (engine) → E07 F1b (UI) → E09 F1 → E08 F2–F3, E10 F1–F2 → the rest by dependency.
