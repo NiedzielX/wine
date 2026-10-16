@@ -1,7 +1,8 @@
 import type { Dish, GuestPreferences, Restaurant, Wine } from '../../domain/types';
 import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS } from '../../domain/types';
 import { recommendForDish, type RecommendationItem, type RecommendationResult } from '../../engine/recommend';
-import { recommendForTable, type TableResult } from '../../engine/table';
+import { recommendForTable, type TableOptions, type TableResult } from '../../engine/table';
+import { MAX_TABLE_DISHES } from '../../guest/prefs';
 import type { Repositories } from '../../ports/repositories';
 import type { Locale } from '../../i18n/locale';
 import { localizeDish, localizePairing, localizeRestaurant, localizeWine, withPublishedContent } from '../../i18n/content';
@@ -96,18 +97,29 @@ export class RecommendationService {
     return { restaurant: c.restaurant, wine, dish, match };
   }
 
-  async forTable(slug: string, dishIds: string[], prefs: Partial<GuestPreferences> = {}, locale?: Locale): Promise<{ restaurant: Restaurant; result: TableResult } | null> {
+  /**
+   * The best bottle for a table. Only the first MAX_TABLE_DISHES published dishes (in the order given) are used.
+   * `options.relaxBudget` is for the guest and waiter screens; the public API passes none, so its budget stays a hard
+   * filter (BACKWARD_COMPATIBILITY §2).
+   */
+  async forTable(
+    slug: string,
+    dishIds: string[],
+    prefs: Partial<GuestPreferences> = {},
+    locale?: Locale,
+    options: TableOptions = {}
+  ): Promise<{ restaurant: Restaurant; result: TableResult } | null> {
     const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
     const all = await this.repos.dishRepository.listByRestaurant(restaurant.id, { statuses: ['published'] });
-    const picked = dishIds.map((id) => all.find((d) => d.id === id)).filter((d): d is Dish => !!d);
+    const picked = dishIds.map((id) => all.find((d) => d.id === id)).filter((d): d is Dish => !!d).slice(0, MAX_TABLE_DISHES);
     if (picked.length < 2) throw new TableNeedsTwoDishesError();
     const [wines, pairings, c] = await Promise.all([
       this.repos.wineRepository.listByRestaurant(restaurant.id, { activeOnly: true }),
       this.repos.pairingRepository.listPublishedByRestaurant(restaurant.id),
       this.content(restaurant, locale)
     ]);
-    return { restaurant: c.restaurant, result: recommendForTable(picked.map(c.dish), wines.map(c.wine), pairings.map(c.pairing), { ...DEFAULT_PREFS, ...prefs }, undefined, locale ?? 'en') };
+    return { restaurant: c.restaurant, result: recommendForTable(picked.map(c.dish), wines.map(c.wine), pairings.map(c.pairing), { ...DEFAULT_PREFS, ...prefs }, undefined, locale ?? 'en', options) };
   }
 }
 

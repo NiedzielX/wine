@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
+import { ENGINE_VERSION } from '@wine-match/core';
 import { GET as menuGet } from '@/app/api/v1/public/restaurants/[slug]/menu/route';
 import { GET as recGet } from '@/app/api/v1/dishes/[dishId]/recommendations/route';
 import { POST as tablePost } from '@/app/api/v1/recommendations/table/route';
@@ -71,6 +72,29 @@ describe('public guest API', () => {
     expect(bad.status).toBe(422);
     const unknown = await tablePost(jsonReq(`${URL0}/x`, { restaurantSlug: 'nope', dishIds: published }));
     expect(unknown.status).toBe(404);
+  });
+
+  // spec 2026-10-16-whole-table-waiter-path, AC6 / R10: the engine's new table fields stay off the API, and the budget stays a hard filter
+  it('a table of dishes: the same response shape as before, the budget is not relaxed, the current engine version', async () => {
+    const dishes = await menu();
+    const ids = ['Beef tartare', 'Wild mushroom risotto', 'Duck breast'].map((n) => dishes.find((d) => d.name === n)!.id);
+    const ok = await tablePost(jsonReq(`${URL0}/x`, { restaurantSlug: 'halka', dishIds: ids }));
+    expect(ok.status).toBe(200);
+    const data = (await ok.json()) as { engineVersion: string; items: Array<Record<string, unknown> & { perDish: Array<Record<string, unknown>> }> };
+    expect(Object.keys(data).sort()).toEqual(['engineVersion', 'items', 'setAside', 'split', 'splitSuggested']);
+    expect(data.engineVersion).toBe(ENGINE_VERSION);
+    expect(ENGINE_VERSION).toBe('wm-rules-1.1.0');
+    expect(data.items.length).toBeGreaterThan(0);
+    for (const item of data.items) {
+      expect(Object.keys(item).sort()).toEqual(['overall', 'perDish', 'price', 'serving', 'why', 'wine']);
+      for (const d of item.perDish) expect(Object.keys(d).sort()).toEqual(['dishId', 'score', 'sommelierPick']);
+    }
+
+    const tooCheap = await tablePost(jsonReq(`${URL0}/x`, { restaurantSlug: 'halka', dishIds: ids, preferences: { maxPrice: 150 } }));
+    expect(tooCheap.status).toBe(200);
+    const empty = (await tooCheap.json()) as Record<string, unknown>;
+    expect(empty).toMatchObject({ items: [], splitSuggested: true });
+    expect(empty).not.toHaveProperty('notice');
   });
 
   it('sample import files are served for the two kinds, and nothing else', async () => {

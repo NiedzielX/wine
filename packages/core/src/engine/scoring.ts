@@ -28,7 +28,8 @@ export interface PairingScore {
 export const BASE_SCORE = 72;
 /** Top of the Match Score scale (0–99, BACKWARD_COMPATIBILITY.md §7). */
 export const MAX_SCORE = 99;
-export const ENGINE_VERSION = 'wm-rules-1.0.0';
+/** Minor: new rules (`table.fit`, `table.budget_relaxed`, spec 2026-10-16-whole-table-waiter-path); results unchanged. */
+export const ENGINE_VERSION = 'wm-rules-1.1.0';
 
 /** Classic grape / dish affinities, the sommelier knowledge layer. Keyed by protein. */
 const AFFINITIES: Record<ProteinType, Array<{ match: (w: Wine, d: Dish) => boolean; delta: number; why: Localized }>> = {

@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { buildDemoDataset } from '../src/demo/dataset';
 import { DISHES, WINES } from '../src/demo/halka';
-import type { Dish, Pairing, Wine } from '../src/domain/types';
+import type { Dish, GuestPreferences, Pairing, Wine } from '../src/domain/types';
 import { DEFAULT_PREFS } from '../src/domain/types';
 import { draftDishProfile, draftWineProfile, parseCsv, rowsToMenu } from '../src/engine/drafts';
 import { ENGINE_FACTS } from '../src/engine/facts';
-import { BEST_VALUE_WINDOW, BUDGET_FALLBACK_COUNT, DEFAULT_LIMIT, MIN_MODEL_SCORE, recommendForDish, SOMMELIER_BOOST } from '../src/engine/recommend';
-import { BASE_SCORE, MAX_SCORE, pairingScore } from '../src/engine/scoring';
 import {
-  COMPROMISE_THRESHOLD, recommendForTable, TABLE_LIMIT, TABLE_MAINS_WEIGHT, TABLE_MEAN_WEIGHT, TABLE_MIN_WEIGHT, TABLE_REJECTED_CAP,
-  TABLE_SOMMELIER_BONUS, WEAK_DISH_THRESHOLD
+  BEST_VALUE_WINDOW, BUDGET_FALLBACK_COUNT, budgetNotice, DEFAULT_LIMIT, MIN_MODEL_SCORE, recommendForDish, SOMMELIER_BOOST
+} from '../src/engine/recommend';
+import { BASE_SCORE, ENGINE_VERSION, MAX_SCORE, pairingScore } from '../src/engine/scoring';
+import {
+  COMPROMISE_THRESHOLD, recommendForTable, TABLE_FIT_THRESHOLD, TABLE_LIMIT, TABLE_MAINS_WEIGHT, TABLE_MEAN_WEIGHT, TABLE_MIN_WEIGHT,
+  TABLE_REJECTED_CAP, TABLE_SOMMELIER_BONUS, tableFit, type TableDishScore, WEAK_DISH_THRESHOLD
 } from '../src/engine/table';
 import * as CoreIndex from '../src/index';
 
@@ -137,6 +140,154 @@ describe('recommendForTable', () => {
     const dishes = [dish('d_tartare'), dish('d_duck')];
     expect(recommendForTable(dishes, WINES, [], DEFAULT_PREFS)).toEqual(recommendForTable(dishes, WINES, [], DEFAULT_PREFS));
   });
+
+  // R1 / AC1: the displayed per-dish score is the raw engine score; the bonus and the cap only feed the ranking
+  it('keeps the raw engine score per dish next to the ranking score', () => {
+    const tartare = dish('d_tartare');
+    const duck = dish('d_duck');
+    const approved = pairing({ dishId: 'd_duck', wineId: 'w_lapierre', status: 'approved' });
+    const item = recommendForTable([tartare, duck], WINES, [approved], DEFAULT_PREFS, WINES.length).items.find((i) => i.wine.id === 'w_lapierre')!;
+    const duckScore = item.perDish.find((d) => d.dish.id === 'd_duck')!;
+    expect(duckScore.engineScore).toBe(pairingScore(duck, wine('w_lapierre')).score);
+    expect(duckScore.score).toBe(Math.min(MAX_SCORE, duckScore.engineScore + TABLE_SOMMELIER_BONUS));
+    expect(duckScore).toMatchObject({ sommelierPick: true, rejected: false });
+
+    // a rejected pair with a raw score above the cap: the raw score stays, the ranking score is capped
+    const raw = pairingScore(duck, wine('w_savigny')).score;
+    expect(raw).toBeGreaterThan(TABLE_REJECTED_CAP);
+    const rejected = pairing({ dishId: 'd_duck', wineId: 'w_savigny', status: 'rejected', role: null, rank: null });
+    const capped = recommendForTable([tartare, duck], WINES, [rejected], DEFAULT_PREFS, WINES.length).items
+      .find((i) => i.wine.id === 'w_savigny')!.perDish.find((d) => d.dish.id === 'd_duck')!;
+    expect(capped).toMatchObject({ engineScore: raw, score: TABLE_REJECTED_CAP, sommelierPick: false, rejected: true });
+  });
+});
+
+const demo = buildDemoDataset({ ids: 'raw' });
+const demoDishes = (ids: string[]) => ids.map((id) => demo.dishes.find((d) => d.id === id)!);
+/** AC3 tables (spec 2026-10-16-whole-table-waiter-path) */
+const SIX = ['d_herring', 'd_scallops', 'd_pikeperch', 'd_celeriac', 'd_ribeye', 'd_venison'];
+const FOUR = ['d_tartare', 'd_risotto', 'd_duck', 'd_pikeperch'];
+
+describe('table.fit', () => {
+  const ds = (engineScores: number[], over: Array<Partial<TableDishScore>> = []): TableDishScore[] =>
+    engineScores.map((s, i) => ({ dish: DISHES[i], score: s, engineScore: s, sommelierPick: false, rejected: false, ...over[i] }));
+
+  it('counts the dishes at or above the threshold and lists the others, weakest first', () => {
+    const perDish = ds([83, 93, 81, 67]);
+    const fit = tableFit(perDish, 80);
+    expect(fit).toMatchObject({ fits: 3, of: 4 });
+    expect(fit.weaker).toEqual([perDish[3]]);
+    expect(tableFit(ds([70, 99, 88]), 85)).toMatchObject({ fits: 3, of: 3, weaker: [] });
+    expect(TABLE_FIT_THRESHOLD).toBe(70);
+  });
+
+  it('orders the weaker dishes by raw score, ties in the order of choice', () => {
+    const perDish = ds([60, 90, 55, 60]);
+    expect(tableFit(perDish, 70).weaker.map((d) => d.dish.id)).toEqual([perDish[2], perDish[0], perDish[3]].map((d) => d.dish.id));
+  });
+
+  it('counts the raw engine score, not the ranking score with the sommelier bonus', () => {
+    const perDish = ds([90, 69], [{}, { score: 72, sommelierPick: true }]);
+    expect(tableFit(perDish, 80)).toMatchObject({ fits: 1, weaker: [perDish[1]] });
+  });
+
+  it('never counts a pairing the sommelier rejected as a fit', () => {
+    const perDish = ds([90, 85], [{}, { score: TABLE_REJECTED_CAP, rejected: true }]);
+    expect(tableFit(perDish, 70)).toMatchObject({ fits: 1, weaker: [perDish[1]] });
+  });
+
+  it('marks a compromise with the same thresholds as the split suggestion; never for one dish', () => {
+    expect(tableFit(ds([80, 80]), COMPROMISE_THRESHOLD - 1).compromise).toBe(true);
+    expect(tableFit(ds([80, WEAK_DISH_THRESHOLD]), COMPROMISE_THRESHOLD).compromise).toBe(false);
+    expect(tableFit(ds([80, WEAK_DISH_THRESHOLD - 1]), COMPROMISE_THRESHOLD).compromise).toBe(true);
+    expect(tableFit(ds([40]), 40)).toMatchObject({ fits: 0, of: 1, compromise: false });
+  });
+
+  it('agrees with splitSuggested for the first bottle of every pair and trio of demo dishes', () => {
+    const savoury = demo.dishes.filter((d) => d.category !== 'Desserts');
+    for (let i = 0; i < savoury.length; i++) for (let j = i + 1; j < savoury.length; j++) for (const extra of [null, ...savoury.slice(j + 1)]) {
+      const r = recommendForTable(extra ? [savoury[i], savoury[j], extra] : [savoury[i], savoury[j]], demo.wines, demo.pairings, DEFAULT_PREFS);
+      expect(r.items[0].fit.compromise).toBe(r.splitSuggested);
+    }
+  });
+
+  it('leaves set-aside desserts out of "of"', () => {
+    const r = recommendForTable(demoDishes(['d_duck', 'd_risotto', 'd_chocolate']), demo.wines, demo.pairings, DEFAULT_PREFS);
+    expect(r.items.every((i) => i.fit.of === 2)).toBe(true);
+  });
+
+  // AC3: the Halka tables from the spec; the order and overall are those of wm-rules-1.0.0 (the golden test pins all pairs and trios)
+  it('Halka, six dishes: Radikon Slatnik works with 5 of 6, less so with the venison; ranking unchanged', () => {
+    const r = recommendForTable(demoDishes(SIX), demo.wines, demo.pairings, DEFAULT_PREFS);
+    expect(r.items.map((i) => [i.wine.id, i.overall])).toEqual([['w_radikon', 73], ['w_kumeu', 72], ['w_leflaive', 72]]);
+    expect(r.items[0].fit).toMatchObject({ fits: 5, of: 6, compromise: true });
+    expect(r.items[0].fit.weaker.map((d) => [d.dish.id, d.engineScore])).toEqual([['d_venison', 67]]);
+  });
+
+  it('Halka, four dishes: the first bottle works with all four; ranking unchanged', () => {
+    const r = recommendForTable(demoDishes(FOUR), demo.wines, demo.pairings, DEFAULT_PREFS);
+    expect(r.items.map((i) => [i.wine.id, i.overall])).toEqual([['w_leflaive', 86], ['w_radikon', 83], ['w_tempier', 82]]);
+    expect(r.items[0].fit).toMatchObject({ fits: 4, of: 4, weaker: [], compromise: false });
+  });
+});
+
+describe('table.budget_relaxed', () => {
+  const table = () => demoDishes(FOUR);
+  const prefs = (over: Partial<GuestPreferences>): GuestPreferences => ({ ...DEFAULT_PREFS, ...over });
+
+  it('without the option the budget stays a hard filter (the API): no bottle, no notice', () => {
+    for (const p of [prefs({ maxPrice: 150 }), prefs({ styles: ['red'], maxPrice: 200 })]) {
+      const r = recommendForTable(table(), demo.wines, demo.pairings, p);
+      expect(r).toMatchObject({ items: [], notice: null, splitSuggested: true });
+    }
+  });
+
+  it('with the option, a budget that rules out every bottle is lifted: the closest bottles and a notice', () => {
+    const r = recommendForTable(table(), demo.wines, demo.pairings, prefs({ maxPrice: 150 }), undefined, 'en', { relaxBudget: true });
+    expect(r.items).toHaveLength(ENGINE_FACTS.budgetFallbackCount);
+    expect(r.items.map((i) => i.wine.id)).toEqual(['w_leflaive', 'w_radikon']);
+    expect(r.notice).toBe(budgetNotice(150, 'en'));
+    expect(r.splitSuggested).toBe(r.items[0].fit.compromise);
+
+    const red = recommendForTable(table(), demo.wines, demo.pairings, prefs({ styles: ['red'], maxPrice: 200 }), undefined, 'pl', { relaxBudget: true });
+    expect(red.items).toHaveLength(2);
+    expect(red.items.every((i) => i.wine.profile.style === 'red' && i.price > 200)).toBe(true);
+    expect(red.notice).toBe(budgetNotice(200, 'pl'));
+  });
+
+  it('computes the split suggestion from the relaxed first bottle', () => {
+    const r = recommendForTable(demoDishes(['d_pikeperch', 'd_ribeye']), demo.wines, demo.pairings, prefs({ maxPrice: 150 }), undefined, 'en', { relaxBudget: true });
+    expect(r.items.length).toBeGreaterThan(0);
+    expect(r.splitSuggested).toBe(r.items[0].fit.compromise);
+    expect(r.split.length > 0).toBe(r.splitSuggested);
+  });
+
+  it('does nothing when the budget leaves bottles, or when the style alone leaves none', () => {
+    const r = recommendForTable(table(), demo.wines, demo.pairings, prefs({ maxPrice: 400 }), undefined, 'en', { relaxBudget: true });
+    expect(r.items.length).toBeGreaterThan(0);
+    expect(r.notice).toBeNull();
+    const noReds = demo.wines.filter((w) => w.profile.style !== 'red');
+    const none = recommendForTable(table(), noReds, demo.pairings, prefs({ styles: ['red'], maxPrice: 150 }), undefined, 'en', { relaxBudget: true });
+    expect(none).toMatchObject({ items: [], notice: null });
+  });
+
+  it('compares the budget with the table serving: bottle prices by default, glass prices when chosen', () => {
+    const glass = recommendForTable(table(), demo.wines, demo.pairings, prefs({ serving: 'glass', maxPrice: 60 }), undefined, 'en', { relaxBudget: true });
+    expect(glass.notice).toBeNull();
+    expect(glass.items.every((i) => i.serving === 'glass' && i.price <= 60)).toBe(true);
+  });
+
+  it('leaves the ranking alone: the relaxed bottles are the first bottles without a budget', () => {
+    const relaxed = recommendForTable(table(), demo.wines, demo.pairings, prefs({ maxPrice: 150 }), undefined, 'en', { relaxBudget: true });
+    const unbounded = recommendForTable(table(), demo.wines, demo.pairings, DEFAULT_PREFS);
+    expect(relaxed.items.map((i) => [i.wine.id, i.overall])).toEqual(unbounded.items.slice(0, 2).map((i) => [i.wine.id, i.overall]));
+  });
+});
+
+describe('ENGINE_VERSION', () => {
+  it('is wm-rules-1.1.0 (minor: table.fit and table.budget_relaxed are new rules; results unchanged)', () => {
+    expect(ENGINE_VERSION).toBe('wm-rules-1.1.0');
+  });
 });
 
 describe('import drafting', () => {
@@ -186,6 +337,7 @@ describe('ENGINE_FACTS', () => {
       tableMainsWeight: TABLE_MAINS_WEIGHT,
       tableSommelierBonus: TABLE_SOMMELIER_BONUS,
       tableRejectedCap: TABLE_REJECTED_CAP,
+      tableFitThreshold: TABLE_FIT_THRESHOLD,
       compromiseThreshold: COMPROMISE_THRESHOLD,
       weakDishThreshold: WEAK_DISH_THRESHOLD
     });
