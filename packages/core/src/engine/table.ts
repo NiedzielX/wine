@@ -1,7 +1,7 @@
 import type { Dish, GuestPreferences, Pairing, Wine } from '../domain/types';
 import { passesHardFilters, preferenceAdjustment, priceFor, recommendForDish } from './recommend';
 import type { Locale } from '../i18n/locale';
-import { pairingScore } from './scoring';
+import { MAX_SCORE, pairingScore } from './scoring';
 
 /**
  * "Best bottle for the table".
@@ -17,6 +17,14 @@ export const TABLE_MEAN_WEIGHT = 0.6;
 export const TABLE_MIN_WEIGHT = 0.4;
 export const COMPROMISE_THRESHOLD = 76;
 export const WEAK_DISH_THRESHOLD = 64;
+/** How many bottles the table result lists. */
+export const TABLE_LIMIT = 3;
+/** Weight of a main course in the weighted mean (starters weigh 1). */
+export const TABLE_MAINS_WEIGHT = 1.5;
+/** Bonus for a sommelier-approved pairing inside the table calculation (capped at MAX_SCORE). */
+export const TABLE_SOMMELIER_BONUS = 3;
+/** A pairing the sommelier rejected caps that dish's score at this value. */
+export const TABLE_REJECTED_CAP = 50;
 
 export interface TableDishScore {
   dish: Dish;
@@ -44,14 +52,14 @@ export interface TableResult {
   split: Array<{ dish: Dish; wine: Wine; score: number }>;
 }
 
-const weightOf = (d: Dish) => (d.category === 'Mains' ? 1.5 : 1);
+const weightOf = (d: Dish) => (d.category === 'Mains' ? TABLE_MAINS_WEIGHT : 1);
 
 export function recommendForTable(
   dishes: Dish[],
   wines: Wine[],
   pairings: Pairing[],
   prefs: GuestPreferences,
-  limit = 3,
+  limit = TABLE_LIMIT,
   /** language of the one-line reasons; English by default (the public API) */
   locale: Locale = 'en'
 ): TableResult {
@@ -67,8 +75,8 @@ export function recommendForTable(
       const p = pairings.find((x) => x.dishId === dish.id && x.wineId === wine.id);
       let score = pairingScore(dish, wine).score;
       const pick = !!p && (p.status === 'approved' || p.status === 'modified');
-      if (pick) score = Math.min(99, score + 3);
-      if (p?.status === 'rejected') score = Math.min(score, 50);
+      if (pick) score = Math.min(MAX_SCORE, score + TABLE_SOMMELIER_BONUS);
+      if (p?.status === 'rejected') score = Math.min(score, TABLE_REJECTED_CAP);
       return { dish, score, sommelierPick: pick };
     });
     const wSum = perDish.reduce((s, x) => s + weightOf(x.dish), 0);

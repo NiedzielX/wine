@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-progress
 created: 2026-10-16
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-10-16-sommelier-opportunities.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-15-polish-language.md, .ai/specs/implemented/2026-10-15-bilingual-content.md, .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md]
@@ -315,3 +315,5 @@ D13 (nazwy i AI niewidzialne) i D14 (wyjaśnienie w MVP) — realizowane; N01 (n
 Filip (product owner) 2026-10-16: „Akceptuję rekomendacje we wszystkich decyzjach ⚠” — każda pozycja ⚠ w tej specyfikacji (tabela i Ryzyka) przyjęta zgodnie z rekomendacją.
 
 ## Realizacja
+
+- **F1a (2026-10-16, gałąź `feat/e07-f1a-engine-facts`, issue #37, log `.ai/runs/2026-10-16-e07-f1a-engine-facts.md`).** Pierwszy commit: test złoty `packages/core/tests/engine-golden.test.ts` z migawkami z `main` (`35ec64d`) w `tests/__snapshots__/engine-golden.*.txt` — każde danie demo i każda para dań w pełnym zapisie, każda trójka jako skrót FNV-1a (pełny zapis miałby 1 MB), 18 zestawów preferencji; dodatkowo scenariusz z odrzuconymi trzema najlepszymi winami każdego dania (pełna lista butelek), bo jedyna odrzucona para demo ma wynik poniżej limitu 50 i bez niego zmiana `TABLE_REJECTED_CAP` przechodziła niezauważona. Drugi commit: stałe `MAX_SCORE` (`scoring.ts`), `BUDGET_FALLBACK_COUNT`, `BEST_VALUE_WINDOW` (`recommend.ts`), `TABLE_LIMIT`, `TABLE_MAINS_WEIGHT`, `TABLE_SOMMELIER_BONUS`, `TABLE_REJECTED_CAP` (`table.ts`); `engine/facts.ts` (`ENGINE_FACTS`, `EngineFacts`) z eksportem w `src/index.ts`; testy AC7 w `engine.test.ts`; `docs/RECOMMENDATION_ENGINE.md` §4–§8 i §10. Migawki bez zmian po refaktorze, `engine:matrix` identyczny z `main`, `ENGINE_VERSION` bez zmian. Odstępstwo: `EngineFacts` to typ z polami `number` (nie `typeof ENGINE_FACTS`, który miałby typy literałów 72, 99…), żeby AC6 mógł podać kopię z unikalnymi znacznikami.

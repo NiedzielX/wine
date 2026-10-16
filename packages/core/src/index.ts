@@ -18,6 +18,7 @@ export * from './engine/recommend';
 export * from './engine/table';
 export * from './engine/suggest';
 export * from './engine/drafts';
+export * from './engine/facts';
 export * from './import/types';
 export * from './import/normalize';
 export * from './import/mapping';

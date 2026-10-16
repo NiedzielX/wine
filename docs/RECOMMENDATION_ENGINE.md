@@ -74,10 +74,10 @@ Koszt zapytania gościa: kilkanaście porównań liczb na wino. Dla karty 200 wi
 ## 4. Compatibility score
 
 ```
-pairing_score(dish, wine) = clamp(0, 99, round(72 + Σ delta_i))
+pairing_score(dish, wine) = clamp(0, MAX_SCORE, round(BASE_SCORE + Σ delta_i))   // MAX_SCORE = 99, BASE_SCORE = 72
 ```
 
-Bazą jest 72 („neutralne, akceptowalne połączenie”). Każda reguła dodaje lub odejmuje punkty i jest zapisywana jako czynnik `{rule, delta, why?}`. Wynik jest więc w pełni wyjaśnialny: sommelier widzi, dlaczego coś zostało zaproponowane, a testy sprawdzają konkretne reguły.
+Bazą jest `BASE_SCORE` = 72 („neutralne, akceptowalne połączenie”), górą skali `MAX_SCORE` = 99. Każda reguła dodaje lub odejmuje punkty i jest zapisywana jako czynnik `{rule, delta, why?}`. Wynik jest więc w pełni wyjaśnialny: sommelier widzi, dlaczego coś zostało zaproponowane, a testy sprawdzają konkretne reguły.
 
 ### Reguły (`d` = danie, `w` = wino)
 
@@ -156,19 +156,19 @@ Kolejność rankingu (`recommendForDish`):
    - tier 1 — pozostałe pary zatwierdzone, w kolejności `rank` ustawionej przez sommeliera,
    - tier 2 — propozycje silnika (pokazywane tylko, gdy wynik ≥ `MIN_MODEL_SCORE` = 62 i gdy restauracja ma włączone „Fill empty places with engine picks”).
 3. W obrębie tieru: `rankScore` malejąco, potem cena rosnąco, potem `wine.id`.
-4. Limit: 4 pozycje.
+4. Limit: `DEFAULT_LIMIT` = 4 pozycje.
 
-`rankScore = matchScore + preferencje + (tier < 2 ? 6 : 0)`. **Wyświetlany Match Score to zawsze `matchScore` silnika** — zatwierdzenie zmienia kolejność, nie liczbę. Para sommeliera z wynikiem 58% jest pokazywana jako 58%. Etykieta „Sommelier recommendation” jest przypisana wyłącznie do tierów 0 i 1.
+`rankScore = matchScore + preferencje + (tier < 2 ? SOMMELIER_BOOST : 0)`, `SOMMELIER_BOOST` = 6. **Wyświetlany Match Score to zawsze `matchScore` silnika** — zatwierdzenie zmienia kolejność, nie liczbę. Para sommeliera z wynikiem 58% jest pokazywana jako 58%. Etykieta „Sommelier recommendation” jest przypisana wyłącznie do tierów 0 i 1.
 
 Odrzucenie (`rejected`) to sygnał negatywny także dla przyszłego modelu uczonego.
 
 ## 6. Cena
 
 - **Budżet gościa to filtr twardy:** dla `serving=glass` porównywana cena kieliszka, dla `bottle` — butelki, dla `any` — kieliszka, jeśli istnieje, w przeciwnym razie butelki.
-- **Gdy budżet wyklucza wszystko,** silnik zdejmuje sam budżet (nie inne filtry) i zwraca 2 najlepsze wina z komunikatem *„Nothing matches under 45 zł. These are the closest options.”* — gość nie widzi pustego ekranu.
+- **Gdy budżet wyklucza wszystko,** silnik zdejmuje sam budżet (nie inne filtry) i zwraca `BUDGET_FALLBACK_COUNT` = 2 najlepsze wina z komunikatem *„Nothing matches under 45 zł. These are the closest options.”* — gość nie widzi pustego ekranu.
 - **Best value:**
   1. jeśli sommelier oznaczył parę jako `best_value` i jest na liście → ta para;
-  2. w przeciwnym razie: najtańsza butelka (pomijając pozycję nr 1), której wynik jest najwyżej 8 punktów niższy od najlepszego, i która jest tańsza od pozycji nr 1.
+  2. w przeciwnym razie: najtańsza butelka (pomijając pozycję nr 1), której wynik jest najwyżej `BEST_VALUE_WINDOW` = 8 punktów niższy od najlepszego, i która jest tańsza od pozycji nr 1.
   Maksymalnie jedna odznaka na listę.
 - Cena **nie** podnosi wyniku dopasowania — silnik nie promuje droższych win. Pole do przyszłej optymalizacji marży jest wyłącznie po stronie restauracji (pricing intelligence), nigdy w rankingu gościa bez jawnej zgody sommeliera.
 
@@ -188,17 +188,19 @@ Dla każdego aktywnego wina spełniającego filtry:
 
 ```
 score_d   = pairing_score(d, wine)
-            + 3        jeśli para (d, wine) zatwierdzona przez sommeliera (max 99)
-            min(·, 50) jeśli para (d, wine) odrzucona
-waga_d    = 1.5 dla Mains, 1.0 dla Starters
+            + 3        jeśli para (d, wine) zatwierdzona przez sommeliera (max 99)    // TABLE_SOMMELIER_BONUS, MAX_SCORE
+            min(·, 50) jeśli para (d, wine) odrzucona                         // TABLE_REJECTED_CAP
+waga_d    = 1.5 dla Mains, 1.0 dla Starters                                  // TABLE_MAINS_WEIGHT
 mean      = Σ waga_d · score_d / Σ waga_d
-overall   = round(0.6 · mean + 0.4 · min_d score_d)
+overall   = round(0.6 · mean + 0.4 · min_d score_d)                          // TABLE_MEAN_WEIGHT, TABLE_MIN_WEIGHT
 ```
+
+Lista dla stolika ma `TABLE_LIMIT` = 3 butelki.
 
 - **Składnik minimum (0,4)** sprawia, że wino genialne do jednego dania i słabe do drugiego przegrywa z winem dobrym do wszystkiego — butelka dla stolika ma być kompromisem.
 - **Desery są odkładane** z obliczenia butelki (z komunikatem), chyba że stolik zamówił wyłącznie desery.
 - **Sortowanie:** `overall + preferencje` malejąco, potem najsłabsze danie malejąco, cena rosnąco, `wine.id`.
-- **Propozycja kieliszków:** jeśli najlepsza butelka ma `overall < 76` lub któreś danie `< 64`, silnik dodaje sekcję „Or by the glass, dish by dish” (najlepszy kieliszek do każdego dania wg `recommendForDish` z `serving=glass`).
+- **Propozycja kieliszków:** jeśli najlepsza butelka ma `overall < 76` (`COMPROMISE_THRESHOLD`) lub któreś danie `< 64` (`WEAK_DISH_THRESHOLD`), silnik dodaje sekcję „Or by the glass, dish by dish” (najlepszy kieliszek do każdego dania wg `recommendForDish` z `serving=glass`).
 
 Przykład z mockupu: Tatar 83, Risotto 93 (para sommeliera), Kaczka 83 (para sommeliera) → Savigny-lès-Beaune, overall 85. Sandacz + Ribeye → najlepsza butelka Morgon 70% → system proponuje kieliszki osobno.
 
@@ -219,7 +221,31 @@ Preferencje miękkie nie zmieniają wyświetlanego wyniku.
 - jawne rozstrzyganie remisów (`wine.id`);
 - wersja silnika (`ENGINE_VERSION`) zapisywana przy każdym wyniku i evencie;
 - testy w `packages/core/tests/engine.test.ts` obejmują m.in.: determinizm, zakres 0–99 dla całej macierzy, czerwone > białe do ribeye, karę za taniny z rybą, półwytrawny Riesling do ostrego dania, wykluczenie win deserowych do dań wytrawnych, pierwszeństwo Primary nad wyższym wynikiem modelu, wykluczenie par odrzuconych, filtr kieliszka, luzowanie budżetu z komunikatem, uczciwy Match Score, wzór dla stolika, odkładanie deserów, propozycję kieliszków oraz drafter importu;
-- produkcyjnie dodatkowo: **testy złote** — zamrożona macierz wyników dla restauracji referencyjnych; każda zmiana reguł pokazuje diff rankingów do akceptacji.
+- **test złoty** (`packages/core/tests/engine-golden.test.ts`, migawki w `tests/__snapshots__/engine-golden.*.txt`): pełne wyniki `recommendForDish` dla każdego dania demo i `recommendForTable` dla każdej pary i trójki dań demo × 18 zestawów preferencji (domyślne, kieliszek / butelka, każdy styl, budżet 0 / 60 / 200, lżejsze / pełniejsze, klasyczne / odważne) oraz scenariusz z odrzuconymi parami. `npm run engine:matrix` obejmuje tylko `pairing_score`; test złoty pilnuje warstwy rankingu nad nim (filtry, tiery, okno „Najlepsza cena”, luzowanie budżetu, wagi stolika, premia i limit 50). Migawkę zmienia się świadomie (`npx vitest run tests/engine-golden.test.ts -u` w `packages/core`) tylko razem ze specyfikacją zmiany wyników i podniesieniem `ENGINE_VERSION`;
+- produkcyjnie dodatkowo: **testy złote** dla restauracji referencyjnych (ich własne karty); każda zmiana reguł pokazuje diff rankingów do akceptacji.
+
+### Stałe silnika i `ENGINE_FACTS`
+
+Liczby, które opisują działanie silnika (wyjaśnienia „Jak to działa”, spec `2026-10-16-how-it-works-explanations`), są nazwanymi stałymi w kodzie silnika, a `packages/core/src/engine/facts.ts` zbiera je w jeden zamrożony obiekt `ENGINE_FACTS` (typ `EngineFacts`, eksport z `@wine-match/core`). Teksty dla gości, kelnerów i sommeliera biorą liczby z `ENGINE_FACTS` jako parametry, nigdy jako literały — zmiana kalibracji nie zostawi nieaktualnego wyjaśnienia. Nowy próg opisywany w tekście dopisuje się jako nazwaną stałą w silniku i pole w `ENGINE_FACTS`.
+
+| Pole `ENGINE_FACTS` | Stała | Wartość | Gdzie działa |
+|---|---|---|---|
+| `baseScore` | `BASE_SCORE` | 72 | §4, start każdej pary |
+| `maxScore` | `MAX_SCORE` | 99 | §4, §8, góra skali |
+| `minModelScore` | `MIN_MODEL_SCORE` | 62 | §5, próg propozycji silnika |
+| `sommelierRankBoost` | `SOMMELIER_BOOST` | 6 | §5, premia w `rankScore` (nie w Match Score) |
+| `dishLimit` | `DEFAULT_LIMIT` | 4 | §5, win dla dania |
+| `budgetFallbackCount` | `BUDGET_FALLBACK_COUNT` | 2 | §6, najbliższe propozycje poza budżetem |
+| `bestValueWindow` | `BEST_VALUE_WINDOW` | 8 | §6, okno „Najlepsza cena” |
+| `tableLimit` | `TABLE_LIMIT` | 3 | §8, butelek dla stolika |
+| `tableMeanWeight` / `tableMinWeight` | `TABLE_MEAN_WEIGHT` / `TABLE_MIN_WEIGHT` | 0,6 / 0,4 | §8, wzór `overall` |
+| `tableMainsWeight` | `TABLE_MAINS_WEIGHT` | 1,5 | §8, waga dania głównego |
+| `tableSommelierBonus` | `TABLE_SOMMELIER_BONUS` | 3 | §8, para sommeliera przy stoliku |
+| `tableRejectedCap` | `TABLE_REJECTED_CAP` | 50 | §8, para odrzucona przy stoliku |
+| `compromiseThreshold` | `COMPROMISE_THRESHOLD` | 76 | §8, propozycja kieliszków |
+| `weakDishThreshold` | `WEAK_DISH_THRESHOLD` | 64 | §8, propozycja kieliszków |
+
+Nazwanie stałych nie zmieniło wyników (test złoty na migawce sprzed zmiany), więc `ENGINE_VERSION` pozostał bez zmian.
 
 ## 11. Gdzie (opcjonalnie) pomaga LLM
 

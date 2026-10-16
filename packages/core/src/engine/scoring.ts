@@ -26,6 +26,8 @@ export interface PairingScore {
 }
 
 export const BASE_SCORE = 72;
+/** Top of the Match Score scale (0–99, BACKWARD_COMPATIBILITY.md §7). */
+export const MAX_SCORE = 99;
 export const ENGINE_VERSION = 'wm-rules-1.0.0';
 
 /** Classic grape / dish affinities, the sommelier knowledge layer. Keyed by protein. */
@@ -167,7 +169,7 @@ export function pairingScore(dish: Dish, wine: Wine, locale: Locale = 'en'): Pai
   }
 
   const raw = BASE_SCORE + f.reduce((s, x) => s + x.delta, 0);
-  const score = Math.max(0, Math.min(99, Math.round(raw)));
+  const score = Math.max(0, Math.min(MAX_SCORE, Math.round(raw)));
   return { score, factors: f, why: explain(f, wine, locale) };
 }
 

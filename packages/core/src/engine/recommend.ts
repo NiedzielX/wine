@@ -13,6 +13,10 @@ import { pairingScore } from './scoring';
 export const MIN_MODEL_SCORE = 62;
 export const SOMMELIER_BOOST = 6;
 export const DEFAULT_LIMIT = 4;
+/** When nothing fits the budget, this many closest options are shown instead (with a notice). */
+export const BUDGET_FALLBACK_COUNT = 2;
+/** Best value: cheaper bottle within this many Match Score points of the top match. */
+export const BEST_VALUE_WINDOW = 8;
 
 export type Serving = 'glass' | 'bottle';
 
@@ -133,7 +137,7 @@ export function recommendForDish(
   let list = first.list;
   let notice: string | null = null;
   if (list.length === 0 && prefs.maxPrice !== null) {
-    list = build(true).list.slice(0, 2);
+    list = build(true).list.slice(0, BUDGET_FALLBACK_COUNT);
     if (list.length > 0) notice = budgetNotice(prefs.maxPrice, locale);
   }
   markBestValue(list);
@@ -149,14 +153,14 @@ export function budgetNotice(maxPrice: number, locale: Locale = 'en'): string {
 
 /**
  * Best value: a sommelier "best_value" pick wins. Otherwise the cheapest wine (by bottle price)
- * within 8 points of the top match score, excluding the top item itself.
+ * within BEST_VALUE_WINDOW (8) points of the top match score, excluding the top item itself.
  */
 export function markBestValue(list: RecommendationItem[]): void {
   const somm = list.find((i) => i.sommelier?.role === 'best_value');
   if (somm) { somm.bestValue = true; return; }
   if (list.length < 2) return;
   const top = Math.max(...list.map((i) => i.matchScore));
-  const candidates = list.slice(1).filter((i) => i.matchScore >= top - 8 && i.wine.bottlePrice < list[0].wine.bottlePrice);
+  const candidates = list.slice(1).filter((i) => i.matchScore >= top - BEST_VALUE_WINDOW && i.wine.bottlePrice < list[0].wine.bottlePrice);
   candidates.sort((a, b) => a.wine.bottlePrice - b.wine.bottlePrice || a.wine.id.localeCompare(b.wine.id));
   if (candidates[0]) candidates[0].bestValue = true;
 }
