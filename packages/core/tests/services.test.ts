@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildDemoDataset, demoUuid } from '../src/demo/dataset';
-import { recommendForDish } from '../src/engine/recommend';
+import { budgetNotice, recommendForDish } from '../src/engine/recommend';
+import { MAX_TABLE_DISHES } from '../src/guest/prefs';
 import { DEFAULT_PREFS } from '../src/domain/types';
 import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repositories';
 import { CatalogService } from '../src/services/catalog/catalog-service';
@@ -59,6 +60,28 @@ describe('RecommendationService', () => {
     const out = await svc.forTable('halka', ids);
     expect(out!.result.items[0].wine.name).toBe('Savigny-lès-Beaune');
     await expect(svc.forTable('halka', [ids[0]])).rejects.toBeInstanceOf(TableNeedsTwoDishesError);
+  });
+
+  it('uses the first twelve published dishes of a larger table', async () => {
+    const svc = new RecommendationService(repos());
+    const published = ds.dishes.filter((d) => d.status === 'published');
+    expect(published).toHaveLength(14);
+    const out = await svc.forTable('halka', published.map((d) => d.id));
+    const used = [...out!.result.items[0].perDish.map((d) => d.dish.id), ...out!.result.setAside.map((d) => d.id)];
+    expect(used).toHaveLength(MAX_TABLE_DISHES);
+    // the menu order puts desserts last, so they are the ones left out
+    expect(new Set(used)).toEqual(new Set(published.slice(0, MAX_TABLE_DISHES).map((d) => d.id)));
+    expect(out!.result.setAside).toEqual([]);
+  });
+
+  it('relaxes the budget only when asked (the screens), never by default (the API)', async () => {
+    const svc = new RecommendationService(repos());
+    const ids = ['Beef tartare', 'Wild mushroom risotto'].map((n) => ds.dishes.find((d) => d.name === n)!.id);
+    const strict = await svc.forTable('halka', ids, { maxPrice: 150 });
+    expect(strict!.result).toMatchObject({ items: [], notice: null });
+    const relaxed = await svc.forTable('halka', ids, { maxPrice: 150 }, 'pl', { relaxBudget: true });
+    expect(relaxed!.result.items).toHaveLength(2);
+    expect(relaxed!.result.notice).toBe(budgetNotice(150, 'pl'));
   });
 });
 

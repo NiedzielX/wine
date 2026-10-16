@@ -1,4 +1,4 @@
-# Wine Matching Engine v1 (`wm-rules-1.0.0`)
+# Wine Matching Engine v1 (`wm-rules-1.1.0`)
 
 Silnik działa **bez zewnętrznego API LLM**: czyste funkcje TypeScript, deterministyczne, bez sieci i losowości. Ten sam kod działa w przeglądarce (mockup, podgląd na żywo w panelu) i na serwerze (Node). Implementacja i testy:
 
@@ -166,6 +166,7 @@ Odrzucenie (`rejected`) to sygnał negatywny także dla przyszłego modelu uczon
 
 - **Budżet gościa to filtr twardy:** dla `serving=glass` porównywana cena kieliszka, dla `bottle` — butelki, dla `any` — kieliszka, jeśli istnieje, w przeciwnym razie butelki.
 - **Gdy budżet wyklucza wszystko,** silnik zdejmuje sam budżet (nie inne filtry) i zwraca `BUDGET_FALLBACK_COUNT` = 2 najlepsze wina z komunikatem *„Nothing matches under 45 zł. These are the closest options.”* — gość nie widzi pustego ekranu.
+- **Stolik** luzuje budżet tak samo (reguła `table.budget_relaxed`, §8), ale tylko na żądanie wołającego: ekrany gościa i kelnera przekazują `relaxBudget: true`, publiczne API (`POST /api/v1/recommendations/table`) nie — tam `maxPrice` pozostaje filtrem twardym, a wynik może być pusty (zmiana znaczenia pola w API wymagałaby ścieżki z `BACKWARD_COMPATIBILITY.md` §2).
 - **Best value:**
   1. jeśli sommelier oznaczył parę jako `best_value` i jest na liście → ta para;
   2. w przeciwnym razie: najtańsza butelka (pomijając pozycję nr 1), której wynik jest najwyżej `BEST_VALUE_WINDOW` = 8 punktów niższy od najlepszego, i która jest tańsza od pozycji nr 1.
@@ -204,6 +205,34 @@ Lista dla stolika ma `TABLE_LIMIT` = 3 butelki.
 
 Przykład z mockupu: Tatar 83, Risotto 93 (para sommeliera), Kaczka 83 (para sommeliera) → Savigny-lès-Beaune, overall 85. Sandacz + Ribeye → najlepsza butelka Morgon 70% → system proponuje kieliszki osobno.
 
+### Wynik surowy i wynik rankingowy per danie
+
+Każde danie pozycji stolika (`TableDishScore`) ma dwa wyniki (spec `2026-10-16-whole-table-waiter-path`, R1):
+
+| Pole | Wartość | Do czego |
+|---|---|---|
+| `engineScore` | `pairing_score(d, wine)` — bez premii sommeliera i bez limitu 50 | **jedyny wynik per danie, który wolno wyświetlić** (R02, AGENTS §7), i podstawa `table.fit` |
+| `score` | `score_d` ze wzoru wyżej (premia +3, limit 50) | wyłącznie `overall` i ranking |
+
+Obok są `sommelierPick` (para `approved` / `modified`) i `rejected` (para odrzucona). Publiczne API zwraca dalej `perDish.score` (wynik rankingowy) — bez zmian kształtu.
+
+### Reguła `table.fit` — „pasuje do n z m”
+
+Identyfikator dokumentacyjny (stolik nie emituje `Factor`). Każda pozycja ma `fit = { fits, of, weaker, compromise }` (`tableFit(perDish, overall)`):
+
+- `of` — liczba dań w obliczeniu butelki (bez odłożonych deserów);
+- `fits` — dania z `engineScore ≥ TABLE_FIT_THRESHOLD` (**70**) **i bez pary odrzuconej przez sommeliera** (odrzucona para zawsze „słabiej” — silnik obniża ją w rankingu do 50, więc „pasuje” byłoby sprzeczne z decyzją sommeliera);
+- `weaker` — pozostałe dania, rosnąco po `engineScore`, remis — kolejność wyboru;
+- `compromise` — `overall < COMPROMISE_THRESHOLD` lub najsłabsze danie (wynik rankingowy) `< WEAK_DISH_THRESHOLD`: ten sam test co propozycja kieliszków, ale dla każdej pozycji; dla `of = 1` zawsze `false`. Dla pierwszej pozycji równa się `splitSuggested`.
+
+Para zatwierdzona z niskim surowym wynikiem (np. 58%) nie „pasuje” — pieczęć zostaje przy daniu. Próg 70 to ta sama granica, od której `tableWhy` mówi „też dobrze”. Ranking, `overall` i kolejność pozycji się nie zmieniają. Przykłady (Halka, dane demo): śledź + przegrzebki + sandacz + seler + antrykot + jeleń → Radikon Slatnik 73, `fit` 5 z 6, słabiej: jeleń (67); tatar + risotto + kaczka + sandacz → Leflaive Mâcon-Verzé 86, 4 z 4.
+
+### Reguła `table.budget_relaxed` — budżet stolika bez pustego ekranu
+
+Identyfikator dokumentacyjny. `recommendForTable(…, locale, { relaxBudget: true })`: gdy budżet wyklucza wszystkie wina, silnik zdejmuje sam budżet (kolor i serwowanie zostają) i zwraca `BUDGET_FALLBACK_COUNT` = 2 najlepsze pozycje z `notice = budgetNotice(maxPrice, locale)`; `splitSuggested` i `split` liczone z tych pozycji. Komunikat budżetu z listy kieliszków (`recommendForDish` w propozycji kieliszków) jest pomijany. Bez luzowania (domyślnie, także w API) `notice = null`. Budżet porównuje cenę według serwowania stolika (butelka, chyba że wybrano kieliszek). Gdy pusty wynik daje sam filtr koloru, luzowanie nic nie zmienia (`[]`, `notice = null`). Przykład (Halka): tatar + risotto + kaczka + sandacz do 150 zł (najtańsza butelka 165 zł) → Leflaive, Radikon i komunikat; czerwone do 200 zł (najtańsza czerwona 230 zł) → Lapierre, Savigny.
+
+Limit dań: serwis (`RecommendationService.forTable`) bierze pierwsze `MAX_TABLE_DISHES` = 12 opublikowanych dań (ten sam limit co schemat API).
+
 ## 9. Preferencje miękkie
 
 | Preferencja | Efekt na `rankScore` |
@@ -220,7 +249,7 @@ Preferencje miękkie nie zmieniają wyświetlanego wyniku.
 - brak losowości, czasu i sieci w funkcjach silnika;
 - jawne rozstrzyganie remisów (`wine.id`);
 - wersja silnika (`ENGINE_VERSION`) zapisywana przy każdym wyniku i evencie;
-- testy w `packages/core/tests/engine.test.ts` obejmują m.in.: determinizm, zakres 0–99 dla całej macierzy, czerwone > białe do ribeye, karę za taniny z rybą, półwytrawny Riesling do ostrego dania, wykluczenie win deserowych do dań wytrawnych, pierwszeństwo Primary nad wyższym wynikiem modelu, wykluczenie par odrzuconych, filtr kieliszka, luzowanie budżetu z komunikatem, uczciwy Match Score, wzór dla stolika, odkładanie deserów, propozycję kieliszków oraz drafter importu;
+- testy w `packages/core/tests/engine.test.ts` obejmują m.in.: determinizm, zakres 0–99 dla całej macierzy, czerwone > białe do ribeye, karę za taniny z rybą, półwytrawny Riesling do ostrego dania, wykluczenie win deserowych do dań wytrawnych, pierwszeństwo Primary nad wyższym wynikiem modelu, wykluczenie par odrzuconych, filtr kieliszka, luzowanie budżetu z komunikatem, uczciwy Match Score, wzór dla stolika, odkładanie deserów, propozycję kieliszków, surowy wynik per danie przy stoliku, reguły `table.fit` i `table.budget_relaxed` (bloki `describe` o tych nazwach) oraz drafter importu;
 - **test złoty** (`packages/core/tests/engine-golden.test.ts`, migawki w `tests/__snapshots__/engine-golden.*.txt`): pełne wyniki `recommendForDish` dla każdego dania demo i `recommendForTable` dla każdej pary i trójki dań demo × 18 zestawów preferencji (domyślne, kieliszek / butelka, każdy styl, budżet 0 / 60 / 200, lżejsze / pełniejsze, klasyczne / odważne) oraz scenariusz z odrzuconymi parami. `npm run engine:matrix` obejmuje tylko `pairing_score`; test złoty pilnuje warstwy rankingu nad nim (filtry, tiery, okno „Najlepsza cena”, luzowanie budżetu, wagi stolika, premia i limit 50). Migawkę zmienia się świadomie (`npx vitest run tests/engine-golden.test.ts -u` w `packages/core`) tylko razem ze specyfikacją zmiany wyników i podniesieniem `ENGINE_VERSION`;
 - produkcyjnie dodatkowo: **testy złote** dla restauracji referencyjnych (ich własne karty); każda zmiana reguł pokazuje diff rankingów do akceptacji.
 
@@ -242,10 +271,18 @@ Liczby, które opisują działanie silnika (wyjaśnienia „Jak to działa”, s
 | `tableMainsWeight` | `TABLE_MAINS_WEIGHT` | 1,5 | §8, waga dania głównego |
 | `tableSommelierBonus` | `TABLE_SOMMELIER_BONUS` | 3 | §8, para sommeliera przy stoliku |
 | `tableRejectedCap` | `TABLE_REJECTED_CAP` | 50 | §8, para odrzucona przy stoliku |
+| `tableFitThreshold` | `TABLE_FIT_THRESHOLD` | 70 | §8, `table.fit` — „pasuje” od tego surowego wyniku |
 | `compromiseThreshold` | `COMPROMISE_THRESHOLD` | 76 | §8, propozycja kieliszków |
 | `weakDishThreshold` | `WEAK_DISH_THRESHOLD` | 64 | §8, propozycja kieliszków |
 
 Nazwanie stałych nie zmieniło wyników (test złoty na migawce sprzed zmiany), więc `ENGINE_VERSION` pozostał bez zmian.
+
+### Historia wersji
+
+| Wersja | Zmiana |
+|---|---|
+| `wm-rules-1.0.0` | reguły §4–§9 |
+| `wm-rules-1.1.0` | nowe reguły stolika `table.fit` i `table.budget_relaxed` (opcja), surowy `engineScore` per danie (spec `2026-10-16-whole-table-waiter-path`, F1). Minor (BC §7): ranking, `overall` i wyniki API bez zmian — test złoty przechodzi na migawkach z `wm-rules-1.0.0`. |
 
 ## 11. Gdzie (opcjonalnie) pomaga LLM
 

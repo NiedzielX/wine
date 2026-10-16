@@ -19,6 +19,7 @@ Testy jednostkowe sprawdzają pojedyncze reguły, a błędy kalibracji wynikają
 - Każdą znalezioną anomalię zamień w test (np. „keeps dessert wine away from savoury mains”), a dopiero potem poprawiaj regułę.
 - `engine:matrix` pokazuje tylko `pairingScore`. Warstwę rankingu (tiery, „Najlepsza cena”, budżet, stolik) pilnuje test złoty `packages/core/tests/engine-golden.test.ts`: refaktor bez zmiany wyników = migawki bez zmian; świadoma zmiana wyników = `-u`, przegląd diffu i nowa `ENGINE_VERSION`. (2026-10-16, `.ai/runs/2026-10-16-e07-f1a-engine-facts.md`)
 - Migawka chroni tylko to, czego dotykają dane: sprawdź ją mutacją (zmień stałą, test musi paść, przywróć). Na danych demo zmiana `TABLE_REJECTED_CAP` przechodziła niezauważona, bo jedyna odrzucona para miała wynik poniżej limitu — potrzebny był osobny scenariusz.
+- Test złoty widzi tylko pola, które wypisuje (`dishLine`, `tableLine`). Nowe pola obok rankingu (np. `fit`, `engineScore`, `notice` stolika) przechodzą go zawsze — przypnij je własnymi testami, a „ranking bez zmian” dla scenariuszy spoza migawek (stoły 4–6 dań) sprawdź porównaniem z poprzednią wersją: `git show origin/main:packages/core/src/engine/table.ts > src/engine/table-old-probe.ts`, tymczasowy test porównujący pełne listy `[wine.id, overall]`, potem usuń oba pliki. (2026-10-16, `.ai/runs/2026-10-16-e08-f1-table-engine.md`)
 - Zmiana wag i progów wymaga specyfikacji (patrz `AGENTS.md`, sekcja 3) i aktualizacji tabeli reguł w `docs/RECOMMENDATION_ENGINE.md`.
 
 ## Jak sprawdzić

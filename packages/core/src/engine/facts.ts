@@ -2,6 +2,7 @@ import { BEST_VALUE_WINDOW, BUDGET_FALLBACK_COUNT, DEFAULT_LIMIT, MIN_MODEL_SCOR
 import { BASE_SCORE, MAX_SCORE } from './scoring';
 import {
   COMPROMISE_THRESHOLD,
+  TABLE_FIT_THRESHOLD,
   TABLE_LIMIT,
   TABLE_MAINS_WEIGHT,
   TABLE_MEAN_WEIGHT,
@@ -38,6 +39,8 @@ const FACTS = {
   tableSommelierBonus: TABLE_SOMMELIER_BONUS,
   /** a rejected pairing caps the dish score at the table */
   tableRejectedCap: TABLE_REJECTED_CAP,
+  /** a dish "works" with the table bottle from this raw engine score up; a rejected pair never does (`table.fit`) */
+  tableFitThreshold: TABLE_FIT_THRESHOLD,
   /** below this table score a split (one glass per dish) is suggested */
   compromiseThreshold: COMPROMISE_THRESHOLD,
   /** below this score for the weakest dish a split is suggested */

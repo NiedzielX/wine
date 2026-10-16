@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_TABLE_DISHES } from '../../guest/prefs';
 
 const preferences = z.strictObject({
   serving: z.enum(['any', 'glass', 'bottle']).optional(),
@@ -12,7 +13,7 @@ const preferences = z.strictObject({
 /** Best bottle for a table: 2 to 12 distinct dishes (a table of one dish uses the single-dish endpoint). */
 export const tableRecommendationSchema = z.strictObject({
   restaurantSlug: z.string().min(1).max(40),
-  dishIds: z.array(z.guid()).max(12).refine((ids) => new Set(ids).size >= 2, { error: 'at_least_two_distinct' }),
+  dishIds: z.array(z.guid()).max(MAX_TABLE_DISHES).refine((ids) => new Set(ids).size >= 2, { error: 'at_least_two_distinct' }),
   preferences: preferences.optional()
 });
 export type TableRecommendationInput = z.output<typeof tableRecommendationSchema>;
