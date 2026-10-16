@@ -22,7 +22,7 @@
 
 W MVP kelner korzysta z publicznego widoku `/r/{slug}/staff`, bez logowania (te same dane, które widzi gość). Później: tryb kelnera po zalogowaniu PIN-em, z historią podpowiedzi.
 
-Zasada podziału: **Owner / GM odpowiada za biznes, Sommelier za treść programu winnego.** GM widzi pairingi, ale ich nie zatwierdza — dzięki temu etykieta „Sommelier recommendation” zawsze oznacza decyzję sommeliera.
+Zasada podziału: **Owner / GM odpowiada za biznes, Sommelier za treść programu winnego.** GM widzi pairingi, ale ich nie zatwierdza — dzięki temu etykieta „Sommelier’s pairing” / „Para sommeliera” zawsze oznacza decyzję sommeliera.
 
 ---
 
@@ -80,7 +80,7 @@ Zasada podziału: **Owner / GM odpowiada za biznes, Sommelier za treść program
 - numer pozycji z karty (list no.) — żeby szybko znaleźć butelkę,
 - gotowe zdanie do powiedzenia gościowi.
 
-**Czego nie robimy:** nie przedstawiamy kelnera jako sommeliera i nie budujemy modułu szkoleniowego. Odznaki mówią „Wine Director’s first choice”, a nie „moja rekomendacja”.
+**Czego nie robimy:** nie przedstawiamy kelnera jako sommeliera i nie budujemy modułu szkoleniowego. Odznaki mówią „Sommelier’s pairing · first choice”, a nie „moja rekomendacja”.
 
 **Kluczowy ekran:** Staff lookup (`/r/{slug}/staff`).
 

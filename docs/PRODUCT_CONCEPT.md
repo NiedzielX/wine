@@ -15,13 +15,13 @@ Skutek: niski **Wine Attach Rate** (udział zamówień jedzenia, do których spr
 
 **Dla restauracji:** więcej sprzedanego wina, bez zatrudniania dodatkowych osób i bez utraty kontroli nad kartą. Wine Match przenosi wiedzę sommeliera na każdy stolik przez QR kod.
 
-**Dla sommeliera:** jego pairingi docierają do każdego gościa, a nie tylko do tych, z którymi zdąży porozmawiać. System proponuje, sommelier decyduje. Rekomendacja sommeliera zawsze ma pierwszeństwo przed modelem.
+**Dla sommeliera:** jego pairingi docierają do każdego gościa, a nie tylko do tych, z którymi zdąży porozmawiać. System proponuje, sommelier decyduje. Para sommeliera zawsze ma pierwszeństwo przed modelem.
 
 **Dla gościa:** w trzech dotknięciach dowiaduje się, które wino z tej konkretnej karty pasuje do tego, co zamawia, w jakiej cenie i dlaczego — bez rejestracji, aplikacji i specjalistycznego słownictwa.
 
 **Dla kelnera:** ten sam silnik w widoku „lookup” daje gotowe argumenty do rozmowy z gościem („Pinot i wiśniowy sos — nasze firmowe połączenie”).
 
-Pozycjonowanie: **nie jest to „AI Sommelier”.** To cyfrowa warstwa programu winnego restauracji. Algorytm działa w tle, a interfejs mówi głosem restauracji: „Sommelier recommendation”, „Perfect with your dish”, „Recommended for your table”.
+Pozycjonowanie: **nie jest to „AI Sommelier”.** To cyfrowa warstwa programu winnego restauracji. Algorytm działa w tle, a interfejs mówi głosem restauracji: „Sommelier’s pairing”, „Recommended for your dish”, „Recommended for your table”.
 
 ## 3. Model B2B2C
 
@@ -114,7 +114,7 @@ Wszystkie KPI są widoczne w dashboardzie panelu (ekran *Dashboard*). W mockupie
 
 ## 8. Zasady projektowe
 
-1. **Sommelier jest autorytetem.** Model nigdy nie wyświetla się jako ważniejszy od człowieka. Etykieta „Sommelier recommendation” pojawia się tylko przy parach zatwierdzonych przez sommeliera.
+1. **Sommelier jest autorytetem.** Model nigdy nie wyświetla się jako ważniejszy od człowieka. Etykieta „Sommelier’s pairing” / „Para sommeliera” pojawia się tylko przy parach zatwierdzonych przez sommeliera (nazwa według D13, reguła R06).
 2. **Uczciwy wynik.** Match Score pokazuje surowy wynik silnika. Zatwierdzenie sommeliera zmienia kolejność, a nie liczbę.
 3. **Zero kosztu per zapytanie.** Rekomendacje liczy własny, deterministyczny silnik. LLM — jeśli w ogóle — tylko lokalnie i tylko przy imporcie danych.
 4. **Jedno dotknięcie.** Od zeskanowania kodu do listy win: QR → danie. Preferencje są opcjonalne i zostają na kolejne dania. Bez rejestracji i onboardingu.

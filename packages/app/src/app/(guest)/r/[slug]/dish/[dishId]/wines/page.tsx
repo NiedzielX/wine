@@ -1,7 +1,7 @@
-import { DEFAULT_PREFS, prefsSummary, tasteWords } from '@wine-match/core';
+import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, prefsSummary, tasteWords } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BestCard, Button, DishList, EmptyState, GuestColumns, LanguageSwitch, Notice, QuickPrefs, RecoFooter, TopBar, WineRow } from '../../../../../_components/guest-ui';
+import { BestCard, Button, DishList, EmptyState, Explain, GuestColumns, LanguageSwitch, Notice, QuickPrefs, RecoFooter, TopBar, WineRow } from '../../../../../_components/guest-ui';
 import { PrefChips } from '../../../../../_components/pref-chips';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
@@ -17,6 +17,8 @@ type Props = { params: Promise<{ slug: string; dishId: string }>; searchParams: 
  * G3 + G4 — the dish and its wines, one tap from the menu. Quick preferences sit above the list;
  * `?sheet=filters` opens the full filters (a bottom sheet on phones, a side panel on desktop).
  * On desktop the menu stays in the left column so the guest can switch dishes in one click.
+ * "Why these wines?" sits between the preferences and the first wine, also over an empty list; the filters sheet has
+ * its own "How do the filters work?" (spec 2026-10-16-how-it-works-explanations). Settings are live, not published.
  */
 export default async function WinesPage({ params, searchParams }: Props) {
   const { slug, dishId } = await params;
@@ -26,7 +28,8 @@ export default async function WinesPage({ params, searchParams }: Props) {
   const { restaurant, dish, result } = data;
   const menu = await services.catalogService.publishedMenu(slug, locale);
   const coverage = await services.catalogService.pairingCoverage(restaurant.id);
-  const showScores = restaurant.settings?.showScores ?? true;
+  const { showScores, showUnreviewed } = restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS;
+  const ex = t.guest.explain;
   const path = `/r/${slug}/dish/${dish.id}/wines`;
   const active = prefsSummary(prefs, locale);
   const [best, ...rest] = result.items;
@@ -49,6 +52,8 @@ export default async function WinesPage({ params, searchParams }: Props) {
 
       {result.notice && <Notice>{result.notice}</Notice>}
 
+      <Explain id="wines" className="mt-2" summary={ex.wines.summary} points={ex.wines.points(ENGINE_FACTS, { showScores, showUnreviewed, director: restaurant.wineDirector })} />
+
       {!best ? (
         <EmptyState
           title={t.guest.wines.noneTitle}
@@ -64,7 +69,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
               {rest.map((i) => <WineRow key={i.wine.id} item={i} href={wineHref(i.wine.id)} serving={prefs.serving} showScores={showScores} t={t} locale={locale} />)}
             </section>
           )}
-          <RecoFooter director={restaurant.wineDirector} restaurant={restaurant.name} t={t} />
+          <RecoFooter director={restaurant.wineDirector} restaurant={restaurant.name} showUnreviewed={showUnreviewed} t={t} />
         </>
       )}
     </main>
@@ -103,6 +108,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
               </Link>
             </header>
             <PrefChips prefs={prefs} hrefFor={(p) => href(path, p, { sheet: 'filters' })} full t={t} locale={locale} />
+            <Explain id="filters" tone="sheet" className="mt-4" summary={ex.filters.summary} points={ex.filters.points(ENGINE_FACTS)} />
             <footer className="sticky bottom-0 mt-5 grid grid-cols-[auto_1fr] gap-2.5 bg-surface pt-4">
               <Button href={href(path, DEFAULT_PREFS, { sheet: 'filters' })} variant="secondary">{t.guest.wines.reset}</Button>
               <Button href={href(path, prefs)}>{t.guest.wines.show(result.items.length)}</Button>

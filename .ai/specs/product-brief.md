@@ -68,7 +68,8 @@ Benchmark odłożony: żaden produkt nie został sprawdzony w źródle (Collecti
 |---|---|---|---|
 | Pairing | para danie–wino z oceną silnika i decyzją sommeliera (suggested / approved / modified / rejected) | sommelier | panel; gość widzi tylko opublikowane |
 | Match Score | wynik silnika 0–99 dla pary, zawsze surowy | silnik (`ENGINE_VERSION`) | gość, panel |
-| Sommelier recommendation | etykieta pary zatwierdzonej przez sommeliera | sommelier | gość |
+| Sommelier’s pairing / Para sommeliera | etykieta pary zatwierdzonej przez sommeliera (approved / modified); do 2026-10-16 „Sommelier recommendation” (R06, D13) | sommelier | gość, kelner, panel |
+| Recommended for your dish / Polecane do Twojego dania | nagłówek najlepszej propozycji silnika (bez pieczęci) | silnik | gość, panel |
 | Wine Attach Rate | zamówienia z co najmniej jednym winem / zamówienia z jedzeniem w okresie | właściciel / GM | panel (Later) |
 | Publikacja | migawka parowań i kart, którą widzą goście | sommelier, GM | gość |
 
@@ -83,11 +84,12 @@ Benchmark odłożony: żaden produkt nie został sprawdzony w źródle (Collecti
 
 | Id | Rule | Applies to | Source | Status | Review by | Required path to change | Owner | Supersedes |
 |---|---|---|---|---|---|---|---|---|
-| R01 | Etykieta „Sommelier recommendation” tylko przy parach approved lub modified. | widoki gościa i kelnera | `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §8 p.1, AGENTS.md §7 | active | unknown | Domain expert (sommelier) + product owner | Filip | none |
+| R01 | Etykieta „Sommelier recommendation” tylko przy parach approved lub modified. | widoki gościa i kelnera | `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §8 p.1, AGENTS.md §7 | superseded (R06) | unknown | Domain expert (sommelier) + product owner | Filip | none |
 | R02 | Match Score to zawsze surowy wynik silnika; decyzja sommeliera zmienia kolejność, nie liczbę. | silnik, widoki gościa | `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §8 p.2 | active | unknown | Domain expert + product owner | Filip | none |
 | R03 | Gość widzi tylko opublikowaną migawkę, nigdy wersję roboczą. | widoki gościa | `[DOCUMENT]` AGENTS.md §1.3 | active | unknown | product owner | Filip | none |
 | R04 | Rekomendacje tylko z aktywnych win karty tej restauracji. | silnik | `[PRODUCT]` packages/core/src/engine/recommend.ts | active | unknown | Domain expert + product owner | Filip | none |
 | R05 | Gość nie zakłada konta i nie płaci. | aplikacja gościa | `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §3 | active | unknown | product owner | Filip | none |
+| R06 | Etykieta „Para sommeliera” / „Sommelier’s pairing” tylko przy parach approved lub modified (znaczenie R01 bez zmian, nowe brzmienie według D13). | widoki gościa i kelnera, panel | `[DECISION]` .ai/specs/2026-10-16-how-it-works-explanations.md Q1 (zatwierdzone przez Filipa 2026-10-16), AGENTS.md §7 | active | unknown | Domain expert (sommelier) + product owner | Filip | R01 |
 
 ## Non-goals
 
@@ -149,7 +151,7 @@ Brak — nie przeprowadzono symulacji `om-synthetic-users`.
 | Q03 | Czy pilotażowa restauracja może wyeksportować dane sprzedaży z POS? | yes — blokuje C03 | GM restauracji | open |
 | Q04 | Czy interfejs gościa ma być też po polsku? | no | product owner | closed — D11 |
 | Q05 | Czy przed pilotażem budujemy pomiar (zdarzenia użycia, import sprzedaży z CSV)? | no | product owner | closed — tak, D09 |
-| Q06 | Kto jest Domain expertem (sommelier) zatwierdzającym R01, R02, R04? | no — reguły obowiązują, brak tylko właściciela zmian | product owner | open |
+| Q06 | Kto jest Domain expertem (sommelier) zatwierdzającym R06 (dawniej R01), R02, R04? | no — reguły obowiązują, brak tylko właściciela zmian | product owner | open |
 | Q07 | Czy Filip akceptuje decyzje fazy 5 (import i QR), oznaczone „Do przeglądu”? | no | product owner | open |
 | Q08 | Gdzie działa instancja dla pilota i jaki jest `PUBLIC_BASE_URL` przed drukiem kodów QR? | no | product owner / maintainer | closed — D10 (konkretny adres ustala maintainer przy wdrożeniu) |
 

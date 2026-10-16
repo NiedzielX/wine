@@ -149,7 +149,7 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
 }
 ```
 
-`tier`: `sommelier_primary` | `sommelier` | `engine`. Klient pokazuje „Sommelier recommendation” wyłącznie dla dwóch pierwszych.
+`tier`: `sommelier_primary` | `sommelier` | `engine`. Klient pokazuje etykietę „Sommelier’s pairing” / „Para sommeliera” wyłącznie dla dwóch pierwszych; najlepszą propozycję `engine` aplikacja gościa nazywa „Recommended for your dish” / „Polecane do Twojego dania”. Pola i wartości `tier` bez zmian — etykiety to tekst klienta.
 
 ---
 

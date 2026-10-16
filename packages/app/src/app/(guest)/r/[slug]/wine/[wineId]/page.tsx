@@ -1,7 +1,6 @@
-import { parseDishIds, styleLabel } from '@wine-match/core';
-import { MatchGlass } from '@wine-match/ui/brand/match-glass';
+import { DEFAULT_RESTAURANT_SETTINGS, parseDishIds, styleLabel } from '@wine-match/core';
 import type { Metadata } from 'next';
-import { BottomBar, Button, EmptyState, LanguageSwitch, Score, Seal, TopBar } from '../../../../_components/guest-ui';
+import { BottomBar, Button, EmptyState, Explain, LanguageSwitch, Score, Seal, TopBar } from '../../../../_components/guest-ui';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
 
@@ -23,7 +22,12 @@ function Dots({ label, value, valueLabel }: { label: string; value: number; valu
   );
 }
 
-/** G7 — wine details. Context: `?dish=<id>` (from a dish) or `?table=<ids>` (from the table result). */
+/**
+ * G7 — wine details. Context: `?dish=<id>` (from a dish) or `?table=<ids>` (from the table result).
+ * The match glass appears only with a real score for that dish: never from the table result, without a dish, or for a
+ * wine the dish does not suggest (spec 2026-10-16-how-it-works-explanations, Q13). "What does this score mean?" sits
+ * under the reason (or under the facts when there is none).
+ */
 export default async function WinePage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
   const { q, prefs, services, t, locale, lang, href, langHrefs } = await guestContext(searchParams);
@@ -32,7 +36,9 @@ export default async function WinePage({ params, searchParams }: Props) {
   const dishId = typeof q.dish === 'string' ? q.dish : undefined;
   const data = await services.recommendationService.wineDetails(slug, wineId, dishId, locale);
   if (!data) notFound();
-  const { restaurant, wine, dish, match } = data;
+  const { restaurant, wine, dish } = data;
+  // from the table result the dish score is not the one the guest saw, so no score at all
+  const match = fromTable ? null : data.match;
   const backHref = fromTable ? href(`/r/${slug}/table/result`, prefs, { dishes: tableIds.join(',') })
     : dish ? href(`/r/${slug}/dish/${dish.id}/wines`, prefs) : href(`/r/${slug}/menu`);
   const langSwitch = <LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${slug}/wine/${wine.id}`)} t={t} />;
@@ -52,7 +58,14 @@ export default async function WinePage({ params, searchParams }: Props) {
   const glassOk = wine.glassPrice !== null;
   const defaultServing = prefs.serving === 'bottle' || !glassOk || fromTable ? 'bottle' : 'glass';
   const p = wine.profile;
-  const showScores = restaurant.settings?.showScores ?? true;
+  const { showScores } = restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS;
+  const explain = (
+    <Explain
+      id="wine"
+      summary={t.guest.explain.wine.summary}
+      points={t.guest.explain.wine.points({ score: match?.matchScore ?? null, dish: fromTable ? null : dish?.name ?? null, showScores })}
+    />
+  );
   const radio = 'grid gap-0.5 rounded-[10px] border border-[#d4ccd0] bg-surface px-3.5 py-3 has-[input:checked]:border-wine has-[input:checked]:ring-1 has-[input:checked]:ring-wine has-[input:disabled]:opacity-45 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine cursor-pointer';
 
   return (
@@ -68,7 +81,7 @@ export default async function WinePage({ params, searchParams }: Props) {
               <h1 className="font-serif text-[32px] leading-[1.08]">{wine.name}</h1>
               <p className="mt-1.5 text-ink-2">{wine.producer}</p>
             </div>
-            {match ? <Score score={match.matchScore} colour={wine.colour} showScores={showScores} size={52} t={t} /> : <MatchGlass score={70} colour={wine.colour} size={52} className="text-ink-2" />}
+            {match ? <Score score={match.matchScore} colour={wine.colour} showScores={showScores} size={52} t={t} /> : <span />}
           </div>
 
           {match && dish && (
@@ -79,6 +92,7 @@ export default async function WinePage({ params, searchParams }: Props) {
               <p className="text-[15.5px]">{match.why}</p>
             </div>
           )}
+          {match && dish && <div className="mt-3">{explain}</div>}
 
           <dl className="my-6 grid grid-cols-2 gap-x-5 gap-y-3.5 border-y border-line py-4">
             <div><dt className="text-[13px] text-ink-3">{w.region}</dt><dd className="mt-0.5 text-[15px]">{wine.region}, {wine.country}</dd></div>
@@ -86,6 +100,7 @@ export default async function WinePage({ params, searchParams }: Props) {
             <div><dt className="text-[13px] text-ink-3">{w.grapes}</dt><dd className="mt-0.5 text-[15px]">{wine.grapes.join(', ')}</dd></div>
             <div><dt className="text-[13px] text-ink-3">{w.style}</dt><dd className="mt-0.5 text-[15px]">{w.abv(styleLabel(p.style, locale), p.alcohol)}</dd></div>
           </dl>
+          {!(match && dish) && <div className="-mt-3 mb-5">{explain}</div>}
 
           <p className="font-serif text-xl leading-[1.45] italic">{wine.tastingNote}</p>
           <div className="mt-5 grid gap-2.5">

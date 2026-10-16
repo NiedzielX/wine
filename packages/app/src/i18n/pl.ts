@@ -1,8 +1,17 @@
-import type { Dictionary, IssueParams } from './en';
+import type { EngineFacts } from '@wine-match/core';
+import type { Dictionary, ExplainContext, IssueParams, WineExplainContext } from './en';
 
 /** Polish plural: 1 wino, 2–4 wina (but 12–14 win), 5+ win. */
 const plural = (n: number, one: string, few: string, many: string) =>
   n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
+
+const directorPl = (name: string) => name.trim() || 'sommelier restauracji';
+
+/** Punkt 5 G3 i arkusz G4: filtry twarde wykluczają, miękkie zmieniają kolejność; luzowanie budżetu. */
+const filterPointsPl = (f: EngineFacts) => [
+  '„Na kieliszki”, kolor i budżet wykluczają wina; budowa i nastrój zmieniają kolejność (czasem poza listę).',
+  `Gdy nic nie mieści się w budżecie, pokazujemy ${f.budgetFallbackCount} ${plural(f.budgetFallbackCount, 'najlepiej pasujące wino', 'najlepiej pasujące wina', 'najlepiej pasujących win')} spoza budżetu i o tym piszemy.`
+];
 
 /**
  * Polish interface texts. `satisfies Dictionary` makes a missing or misspelt key a TypeScript error.
@@ -32,7 +41,7 @@ export const pl = {
     hero: {
       promise: 'Znajdź wino do tego, co dziś jesz — z naszej karty win.',
       wineListBy: (name: string) => `Kartę win układa ${name}`,
-      directorLine: 'Wine Director. Każda rekomendacja opiera się na jej parach.',
+      directorLine: 'Pary Wine Directora zawsze otwierają listę dania.',
       staffLink: 'Dla obsługi: szybki podgląd par',
       tableAction: 'Dobierz butelkę do stolika',
       restaurant: 'Restauracja'
@@ -47,7 +56,7 @@ export const pl = {
       updatingText: 'W międzyczasie kelner chętnie poleci wino.',
       pickLead: 'Wybierz danie, które zamawiasz.',
       sections: 'Sekcje menu',
-      sommelierAvailable: 'Para od sommeliera',
+      sommelierAvailable: 'Para sommeliera',
       mode: 'Sposób doboru',
       oneDish: 'Jedno danie',
       wholeTable: 'Cały stolik',
@@ -84,14 +93,51 @@ export const pl = {
       noneYet: 'Nasz sommelier wciąż przygotowuje pary do tego dania. Kelner chętnie pomoże.',
       clearFilters: 'Wyczyść filtry',
       alsoGood: 'Też pasuje do tego dania',
-      perfect: 'Pasuje do Twojego dania',
-      sommelierRecommendation: 'Rekomendacja sommeliera',
+      recommended: 'Polecane do Twojego dania',
+      sommelierPairing: 'Para sommeliera',
       bestValue: 'Najlepsza cena',
       match: 'dopasowanie',
+      matchLabel: (n: number) => `Dopasowanie ${n} procent`,
+      glassLabel: 'Dopasowanie pokazuje wypełnienie kieliszka',
       glassPrice: (price: string) => `Kieliszek ${price}`,
       bottlePrice: (price: string) => `Butelka ${price}`,
       nonVintage: 'bez rocznika',
-      footer: (restaurant: string, director: string) => `Pary pochodzą z karty win restauracji ${restaurant}, a sprawdza je ${director}, nasza Wine Director.`
+      footer: (restaurant: string, director: string, showUnreviewed: boolean) => showUnreviewed
+        ? `Wszystkie wina pochodzą z karty win restauracji ${restaurant}. Wina z pieczęcią poleca ${directorPl(director)}, pozostałe dobieramy według zasad łączenia wina z jedzeniem.`
+        : `Wszystkie wina pochodzą z karty win restauracji ${restaurant} i poleca je ${directorPl(director)}.`
+    },
+    explain: {
+      wines: {
+        summary: 'Skąd te wina?',
+        points: (f: EngineFacts, c: ExplainContext) => [
+          `Para sommeliera — wino, które do tego dania poleca ${directorPl(c.director)}; zawsze przed pozostałymi.`,
+          ...(c.showUnreviewed
+            ? [`Polecane do Twojego dania — dobrane według zasad łączenia wina z jedzeniem (budowa, kwasowość, słodycz, taniny, ostrość, klasyczne połączenia); ${c.showScores ? `pokazujemy je od ${f.minModelScore}%.` : 'pokazujemy tylko dostatecznie dobrze pasujące.'}`]
+            : []),
+          c.showScores
+            ? `Procent (0–${f.maxScore}%) to ocena dopasowania wina do dania. Wybór sommeliera zmienia kolejność, nie liczbę; cena jej nie podnosi.`
+            : 'Im pełniejszy kieliszek, tym lepiej wino pasuje do dania. Wybór sommeliera zmienia kolejność, nie ocenę; cena jej nie podnosi.',
+          `Najlepsza cena — wybór sommeliera w tej roli, a bez niego najtańsza butelka tańsza od pierwszego wina, ${c.showScores ? `najwyżej ${f.bestValueWindow} pkt słabsza od najlepszej` : 'pasująca prawie tak dobrze jak najlepsza'}.`,
+          filterPointsPl(f).join(' ')
+        ]
+      },
+      filters: {
+        summary: 'Jak działają filtry?',
+        points: (f: EngineFacts) => filterPointsPl(f)
+      },
+      wine: {
+        summary: 'Co znaczy ta ocena?',
+        points: (c: WineExplainContext) => [
+          c.score === null
+            ? c.dish === null
+              ? 'Tu nie pokazujemy oceny — oceniamy wino tylko do konkretnego dania.'
+              : `Tego wina nie ma wśród win, które proponujemy do dania „${c.dish}”, więc nie pokazujemy tu oceny.`
+            : c.showScores
+              ? `${c.score}% to ocena, jak dobrze to wino pasuje do dania „${c.dish ?? ''}”. Wyżej uzasadnienie: słowa sommeliera (z podpisem) albo zasady, które zdecydowały.`
+              : `Kieliszek pokazuje, jak dobrze to wino pasuje do dania „${c.dish ?? ''}”: im pełniejszy, tym lepiej. Wyżej uzasadnienie: słowa sommeliera (z podpisem) albo zasady, które zdecydowały.`,
+          'Kropki to profil wina w skali 0–5 według opisu z karty restauracji.'
+        ]
+      }
     },
     wine: {
       unavailableTitle: 'To wino jest już niedostępne',
@@ -151,7 +197,7 @@ export const pl = {
       noneText: 'Spróbuj innego koloru albo budżetu.',
       changePrefs: 'Zmień preferencje',
       recommended: 'Polecamy dla Twojego stolika',
-      sommelierPairing: 'Para od sommeliera',
+      sommelierPairing: 'Para sommeliera',
       overall: 'Dopasowanie ogółem',
       others: 'Inne butelki, które pasują',
       splitTitle: 'Albo na kieliszki, do każdego dania osobno',
@@ -164,8 +210,8 @@ export const pl = {
       show: 'Pokaż',
       nothingTitle: 'Nic nie pasuje',
       nothingText: 'Poluzuj budżet albo kolor.',
-      firstChoice: 'Pierwszy wybór Wine Director',
-      pick: 'Wybór Wine Director',
+      firstChoice: 'Para sommeliera · pierwszy wybór',
+      pick: 'Para sommeliera',
       matchPct: (n: number) => `${n}% dopasowania`,
       listNo: (n: number) => `nr ${n}`,
       say: (why: string) => `Powiedz: „${why}”`,
@@ -349,7 +395,7 @@ export const pl = {
       dataSource: (source: string) => `Źródło danych: ${source}`,
       guestView: 'Widok gościa',
       waitingTitle: (n: number) => `Propozycje silnika czekające na Twój przegląd: ${n}`,
-      waitingText: 'Goście widzą propozycję jako „Najlepsze dopasowanie”, nigdy jako rekomendację sommeliera, dopóki jej nie zatwierdzisz.',
+      waitingText: 'Goście widzą propozycję jako „Polecane do Twojego dania”, nigdy jako „Para sommeliera”, dopóki jej nie zatwierdzisz.',
       reviewNow: 'Przejrzyj teraz',
       program: 'Program win',
       sommelierLed: 'Dania z parowaniem sommeliera',
@@ -477,7 +523,7 @@ export const pl = {
     },
     review: {
       title: 'Do przeglądu',
-      description: 'Parowania zaproponowane przez silnik do Twojej karty. Nic tutaj nie jest oznaczone jako rekomendacja sommeliera, dopóki tego nie zatwierdzisz.',
+      description: 'Parowania zaproponowane przez silnik do Twojej karty. Nic tutaj nie jest oznaczone jako para sommeliera, dopóki tego nie zatwierdzisz.',
       approveAll: (n: number) => `Zatwierdź wszystkie (${n})`,
       readOnly: 'Możesz śledzić kolejkę. Parowania zatwierdza lub odrzuca tylko Wine Director.',
       progress: (reviewed: number, of: number) => `${reviewed} z ${of} dań ma co najmniej jedno zatwierdzone parowanie`,
@@ -521,7 +567,7 @@ export const pl = {
       noteBase: 'Notatka bazowa',
       noteTranslationsHelp: 'Goście widzą notatkę w swoim języku; puste pole pokazuje notatkę bazową.',
       suggestionsTitle: 'Propozycje silnika',
-      suggestionsText: 'Goście widzą je jako „Najlepsze dopasowanie”, nigdy jako Twoją rekomendację, dopóki ich nie zatwierdzisz.',
+      suggestionsText: 'Goście widzą je jako „Polecane do Twojego dania”, nigdy jako Twoją parę, dopóki ich nie zatwierdzisz.',
       approveAll: (n: number) => `Zatwierdź wszystkie (${n})`,
       allReviewed: 'Wszystkie propozycje przejrzane.',
       approve: 'Zatwierdź',
@@ -551,7 +597,7 @@ export const pl = {
       unpublishedLink: 'Opublikuj',
       unpublishedAfter: ', aby je pokazać.',
       notShown: 'Niewidoczne dla gości: danie nie jest opublikowane albo żadne wino nie przekracza progu.',
-      sommelier: 'Sommelier',
+      sommelier: 'Para sommeliera',
       bestValue: 'Najlepsza cena'
     },
     publish: {
@@ -567,7 +613,7 @@ export const pl = {
       fix: 'Popraw',
       unreviewed: (n: number) => `Nieprzejrzane propozycje silnika: ${n}`,
       allReviewed: 'Wszystkie propozycje przejrzane',
-      unreviewedShown: 'Nieprzejrzane propozycje mogą się pojawić jako „Najlepsze dopasowanie”, nigdy jako rekomendacja sommeliera.',
+      unreviewedShown: 'Nieprzejrzane propozycje mogą się pojawić jako „Polecane do Twojego dania”, nigdy jako „Para sommeliera”.',
       unreviewedHidden: 'Nieprzejrzane propozycje są ukryte przed gośćmi.',
       review: 'Przejrzyj',
       draftProfiles: (n: number) => `Profile smaku wciąż w szkicu: ${n}`,

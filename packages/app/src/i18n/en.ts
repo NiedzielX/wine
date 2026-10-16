@@ -1,7 +1,38 @@
-import type { CookingMethod, ImportIssueCode, ProteinType, Role, SetupStepKey } from '@wine-match/core';
+import type { CookingMethod, EngineFacts, ImportIssueCode, ProteinType, Role, SetupStepKey } from '@wine-match/core';
 
 /** Values quoted in an import issue (`ImportIssue.params`): the cell text, the guessed style, a row number. */
 export type IssueParams = Readonly<Record<string, string | undefined>>;
+
+/**
+ * What an explanation needs to know about the restaurant (spec 2026-10-16-how-it-works-explanations, R6): the live
+ * guest settings and the name of the person who signs the pairings. The engine's numbers come separately, always
+ * from `ENGINE_FACTS` (R4) — never as a literal in a text.
+ */
+export interface ExplainContext {
+  /** the restaurant shows match percentages (otherwise only the glass) */
+  showScores: boolean;
+  /** engine picks fill the places the sommelier has not decided (otherwise only the sommelier's pairings) */
+  showUnreviewed: boolean;
+  /** `restaurant.wineDirector`; may be empty */
+  director: string;
+}
+
+/** The G7 explanation: the score shown for this wine, if any, and the dish it belongs to. */
+export interface WineExplainContext {
+  /** the Match Score on screen, or null when the screen shows none (no dish, from the table, not suggested) */
+  score: number | null;
+  /** the dish the guest came from, if any */
+  dish: string | null;
+  showScores: boolean;
+}
+
+const directorEn = (name: string) => name.trim() || 'the restaurant’s sommelier';
+
+/** G3 point 5 and the G4 sheet: hard filters leave wines out, soft ones reorder, the budget fallback. */
+const filterPointsEn = (f: EngineFacts) => [
+  '“By the glass”, colour and budget leave wines out; body and mood reorder them, sometimes off the list.',
+  `With nothing in budget, we say so and show the ${f.budgetFallbackCount} best-matching wines above it.`
+];
 
 /**
  * English interface texts: the source of the keys (spec 2026-10-15-polish-language, R6). `pl.ts` must
@@ -31,7 +62,7 @@ export const en = {
     hero: {
       promise: 'Find the wine for what you’re eating tonight, from our own list.',
       wineListBy: (name: string) => `Wine list by ${name}`,
-      directorLine: 'Wine Director. Every recommendation follows her pairings.',
+      directorLine: 'The Wine Director’s pairings always lead a dish’s list.',
       staffLink: 'For staff: quick pairing lookup',
       tableAction: 'Pair a bottle for the table',
       restaurant: 'Restaurant'
@@ -46,7 +77,7 @@ export const en = {
       updatingText: 'Your waiter can suggest a wine in the meantime.',
       pickLead: 'Pick the dish you’re ordering.',
       sections: 'Menu sections',
-      sommelierAvailable: 'Sommelier pairing available',
+      sommelierAvailable: 'Sommelier’s pairing',
       mode: 'Pairing mode',
       oneDish: 'One dish',
       wholeTable: 'Whole table',
@@ -83,14 +114,59 @@ export const en = {
       noneYet: 'Our sommelier is still preparing pairings for this dish. Your waiter can help.',
       clearFilters: 'Clear filters',
       alsoGood: 'Also good with this dish',
-      perfect: 'Perfect with your dish',
-      sommelierRecommendation: 'Sommelier recommendation',
+      recommended: 'Recommended for your dish',
+      sommelierPairing: 'Sommelier’s pairing',
       bestValue: 'Best value',
       match: 'match',
+      /** accessible name of the match glass */
+      matchLabel: (n: number) => `Match ${n} percent`,
+      /** accessible name of the glass when the restaurant hides percentages: no number */
+      glassLabel: 'Match shown by how full the glass is',
       glassPrice: (price: string) => `Glass ${price}`,
       bottlePrice: (price: string) => `Bottle ${price}`,
       nonVintage: 'non-vintage',
-      footer: (restaurant: string, director: string) => `Pairings are chosen from ${restaurant}’s list and reviewed by ${director}, our Wine Director.`
+      /** the trust note under the wines (Q5): true to the `showUnreviewed` setting */
+      footer: (restaurant: string, director: string, showUnreviewed: boolean) => showUnreviewed
+        ? `Every wine comes from ${restaurant}’s list. Wines with the seal are recommended by ${directorEn(director)}; the others are matched by our pairing rules.`
+        : `Every wine comes from ${restaurant}’s list and is recommended by ${directorEn(director)}.`
+    },
+    /**
+     * "How it works" explanations, one per screen (spec 2026-10-16-how-it-works-explanations). Numbers only from the
+     * `facts` parameter (`ENGINE_FACTS`), variants from the live settings. Other specs add their paragraphs to the same
+     * screen key instead of a second explanation (Q15).
+     */
+    explain: {
+      wines: {
+        summary: 'Why these wines?',
+        points: (f: EngineFacts, c: ExplainContext) => [
+          `Sommelier’s pairing: chosen for this dish by ${directorEn(c.director)}; always listed first.`,
+          ...(c.showUnreviewed
+            ? [`Recommended for your dish: matched by pairing rules (body, acidity, sweetness, tannin, spice, classic pairings); ${c.showScores ? `shown from ${f.minModelScore}%.` : 'only good fits are shown.'}`]
+            : []),
+          c.showScores
+            ? `The percentage (0–${f.maxScore}%) rates the wine’s fit with the dish. A sommelier’s choice changes the order, not the number; price never raises it.`
+            : 'A fuller glass means a better fit. A sommelier’s choice changes the order, not the rating; price never raises it.',
+          `Best value: the sommelier’s value pick, or the cheapest bottle priced below the first${c.showScores ? `, within ${f.bestValueWindow} points of the top wine` : ', fitting almost as well as the top wine'}.`,
+          filterPointsEn(f).join(' ')
+        ]
+      },
+      filters: {
+        summary: 'How do the filters work?',
+        points: (f: EngineFacts) => filterPointsEn(f)
+      },
+      wine: {
+        summary: 'What does this score mean?',
+        points: (c: WineExplainContext) => [
+          c.score === null
+            ? c.dish === null
+              ? 'There is no rating here: we only rate a wine against a particular dish.'
+              : `This wine is not among the wines we suggest for “${c.dish}”, so there is no rating here.`
+            : c.showScores
+              ? `${c.score}% rates how well this wine suits “${c.dish ?? ''}”. The box above says why: the sommelier’s own words (signed) or the pairing rules that decided.`
+              : `The glass shows how well this wine suits “${c.dish ?? ''}”: the fuller, the better. The box above says why: the sommelier’s own words (signed) or the pairing rules that decided.`,
+          'The dots show the wine’s profile on a 0–5 scale, from the restaurant’s description of the wine.'
+        ]
+      }
     },
     wine: {
       unavailableTitle: 'This wine is no longer available',
@@ -150,7 +226,7 @@ export const en = {
       noneText: 'Try another colour or budget.',
       changePrefs: 'Change preferences',
       recommended: 'Recommended for your table',
-      sommelierPairing: 'Sommelier pairing',
+      sommelierPairing: 'Sommelier’s pairing',
       overall: 'Overall match',
       others: 'Other bottles that work',
       splitTitle: 'Or by the glass, dish by dish',
@@ -163,8 +239,8 @@ export const en = {
       show: 'Show',
       nothingTitle: 'Nothing fits',
       nothingText: 'Relax the budget or colour.',
-      firstChoice: 'Wine Director’s first choice',
-      pick: 'Wine Director’s pick',
+      firstChoice: 'Sommelier’s pairing · first choice',
+      pick: 'Sommelier’s pairing',
       matchPct: (n: number) => `${n}% match`,
       listNo: (n: number) => `no. ${n}`,
       say: (why: string) => `Say: “${why}”`,
@@ -348,7 +424,7 @@ export const en = {
       dataSource: (source: string) => `Data source: ${source}`,
       guestView: 'Guest view',
       waitingTitle: (n: number) => `${n} engine suggestions are waiting for your review`,
-      waitingText: 'Guests see a suggestion as “Best match”, never as a sommelier recommendation, until it is approved.',
+      waitingText: 'Guests see a suggestion as “Recommended for your dish”, never as a sommelier’s pairing, until it is approved.',
       reviewNow: 'Review now',
       program: 'Wine program',
       sommelierLed: 'Sommelier-led dishes',
@@ -476,7 +552,7 @@ export const en = {
     },
     review: {
       title: 'Review queue',
-      description: 'Pairings the engine proposed for your list. Nothing here is labelled as a sommelier recommendation until you approve it.',
+      description: 'Pairings the engine proposed for your list. Nothing here is labelled as a sommelier’s pairing until you approve it.',
       approveAll: (n: number) => `Approve all ${n}`,
       readOnly: 'You can follow the review queue. Only the Wine Director approves or rejects pairings.',
       progress: (reviewed: number, of: number) => `${reviewed} of ${of} dishes have at least one approved pairing`,
@@ -520,7 +596,7 @@ export const en = {
       noteBase: 'Base note',
       noteTranslationsHelp: 'Guests see the note in their language; an empty field shows the base note.',
       suggestionsTitle: 'Engine suggestions',
-      suggestionsText: 'Guests see these as “Best match”, never as your recommendation, until you approve them.',
+      suggestionsText: 'Guests see these as “Recommended for your dish”, never as your pairing, until you approve them.',
       approveAll: (n: number) => `Approve all ${n}`,
       allReviewed: 'All suggestions reviewed.',
       approve: 'Approve',
@@ -550,7 +626,7 @@ export const en = {
       unpublishedLink: 'Publish',
       unpublishedAfter: ' to show them.',
       notShown: 'Not shown to guests: the dish is not published or nothing passes the threshold.',
-      sommelier: 'Sommelier',
+      sommelier: 'Sommelier’s pairing',
       bestValue: 'Best value'
     },
     publish: {
@@ -566,7 +642,7 @@ export const en = {
       fix: 'Fix',
       unreviewed: (n: number) => `${n} engine suggestions not reviewed`,
       allReviewed: 'All suggestions reviewed',
-      unreviewedShown: 'Unreviewed suggestions can still appear as “Best match”, never as a sommelier recommendation.',
+      unreviewedShown: 'Unreviewed suggestions can still appear as “Recommended for your dish”, never as a sommelier’s pairing.',
       unreviewedHidden: 'Unreviewed suggestions are hidden from guests.',
       review: 'Review',
       draftProfiles: (n: number) => `${n} taste profiles are still drafts`,
