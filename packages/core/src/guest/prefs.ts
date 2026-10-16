@@ -1,5 +1,6 @@
-import type { GuestPreferences, WineStyle } from '../domain/types';
+import type { Dish, GuestPreferences, WineStyle } from '../domain/types';
 import { DEFAULT_PREFS } from '../domain/types';
+import type { TableItem } from '../engine/table';
 import type { Locale, Localized } from '../i18n/locale';
 
 /**
@@ -111,4 +112,24 @@ export function prefsSummary(p: GuestPreferences, locale: Locale = 'en'): string
 /** Dish ids from `dish=a&dish=b` or `dishes=a,b`, without duplicates. */
 export function parseDishIds(q: QueryInput): string[] {
   return [...new Set([...list(q.dish), ...list(q.dishes)])];
+}
+
+/** Most dishes one table calculation takes (the same limit as the public API schema); the first ones are used. */
+export const MAX_TABLE_DISHES = 12;
+
+/**
+ * Whether the "whole table" entry makes sense for this menu: at least two published dishes outside desserts
+ * (desserts are set aside from the shared bottle, so a menu of one savoury dish and desserts has no table to pair).
+ */
+export function canPairTable(dishes: Dish[]): boolean {
+  return dishes.filter((d) => d.status === 'published' && d.category !== 'Desserts').length >= 2;
+}
+
+/**
+ * The table result with the chosen wine first ("Choose this one"): the chosen item becomes the bottle, the others
+ * keep the engine's order. A wine id that is not in the result (or none) leaves the result as it is.
+ */
+export function pickTableItem(items: TableItem[], wineId: string | null | undefined): TableItem[] {
+  const picked = wineId ? items.find((i) => i.wine.id === wineId) : undefined;
+  return picked ? [picked, ...items.filter((i) => i !== picked)] : items;
 }

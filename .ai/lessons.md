@@ -28,7 +28,7 @@ Format linii (najnowsze na górze):
 - [2026-10-14] [W poleceniach powłoki i skryptach npm pisz POSIX](lessons/2026-10-14-posix-shell-in-scripts.md) — `/bin/sh` to często `dash`: bez `{a,b}`, `${PIPESTATUS}`, `[[ ]]`.
 - [2026-10-14] [Obok każdego AGENTS.md umieść CLAUDE.md z @AGENTS.md](lessons/2026-10-14-claude-code-nested-claude-md.md) — Claude Code wczytuje zagnieżdżone CLAUDE.md, nie AGENTS.md.
 - [2026-10-14] [Do udostępnienia mockupów jako jednego pliku HTML użyj vite-plugin-singlefile](lessons/2026-10-14-single-file-build-for-sharing.md) — buduj na kopii repo, favicon jako data URI, bez manifestu, wtyczka tylko `--no-save`.
-- [2026-10-14] [Po każdej zmianie reguł silnika przejrzyj pełną macierz dań × win](lessons/2026-10-14-engine-calibration-matrix.md) — `npm run engine:matrix`; testy nie wyłapią błędów kalibracji wynikających z interakcji reguł, każdą anomalię zamień w test; ranking pilnuje test złoty `engine-golden`, sprawdzony mutacją (akt. 2026-10-16).
+- [2026-10-14] [Po każdej zmianie reguł silnika przejrzyj pełną macierz dań × win](lessons/2026-10-14-engine-calibration-matrix.md) — `npm run engine:matrix`; testy nie wyłapią błędów kalibracji wynikających z interakcji reguł, każdą anomalię zamień w test; ranking pilnuje test złoty `engine-golden`, sprawdzony mutacją; nowe pola obok rankingu przypinaj osobno (akt. 2026-10-16).
 - [2026-10-14] [Drafter importu: konstrukcje „X steak” przed mięsem](lessons/2026-10-14-import-drafter-keyword-order.md) — szczegółowe frazy w `PROTEIN_WORDS` muszą być przed ogólnymi słowami kluczowymi.
 - [2026-10-14] [Dzieci siatki CSS muszą mieć min-width: 0](lessons/2026-10-14-css-grid-min-width.md) — używaj `minmax(0, 1fr)` i sprawdzaj `scrollWidth` przy 390 px.
 

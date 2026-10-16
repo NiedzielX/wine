@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildDemoDataset } from '../src/demo/dataset';
 import { DEFAULT_PREFS } from '../src/domain/types';
 import {
-  budgetOptions, parseDishIds, parseGuestPrefs, prefsSummary, prefsToQuery, toQueryString,
+  budgetOptions, canPairTable, MAX_TABLE_DISHES, parseDishIds, parseGuestPrefs, pickTableItem, prefsSummary, prefsToQuery, toQueryString,
   withBudget, withServing, withStyleToggled
 } from '../src/guest/prefs';
 import { tasteWords } from '../src/guest/taste';
@@ -95,5 +95,45 @@ describe('RecommendationService.wineDetails', () => {
   it('returns null for an unknown restaurant or wine', async () => {
     expect(await svc().wineDetails('nope', wine('Morgon').id)).toBeNull();
     expect(await svc().wineDetails('halka', '00000000-0000-4000-8000-000000000000')).toBeNull();
+  });
+});
+
+describe('the whole table (spec 2026-10-16-whole-table-waiter-path)', () => {
+  const published = ds.dishes.filter((d) => d.status === 'published');
+  const savoury = published.filter((d) => d.category !== 'Desserts');
+  const desserts = published.filter((d) => d.category === 'Desserts');
+
+  it('offers the table only for at least two published dishes outside desserts', () => {
+    expect(canPairTable(savoury.slice(0, 2))).toBe(true);
+    expect(canPairTable(published)).toBe(true);
+    expect(canPairTable([savoury[0], ...desserts])).toBe(false);
+    expect(canPairTable(desserts)).toBe(false);
+    expect(canPairTable([])).toBe(false);
+    // a draft dish does not count
+    expect(canPairTable([savoury[0], { ...savoury[1], status: 'draft' }])).toBe(false);
+  });
+
+  it('takes at most twelve dishes, the same limit as the API', () => {
+    expect(MAX_TABLE_DISHES).toBe(12);
+  });
+
+  it('puts the chosen wine first and keeps the engine order for the others', async () => {
+    const ids = ['Beef tartare', 'Wild mushroom risotto', 'Duck breast'].map((n) => dish(n).id);
+    const { result } = (await svc().forTable('halka', ids))!;
+    const [a, b, c] = result.items;
+    expect(pickTableItem(result.items, c.wine.id)).toEqual([c, a, b]);
+    expect(pickTableItem(result.items, b.wine.id)).toEqual([b, a, c]);
+    expect(pickTableItem(result.items, a.wine.id)).toEqual([a, b, c]);
+  });
+
+  it('ignores a wine that is not in the result, or none', async () => {
+    const ids = ['Beef tartare', 'Duck breast'].map((n) => dish(n).id);
+    const { result } = (await svc().forTable('halka', ids))!;
+    const outside = ds.wines.find((w) => !result.items.some((i) => i.wine.id === w.id))!;
+    expect(pickTableItem(result.items, outside.id)).toBe(result.items);
+    expect(pickTableItem(result.items, null)).toBe(result.items);
+    expect(pickTableItem(result.items, undefined)).toBe(result.items);
+    expect(pickTableItem(result.items, '')).toBe(result.items);
+    expect(pickTableItem([], 'x')).toEqual([]);
   });
 });

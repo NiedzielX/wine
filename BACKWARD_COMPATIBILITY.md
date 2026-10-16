@@ -94,7 +94,8 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 
 | Element | Co jest zmianą łamiącą |
 |---|---|
-| `ENGINE_VERSION` (`wm-rules-1.0.0`), zwracane jako `engineVersion` przez API | zmiana wyników bez podniesienia wersji |
+| `ENGINE_VERSION` (`wm-rules-1.1.0`; historia w `docs/RECOMMENDATION_ENGINE.md` §10), zwracane jako `engineVersion` przez API | zmiana wyników bez podniesienia wersji |
+| Identyfikatory reguł stolika (`table.fit`, `table.budget_relaxed`) — nazwy dokumentacyjne (stolik nie emituje `Factor`), nazwy bloków `describe` w testach silnika | zmiana nazwy lub znaczenia bez specyfikacji |
 | Identyfikatory reguł w `Factor.rule` (`weight.match`, `acid.cuts_fat`, `affinity.<protein>`…) | zmiana nazwy lub usunięcie: używane w testach i analityce |
 | Skala Match Score 0–99, `BASE_SCORE` = 72 | zmiana skali |
 | Determinizm (bez `Math.random`, dat, sieci, LLM) | każde odstępstwo |

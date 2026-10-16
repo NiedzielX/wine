@@ -124,7 +124,7 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
 {
   "dishId": "d_duck",
   "versionId": "0192…",
-  "engineVersion": "wm-rules-1.0.0",
+  "engineVersion": "wm-rules-1.1.0",
   "notice": null,
   "items": [
     {
@@ -222,7 +222,7 @@ POST /v1/recommendations/table
 }
 → 200
 {
-  "engineVersion": "wm-rules-1.0.0",
+  "engineVersion": "wm-rules-1.1.0",
   "items": [
     {"wine": {"id": "w_savigny", "…": "…"}, "overall": 85, "price": 320, "serving": "bottle",
      "perDish": [
