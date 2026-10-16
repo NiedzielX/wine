@@ -52,6 +52,6 @@ Positioning accepted by the product owner on 2026-10-16. Specs approved by the p
 - Phases: E07-F1a #37 · E07-F1b #38 · E07-F2 #39 · E07-F3 #40
 - Phases: E08-F1 #42 · E08-F2 #43 · E08-F3 #44 · E08-F4 #45
 - Phases: E09-F1 #47 · E09-F2 #48 · E09-F3 #49
-| E10-F1 #51 · E10-F2 #52 · E10-F3 #53 · E10-F4 #54 |
+- Phases: E10-F1 #51 · E10-F2 #52 · E10-F3 #53 · E10-F4 #54
 
 Merge order: E07 F1a (core) → E08 F1 (engine) → E07 F1b (UI) → E09 F1 → E08 F2–F3, E10 F1–F2 → the rest by dependency.
