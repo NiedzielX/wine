@@ -1,0 +1,270 @@
+d_tartare | default | w_lapierre 91 97 t0 48g gb primary ; w_gimonnet 85 91 t1 72g gb alternative ; w_graillot 88 88 t2 58g gb ; w_denit 87 87 t2 52g gb | out=0
+d_tartare | glass | w_lapierre 91 97 t0 48g g primary ; w_gimonnet 85 91 t1 72g g alternative ; w_graillot 88 88 t2 58g g ; w_denit 87 87 t2 52g g | out=5
+d_tartare | bottle | w_lapierre 91 97 t0 230b b primary ; w_gimonnet 85 91 t1 390b b alternative ; w_graillot 88 88 t2 275b b ; w_denit 87 87 t2 260b b | out=0
+d_tartare | style=sparkling | w_gimonnet 85 91 t1 72g gb alternative ; w_denit 87 87 t2 bv 52g gb | out=17
+d_tartare | style=white | w_turnau 83 83 t2 38g gb ; w_bruendlmayer 83 83 t2 44g gb ; w_vacheron 83 83 t2 58g gb ; w_leflaive 83 83 t2 340b b | out=13
+d_tartare | style=rose | w_tempier 83 83 t2 56g gb | out=18
+d_tartare | style=orange | w_radikon 81 81 t2 320b b | out=18
+d_tartare | style=red | w_lapierre 91 97 t0 48g gb primary ; w_graillot 88 88 t2 58g gb ; w_savigny 83 83 t2 64g gb ; w_produttori 79 79 t2 72g gb | out=12
+d_tartare | style=sweet |  | out=17
+d_tartare | max=0 | w_lapierre 91 97 t0 48g gb primary ; w_gimonnet 85 91 t1 72g gb alternative | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_tartare | max=60 | w_lapierre 91 97 t0 48g gb primary ; w_graillot 88 88 t2 58g gb ; w_denit 87 87 t2 52g gb ; w_turnau 83 83 t2 bv 38g gb | out=9
+d_tartare | max=200 | w_lapierre 91 97 t0 48g gb primary ; w_gimonnet 85 91 t1 72g gb alternative ; w_graillot 88 88 t2 58g gb ; w_denit 87 87 t2 52g gb | out=5
+d_tartare | glass+max=60 | w_lapierre 91 97 t0 48g g primary ; w_graillot 88 88 t2 58g g ; w_denit 87 87 t2 52g g ; w_turnau 83 83 t2 bv 38g g | out=9
+d_tartare | lighter | w_lapierre 91 101 t0 48g gb primary ; w_gimonnet 85 95 t1 72g gb alternative ; w_denit 87 91 t2 52g gb ; w_turnau 83 87 t2 bv 38g gb | out=0
+d_tartare | fuller | w_lapierre 91 93 t0 48g gb primary ; w_gimonnet 85 87 t1 72g gb alternative ; w_graillot 88 92 t2 58g gb ; w_denit 87 83 t2 52g gb | out=0
+d_tartare | classic | w_lapierre 91 97 t0 48g gb primary ; w_gimonnet 85 91 t1 72g gb alternative ; w_graillot 88 88 t2 58g gb ; w_tempier 83 83 t2 56g gb | out=0
+d_tartare | adventurous | w_lapierre 91 97 t0 48g gb primary ; w_gimonnet 85 91 t1 72g gb alternative ; w_denit 87 92 t2 52g gb ; w_turnau 83 88 t2 bv 38g gb | out=0
+d_herring | default | w_bruendlmayer 93 99 t0 44g gb primary ; w_turnau 87 93 t1 bv 38g gb best_value ; w_denit 92 92 t2 52g gb ; w_gimonnet 92 92 t2 72g gb | out=0
+d_herring | glass | w_bruendlmayer 93 99 t0 44g g primary ; w_turnau 87 93 t1 bv 38g g best_value ; w_denit 92 92 t2 52g g ; w_gimonnet 92 92 t2 72g g | out=5
+d_herring | bottle | w_bruendlmayer 93 99 t0 195b b primary ; w_turnau 87 93 t1 bv 165b b best_value ; w_denit 92 92 t2 260b b ; w_gimonnet 92 92 t2 390b b | out=0
+d_herring | style=sparkling | w_denit 92 92 t2 52g gb ; w_gimonnet 92 92 t2 72g gb | out=17
+d_herring | style=white | w_bruendlmayer 93 99 t0 44g gb primary ; w_turnau 87 93 t1 bv 38g gb best_value ; w_loosen 87 87 t2 46g gb ; w_vacheron 87 87 t2 58g gb | out=13
+d_herring | style=rose | w_tempier 83 83 t2 56g gb | out=18
+d_herring | style=orange | w_radikon 75 75 t2 320b b | out=18
+d_herring | style=red | w_lapierre 83 83 t2 48g gb ; w_savigny 75 75 t2 64g gb ; w_feltonroad 65 65 t2 380b b | out=12
+d_herring | style=sweet |  | out=17
+d_herring | max=0 | w_bruendlmayer 93 99 t0 44g gb primary ; w_turnau 87 93 t1 bv 38g gb best_value | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_herring | max=60 | w_bruendlmayer 93 99 t0 44g gb primary ; w_turnau 87 93 t1 bv 38g gb best_value ; w_denit 92 92 t2 52g gb ; w_loosen 87 87 t2 46g gb | out=9
+d_herring | max=200 | w_bruendlmayer 93 99 t0 44g gb primary ; w_turnau 87 93 t1 bv 38g gb best_value ; w_denit 92 92 t2 52g gb ; w_gimonnet 92 92 t2 72g gb | out=5
+d_herring | glass+max=60 | w_bruendlmayer 93 99 t0 44g g primary ; w_turnau 87 93 t1 bv 38g g best_value ; w_denit 92 92 t2 52g g ; w_loosen 87 87 t2 46g g | out=9
+d_herring | lighter | w_bruendlmayer 93 103 t0 44g gb primary ; w_turnau 87 97 t1 bv 38g gb best_value ; w_denit 92 96 t2 52g gb ; w_gimonnet 92 96 t2 72g gb | out=0
+d_herring | fuller | w_bruendlmayer 93 95 t0 44g gb primary ; w_turnau 87 89 t1 bv 38g gb best_value ; w_denit 92 88 t2 52g gb ; w_gimonnet 92 88 t2 72g gb | out=0
+d_herring | classic | w_bruendlmayer 93 94 t0 44g gb primary ; w_turnau 87 88 t1 bv 38g gb best_value ; w_gimonnet 92 92 t2 72g gb ; w_loosen 87 87 t2 46g gb | out=0
+d_herring | adventurous | w_bruendlmayer 93 104 t0 44g gb primary ; w_turnau 87 98 t1 bv 38g gb best_value ; w_denit 92 97 t2 52g gb ; w_gimonnet 92 92 t2 72g gb | out=0
+d_burrata | default | w_gimonnet 91 91 t2 72g gb ; w_radikon 89 89 t2 320b b ; w_leflaive 89 89 t2 340b b ; w_denit 87 87 t2 bv 52g gb | out=0
+d_burrata | glass | w_gimonnet 91 91 t2 72g g ; w_denit 87 87 t2 bv 52g g ; w_turnau 81 81 t2 38g g ; w_bruendlmayer 81 81 t2 44g g | out=5
+d_burrata | bottle | w_gimonnet 91 91 t2 390b b ; w_radikon 89 89 t2 320b b ; w_leflaive 89 89 t2 340b b ; w_denit 87 87 t2 bv 260b b | out=0
+d_burrata | style=sparkling | w_gimonnet 91 91 t2 72g gb ; w_denit 87 87 t2 bv 52g gb | out=17
+d_burrata | style=white | w_leflaive 89 89 t2 340b b ; w_turnau 81 81 t2 bv 38g gb ; w_bruendlmayer 81 81 t2 44g gb ; w_loosen 81 81 t2 46g gb | out=13
+d_burrata | style=rose | w_tempier 81 81 t2 56g gb | out=18
+d_burrata | style=orange | w_radikon 89 89 t2 320b b | out=18
+d_burrata | style=red | w_lapierre 81 81 t2 48g gb ; w_savigny 81 81 t2 64g gb ; w_feltonroad 76 76 t2 380b b ; w_graillot 67 67 t2 58g gb | out=12
+d_burrata | style=sweet |  | out=17
+d_burrata | max=0 | w_gimonnet 91 91 t2 72g gb ; w_radikon 89 89 t2 bv 320b b | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_burrata | max=60 | w_denit 87 87 t2 52g gb ; w_turnau 81 81 t2 bv 38g gb ; w_bruendlmayer 81 81 t2 44g gb ; w_loosen 81 81 t2 46g gb | out=9
+d_burrata | max=200 | w_gimonnet 91 91 t2 72g gb ; w_denit 87 87 t2 bv 52g gb ; w_turnau 81 81 t2 38g gb ; w_bruendlmayer 81 81 t2 44g gb | out=5
+d_burrata | glass+max=60 | w_denit 87 87 t2 52g g ; w_turnau 81 81 t2 bv 38g g ; w_bruendlmayer 81 81 t2 44g g ; w_loosen 81 81 t2 46g g | out=9
+d_burrata | lighter | w_gimonnet 91 95 t2 72g gb ; w_denit 87 91 t2 bv 52g gb ; w_radikon 89 89 t2 320b b ; w_leflaive 89 89 t2 340b b | out=0
+d_burrata | fuller | w_radikon 89 89 t2 320b b ; w_leflaive 89 89 t2 340b b ; w_gimonnet 91 87 t2 72g gb ; w_denit 87 83 t2 bv 52g gb | out=0
+d_burrata | classic | w_gimonnet 91 91 t2 72g gb ; w_leflaive 89 89 t2 340b b ; w_radikon 89 84 t2 320b b ; w_denit 87 82 t2 bv 52g gb | out=0
+d_burrata | adventurous | w_radikon 89 94 t2 320b b ; w_denit 87 92 t2 bv 52g gb ; w_gimonnet 91 91 t2 72g gb ; w_leflaive 89 89 t2 340b b | out=0
+d_scallops | default | w_leflaive 93 93 t2 340b b ; w_denit 88 88 t2 52g gb ; w_gimonnet 88 88 t2 72g gb ; w_turnau 85 85 t2 bv 38g gb | out=0
+d_scallops | glass | w_denit 88 88 t2 52g g ; w_gimonnet 88 88 t2 72g g ; w_turnau 85 85 t2 bv 38g g ; w_bruendlmayer 85 85 t2 44g g | out=5
+d_scallops | bottle | w_leflaive 93 93 t2 340b b ; w_denit 88 88 t2 260b b ; w_gimonnet 88 88 t2 390b b ; w_turnau 85 85 t2 bv 165b b | out=0
+d_scallops | style=sparkling | w_denit 88 88 t2 52g gb ; w_gimonnet 88 88 t2 72g gb | out=17
+d_scallops | style=white | w_leflaive 93 93 t2 340b b ; w_turnau 85 85 t2 bv 38g gb ; w_bruendlmayer 85 85 t2 44g gb ; w_loosen 85 85 t2 46g gb | out=13
+d_scallops | style=rose | w_tempier 81 81 t2 56g gb | out=18
+d_scallops | style=orange | w_radikon 81 81 t2 320b b | out=18
+d_scallops | style=red | w_lapierre 81 81 t2 48g gb ; w_savigny 73 73 t2 64g gb ; w_feltonroad 68 68 t2 380b b | out=12
+d_scallops | style=sweet |  | out=17
+d_scallops | max=0 | w_leflaive 93 93 t2 340b b ; w_denit 88 88 t2 bv 52g gb | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_scallops | max=60 | w_denit 88 88 t2 52g gb ; w_turnau 85 85 t2 bv 38g gb ; w_bruendlmayer 85 85 t2 44g gb ; w_loosen 85 85 t2 46g gb | out=9
+d_scallops | max=200 | w_denit 88 88 t2 52g gb ; w_gimonnet 88 88 t2 72g gb ; w_turnau 85 85 t2 bv 38g gb ; w_bruendlmayer 85 85 t2 44g gb | out=5
+d_scallops | glass+max=60 | w_denit 88 88 t2 52g g ; w_turnau 85 85 t2 bv 38g g ; w_bruendlmayer 85 85 t2 44g g ; w_loosen 85 85 t2 46g g | out=9
+d_scallops | lighter | w_leflaive 93 93 t2 340b b ; w_denit 88 92 t2 52g gb ; w_gimonnet 88 92 t2 72g gb ; w_turnau 85 89 t2 bv 38g gb | out=0
+d_scallops | fuller | w_leflaive 93 93 t2 340b b ; w_denit 88 84 t2 bv 52g gb ; w_gimonnet 88 84 t2 72g gb ; w_kumeu 79 83 t2 62g gb | out=0
+d_scallops | classic | w_leflaive 93 93 t2 340b b ; w_gimonnet 88 88 t2 72g gb ; w_loosen 85 85 t2 bv 46g gb ; w_vacheron 85 85 t2 58g gb | out=0
+d_scallops | adventurous | w_denit 88 93 t2 52g gb ; w_leflaive 93 93 t2 340b b ; w_turnau 85 90 t2 bv 38g gb ; w_bruendlmayer 85 90 t2 44g gb | out=0
+d_risotto | default | w_kumeu 88 94 t0 62g gb primary ; w_savigny 90 96 t1 64g gb alternative ; w_leflaive 93 93 t2 340b b ; w_radikon 91 91 t2 320b b | out=0
+d_risotto | glass | w_kumeu 88 94 t0 62g g primary ; w_savigny 90 96 t1 64g g alternative ; w_denit 86 86 t2 bv 52g g ; w_gimonnet 84 84 t2 72g g | out=5
+d_risotto | bottle | w_kumeu 88 94 t0 310b b primary ; w_savigny 90 96 t1 320b b alternative ; w_leflaive 93 93 t2 340b b ; w_radikon 91 91 t2 320b b | out=0
+d_risotto | style=sparkling | w_denit 86 86 t2 52g gb ; w_gimonnet 84 84 t2 72g gb | out=17
+d_risotto | style=white | w_kumeu 88 94 t0 62g gb primary ; w_leflaive 93 93 t2 340b b ; w_turnau 83 83 t2 38g gb ; w_bruendlmayer 83 83 t2 44g gb | out=13
+d_risotto | style=rose | w_tempier 83 83 t2 56g gb | out=18
+d_risotto | style=orange | w_radikon 91 91 t2 320b b | out=18
+d_risotto | style=red | w_savigny 90 96 t1 64g gb alternative ; w_feltonroad 85 85 t2 380b b ; w_lapierre 83 83 t2 bv 48g gb ; w_graillot 75 75 t2 58g gb | out=12
+d_risotto | style=sweet |  | out=17
+d_risotto | max=0 | w_kumeu 88 94 t0 62g gb primary ; w_savigny 90 96 t1 64g gb alternative | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_risotto | max=60 | w_denit 86 86 t2 52g gb ; w_turnau 83 83 t2 bv 38g gb ; w_bruendlmayer 83 83 t2 44g gb ; w_lapierre 83 83 t2 48g gb | out=9
+d_risotto | max=200 | w_kumeu 88 94 t0 62g gb primary ; w_savigny 90 96 t1 64g gb alternative ; w_denit 86 86 t2 bv 52g gb ; w_gimonnet 84 84 t2 72g gb | out=5
+d_risotto | glass+max=60 | w_denit 86 86 t2 52g g ; w_turnau 83 83 t2 bv 38g g ; w_bruendlmayer 83 83 t2 44g g ; w_lapierre 83 83 t2 48g g | out=9
+d_risotto | lighter | w_kumeu 88 90 t0 62g gb primary ; w_savigny 90 100 t1 64g gb alternative ; w_leflaive 93 93 t2 340b b ; w_radikon 91 91 t2 320b b | out=0
+d_risotto | fuller | w_kumeu 88 98 t0 62g gb primary ; w_savigny 90 92 t1 64g gb alternative ; w_leflaive 93 93 t2 340b b ; w_radikon 91 91 t2 320b b | out=0
+d_risotto | classic | w_kumeu 88 94 t0 62g gb primary ; w_savigny 90 96 t1 64g gb alternative ; w_leflaive 93 93 t2 340b b ; w_radikon 91 86 t2 320b b | out=0
+d_risotto | adventurous | w_kumeu 88 94 t0 62g gb primary ; w_savigny 90 96 t1 64g gb alternative ; w_radikon 91 96 t2 320b b ; w_leflaive 93 93 t2 340b b | out=0
+d_pikeperch | default | w_leflaive 94 100 t0 340b b primary ; w_denit 88 88 t2 bv 52g gb ; w_gimonnet 88 88 t2 72g gb ; w_turnau 85 85 t2 38g gb | out=0
+d_pikeperch | glass | w_denit 88 88 t2 52g g ; w_gimonnet 88 88 t2 72g g ; w_turnau 85 85 t2 bv 38g g ; w_bruendlmayer 85 85 t2 44g g | out=5
+d_pikeperch | bottle | w_leflaive 94 100 t0 340b b primary ; w_denit 88 88 t2 bv 260b b ; w_gimonnet 88 88 t2 390b b ; w_turnau 85 85 t2 165b b | out=0
+d_pikeperch | style=sparkling | w_denit 88 88 t2 52g gb ; w_gimonnet 88 88 t2 72g gb | out=16
+d_pikeperch | style=white | w_leflaive 94 100 t0 340b b primary ; w_turnau 85 85 t2 38g gb ; w_bruendlmayer 85 85 t2 44g gb ; w_loosen 85 85 t2 46g gb | out=12
+d_pikeperch | style=rose | w_tempier 81 81 t2 56g gb | out=17
+d_pikeperch | style=orange | w_radikon 82 82 t2 320b b | out=17
+d_pikeperch | style=red | w_lapierre 81 81 t2 48g gb ; w_savigny 73 73 t2 64g gb ; w_feltonroad 68 68 t2 380b b | out=12
+d_pikeperch | style=sweet |  | out=16
+d_pikeperch | max=0 | w_leflaive 94 100 t0 340b b primary ; w_denit 88 88 t2 bv 52g gb | out=18 | notice=Nothing matches under 0 zł. These are the closest options.
+d_pikeperch | max=60 | w_denit 88 88 t2 52g gb ; w_turnau 85 85 t2 bv 38g gb ; w_bruendlmayer 85 85 t2 44g gb ; w_loosen 85 85 t2 46g gb | out=8
+d_pikeperch | max=200 | w_denit 88 88 t2 52g gb ; w_gimonnet 88 88 t2 72g gb ; w_turnau 85 85 t2 bv 38g gb ; w_bruendlmayer 85 85 t2 44g gb | out=5
+d_pikeperch | glass+max=60 | w_denit 88 88 t2 52g g ; w_turnau 85 85 t2 bv 38g g ; w_bruendlmayer 85 85 t2 44g g ; w_loosen 85 85 t2 46g g | out=8
+d_pikeperch | lighter | w_leflaive 94 100 t0 340b b primary ; w_denit 88 92 t2 bv 52g gb ; w_gimonnet 88 92 t2 72g gb ; w_turnau 85 89 t2 38g gb | out=0
+d_pikeperch | fuller | w_leflaive 94 100 t0 340b b primary ; w_denit 88 84 t2 bv 52g gb ; w_kumeu 80 84 t2 62g gb ; w_gimonnet 88 84 t2 72g gb | out=0
+d_pikeperch | classic | w_leflaive 94 100 t0 340b b primary ; w_gimonnet 88 88 t2 72g gb ; w_loosen 85 85 t2 46g gb ; w_vacheron 85 85 t2 58g gb | out=0
+d_pikeperch | adventurous | w_leflaive 94 100 t0 340b b primary ; w_denit 88 93 t2 bv 52g gb ; w_turnau 85 90 t2 38g gb ; w_bruendlmayer 85 90 t2 44g gb | out=0
+d_duck | default | w_savigny 80 86 t0 64g gb primary ; w_lapierre 77 83 t1 bv 48g gb best_value ; w_produttori 84 84 t2 72g gb ; w_feltonroad 84 84 t2 380b b | out=0
+d_duck | glass | w_savigny 80 86 t0 64g g primary ; w_lapierre 77 83 t1 bv 48g g best_value ; w_produttori 84 84 t2 72g g ; w_tempier 81 81 t2 56g g | out=5
+d_duck | bottle | w_savigny 80 86 t0 320b b primary ; w_lapierre 77 83 t1 bv 230b b best_value ; w_produttori 84 84 t2 360b b ; w_feltonroad 84 84 t2 380b b | out=0
+d_duck | style=sparkling | w_denit 72 72 t2 52g gb ; w_gimonnet 72 72 t2 72g gb | out=17
+d_duck | style=white | w_leflaive 81 81 t2 340b b ; w_kumeu 76 76 t2 bv 62g gb ; w_turnau 72 72 t2 38g gb ; w_bruendlmayer 72 72 t2 44g gb | out=13
+d_duck | style=rose | w_tempier 81 81 t2 56g gb | out=18
+d_duck | style=orange | w_radikon 81 81 t2 320b b | out=18
+d_duck | style=red | w_savigny 80 86 t0 64g gb primary ; w_lapierre 77 83 t1 bv 48g gb best_value ; w_produttori 84 84 t2 72g gb ; w_feltonroad 84 84 t2 380b b | out=12
+d_duck | style=sweet | w_tokaji 67 67 t2 48g gb ; w_grahams 62 62 t2 42g gb | out=17
+d_duck | max=0 | w_savigny 80 86 t0 64g gb primary ; w_lapierre 77 83 t1 bv 48g gb best_value | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_duck | max=60 | w_lapierre 77 83 t1 bv 48g gb best_value ; w_tempier 81 81 t2 56g gb ; w_graillot 79 79 t2 58g gb ; w_turnau 72 72 t2 38g gb | out=9
+d_duck | max=200 | w_savigny 80 86 t0 64g gb primary ; w_lapierre 77 83 t1 bv 48g gb best_value ; w_produttori 84 84 t2 72g gb ; w_tempier 81 81 t2 56g gb | out=5
+d_duck | glass+max=60 | w_lapierre 77 83 t1 bv 48g g best_value ; w_tempier 81 81 t2 56g g ; w_graillot 79 79 t2 58g g ; w_turnau 72 72 t2 38g g | out=9
+d_duck | lighter | w_savigny 80 90 t0 64g gb primary ; w_lapierre 77 87 t1 bv 48g gb best_value ; w_feltonroad 84 84 t2 380b b ; w_tempier 81 81 t2 56g gb | out=0
+d_duck | fuller | w_savigny 80 82 t0 64g gb primary ; w_lapierre 77 79 t1 bv 48g gb best_value ; w_produttori 84 88 t2 72g gb ; w_feltonroad 84 84 t2 380b b | out=0
+d_duck | classic | w_savigny 80 86 t0 64g gb primary ; w_lapierre 77 83 t1 bv 48g gb best_value ; w_produttori 84 84 t2 72g gb ; w_feltonroad 84 84 t2 380b b | out=0
+d_duck | adventurous | w_savigny 80 86 t0 64g gb primary ; w_lapierre 77 83 t1 bv 48g gb best_value ; w_radikon 81 86 t2 320b b ; w_produttori 84 84 t2 72g gb | out=0
+d_venison | default | w_graillot 92 98 t0 58g gb primary ; w_ridge 84 84 t2 440b b ; w_produttori 82 82 t2 72g gb ; w_batailley 77 77 t2 520b b | out=0
+d_venison | glass | w_graillot 92 98 t0 58g g primary ; w_produttori 82 82 t2 72g g ; w_kumeu 68 68 t2 62g g ; w_lapierre 64 64 t2 48g g | out=5
+d_venison | bottle | w_graillot 92 98 t0 275b b primary ; w_ridge 84 84 t2 440b b ; w_produttori 82 82 t2 360b b ; w_batailley 77 77 t2 520b b | out=0
+d_venison | style=sparkling |  | out=17
+d_venison | style=white | w_kumeu 68 68 t2 62g gb | out=13
+d_venison | style=rose | w_tempier 63 63 t2 56g gb | out=18
+d_venison | style=orange | w_radikon 67 67 t2 320b b | out=18
+d_venison | style=red | w_graillot 92 98 t0 58g gb primary ; w_ridge 84 84 t2 440b b ; w_produttori 82 82 t2 72g gb ; w_batailley 77 77 t2 520b b | out=12
+d_venison | style=sweet |  | out=17
+d_venison | max=0 | w_graillot 92 98 t0 58g gb primary ; w_ridge 84 84 t2 440b b | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_venison | max=60 | w_graillot 92 98 t0 58g gb primary ; w_lapierre 64 64 t2 48g gb ; w_tempier 63 63 t2 56g gb | out=9
+d_venison | max=200 | w_graillot 92 98 t0 58g gb primary ; w_produttori 82 82 t2 72g gb ; w_kumeu 68 68 t2 62g gb ; w_lapierre 64 64 t2 48g gb | out=5
+d_venison | glass+max=60 | w_graillot 92 98 t0 58g g primary ; w_lapierre 64 64 t2 48g g ; w_tempier 63 63 t2 56g g | out=9
+d_venison | lighter | w_graillot 92 94 t0 58g gb primary ; w_ridge 84 80 t2 440b b ; w_produttori 82 78 t2 72g gb ; w_batailley 77 73 t2 520b b | out=0
+d_venison | fuller | w_graillot 92 102 t0 58g gb primary ; w_ridge 84 88 t2 440b b ; w_produttori 82 86 t2 72g gb ; w_batailley 77 81 t2 520b b | out=0
+d_venison | classic | w_graillot 92 98 t0 58g gb primary ; w_ridge 84 84 t2 440b b ; w_produttori 82 82 t2 72g gb ; w_batailley 77 77 t2 520b b | out=0
+d_venison | adventurous | w_graillot 92 98 t0 58g gb primary ; w_ridge 84 84 t2 440b b ; w_produttori 82 82 t2 72g gb ; w_batailley 77 77 t2 520b b | out=0
+d_ribeye | default | w_batailley 91 97 t0 520b b primary ; w_graillot 91 97 t1 bv 58g gb best_value ; w_ridge 91 91 t2 440b b ; w_produttori 89 89 t2 72g gb | out=0
+d_ribeye | glass | w_graillot 91 97 t1 bv 58g g best_value ; w_produttori 89 89 t2 72g g ; w_kumeu 72 72 t2 62g g ; w_tempier 68 68 t2 56g g | out=5
+d_ribeye | bottle | w_batailley 91 97 t0 520b b primary ; w_graillot 91 97 t1 bv 275b b best_value ; w_ridge 91 91 t2 440b b ; w_produttori 89 89 t2 360b b | out=0
+d_ribeye | style=sparkling |  | out=17
+d_ribeye | style=white | w_kumeu 72 72 t2 62g gb ; w_leflaive 64 64 t2 340b b | out=13
+d_ribeye | style=rose | w_tempier 68 68 t2 56g gb | out=18
+d_ribeye | style=orange | w_radikon 72 72 t2 320b b | out=18
+d_ribeye | style=red | w_batailley 91 97 t0 520b b primary ; w_graillot 91 97 t1 bv 58g gb best_value ; w_ridge 91 91 t2 440b b ; w_produttori 89 89 t2 72g gb | out=12
+d_ribeye | style=sweet |  | out=17
+d_ribeye | max=0 | w_batailley 91 97 t0 520b b primary ; w_graillot 91 97 t1 bv 58g gb best_value | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_ribeye | max=60 | w_graillot 91 97 t1 bv 58g gb best_value ; w_tempier 68 68 t2 56g gb ; w_lapierre 65 65 t2 48g gb | out=9
+d_ribeye | max=200 | w_graillot 91 97 t1 bv 58g gb best_value ; w_produttori 89 89 t2 72g gb ; w_kumeu 72 72 t2 62g gb ; w_tempier 68 68 t2 56g gb | out=5
+d_ribeye | glass+max=60 | w_graillot 91 97 t1 bv 58g g best_value ; w_tempier 68 68 t2 56g g ; w_lapierre 65 65 t2 48g g | out=9
+d_ribeye | lighter | w_batailley 91 93 t0 520b b primary ; w_graillot 91 93 t1 bv 58g gb best_value ; w_ridge 91 87 t2 440b b ; w_produttori 89 85 t2 72g gb | out=0
+d_ribeye | fuller | w_batailley 91 101 t0 520b b primary ; w_graillot 91 101 t1 bv 58g gb best_value ; w_ridge 91 95 t2 440b b ; w_produttori 89 93 t2 72g gb | out=0
+d_ribeye | classic | w_batailley 91 97 t0 520b b primary ; w_graillot 91 97 t1 bv 58g gb best_value ; w_ridge 91 91 t2 440b b ; w_produttori 89 89 t2 72g gb | out=0
+d_ribeye | adventurous | w_batailley 91 97 t0 520b b primary ; w_graillot 91 97 t1 bv 58g gb best_value ; w_ridge 91 91 t2 440b b ; w_produttori 89 89 t2 72g gb | out=0
+d_porkbelly | default | w_loosen 81 81 t2 46g gb ; w_turnau 79 79 t2 bv 38g gb ; w_tempier 77 77 t2 56g gb ; w_radikon 74 74 t2 320b b | out=0
+d_porkbelly | glass | w_loosen 81 81 t2 46g g ; w_turnau 79 79 t2 bv 38g g ; w_tempier 77 77 t2 56g g ; w_denit 72 72 t2 52g g | out=5
+d_porkbelly | bottle | w_loosen 81 81 t2 210b b ; w_turnau 79 79 t2 bv 165b b ; w_tempier 77 77 t2 280b b ; w_radikon 74 74 t2 320b b | out=0
+d_porkbelly | style=sparkling | w_denit 72 72 t2 52g gb ; w_gimonnet 72 72 t2 72g gb | out=17
+d_porkbelly | style=white | w_loosen 81 81 t2 46g gb ; w_turnau 79 79 t2 bv 38g gb ; w_leflaive 74 74 t2 340b b ; w_kumeu 69 69 t2 62g gb | out=13
+d_porkbelly | style=rose | w_tempier 77 77 t2 56g gb | out=18
+d_porkbelly | style=orange | w_radikon 74 74 t2 320b b | out=18
+d_porkbelly | style=red | w_graillot 66 66 t2 58g gb ; w_batailley 66 66 t2 520b b ; w_lapierre 65 65 t2 bv 48g gb ; w_savigny 65 65 t2 64g gb | out=12
+d_porkbelly | style=sweet | w_tokaji 67 67 t2 48g gb | out=17
+d_porkbelly | max=0 | w_loosen 81 81 t2 46g gb ; w_turnau 79 79 t2 bv 38g gb | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_porkbelly | max=60 | w_loosen 81 81 t2 46g gb ; w_turnau 79 79 t2 bv 38g gb ; w_tempier 77 77 t2 56g gb ; w_denit 72 72 t2 52g gb | out=9
+d_porkbelly | max=200 | w_loosen 81 81 t2 46g gb ; w_turnau 79 79 t2 bv 38g gb ; w_tempier 77 77 t2 56g gb ; w_denit 72 72 t2 52g gb | out=5
+d_porkbelly | glass+max=60 | w_loosen 81 81 t2 46g g ; w_turnau 79 79 t2 bv 38g g ; w_tempier 77 77 t2 56g g ; w_denit 72 72 t2 52g g | out=9
+d_porkbelly | lighter | w_loosen 81 85 t2 46g gb ; w_turnau 79 83 t2 bv 38g gb ; w_tempier 77 77 t2 56g gb ; w_denit 72 76 t2 52g gb | out=0
+d_porkbelly | fuller | w_loosen 81 77 t2 46g gb ; w_tempier 77 77 t2 56g gb ; w_turnau 79 75 t2 bv 38g gb ; w_radikon 74 74 t2 320b b | out=0
+d_porkbelly | classic | w_loosen 81 81 t2 46g gb ; w_tempier 77 77 t2 56g gb ; w_turnau 79 74 t2 bv 38g gb ; w_leflaive 74 74 t2 340b b | out=0
+d_porkbelly | adventurous | w_turnau 79 84 t2 38g gb ; w_loosen 81 81 t2 46g gb ; w_radikon 74 79 t2 320b b ; w_denit 72 77 t2 52g gb | out=0
+d_pierogi | default | w_savigny 89 89 t2 64g gb ; w_lapierre 86 86 t2 bv 48g gb ; w_produttori 84 84 t2 72g gb ; w_feltonroad 84 84 t2 380b b | out=0
+d_pierogi | glass | w_savigny 89 89 t2 64g g ; w_lapierre 86 86 t2 48g g ; w_produttori 84 84 t2 72g g ; w_turnau 81 81 t2 bv 38g g | out=5
+d_pierogi | bottle | w_savigny 89 89 t2 320b b ; w_lapierre 86 86 t2 bv 230b b ; w_produttori 84 84 t2 360b b ; w_feltonroad 84 84 t2 380b b | out=0
+d_pierogi | style=sparkling | w_denit 81 81 t2 52g gb ; w_gimonnet 81 81 t2 72g gb | out=17
+d_pierogi | style=white | w_turnau 81 81 t2 38g gb ; w_bruendlmayer 81 81 t2 44g gb ; w_vacheron 81 81 t2 58g gb ; w_leflaive 81 81 t2 340b b | out=13
+d_pierogi | style=rose | w_tempier 81 81 t2 56g gb | out=18
+d_pierogi | style=orange | w_radikon 81 81 t2 320b b | out=18
+d_pierogi | style=red | w_savigny 89 89 t2 64g gb ; w_lapierre 86 86 t2 bv 48g gb ; w_produttori 84 84 t2 72g gb ; w_feltonroad 84 84 t2 380b b | out=12
+d_pierogi | style=sweet |  | out=17
+d_pierogi | max=0 | w_savigny 89 89 t2 64g gb ; w_lapierre 86 86 t2 bv 48g gb | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_pierogi | max=60 | w_lapierre 86 86 t2 48g gb ; w_turnau 81 81 t2 bv 38g gb ; w_bruendlmayer 81 81 t2 44g gb ; w_denit 81 81 t2 52g gb | out=9
+d_pierogi | max=200 | w_savigny 89 89 t2 64g gb ; w_lapierre 86 86 t2 48g gb ; w_produttori 84 84 t2 72g gb ; w_turnau 81 81 t2 bv 38g gb | out=5
+d_pierogi | glass+max=60 | w_lapierre 86 86 t2 48g g ; w_turnau 81 81 t2 bv 38g g ; w_bruendlmayer 81 81 t2 44g g ; w_denit 81 81 t2 52g g | out=9
+d_pierogi | lighter | w_savigny 89 93 t2 64g gb ; w_lapierre 86 90 t2 48g gb ; w_turnau 81 85 t2 bv 38g gb ; w_bruendlmayer 81 85 t2 44g gb | out=0
+d_pierogi | fuller | w_produttori 84 88 t2 72g gb ; w_savigny 89 85 t2 bv 64g gb ; w_feltonroad 84 84 t2 380b b ; w_graillot 79 83 t2 58g gb | out=0
+d_pierogi | classic | w_savigny 89 89 t2 64g gb ; w_lapierre 86 86 t2 bv 48g gb ; w_produttori 84 84 t2 72g gb ; w_feltonroad 84 84 t2 380b b | out=0
+d_pierogi | adventurous | w_savigny 89 89 t2 64g gb ; w_turnau 81 86 t2 bv 38g gb ; w_bruendlmayer 81 86 t2 44g gb ; w_lapierre 86 86 t2 48g gb | out=0
+d_celeriac | default | w_radikon 88 88 t2 320b b ; w_leflaive 86 86 t2 340b b ; w_turnau 83 83 t2 bv 38g gb ; w_bruendlmayer 83 83 t2 44g gb | out=0
+d_celeriac | glass | w_turnau 83 83 t2 38g g ; w_bruendlmayer 83 83 t2 44g g ; w_lapierre 83 83 t2 48g g ; w_denit 83 83 t2 52g g | out=5
+d_celeriac | bottle | w_radikon 88 88 t2 320b b ; w_leflaive 86 86 t2 340b b ; w_turnau 83 83 t2 bv 165b b ; w_bruendlmayer 83 83 t2 195b b | out=0
+d_celeriac | style=sparkling | w_denit 83 83 t2 52g gb ; w_gimonnet 81 81 t2 72g gb | out=17
+d_celeriac | style=white | w_leflaive 86 86 t2 340b b ; w_turnau 83 83 t2 bv 38g gb ; w_bruendlmayer 83 83 t2 44g gb ; w_vacheron 83 83 t2 58g gb | out=13
+d_celeriac | style=rose | w_tempier 83 83 t2 56g gb | out=18
+d_celeriac | style=orange | w_radikon 88 88 t2 320b b | out=18
+d_celeriac | style=red | w_lapierre 83 83 t2 48g gb ; w_savigny 83 83 t2 64g gb ; w_graillot 78 78 t2 58g gb ; w_feltonroad 78 78 t2 380b b | out=12
+d_celeriac | style=sweet |  | out=17
+d_celeriac | max=0 | w_radikon 88 88 t2 320b b ; w_leflaive 86 86 t2 340b b | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_celeriac | max=60 | w_turnau 83 83 t2 38g gb ; w_bruendlmayer 83 83 t2 44g gb ; w_lapierre 83 83 t2 48g gb ; w_denit 83 83 t2 52g gb | out=9
+d_celeriac | max=200 | w_turnau 83 83 t2 38g gb ; w_bruendlmayer 83 83 t2 44g gb ; w_lapierre 83 83 t2 48g gb ; w_denit 83 83 t2 52g gb | out=5
+d_celeriac | glass+max=60 | w_turnau 83 83 t2 38g g ; w_bruendlmayer 83 83 t2 44g g ; w_lapierre 83 83 t2 48g g ; w_denit 83 83 t2 52g g | out=9
+d_celeriac | lighter | w_radikon 88 88 t2 320b b ; w_turnau 83 87 t2 bv 38g gb ; w_bruendlmayer 83 87 t2 44g gb ; w_lapierre 83 87 t2 48g gb | out=0
+d_celeriac | fuller | w_radikon 88 88 t2 320b b ; w_leflaive 86 86 t2 340b b ; w_kumeu 81 85 t2 62g gb ; w_tempier 83 83 t2 bv 56g gb | out=0
+d_celeriac | classic | w_leflaive 86 86 t2 340b b ; w_lapierre 83 83 t2 bv 48g gb ; w_tempier 83 83 t2 56g gb ; w_vacheron 83 83 t2 58g gb | out=0
+d_celeriac | adventurous | w_radikon 88 93 t2 320b b ; w_turnau 83 88 t2 bv 38g gb ; w_bruendlmayer 83 88 t2 44g gb ; w_denit 83 88 t2 52g gb | out=0
+d_chocolate | default | w_grahams 85 91 t0 42g gb primary ; w_tokaji 90 90 t2 bv 48g gb | out=0
+d_chocolate | glass | w_grahams 85 91 t0 42g g primary ; w_tokaji 90 90 t2 bv 48g g | out=5
+d_chocolate | bottle | w_grahams 85 91 t0 420b b primary ; w_tokaji 90 90 t2 bv 290b b | out=0
+d_chocolate | style=sparkling |  | out=17
+d_chocolate | style=white |  | out=13
+d_chocolate | style=rose |  | out=18
+d_chocolate | style=orange |  | out=18
+d_chocolate | style=red |  | out=12
+d_chocolate | style=sweet | w_grahams 85 91 t0 42g gb primary ; w_tokaji 90 90 t2 bv 48g gb | out=17
+d_chocolate | max=0 | w_grahams 85 91 t0 42g gb primary ; w_tokaji 90 90 t2 bv 48g gb | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_chocolate | max=60 | w_grahams 85 91 t0 42g gb primary ; w_tokaji 90 90 t2 bv 48g gb | out=9
+d_chocolate | max=200 | w_grahams 85 91 t0 42g gb primary ; w_tokaji 90 90 t2 bv 48g gb | out=5
+d_chocolate | glass+max=60 | w_grahams 85 91 t0 42g g primary ; w_tokaji 90 90 t2 bv 48g g | out=9
+d_chocolate | lighter | w_grahams 85 87 t0 42g gb primary ; w_tokaji 90 86 t2 bv 48g gb | out=0
+d_chocolate | fuller | w_grahams 85 95 t0 42g gb primary ; w_tokaji 90 94 t2 bv 48g gb | out=0
+d_chocolate | classic | w_grahams 85 91 t0 42g gb primary ; w_tokaji 90 90 t2 bv 48g gb | out=0
+d_chocolate | adventurous | w_grahams 85 91 t0 42g gb primary ; w_tokaji 90 90 t2 bv 48g gb | out=0
+d_sernik | default | w_tokaji 81 87 t0 48g gb primary ; w_loosen 81 81 t2 bv 46g gb ; w_grahams 76 76 t2 42g gb ; w_denit 67 67 t2 52g gb | out=0
+d_sernik | glass | w_tokaji 81 87 t0 48g g primary ; w_loosen 81 81 t2 bv 46g g ; w_grahams 76 76 t2 42g g ; w_denit 67 67 t2 52g g | out=5
+d_sernik | bottle | w_tokaji 81 87 t0 290b b primary ; w_loosen 81 81 t2 bv 210b b ; w_grahams 76 76 t2 420b b ; w_denit 67 67 t2 260b b | out=0
+d_sernik | style=sparkling | w_denit 67 67 t2 52g gb ; w_gimonnet 67 67 t2 72g gb | out=17
+d_sernik | style=white | w_loosen 81 81 t2 46g gb ; w_turnau 64 64 t2 38g gb | out=13
+d_sernik | style=rose |  | out=18
+d_sernik | style=orange |  | out=18
+d_sernik | style=red |  | out=12
+d_sernik | style=sweet | w_tokaji 81 87 t0 48g gb primary ; w_grahams 76 76 t2 42g gb | out=17
+d_sernik | max=0 | w_tokaji 81 87 t0 48g gb primary ; w_loosen 81 81 t2 bv 46g gb | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_sernik | max=60 | w_tokaji 81 87 t0 48g gb primary ; w_loosen 81 81 t2 bv 46g gb ; w_grahams 76 76 t2 42g gb ; w_denit 67 67 t2 52g gb | out=9
+d_sernik | max=200 | w_tokaji 81 87 t0 48g gb primary ; w_loosen 81 81 t2 bv 46g gb ; w_grahams 76 76 t2 42g gb ; w_denit 67 67 t2 52g gb | out=5
+d_sernik | glass+max=60 | w_tokaji 81 87 t0 48g g primary ; w_loosen 81 81 t2 bv 46g g ; w_grahams 76 76 t2 42g g ; w_denit 67 67 t2 52g g | out=9
+d_sernik | lighter | w_tokaji 81 83 t0 48g gb primary ; w_loosen 81 85 t2 bv 46g gb ; w_grahams 76 72 t2 42g gb ; w_denit 67 71 t2 52g gb | out=0
+d_sernik | fuller | w_tokaji 81 91 t0 48g gb primary ; w_grahams 76 80 t2 42g gb ; w_loosen 81 77 t2 bv 46g gb ; w_denit 67 63 t2 52g gb | out=0
+d_sernik | classic | w_tokaji 81 87 t0 48g gb primary ; w_loosen 81 81 t2 bv 46g gb ; w_grahams 76 76 t2 42g gb ; w_gimonnet 67 67 t2 72g gb | out=0
+d_sernik | adventurous | w_tokaji 81 87 t0 48g gb primary ; w_loosen 81 81 t2 bv 46g gb ; w_grahams 76 76 t2 42g gb ; w_denit 67 72 t2 52g gb | out=0
+d_cheese | default | w_radikon 91 91 t2 320b b ; w_leflaive 91 91 t2 340b b ; w_tokaji 89 89 t2 bv 48g gb ; w_gimonnet 89 89 t2 72g gb | out=0
+d_cheese | glass | w_tokaji 89 89 t2 48g g ; w_gimonnet 89 89 t2 72g g ; w_denit 85 85 t2 bv 52g g ; w_kumeu 84 84 t2 62g g | out=5
+d_cheese | bottle | w_radikon 91 91 t2 320b b ; w_leflaive 91 91 t2 340b b ; w_tokaji 89 89 t2 bv 290b b ; w_gimonnet 89 89 t2 390b b | out=0
+d_cheese | style=sparkling | w_gimonnet 89 89 t2 72g gb ; w_denit 85 85 t2 bv 52g gb | out=17
+d_cheese | style=white | w_leflaive 91 91 t2 340b b ; w_kumeu 84 84 t2 bv 62g gb ; w_turnau 74 74 t2 38g gb ; w_bruendlmayer 74 74 t2 44g gb | out=13
+d_cheese | style=rose | w_tempier 83 83 t2 56g gb | out=18
+d_cheese | style=orange | w_radikon 91 91 t2 320b b | out=18
+d_cheese | style=red | w_produttori 80 80 t2 72g gb ; w_graillot 76 76 t2 bv 58g gb ; w_feltonroad 76 76 t2 380b b ; w_ridge 76 76 t2 440b b | out=12
+d_cheese | style=sweet | w_tokaji 89 89 t2 48g gb ; w_grahams 82 82 t2 42g gb | out=17
+d_cheese | max=0 | w_radikon 91 91 t2 320b b ; w_leflaive 91 91 t2 340b b | out=19 | notice=Nothing matches under 0 zł. These are the closest options.
+d_cheese | max=60 | w_tokaji 89 89 t2 48g gb ; w_denit 85 85 t2 bv 52g gb ; w_tempier 83 83 t2 56g gb ; w_grahams 82 82 t2 42g gb | out=9
+d_cheese | max=200 | w_tokaji 89 89 t2 48g gb ; w_gimonnet 89 89 t2 72g gb ; w_denit 85 85 t2 bv 52g gb ; w_kumeu 84 84 t2 62g gb | out=5
+d_cheese | glass+max=60 | w_tokaji 89 89 t2 48g g ; w_denit 85 85 t2 bv 52g g ; w_tempier 83 83 t2 56g g ; w_grahams 82 82 t2 42g g | out=9
+d_cheese | lighter | w_gimonnet 89 93 t2 72g gb ; w_radikon 91 91 t2 320b b ; w_leflaive 91 91 t2 340b b ; w_denit 85 89 t2 bv 52g gb | out=0
+d_cheese | fuller | w_tokaji 89 93 t2 48g gb ; w_radikon 91 91 t2 320b b ; w_leflaive 91 91 t2 340b b ; w_kumeu 84 88 t2 62g gb | out=0
+d_cheese | classic | w_leflaive 91 91 t2 340b b ; w_tokaji 89 89 t2 bv 48g gb ; w_gimonnet 89 89 t2 72g gb ; w_radikon 91 86 t2 320b b | out=0
+d_cheese | adventurous | w_radikon 91 96 t2 320b b ; w_leflaive 91 91 t2 340b b ; w_denit 85 90 t2 bv 52g gb ; w_tokaji 89 89 t2 48g gb | out=0
+d_tartare | pl max=0 | w_lapierre 91 97 t0 48g gb primary ; w_gimonnet 85 91 t1 72g gb alternative | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Served lightly chilled — the fruit lifts the smoked yolk. / Świeża kwasowość równoważy bogactwo potrawy, a drobne bąbelki odświeżają podniebienie między kęsami.
+d_herring | pl max=0 | w_bruendlmayer 93 99 t0 44g gb primary ; w_turnau 87 93 t1 bv 38g gb best_value | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=White pepper and dill — a classic Halka pairing. / Świeża kwasowość równoważy bogactwo potrawy, a rześkie białe wino nie przytłacza delikatnej ryby.
+d_burrata | pl max=0 | w_gimonnet 91 91 t2 72g gb ; w_radikon 89 89 t2 bv 320b b | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Świeża kwasowość równoważy bogactwo potrawy, a Chardonnay współgra z kremową teksturą. / Świeża kwasowość równoważy bogactwo potrawy, a Chardonnay współgra z kremową teksturą.
+d_scallops | pl max=0 | w_leflaive 93 93 t2 340b b ; w_denit 88 88 t2 bv 52g gb | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Świeża kwasowość równoważy bogactwo potrawy, a czysta kwasowość wydobywa słodycz owoców morza. / Świeża kwasowość równoważy bogactwo potrawy, a czysta kwasowość wydobywa słodycz owoców morza.
+d_risotto | pl max=0 | w_kumeu 88 94 t0 62g gb primary ; w_savigny 90 96 t1 64g gb alternative | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Krągłe Chardonnay współgra z kremowym risotto, a jego tekstura dorównuje kremowości dania. / Forest floor in the glass, porcini on the plate.
+d_pikeperch | pl max=0 | w_leflaive 94 100 t0 340b b primary ; w_denit 88 88 t2 bv 52g gb | out=18 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Enough texture for the beurre blanc, still precise. / Świeża kwasowość równoważy bogactwo potrawy, a rześkie białe wino nie przytłacza delikatnej ryby.
+d_duck | pl max=0 | w_savigny 80 86 t0 64g gb primary ; w_lapierre 77 83 t1 bv 48g gb best_value | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Pinot and sour cherry jus — our signature match. / Świeża kwasowość równoważy bogactwo potrawy, a żywe owoce Gamay ożywiają danie.
+d_venison | pl max=0 | w_graillot 92 98 t0 58g gb primary ; w_ridge 84 84 t2 440b b | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Peppery Syrah meets juniper. / Wyraźne taniny dorównują mięsu, a jego budowa pasuje do dania.
+d_ribeye | pl max=0 | w_batailley 91 97 t0 520b b primary ; w_graillot 91 97 t1 bv 58g gb best_value | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Cabernet to klasyczny partner dojrzewającej wołowiny, a wyraźne taniny dorównują mięsu. / Wyraźne taniny dorównują mięsu, a pieprzne Syrah podkreśla nuty z grilla.
+d_porkbelly | pl max=0 | w_loosen 81 81 t2 46g gb ; w_turnau 79 79 t2 bv 38g gb | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Nuta słodyczy Rieslinga łagodzi glazurę i przyprawy, a odrobina słodyczy łagodzi ostrość. / Odrobina słodyczy łagodzi ostrość, a świeża kwasowość równoważy bogactwo potrawy.
+d_pierogi | pl max=0 | w_savigny 89 89 t2 64g gb ; w_lapierre 86 86 t2 bv 48g gb | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Czerwone owoce Pinot Noir odpowiadają wiśni i pieczonej skórce, a świeża kwasowość równoważy bogactwo potrawy. / Świeża kwasowość równoważy bogactwo potrawy, a żywe owoce Gamay ożywiają danie.
+d_celeriac | pl max=0 | w_radikon 88 88 t2 320b b ; w_leflaive 86 86 t2 340b b | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Tekstura wina macerowanego na skórkach świetnie łączy się z miso i pieczonymi warzywami korzeniowymi, a świeża kwasowość równoważy bogactwo potrawy. / Świeża kwasowość równoważy bogactwo potrawy, a jego budowa pasuje do dania.
+d_chocolate | pl max=0 | w_grahams 85 91 t0 42g gb primary ; w_tokaji 90 90 t2 bv 48g gb | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Wino jest co najmniej tak słodkie jak deser, a jego budowa pasuje do dania. / Wino jest co najmniej tak słodkie jak deser, a świeża kwasowość równoważy bogactwo potrawy.
+d_sernik | pl max=0 | w_tokaji 81 87 t0 48g gb primary ; w_loosen 81 81 t2 bv 46g gb | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Sea buckthorn and Aszú share the same bright acidity. / Świeża kwasowość równoważy bogactwo potrawy, a jego budowa pasuje do dania.
+d_cheese | pl max=0 | w_radikon 91 91 t2 320b b ; w_leflaive 91 91 t2 340b b | out=19 | notice=Nic nie mieści się w budżecie do 0 zł. Oto najbliższe propozycje. | why=Świeża kwasowość równoważy bogactwo potrawy, a Chardonnay współgra z kremową teksturą. / Świeża kwasowość równoważy bogactwo potrawy, a Chardonnay współgra z kremową teksturą.
