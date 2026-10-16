@@ -36,6 +36,35 @@ describe('admin panel', () => {
     expect(page).toContain('Dashboard');
   });
 
+  it('guest settings change what G3 and its explanation say (spec 2026-10-16-how-it-works-explanations, AC8, AC9)', async () => {
+    const settings = async (on: boolean) => {
+      await browser.open(`${baseUrl()}/admin/halka/publish`);
+      await browser.waitForPageText('Guest settings');
+      for (const name of ['showScores', 'showUnreviewed']) await browser.run(on ? 'check' : 'uncheck', `input[name=${name}]`);
+      await browser.clickRole('button', 'Save settings');
+      await browser.waitForUrl('saved=settings');
+    };
+    await settings(false);
+    // always restore, so the next tests (and the other suite) see the restaurant as seeded and start on the dashboard
+    try {
+      await browser.open(`${baseUrl()}/r/halka/menu`);
+      await browser.waitForPageText('Duck breast');
+      await browser.clickRole('link', 'Duck breast');
+      await browser.waitForUrl('/wines');
+      await browser.waitForPageText('Sommelier’s pairing');
+      // no percentage and no number in the glass names; the explanation talks about the glass, not about engine picks
+      expect(await browser.count('svg[role=img][aria-label$=" percent"]')).toBe(0);
+      expect(await browser.count('svg[role=img][aria-label="Match shown by how full the glass is"]')).toBeGreaterThan(0);
+      await browser.click('details[data-explain="wines"] summary');
+      const page = await browser.waitForPageText('A fuller glass means a better fit.');
+      expect(page).not.toContain('Recommended for your dish');
+      expect(page).not.toContain('pairing rules');
+      expect(page).not.toMatch(/\d+%/);
+    } finally {
+      await settings(true);
+    }
+  });
+
   it('the menu opens from the sidebar with the seeded dishes', async () => {
     await browser.clickRole('link', 'Menu');
     expect(await browser.waitForUrl('/admin/halka/menu')).toContain('/admin/halka/menu');

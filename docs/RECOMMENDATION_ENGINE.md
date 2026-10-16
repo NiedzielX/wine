@@ -158,7 +158,7 @@ Kolejność rankingu (`recommendForDish`):
 3. W obrębie tieru: `rankScore` malejąco, potem cena rosnąco, potem `wine.id`.
 4. Limit: `DEFAULT_LIMIT` = 4 pozycje.
 
-`rankScore = matchScore + preferencje + (tier < 2 ? SOMMELIER_BOOST : 0)`, `SOMMELIER_BOOST` = 6. **Wyświetlany Match Score to zawsze `matchScore` silnika** — zatwierdzenie zmienia kolejność, nie liczbę. Para sommeliera z wynikiem 58% jest pokazywana jako 58%. Etykieta „Sommelier recommendation” jest przypisana wyłącznie do tierów 0 i 1.
+`rankScore = matchScore + preferencje + (tier < 2 ? SOMMELIER_BOOST : 0)`, `SOMMELIER_BOOST` = 6. **Wyświetlany Match Score to zawsze `matchScore` silnika** — zatwierdzenie zmienia kolejność, nie liczbę. Para sommeliera z wynikiem 58% jest pokazywana jako 58%. Etykieta „Sommelier’s pairing” / „Para sommeliera” jest przypisana wyłącznie do tierów 0 i 1; pierwsze wino tieru 2 aplikacja gościa nazywa „Recommended for your dish” / „Polecane do Twojego dania”. Teksty wyjaśnień „Jak to działa” biorą liczby z `ENGINE_FACTS` (§10).
 
 Odrzucenie (`rejected`) to sygnał negatywny także dla przyszłego modelu uczonego.
 

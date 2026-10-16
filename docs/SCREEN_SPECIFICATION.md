@@ -26,6 +26,8 @@ Wspólne zasady:
 - Wszystkie publiczne endpointy gościa są cache’owane (CDN, `stale-while-revalidate`); rekomendacje dla par bez filtrów są wyliczane przy publikacji.
 - **Język (spec `2026-10-15-polish-language`):** aplikacja gościa jest po polsku i po angielsku. Język wybiera parametr `lang=pl|en` w URL, bez niego nagłówek `Accept-Language` przeglądarki (pierwszy z `pl`/`en`), w ostateczności angielski; gość nie dostaje ciasteczek. Przełącznik języka (od 2026-10-15 „Polski / English”, niżej) jest na G0 w prawym górnym rogu nagłówka restauracji, na pozostałych ekranach gościa w top barze po prawej (na G3 obok „Refine”); aktywny język ma `aria-current`. Linki i formularze GET niosą `lang` tylko wtedy, gdy był jawnie w URL. Tłumaczone są etykiety (także kategorie: Przystawki, Dania główne, Desery), uzasadnienia silnika, słowa smaku i komunikaty; wartości w URL (`styles=red`, kotwice kategorii) zostają bez zmian; treści restauracji — patrz „Treści dwujęzyczne” niżej. Ceny przez `Intl` (`pl`: „1 234 zł” ze spacją niełamliwą). Teksty angielskie w tym dokumencie mają polskie odpowiedniki w `packages/app/src/i18n/pl.ts`. **Panel (A0–A13)** też jest po polsku i po angielsku: język z ciasteczka `wm_lang` (ustawia je przełącznik „Polski / English” w górnym pasku panelu i w prawym górnym rogu ekranu logowania — zwykły formularz z akcją serwerową, bez JS, wraca na tę samą stronę), bez ciasteczka z `Accept-Language`, w ostateczności angielski. Komunikaty po zmianie (flash), błędy logowania, uwagi importu i kroki Setup są tłumaczone po kodzie; daty `09.10.2026, 17:40` i kwoty przez `Intl`. Tytuły kart: „%s | Panel Wine Match”. Słownictwo: Pulpit, Menu, Karta win, Parowania, Do przeglądu, Publikacja, Import menu / win, Ustawienia, Kod QR, Wyloguj; role par: Podstawowe, Alternatywa, Najlepsza cena. Uzasadnienia silnika w panelu idą w języku panelu.
 - **Treści dwujęzyczne i przełącznik „Polski / English” (spec `2026-10-15-bilingual-content`):** nazwy i opisy dań, notatki degustacyjne, regiony i kraje win, notatki sommeliera oraz hasło i miasto restauracji mają wersje PL i EN. Gość widzi wersję w swoim języku z **ostatniej publikacji** (brak tłumaczenia → tekst bazowy, bez znacznika); panel — bieżące tłumaczenia w języku panelu. Nazwy win i producentów się nie zmieniają. Publiczne API `/api/v1` zwraca teksty bazowe. Przełącznik ma etykiety „Polski” i „English” (każda we własnym języku, `aria-current` na aktywnym, `aria-label` z pełną nazwą); poniżej 640 px widać „PL” / „EN”. Jest **na górze** każdego ekranu: gość — top bar po prawej, na G0 prawy górny róg nagłówka restauracji; panel — górny pasek treści (desktop) albo wiersz nagłówka nad nawigacją (wąski ekran), a nie stopka nawigacji; A0 — prawy górny róg. Działa bez JS i mieści się przy 390 px. Nagłówek restauracji (G0) pokazuje adres z miastem i hasło restauracji w języku gościa.
+- **Wyjaśnienia „Jak to działa” (spec `2026-10-16-how-it-works-explanations`, E07):** na ekranie z wynikiem silnika stoi **jedno** wyjaśnienie — natywne `<details>` / `<summary>` (komponent `InfoDisclosure` z `@wine-match/ui/brand`, u gościa nakładka `Explain`, w panelu `PanelExplain`): zamknięte domyślnie, w zamkniętym stanie jeden wiersz z ikoną „i” i widocznym pytaniem (np. „Why these wines?” / „Skąd te wina?”), otwiera się dotknięciem, Enter lub Spacją, działa bez JavaScriptu, treść w zwykłym przepływie strony (lista ≤ 6 punktów, ≤ 90 słów, G3 ≤ 110). Nigdy wewnątrz linku, przycisku ani `<p>`; bez `title` i bez najechania. U gościa tekst `ink-2` (≥ 4,5:1), cel dotyku ≥ 44 px; w panelu ≥ 24 px. Liczby w tekstach pochodzą z `ENGINE_FACTS` (`core/src/engine/facts.ts`), warianty z bieżących ustawień `showScores` / `showUnreviewed`. Gość nie czyta słów „AI”, „silnik”, „algorytm” — tylko „zasady łączenia wina z jedzeniem”. Atrybut `data-explain` nazywa ekran (`wines`, `filters`, `wine`, …); inne specyfikacje dopisują akapity do tego samego wyjaśnienia, zamiast dodawać drugie „i”. Faza 1b: G3, G4, G7; pozostałe ekrany — fazy 2 i 3 tej specyfikacji.
+- **Nazwy etykiet (D13, R01):** para sommeliera (`approved` / `modified`) — „Sommelier’s pairing” / „Para sommeliera” (z pieczęcią); najlepsza propozycja silnika na G3 — „Recommended for your dish” / „Polecane do Twojego dania” (bez pieczęci); kelner (G9) — „Sommelier’s pairing · first choice” / „Para sommeliera · pierwszy wybór” i „Sommelier’s pairing” / „Para sommeliera”; panel mówi o propozycjach silnika tą samą nazwą co gość.
 - Każdy event gościa niesie: `restaurantId`, `sessionId` (anonimowy, losowy, w sessionStorage), `menuVersion`, `engineVersion`, `ts`.
 
 ---
@@ -58,7 +60,7 @@ Wspólne zasady:
 | Cel | Szybki wybór dania, które gość zamawia |
 | Użytkownik | Gość |
 | Funkcje | przełącznik One dish / Whole table; skok do sekcji (Starters, Mains, Desserts); wybór dania → G3 (z preferencjami z URL) |
-| Komponenty UI | top bar z Back; segmented control; przyklejony pasek chipów kategorii; wiersze dań (nazwa serif, cena, opis, oznaczenie „Sommelier pairing available”) |
+| Komponenty UI | top bar z Back; segmented control; przyklejony pasek chipów kategorii; wiersze dań (nazwa serif, cena, opis, oznaczenie „Sommelier’s pairing” z pieczęcią przy daniu z parą podstawową) |
 | Dane wejściowe | menu opublikowane: dania `published`, kategorie, ceny |
 | Dane wyjściowe | wybrane `dishId` |
 | Loading | 5 skeletonów wierszy |
@@ -80,8 +82,9 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 |---|---|
 | Cel | Pokazać 2–4 najlepiej pasujące wina z karty restauracji, z ceną i krótkim uzasadnieniem |
 | Użytkownik | Gość |
-| Funkcje | nagłówek dania (nazwa, cena, opis, „taste chips”); rząd szybkich preferencji: „More…” (→ G4, z liczbą filtrów spoza rzędu), By the glass, By the bottle, Red, White, Sparkling — każdy chip to link, drugie kliknięcie wyłącza; karta „Best match” / „Sommelier recommendation”; lista „Also good with this dish”; „Refine” w top barze → G4; wybór wina → G7. Desktop (≥ 1024 px): menu z bieżącym daniem w lewej kolumnie, wina w prawej, G4 jako panel z prawej |
-| Komponenty UI | nagłówek „For your {dish}”, licznik; **Match glass** (kieliszek wypełniony kolorem wina do poziomu wyniku) + procent; odznaki: Sommelier recommendation (pieczęć, mosiądz), Best value (szałwia); cena z ikoną kieliszka / butelki; „Why it works”; nota zaufania o Wine Director |
+| Funkcje | nagłówek dania (nazwa, cena, opis, „taste chips”); rząd szybkich preferencji: „More…” (→ G4, z liczbą filtrów spoza rzędu), By the glass, By the bottle, Red, White, Sparkling — każdy chip to link, drugie kliknięcie wyłącza; karta z nagłówkiem „Sommelier’s pairing” (para sommeliera, z pieczęcią) albo „Recommended for your dish” (najlepsza propozycja silnika); lista „Also good with this dish”; „Refine” w top barze → G4; wybór wina → G7. Desktop (≥ 1024 px): menu z bieżącym daniem w lewej kolumnie, wina w prawej, G4 jako panel z prawej |
+| Komponenty UI | nagłówek „For your {dish}”, licznik; **Match glass** (kieliszek wypełniony kolorem wina do poziomu wyniku) + procent; odznaki: Sommelier’s pairing (pieczęć, mosiądz), Best value (szałwia); cena z ikoną kieliszka / butelki; „Why it works”; nota zaufania (stopka, `ink-2`): przy „Fill empty places with engine picks” „Every wine comes from {restaurant}’s list. Wines with the seal are recommended by {director}; the others are matched by our pairing rules.”, bez tego ustawienia „Every wine comes from {restaurant}’s list and is recommended by {director}.” (puste `wineDirector` → „the restaurant’s sommelier”). Kieliszek ma nazwę dostępną w języku strony („Dopasowanie 80 procent”), a przy wyłączonych procentach — bez liczby |
+| Wyjaśnienie | „Why these wines?” / „Skąd te wina?” (`data-explain="wines"`) między szybkimi preferencjami / notką o budżecie a pierwszą kartą, także nad pustą listą: para sommeliera zawsze pierwsza; „Recommended for your dish” — zasady łączenia wina z jedzeniem, od `minModelScore`% (tylko przy „Fill empty places…”); procent 0–`maxScore` (albo kieliszek przy wyłączonych procentach) — wybór sommeliera zmienia kolejność, nie liczbę, cena jej nie podnosi; „Best value” — para sommeliera z tą rolą albo najtańsza butelka tańsza od pierwszego wina, do `bestValueWindow` pkt poniżej najlepszego; filtry twarde i miękkie oraz `budgetFallbackCount` wina spoza budżetu. Karta pierwszego wina przy 390 × 844 nie niżej niż 520 px |
 | Dane wejściowe | `dishId`, `GuestPreferences` |
 | Dane wyjściowe | lista `RecommendationItem` |
 | Loading | skeleton karty głównej + 2 wierszy |
@@ -111,6 +114,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Permissions | publiczny |
 | API | jak G3 (przeliczenie po zamknięciu) |
 | Analytics | `filters_opened {dishId}`, `filter_changed {dishId, …patch}`, `filters_cleared {dishId}` |
+| Wyjaśnienie | „How do the filters work?” / „Jak działają filtry?” (`data-explain="filters"`) pod chipami arkusza, przed stopką: „By the glass”, kolor i budżet wykluczają wina; budowa i nastrój zmieniają kolejność; bez wina w budżecie — `budgetFallbackCount` najlepiej pasujące wina spoza budżetu z notką |
 
 ## G5 Whole table selection — `/r/{slug}/table`
 
@@ -157,7 +161,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Cel | Dać gościowi pewność wyboru i wybrać porcję |
 | Użytkownik | Gość |
 | Funkcje | wybór kieliszka / butelki; „Choose this wine” → G8 |
-| Komponenty UI | nazwa, producent, Match glass; blok sommeliera (pieczęć, imię, notatka) lub „Why it works with the {dish}”; fakty (region, rocznik, szczepy, styl i alkohol); nota degustacyjna (serif italic); profil w kropkach 0–5; radio-karty porcji z ceną i pojemnością |
+| Komponenty UI | nazwa, producent, Match glass **tylko z prawdziwym wynikiem dla dania** (bez dania, z G6 i dla wina, którego danie nie proponuje — poniżej progu albo odrzuconego — kieliszka nie ma); blok sommeliera (pieczęć, imię, notatka) lub „Why it works with the {dish}”; fakty (region, rocznik, szczepy, styl i alkohol); nota degustacyjna (serif italic); profil w kropkach 0–5; radio-karty porcji z ceną i pojemnością |
 | Dane wejściowe | Wine; kontekst dania (opcjonalnie) |
 | Dane wyjściowe | `{wineId, serving}` |
 | Loading | skeleton nagłówka i faktów |
@@ -168,6 +172,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Permissions | publiczny |
 | API | `GET /public/wines/{id}?dishId=` (z wynikiem dopasowania) |
 | Analytics | `wine_viewed {wineId, dishId, context}`, `wine_selected {wineId, serving, dishId, context}` |
+| Wyjaśnienie | „What does this score mean?” / „Co znaczy ta ocena?” (`data-explain="wine"`) pod blokiem uzasadnienia (bez wyniku — pod faktami): z wynikiem — co znaczy procent (albo kieliszek) dla tego dania i skąd uzasadnienie; bez wyniku — dlaczego go tu nie ma; zawsze — kropki to profil 0–5 z opisu restauracji |
 
 ## G8 Selection confirmation — `/r/{slug}/selected/{wineId}`
 
@@ -176,7 +181,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Cel | Ekran do pokazania kelnerowi zamiast wymawiania nazwy |
 | Użytkownik | Gość, kelner |
 | Funkcje | „Pair another dish” → G1; „Done” → G0 |
-| Komponenty UI | pełny kieliszek; „Show this to your waiter.”; karta: numer z karty (List no.), producent i wino (duży serif), rocznik, porcja + cena, danie / „For the table” |
+| Komponenty UI | „Show this to your waiter.” (bez kieliszka dopasowania — to potwierdzenie wyboru, nie ocena); karta: numer z karty (List no.), producent i wino (duży serif), rocznik, porcja + cena, danie / „For the table” |
 | Dane wejściowe | `wineId`, `serving`, `dishId` / `table` |
 | Dane wyjściowe | brak (MVP nie tworzy zamówienia) |
 | Loading | n/d (dane z G7) |
@@ -195,7 +200,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Cel | Szybka podpowiedź dla kelnera przy stoliku |
 | Użytkownik | Kelner |
 | Funkcje | wybór dania (select); filtry kieliszek / styl / budżet; lista 2–4 win |
-| Komponenty UI | wiersze: numer i nazwa, „List no.”, odznaki („Wine Director’s first choice”, „Wine Director’s pick”, „Best value”, „{n}% match”), „Say: …”, cena |
+| Komponenty UI | wiersze: numer i nazwa, „List no.”, odznaki („Sommelier’s pairing · first choice”, „Sommelier’s pairing”, „Best value”, „{n}% match”), „Say: …”, cena |
 | Dane wejściowe | menu, preferencje |
 | Dane wyjściowe | brak |
 | Loading | skeleton 3 wierszy |

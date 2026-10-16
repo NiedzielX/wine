@@ -32,7 +32,7 @@ Lista: UC-01 – UC-14. Odwołania do ekranów według [SCREEN_MAP.md](SCREEN_MA
 **Main flow**
 1. System pokazuje ekran startowy restauracji (nazwa, adres) i od razu pod nim menu podzielone na Starters / Mains / Desserts; dania z pairingiem sommeliera mają oznaczenie.
 2. Gość wybiera danie.
-3. System pokazuje danie (opis, cena, smak w słowach) i rząd szybkich preferencji (opcjonalnych; raz wybrane przechodzą na kolejne dania w URL), a pod nim wylicza ranking (`GET /dishes/{id}/recommendations`) i pokazuje 2–4 wina: pierwsze jako „Sommelier recommendation” lub „Best match”, pozostałe jako „Also good with this dish”. Każde: nazwa, producent, region, rocznik, cena kieliszka / butelki, Match Score, „Why it works”.
+3. System pokazuje danie (opis, cena, smak w słowach) i rząd szybkich preferencji (opcjonalnych; raz wybrane przechodzą na kolejne dania w URL), a pod nim wylicza ranking (`GET /dishes/{id}/recommendations`) i pokazuje 2–4 wina: pierwsze jako „Sommelier’s pairing” (para sommeliera) lub „Recommended for your dish” (propozycja silnika), pozostałe jako „Also good with this dish”. Każde: nazwa, producent, region, rocznik, cena kieliszka / butelki, Match Score, „Why it works”.
 4. Gość wybiera wino (przechodzi do UC-04).
 
 **Alternative flows**
@@ -147,7 +147,7 @@ Lista: UC-01 – UC-14. Odwołania do ekranów według [SCREEN_MAP.md](SCREEN_MA
 
 **Main flow**
 1. Kelner wybiera danie z listy.
-2. System pokazuje 2–4 wina w kolejności sommeliera z numerem pozycji, odznaką („Wine Director’s first choice”, „Best value”), procentem i zdaniem do powiedzenia („Say: …”).
+2. System pokazuje 2–4 wina w kolejności sommeliera z numerem pozycji, odznaką („Sommelier’s pairing · first choice”, „Best value”), procentem i zdaniem do powiedzenia („Say: …”).
 3. Kelner filtruje według odpowiedzi gościa (kieliszek, kolor, budżet).
 4. Kelner przedstawia propozycję gościowi.
 
@@ -364,6 +364,6 @@ Jak UC-11, z różnicami:
 **Edge cases**
 - E1: Slug zajęty → „This link is taken” (produkcja). Niepoprawny format → „Public link: 2–40 lowercase letters, numbers or dashes.”
 - E2: Zmiana slugu po wydrukowaniu QR → ostrzeżenie w podpowiedzi; produkcyjnie stary slug przekierowuje 301 przez 12 miesięcy.
-- E3: Restauracja chce zacząć od razu bez review → może opublikować; gość zobaczy „Best match” zamiast „Sommelier recommendation”.
+- E3: Restauracja chce zacząć od razu bez review → może opublikować; gość zobaczy „Recommended for your dish” zamiast „Sommelier’s pairing”.
 
 **Expected result:** restauracja jest dostępna pod publicznym linkiem, a QR kody są gotowe do druku. Eventy: `pairings_regenerated`, `qr_downloaded`.

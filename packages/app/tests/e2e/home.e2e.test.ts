@@ -35,7 +35,16 @@ describe('home page and the guest path', () => {
   it('one tap on a dish shows its wines and the quick preferences', async () => {
     await browser.clickRole('link', 'Duck breast');
     expect(await browser.waitForUrl('/wines')).toContain('/wines');
-    const page = await browser.waitForPageText('Sommelier recommendation');
+    const page = await browser.waitForPageText('Sommelier’s pairing');
     expect(page).toContain('By the glass');
+  });
+
+  it('one closed "Why these wines?" above the wines; a tap opens it (spec 2026-10-16-how-it-works-explanations, AC2)', async () => {
+    expect(await browser.count('details[data-explain]')).toBe(1);
+    expect(await browser.count('details[data-explain="wines"][open]')).toBe(0);
+    expect(await browser.count('a details, button details, p details')).toBe(0);
+    await browser.click('details[data-explain="wines"] summary');
+    expect(await browser.count('details[data-explain="wines"][open]')).toBe(1);
+    expect(await browser.waitForPageText('price never raises it')).toContain('Sommelier’s pairing: chosen for this dish by Marta Wierzbicka');
   });
 });

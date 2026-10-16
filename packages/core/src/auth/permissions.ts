@@ -5,7 +5,7 @@ import type { Membership, Principal, Role } from './types';
  * What each role may do in a restaurant (docs/USER_ROLES.md). One table, one function:
  * the dashboard, the server actions and the API all ask `can()`.
  * The Wine Director decides pairings; the owner / general manager runs the business but does not
- * decide pairings, so "Sommelier recommendation" always means a sommelier's decision.
+ * decide pairings, so "Sommelier’s pairing" always means a sommelier's decision.
  */
 export type Permission = 'panel.view' | 'pairings.decide' | 'wines.toggle' | 'publish' | 'settings.change' | 'import.manage' | 'restaurant.edit';
 

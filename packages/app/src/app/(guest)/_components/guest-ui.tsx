@@ -1,4 +1,5 @@
 import { styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RecommendationItem, type Wine, type WineStyle } from '@wine-match/core';
+import { InfoDisclosure } from '@wine-match/ui/brand/info-disclosure';
 import { MatchGlass } from '@wine-match/ui/brand/match-glass';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -110,10 +111,15 @@ export function Price({ wine, serving, t, locale }: { wine: Wine; serving: Guest
   );
 }
 
+/**
+ * The match glass, with the percentage when the restaurant shows it. The glass is named in the page's language;
+ * with percentages hidden its accessible name has no number either (spec 2026-10-16-how-it-works-explanations, R6).
+ */
 export function Score({ score, colour, showScores, size, t }: { score: number; colour: string; showScores: boolean; size: number; t: Dictionary }) {
+  const w = t.guest.wines;
   return (
     <div className="grid justify-items-center gap-0.5 text-ink-2">
-      <MatchGlass score={score} colour={colour} size={size} />
+      <MatchGlass score={score} colour={colour} size={size} label={showScores ? w.matchLabel : () => w.glassLabel} />
       {showScores && <b className="text-[15px] font-semibold text-ink tabular-nums">{score}%</b>}
       {showScores && <small className="text-[11.5px] text-ink-3">{t.guest.wines.match}</small>}
     </div>
@@ -124,7 +130,7 @@ export function Badges({ item, t }: { item: RecommendationItem; t: Dictionary })
   if (!item.sommelier && !item.bestValue) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
-      {item.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-[12.5px] leading-5 font-semibold text-brass"><Seal className="size-3.5" />{t.guest.wines.sommelierRecommendation}</span>}
+      {item.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-[12.5px] leading-5 font-semibold text-brass"><Seal className="size-3.5" />{t.guest.wines.sommelierPairing}</span>}
       {item.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-[12.5px] leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
     </div>
   );
@@ -134,7 +140,7 @@ export function BestCard({ item, href, serving, showScores, t, locale }: { item:
   const w = item.wine;
   return (
     <Link href={href} className="mt-6 block rounded-[18px] border border-line bg-surface p-5 focus-visible:outline-2 focus-visible:outline-wine">
-      <p className="flex items-center gap-2 text-sm font-semibold text-wine">{item.sommelier && <Seal />}{item.sommelier ? t.guest.wines.sommelierRecommendation : t.guest.wines.perfect}</p>
+      <p className="flex items-center gap-2 text-sm font-semibold text-wine">{item.sommelier && <Seal />}{item.sommelier ? t.guest.wines.sommelierPairing : t.guest.wines.recommended}</p>
       <div className="mt-3 grid grid-cols-[1fr_auto] items-start gap-4">
         <div>
           <h2 className="font-serif text-[25px] leading-tight">{w.name}</h2>
@@ -167,12 +173,39 @@ export function WineRow({ item, href, serving, showScores, t, locale }: { item: 
   );
 }
 
-export function RecoFooter({ director, restaurant, t }: { director: string; restaurant: string; t: Dictionary }) {
+/**
+ * The trust note under the wines, true to the `showUnreviewed` setting (Q5). `ink-2`, not `ink-3`: small text needs
+ * 4.5:1 on paper (R2). The link to the "How we pick your wine" page arrives with that page (spec E07 phase 2).
+ */
+export function RecoFooter({ director, restaurant, showUnreviewed, t }: { director: string; restaurant: string; showUnreviewed: boolean; t: Dictionary }) {
   return (
-    <p className="mt-7 flex items-start gap-2 text-[13.5px] text-ink-3">
+    <p className="mt-7 flex items-start gap-2 text-[13.5px] text-ink-2">
       <Seal className="mt-0.5 size-4 shrink-0" />
-      <span>{t.guest.wines.footer(restaurant, director)}</span>
+      <span>{t.guest.wines.footer(restaurant, director, showUnreviewed)}</span>
     </p>
+  );
+}
+
+/**
+ * "How it works" on a guest screen (spec 2026-10-16-how-it-works-explanations, R1–R4): one per screen, closed by
+ * default, one line when closed. The question is the visible summary (`ink-2`, 6.7:1 on paper), the whole row is a
+ * 44 px touch target, the points are a plain list in the page flow. Never put it inside a link, a button or a `<p>`.
+ * `tone="sheet"` sits on the white filters sheet (body on paper instead of white).
+ */
+export function Explain({ id, summary, points, tone = 'page', className = '' }: { id: string; summary: string; points: string[]; tone?: 'page' | 'sheet'; className?: string }) {
+  return (
+    <InfoDisclosure
+      explainId={id}
+      summary={summary}
+      className={className}
+      summaryClassName="min-h-11 w-fit rounded-lg text-[14.5px] font-medium text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine"
+      iconClassName="text-wine"
+      bodyClassName={`rounded-[10px] px-4 py-3 text-[14.5px] leading-snug text-ink-2 ${tone === 'sheet' ? 'bg-paper' : 'bg-surface'}`}
+    >
+      <ul className="grid list-disc gap-2 pl-4 marker:text-ink-2">
+        {points.map((p) => <li key={p}>{p}</li>)}
+      </ul>
+    </InfoDisclosure>
   );
 }
 

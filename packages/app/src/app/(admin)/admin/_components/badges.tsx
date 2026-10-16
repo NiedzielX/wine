@@ -40,6 +40,10 @@ export function RoleBadge({ role, t }: { role: PairingRole | null } & T) {
   return role === 'best_value' ? <Badge className={SOFT.sage}>{label}</Badge> : <Badge variant="outline">{label}</Badge>;
 }
 
+/**
+ * The engine's Match Score. Its meaning is read out with the number (`sr-only`), not hidden in a `title` that touch
+ * and keyboard users never reach (spec 2026-10-16-how-it-works-explanations, R2, AC14).
+ */
 export function ScoreBadge({ score, t }: { score: number } & T) {
-  return <Badge variant="outline" className="tabular-nums" title={t.admin.common.engineScore}>{score}%</Badge>;
+  return <Badge variant="outline" className="tabular-nums">{score}%<span className="sr-only"> {t.admin.common.engineScore}</span></Badge>;
 }

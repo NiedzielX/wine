@@ -1,5 +1,6 @@
 export { cn } from './lib/utils';
 export { MatchGlass, type MatchGlassProps } from './brand/match-glass';
+export { InfoDisclosure, type InfoDisclosureProps } from './brand/info-disclosure';
 export { Button, buttonVariants } from './components/button';
 export { Badge, badgeVariants } from './components/badge';
 export { Card, CardHeader, CardFooter, CardTitle, CardAction, CardDescription, CardContent } from './components/card';

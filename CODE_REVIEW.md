@@ -57,7 +57,7 @@ CI dodatkowo uruchamia `audit:gate`, `test:db`, `boot:check` i `test:e2e`. Czerw
 
 - W `packages/core/src/engine/` nie ma `Math.random`, dat, sieci ani LLM. Remisy rozstrzyga id albo nazwa reguły.
 - Nowa lub zmieniona reguła: nazwa w `rule`, test w `packages/core/tests/engine.test.ts`, wpis w [docs/RECOMMENDATION_ENGINE.md](docs/RECOMMENDATION_ENGINE.md), przegląd `npm run engine:matrix` w opisie PR-a. Zmiana wyników podnosi `ENGINE_VERSION`.
-- Match Score to zawsze wynik silnika, bez podbijania. Etykieta „Sommelier recommendation” tylko dla parowań `approved` / `modified`.
+- Match Score to zawsze wynik silnika, bez podbijania. Etykieta „Para sommeliera” / „Sommelier’s pairing” (z pieczęcią) tylko dla parowań `approved` / `modified`; propozycja silnika nosi „Polecane do Twojego dania” / „Recommended for your dish”. Wyjaśnienie „Jak to działa” to natywne `<details>` (`InfoDisclosure`), jedno na ekran, poza linkiem, przyciskiem i `<p>`, z liczbami z `ENGINE_FACTS`, nigdy z literałem w tekście.
 
 ### Frontend
 
