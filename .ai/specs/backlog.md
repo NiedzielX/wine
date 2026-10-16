@@ -37,3 +37,16 @@ Brief refreshed on 2026-10-15: product owner accepted business assumptions A01�
 | E05-S01 | #24 | A maintainer can create a restaurant and its first owner without demo data | #23 | — | no |
 | E05-S02 | #25 | A maintainer can deploy Wine Match to production reproducibly | #23 | — | no |
 | E06 | #26 | Later (parked) | — | — | no |
+
+## Product direction 2026-10-16 (D13–D18)
+
+Positioning accepted by the product owner on 2026-10-16. Specs are drafts awaiting approval; issues are filed after approval.
+
+| Id | Issue | Title | Spec | Depends on | Adopted |
+|---|---|---|---|---|---|
+| E07 | — | How it works: explanations and the "i" disclosure on every engine screen | .ai/specs/2026-10-16-how-it-works-explanations.md | — | no |
+| E08 | — | Whole table: the differentiator and the waiter path | .ai/specs/2026-10-16-whole-table-waiter-path.md | E07 F1a/F1b, E02 F1 | no |
+| E09 | — | Recommendation code ("show the waiter: W7K") and sales attribution without POS integration | .ai/specs/2026-10-16-recommendation-code.md | E02 F1–F2; E03 F2 for phase 3 | no |
+| E10 | — | Opportunities in the sommelier panel (no POS in the MVP) | .ai/specs/2026-10-16-sommelier-opportunities.md | E07 F1b; E02/E04 F3 for S4; E09 F1 for S5 | no |
+
+Merge order: E07 F1a (core) → E08 F1 (engine) → E07 F1b (UI) → E09 F1 → E08 F2–F3, E10 F1–F2 → the rest by dependency.
