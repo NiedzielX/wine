@@ -3,13 +3,13 @@ import { LockMode, type EntityManager } from '@mikro-orm/postgresql';
 import {
   ENGINE_VERSION, InvariantError, NotFoundError, VersionConflictError, contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
   type ContentWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
-  type DishRepository, type EntityStatus, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
+  type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
   type WineRepository, type WineWriteRepository
 } from '@wine-match/core';
-import { DishEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity, type PublishedSnapshot, type PublishedVersionRow } from '../entities';
+import { DishEntity, OpportunityDismissalEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity, type PublishedSnapshot, type PublishedVersionRow } from '../entities';
 import { translate } from './errors';
-import { toDecision, toDish, toPairing, toPublishedPairing, toRestaurant, toWine } from '../mappers';
+import { toDecision, toDish, toOpportunityDismissal, toPairing, toPublishedPairing, toRestaurant, toWine } from '../mappers';
 
 /**
  * PostgreSQL implementations of the @wine-match/core repository ports.
@@ -347,6 +347,39 @@ export class PgContentWriteRepository implements ContentWriteRepository {
     } finally {
       this.em.clear();
     }
+  }
+}
+
+/**
+ * Ignored opportunities (spec 2026-10-16-sommelier-opportunities, R6). The upsert is one statement
+ * (`insert … on conflict (restaurant_id, opportunity_key) do update`), so two people ignoring the same opportunity at
+ * once leave one row with the later term. Reads bypass the identity map: rows are written with native statements.
+ */
+export class PgOpportunityDismissalRepository implements OpportunityDismissalRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  async listActive(restaurantId: string, now: Date) {
+    const rows = await this.em.find(
+      OpportunityDismissalEntity,
+      { restaurant: restaurantId, expiresAt: { $gt: now } },
+      { orderBy: { expiresAt: 'asc', key: 'asc' }, disableIdentityMap: true }
+    );
+    return rows.map(toOpportunityDismissal);
+  }
+
+  async upsert(restaurantId: string, d: OpportunityDismissal) {
+    await this.em.getConnection().execute(
+      `insert into opportunity_dismissal (id, restaurant_id, opportunity_key, rule, dish_id, wine_id, dismissed_by, dismissed_by_id, dismissed_at, expires_at)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       on conflict (restaurant_id, opportunity_key) do update
+       set dismissed_by = excluded.dismissed_by, dismissed_by_id = excluded.dismissed_by_id, dismissed_at = excluded.dismissed_at, expires_at = excluded.expires_at`,
+      [d.id, restaurantId, d.key, d.rule, d.dishId, d.wineId, d.dismissedBy, d.dismissedById, new Date(d.dismissedAt), new Date(d.expiresAt)]
+    );
+  }
+
+  async remove(restaurantId: string, key: string) {
+    return (await this.em.nativeDelete(OpportunityDismissalEntity, { restaurant: restaurantId, key })) > 0;
   }
 }
 

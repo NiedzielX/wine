@@ -1,7 +1,7 @@
 import type { ImportRepository } from './import';
 import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
 import type { Locale } from '../i18n/locale';
-import type { Dish, EntityStatus, Pairing, PairingRole, PairingStatus, Restaurant, RestaurantSettings, Wine } from '../domain/types';
+import type { Dish, EntityStatus, OpportunityDismissal, Pairing, PairingRole, PairingStatus, Restaurant, RestaurantSettings, Wine } from '../domain/types';
 
 /**
  * Repository ports. Implementations: in-memory (`@wine-match/core/memory`) and PostgreSQL
@@ -148,6 +148,19 @@ export interface ContentWriteRepository {
   setRestaurantContent(restaurantId: string, next: RestaurantContent, expected?: RestaurantContent): Promise<void>;
 }
 
+/**
+ * Ignored opportunities (spec 2026-10-16-sommelier-opportunities, R6). One row per (restaurant, key); a dismissal is
+ * active while `expiresAt > now` (a row that expires exactly now is no longer active).
+ */
+export interface OpportunityDismissalRepository {
+  /** dismissals with expiresAt > now, ordered by expiresAt, then key */
+  listActive(restaurantId: string, now: Date): Promise<OpportunityDismissal[]>;
+  /** insert, or on (restaurantId, key) replace dismissedBy/dismissedById/dismissedAt and expiresAt (id kept) */
+  upsert(restaurantId: string, dismissal: OpportunityDismissal): Promise<void>;
+  /** true when a row was removed */
+  remove(restaurantId: string, key: string): Promise<boolean>;
+}
+
 /** The repositories a data source must provide, registered in the DI container under these names. */
 export interface Repositories {
   restaurantRepository: RestaurantRepository;
@@ -160,4 +173,5 @@ export interface Repositories {
   publishRepository: PublishRepository;
   contentWriteRepository: ContentWriteRepository;
   importRepository: ImportRepository;
+  opportunityDismissalRepository: OpportunityDismissalRepository;
 }

@@ -1,7 +1,7 @@
 import { Migrator } from '@mikro-orm/migrations';
 import { MikroORM } from '@mikro-orm/postgresql';
 import {
-  AdminService, AuthService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset,
+  AdminService, AuthService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset,
   createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, type Repositories
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ormConfig } from '../src/config';
 import { Migration20261015140000_bilingual_content } from '../src/migrations/Migration20261015140000_bilingual_content';
+import { Migration20261016152214_opportunity_dismissal } from '../src/migrations/Migration20261016152214_opportunity_dismissal';
 import { PairingEntity } from '../src/entities';
 import { PgAuthRepository } from '../src/repositories/auth';
 import { PgImportRepository } from '../src/repositories/import';
@@ -19,7 +20,7 @@ import { NodeSessionTokens, ScryptPasswordHasher, hashPassword, verifyPassword }
 import { RestaurantEntity } from '../src/entities';
 import { readFileSync } from 'node:fs';
 import {
-  PgContentWriteRepository, PgDishRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
+  PgContentWriteRepository, PgDishRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
   PgRestaurantWriteRepository, PgWineRepository, PgWineWriteRepository
 } from '../src/repositories';
 import { DemoSeeder } from '../src/seeders/DemoSeeder';
@@ -45,7 +46,7 @@ async function freshDatabase(): Promise<MikroORM> {
 
 /** Empties every table and loads the demo data again: each write test starts from the same state. */
 async function resetData(orm: MikroORM): Promise<void> {
-  await orm.em.getConnection().execute('truncate table session, membership, app_user, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await orm.em.getConnection().execute('truncate table session, membership, app_user, opportunity_dismissal, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
   await new DemoSeeder().run(orm.em.fork());
 }
 
@@ -62,7 +63,8 @@ function pgRepos(orm: MikroORM): Repositories {
     restaurantWriteRepository: new PgRestaurantWriteRepository({ em }),
     publishRepository: new PgPublishRepository({ em }),
     contentWriteRepository: new PgContentWriteRepository({ em }),
-    importRepository: new PgImportRepository({ em })
+    importRepository: new PgImportRepository({ em }),
+    opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em })
   };
 }
 
@@ -346,6 +348,76 @@ run('PostgreSQL', () => {
       expect((await s.publish.preview('halka')).pendingContent).toBe(1);
       await s.publish.publish('halka', MARTA);
       expect((await services(pgRepos(orm)).rec.forDish('halka', duck.id, {}, undefined, 'pl'))!.dish.name).toBe('Kaczka A');
+    });
+  });
+
+  describe('opportunities on PostgreSQL (spec 2026-10-16-sommelier-opportunities)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const NOW = Date.parse('2026-10-16T10:00:00.000Z');
+    const DAY = 24 * 60 * 60 * 1000;
+    const opportunities = (repos: Repositories, at = NOW) => new OpportunityService({ ...repos, clock: { now: () => new Date(at) }, idGenerator: { uuid: () => randomUUID() } });
+    const memory = () => opportunities(createMemoryRepositories(MemoryStore.from(ds)));
+    const sancerre = `wine_unpaired:${ds.wines.find((w) => w.name === 'Sancerre')!.id}`;
+    const keysOf = async (svc: OpportunityService) => (await svc.list('halka', { scope: 'all' }))!.groups.flatMap((g) => g.items.map((o) => o.key));
+
+    it('finds the same opportunities as the memory store on the demo data', async () => {
+      const pg = await opportunities(pgRepos(orm)).list('halka', { scope: 'all' }, 'pl');
+      const mem = await memory().list('halka', { scope: 'all' }, 'pl');
+      expect(pg!.groups.map((g) => [g.dish.id, g.current.map((c) => c.pairingId), g.items])).toEqual(mem!.groups.map((g) => [g.dish.id, g.current.map((c) => c.pairingId), g.items]));
+      expect(pg!.groups.length).toBeGreaterThan(0);
+    });
+
+    it('ignore, extend and restore through the service; another restaurant sees nothing (AC4, AC5)', async () => {
+      await opportunities(pgRepos(orm)).dismiss('halka', sancerre, MARTA);
+      expect(await keysOf(opportunities(pgRepos(orm)))).not.toContain(sancerre);
+      await opportunities(pgRepos(orm), NOW + 5 * DAY).dismiss('halka', sancerre, TOMASZ);
+      const rows = await pgRepos(orm).opportunityDismissalRepository.listActive(ds.restaurant.id, new Date(NOW));
+      expect(rows).toEqual([expect.objectContaining({ key: sancerre, dismissedBy: TOMASZ.name, dismissedById: TOMASZ.id, expiresAt: new Date(NOW + 35 * DAY).toISOString() })]);
+      expect(await keysOf(opportunities(pgRepos(orm), NOW + 35 * DAY - 1))).not.toContain(sancerre);
+      expect(await keysOf(opportunities(pgRepos(orm), NOW + 35 * DAY))).toContain(sancerre);
+      expect(await pgRepos(orm).opportunityDismissalRepository.listActive('00000000-0000-4000-8000-000000000000', new Date(NOW))).toEqual([]);
+      await opportunities(pgRepos(orm)).restore('halka', sancerre, MARTA);
+      expect(await keysOf(opportunities(pgRepos(orm)))).toContain(sancerre);
+      await expect(opportunities(pgRepos(orm)).restore('halka', sancerre, MARTA)).rejects.toMatchObject({ code: 'opportunity_not_dismissed' });
+      await expect(opportunities(pgRepos(orm)).dismiss('halka', `wine_unpaired:${ds.wines.find((w) => w.name === 'Morgon')!.id}`, MARTA)).rejects.toMatchObject({ code: 'opportunity_stale' });
+      expect((await orm.em.getConnection().execute<Array<{ n: string }>>('select count(*)::text as n from opportunity_dismissal'))[0].n).toBe('0');
+    });
+
+    it('the database checks the rule name and keeps one row per restaurant and key', async () => {
+      const conn = orm.em.getConnection();
+      const insert = (id: string, rule: string) => conn.execute(
+        'insert into opportunity_dismissal (id, restaurant_id, opportunity_key, rule, dismissed_by, dismissed_at, expires_at) values (?, ?, ?, ?, ?, now(), now())',
+        [id, ds.restaurant.id, 'wine_unpaired:x', rule, 'Test']
+      );
+      await expect(insert(randomUUID(), 'made_up_rule')).rejects.toThrow(/opportunity_dismissal_rule_check/);
+      await insert(randomUUID(), 'wine_unpaired');
+      await expect(insert(randomUUID(), 'wine_unpaired')).rejects.toThrow(/opportunity_dismissal_restaurant_id_opportunity_key_unique/);
+    });
+
+    it('"Add to suggestions" on PostgreSQL ends the opportunity without an unpublished change (AC3)', async () => {
+      const s = services(pgRepos(orm));
+      const herring = ds.dishes.find((d) => d.name === 'Baltic herring')!;
+      const wine = ds.wines.find((w) => w.name === 'Sancerre')!;
+      await s.som.addSuggestion('halka', { dishId: herring.id, wineId: wine.id }, MARTA);
+      expect((await pgRepos(orm).pairingRepository.listByDish(ds.restaurant.id, herring.id)).find((p) => p.wineId === wine.id)).toMatchObject({ status: 'suggested', updatedBy: MARTA.name, dirty: false });
+      expect((await s.publish.preview('halka')).pendingPairings).toBe(0);
+      const after = (await opportunities(pgRepos(orm)).list('halka', { scope: 'all' }))!.groups.flatMap((g) => g.items).find((o) => o.key === sancerre);
+      expect(after?.dishId).not.toBe(herring.id);
+    });
+
+    it('the migration creates the table, and down drops it again (AC6)', async () => {
+      const exists = async () => (await orm.em.getConnection().execute<Array<{ n: string }>>("select count(*)::text as n from information_schema.tables where table_name = 'opportunity_dismissal'"))[0].n === '1';
+      expect(await exists()).toBe(true);
+      const migration = new Migration20261016152214_opportunity_dismissal(orm.em.getDriver(), orm.config);
+      const run = async (fn: 'up' | 'down') => {
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      await run('down');
+      expect(await exists()).toBe(false);
+      await run('up');
+      expect(await exists()).toBe(true);
     });
   });
 });

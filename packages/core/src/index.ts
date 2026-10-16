@@ -37,6 +37,8 @@ export * from './services/catalog/translation-service';
 export * from './services/dashboard/admin-service';
 export * from './services/pairings/pairing-rules';
 export * from './services/pairings/sommelier-service';
+export * from './services/opportunities/opportunity-rules';
+export * from './services/opportunities/opportunity-service';
 export * from './services/publishing/publish-service';
 export * from './services/restaurants/restaurant-service';
 export * from './demo/halka';

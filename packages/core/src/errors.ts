@@ -8,8 +8,9 @@ export class DomainError extends Error {
 }
 
 export class NotFoundError extends DomainError {
-  constructor(what: string) {
-    super('not_found', `${what} not found.`);
+  /** `code` and `message` name a more specific absence (e.g. `opportunity_not_dismissed`); by default `not_found`. */
+  constructor(what: string, code = 'not_found', message = `${what} not found.`) {
+    super(code, message);
     this.name = 'NotFoundError';
   }
 }

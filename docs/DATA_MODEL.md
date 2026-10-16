@@ -19,6 +19,7 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | User (`app_user`), Membership, Session | tak | hasło jako skrót scrypt; w `session` tylko SHA-256 tokenu; licznik prób i blokada w `app_user`; `membership.role`: owner, manager, sommelier, waiter. `sommelier_decision.actor_id` wskazuje konto (zwykła kolumna) |
 | ImportJob | tak | `rows` (jsonb) to sprawdzony podgląd wierszy, `notes` — jak odczytano plik, `result` — wynik zatwierdzenia; **plik nie jest przechowywany** (`storage_key` puste); status `preview_ready` → `confirmed` / `cancelled`; zatwierdzenie atomowe z blokadą wiersza. Rodzaj `sales` w Fazie 6 |
 | Tłumaczenia treści (od 2026-10-15) | tak | `dish.translations`, `wine.translations`, `restaurant.translations` (jsonb, domyślnie `'{}'`), `pairing.comment_translations` (jsonb), `restaurant.content_locale` (text, domyślnie `'en'`). Kształt: `{ "pl": { "name": …, "description": … }, "en": { … } }`; pola bazowe zostają w języku `content_locale`. Migawka publikacji niesie tłumaczenia (`snapshot.content`, `snapshot.pairings[].commentTranslations`); starsze migawki bez nich czytane jako `{}`. Spec `2026-10-15-bilingual-content` |
+| OpportunityDismissal (`opportunity_dismissal`, od 2026-10-16) | tak | zignorowane okazje sommeliera (spec `2026-10-16-sommelier-opportunities`, F1): jeden wiersz na (`restaurant_id`, `opportunity_key`), aktywny do `expires_at`; `dish_id` / `wine_id` **bez kluczy obcych**; `rule` z `CHECK` na pięć nazw sygnałów. Para z „Dodaj do propozycji” to zwykły wiersz `pairing` (`suggested`, bez wpisu w `sommelier_decision`) |
 | Recommendation, GuestSession, ImportRow (osobna tabela), SalesRecord, EngineVersion, CatalogWine | nie | wejdą razem z funkcjami, które ich potrzebują (osobne specyfikacje) |
 
 Poniżej model docelowy.
@@ -48,6 +49,7 @@ erDiagram
   Restaurant ||--o{ ImportJob : ""
   ImportJob ||--o{ ImportRow : ""
   Restaurant ||--o{ SalesRecord : "optional CSV"
+  Restaurant ||--o{ OpportunityDismissal : "ignored opportunities"
   EngineVersion ||--o{ Pairing : "scored by"
   EngineVersion ||--o{ Recommendation : "scored by"
 ```
@@ -206,6 +208,23 @@ Status pary jest pochodną ostatnich decyzji; tabela umożliwia raport „co zmi
 | published_by, published_at | | |
 
 Niezmienna; rollback = ustawienie `restaurant.current_version_id` na wcześniejszą wersję.
+
+### OpportunityDismissal (`opportunity_dismissal`)
+
+Zignorowane okazje w panelu sommeliera (spec `2026-10-16-sommelier-opportunities`, R6). Okazje liczymy przy odczycie (bez tabeli wyników); ta tabela trzyma tylko „Ignoruj”.
+
+| Pole | Typ | Uwagi |
+|---|---|---|
+| id | uuid PK | z `IdGenerator`; ponowne „Ignoruj” zachowuje id |
+| restaurant_id | uuid FK → `restaurant`, not null | zakres tenanta |
+| opportunity_key | text not null | przedmiot okazji, np. `glass_match_unpaired:{dishId}`, `wine_unpaired:{wineId}`, `dish_no_primary:{dishId}:{none\|no_primary\|primary_hidden}`; **unique (`restaurant_id`, `opportunity_key`)** |
+| rule | text not null | `CHECK` na `dish_no_primary`, `ordered_not_reviewed`, `glass_match_unpaired`, `wine_unpaired`, `shown_rarely_chosen` (wszystkie pięć od F1) |
+| dish_id, wine_id | uuid null, **bez FK** | danie i wino z chwili zignorowania (lista „Zignorowane”); wiersz przeżywa usunięcie dania lub wina |
+| dismissed_by | text not null | nazwa autora (`actor.name`) |
+| dismissed_by_id | uuid null | konto autora (zwykła kolumna, jak `sommelier_decision.actor_id`) |
+| dismissed_at, expires_at | timestamptz not null | `expires_at = dismissed_at + 30 dni` (`DISMISS_DAYS`); aktywna, gdy `expires_at > now` |
+
+Zapis: `insert … on conflict (restaurant_id, opportunity_key) do update` (przedłuża termin, zmienia autora). „Przywróć” usuwa wiersz. Migracja `Migration20261016152214_opportunity_dismissal` jest addytywna; `down` usuwa tabelę bez strat dla biznesu (okazje po prostu wrócą).
 
 ### Recommendation (precomputed cache)
 

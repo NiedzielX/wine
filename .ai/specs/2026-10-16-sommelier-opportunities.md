@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-progress
 created: 2026-10-16
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/specs/2026-10-16-how-it-works-explanations.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/lessons/2026-10-14-write-path-conventions.md]
@@ -486,3 +486,12 @@ Dokumentacja (R10) jest pozycją checklisty PR (CODE_REVIEW §3), a nie AC.
 Filip (product owner) 2026-10-16: „Akceptuję rekomendacje we wszystkich decyzjach ⚠” — każda pozycja ⚠ w tej specyfikacji (tabela i Ryzyka) przyjęta zgodnie z rekomendacją.
 
 ## Realizacja
+- **F1 — rdzeń (PR „E10-F1”, issue #51, gałąź `feat/e10-f1-opportunities-core`, 2026-10-16).** Log: `.ai/runs/2026-10-16-e10-f1-opportunities-core.md`. Zrobione kroki 1–6 planu (AC1–AC6):
+  - `core/src/services/opportunities/opportunity-rules.ts` (`findOpportunities`, `opportunityCandidates`, `opportunityKey`, `STRONG_MATCH`, `DISMISS_DAYS`, S1–S3) i `opportunity-service.ts` (`OpportunityService.list/dismiss/restore`, `buildScoreMatrix`); `validators/opportunities/opportunity-key.schema.ts`;
+  - `OpportunityDismissal` + `OPPORTUNITY_RULES` w `domain/types.ts`, port `OpportunityDismissalRepository` w `Repositories`, pamięć (`Map` per restauracja), przypadki w `repository-contract.ts`;
+  - PostgreSQL: encja `opportunities/opportunity-dismissal.ts`, `PgOpportunityDismissalRepository` (`insert … on conflict … do update`), migracja `Migration20261016152214_opportunity_dismissal` (unique, `CHECK` na pięć nazw), snapshoty;
+  - `suggestPairing` / `existingPairingError` w `pairing-rules.ts`, `SommelierService.addSuggestion`; przypadki w `write-contract.ts` (memory i PostgreSQL), w tym wyścig;
+  - kontener: `opportunityService` i `opportunityDismissalRepository` w obu gałęziach `DATA_SOURCE`;
+  - docs: `RECOMMENDATION_ENGINE.md` §13, `DATA_MODEL.md`, `BACKWARD_COMPATIBILITY.md` §3, `packages/core/AGENTS.md`.
+  - **Odstępstwa i doprecyzowania:** (1) stałe S4/S5 (`MIN_OTHER_CHOSEN`, `LOW_RATE_FACTOR`, `MIN_ORDERS`, `WINDOW_DAYS`) nie są dodane w F1 — wchodzą z F3/F4 razem z regułami (jak `MIN_SHOWN`); (2) `OpportunityView` ma dodatkowo `restaurant`; (3) wiersz zignorowania zapisuje `dish_id`/`wine_id` okazji z chwili kliknięcia (S2: danie i proponowane wino, S3: wino i jego najlepsze danie); (4) `NotFoundError` przyjmuje opcjonalny `code`/komunikat (dla `opportunity_not_dismissed`), domyślnie bez zmian; (5) kolejność sprawdzeń `addSuggestion` jak w spec: wynik przed istnieniem pary, więc słaba odrzucona para daje `low_match`; (6) gdy `addSuggestions` zwróci 0, a pary nie ma (wyścig z usunięciem) → `VersionConflictError`.
+  - **Halka (`wm-rules-1.1.0`):** 6 okazji, nie ~7 z szacunku: S1 = 0, S2 = 2 (przegrzebki, sandacz → Solaris 85; deska serów to `draft`, więc odpada), S3 = 4 (Sancerre 87, Riesling Kabinett 87 → śledź; De Nit Rosé 86, Bannockburn Pinot Noir 85 → risotto).
