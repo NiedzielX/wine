@@ -3,7 +3,8 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { e2eSuite } from './support';
 
 /**
- * Usage events of the guest path on the built app and PostgreSQL (spec 2026-10-15-guest-usage-events, phase 1, #12).
+ * Usage events of the guest path on the built app and PostgreSQL (spec 2026-10-15-guest-usage-events: phase 1 #12,
+ * phase 2 #13 — the wine choice, phase 3 #14 — the staff lookup).
  * Without JavaScript a browser only loads HTML and follows links: plain requests with a phone's user agent do exactly
  * that (AC1, AC2, AC6a, AC6b). With JavaScript the real browser navigates softly and prefetches links (AC6).
  * These tests never send the synthetic-traffic header except where they test it.
@@ -91,6 +92,91 @@ describe('usage events without JavaScript (AC1, AC2, AC6a, AC6b)', () => {
     expect(preview.res.status).toBe(200);
     expect(await noEventsOf(sidIn(synthetic.html))).toEqual([]);
     expect(await noEventsOf(sidIn(preview.html))).toEqual([]);
+  });
+});
+
+describe('wine choice and staff lookup without JavaScript (phases 2 and 3: AC7–AC10)', () => {
+  const hrefs = (html: string, re: RegExp) => [...html.matchAll(re)].map((m) => m[1]);
+  /** The form of G7 submitted the way a browser without JavaScript does: action + its fields, the default serving. */
+  const submitWine = (html: string, serving: 'glass' | 'bottle') => {
+    const form = /<form [^>]*action="(\/r\/halka\/selected\/[^"]+)"[^>]*>([\s\S]*?)<\/form>/.exec(html)!;
+    const fields = new URLSearchParams([...form[2].matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+    fields.set('serving', serving);
+    return `${form[1]}?${fields}`;
+  };
+
+  it('dish → wine → "Choose this wine": wine_viewed and wine_selected with dish, serving and context dish (AC7)', async () => {
+    const menu = await get('/r/halka/menu');
+    const sid = sidIn(menu.html);
+    const winesHref = hrefs(menu.html, /href="(\/r\/halka\/dish\/[^"]+\/wines\?[^"]*)"/g)[0];
+    const dish = /\/dish\/([^/]+)\/wines/.exec(winesHref)![1];
+    const wines = await get(winesHref);
+    const wineHref = hrefs(wines.html, /href="(\/r\/halka\/wine\/[^"]+)"/g)[0];
+    expect(wineHref).toContain(`sid=${sid}`);
+    const winePage = await get(wineHref);
+    const wine = /\/wine\/([^/?]+)/.exec(wineHref)![1];
+    const selected = await get(submitWine(winePage.html, 'bottle'));
+    expect(selected.res.status).toBe(200);
+    expect(selected.html).toContain('Show this to your waiter');
+    expect(selected.res.headers.get('set-cookie')).toBeNull();
+
+    const rows = await eventsOf(sid, 5);
+    expect(rows.map((r) => r.name)).toEqual(['guest_session_started', 'menu_viewed', 'recommendations_viewed', 'wine_viewed', 'wine_selected']);
+    expect(rows[3]).toMatchObject({ dish_id: dish, wine_id: wine, props: { context: 'dish' } });
+    expect(rows[4]).toMatchObject({ dish_id: dish, wine_id: wine, props: { serving: 'bottle', context: 'dish' } });
+    expect(rows[4].props.menuVersion).toBe(rows[0].props.menuVersion);
+  });
+
+  it('an inactive wine ("no longer available") or a wine not on the list (404) records no wine_selected (AC8)', async () => {
+    const sid = '0e2e0000-0000-4000-8000-000000000008';
+    const [inactive] = await queryDatabase<{ id: string }>(inject('e2e').databaseUrl,
+      "select w.id::text from wine w join restaurant r on r.id = w.restaurant_id where r.slug = 'halka' and not w.active limit 1");
+    expect(inactive).toBeDefined();
+    const page = await get(`/r/halka/selected/${inactive.id}?serving=bottle&sid=${sid}`);
+    expect(page.res.status).toBe(200);
+    expect(page.html).toContain('no longer available');
+    expect((await get(`/r/halka/selected/00000000-0000-4000-8000-000000000000?sid=${sid}`)).res.status).toBe(404);
+    expect(await noEventsOf(sid)).toEqual([]);
+  });
+
+  it('table result → bottle → select: wine_selected with context table and the table dishes (AC9)', async () => {
+    const table = await get('/r/halka/table');
+    const sid = sidIn(table.html);
+    const dishes = [...table.html.matchAll(/name="dish" value="([^"]+)"/g)].map((m) => m[1]).slice(0, 2);
+    expect(dishes).toHaveLength(2);
+    const result = await get(`/r/halka/table/result?dishes=${dishes.join(',')}&sid=${sid}`);
+    expect(result.res.status).toBe(200);
+    const bottleHref = hrefs(result.html, /href="(\/r\/halka\/wine\/[^"]+\?table=[^"]+)"/g)[0];
+    const wine = /\/wine\/([^/?]+)/.exec(bottleHref)![1];
+    const winePage = await get(bottleHref);
+    await get(submitWine(winePage.html, 'bottle'));
+
+    const rows = await eventsOf(sid, 4);
+    expect(rows.map((r) => r.name)).toEqual(['guest_session_started', 'table_recommendation_viewed', 'wine_viewed', 'wine_selected']);
+    expect(rows[1].props).toMatchObject({ dishIds: dishes });
+    expect((rows[1].props.wineIds as string[])[0]).toBe(wine);
+    expect(rows[3]).toMatchObject({ dish_id: null, wine_id: wine, props: { serving: 'bottle', context: 'table', dishIds: dishes } });
+  });
+
+  it('the staff lookup records staff_lookup under the waiter\'s own sid, without a guest session start (AC10)', async () => {
+    const landing = await get('/r/halka');
+    const guestSid = sidIn(landing.html);
+    const staffHref = /href="(\/r\/halka\/staff[^"]*)"/.exec(landing.html)![1];
+    expect(staffHref).not.toContain('sid=');   // "For staff" does not carry the guest's session
+    const staff = await get(staffHref);
+    const sid = sidIn(staff.html);
+    expect(sid).not.toBe(guestSid);
+    const dish = [...staff.html.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1])[1];
+    // the waiter picks a dish and presses "Show": the form GET with its hidden fields
+    const shown = await get(`/r/halka/staff?sid=${sid}&dish=${dish}`);
+    expect(shown.res.status).toBe(200);
+
+    const rows = await eventsOf(sid, 1);
+    await new Promise((r) => setTimeout(r, 1_000));
+    // the first visit showed the first dish without a choice: nothing; the chosen dish: one lookup, no session start
+    expect((await eventsOf(sid)).map((r) => r.name)).toEqual(['staff_lookup']);
+    expect(rows[0]).toMatchObject({ dish_id: dish, wine_id: null, props: { source: 'staff' } });
+    expect((rows[0].props.wineIds as string[]).length).toBeGreaterThan(0);
   });
 });
 

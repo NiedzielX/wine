@@ -17,9 +17,10 @@ import { logger } from '@/server/logger';
 import { NON_GUEST_UA, PREFETCH_HEADER, SYNTHETIC_TRAFFIC_HEADER, shouldRecord, trackUsage } from '@/server/usage-events';
 
 /**
- * Spec 2026-10-15-guest-usage-events, phase 1 (#12): the request filter, the write after the response, the session in
- * every guest link and form (AC4, AC5), and the page views of G0, G1 and G3 (AC1, AC6a, AC6b) — rendered to HTML the
- * way the server sends them, on the in-memory data source.
+ * Spec 2026-10-15-guest-usage-events: the request filter, the write after the response, the session in every guest
+ * link and form (AC4, AC5), the page views of G0, G1 and G3 (phase 1: AC1, AC6a, AC6b), the wine choice on G6–G8
+ * (phase 2: AC7–AC9) and the staff lookup on G9 (phase 3: AC10, AC11) — rendered to HTML the way the server sends
+ * them, on the in-memory data source.
  */
 
 const next = () => (globalThis as unknown as { __wmNext: { headers: Map<string, string>; afterTasks: Array<Promise<unknown>> } }).__wmNext;
@@ -47,6 +48,7 @@ const guestTargets = (html: string) => [...html.matchAll(/\shref="(\/r\/[^"]*)"/
 const sidOf = (target: string) => new URL(target, 'http://x').searchParams.get('sid');
 const hiddenSid = (html: string) => [...html.matchAll(/<input type="hidden" name="sid" value="([^"]+)"/g)].map((m) => m[1]);
 const settle = async () => { await Promise.all(next().afterTasks.splice(0)); };
+const newSidOf = (html: string) => sidOf(guestTargets(html).find((t) => sidOf(t))!)!;
 
 let repo: GuestInteractionRepository;
 let restaurantId = '';
@@ -216,21 +218,12 @@ describe('page views of phase 1 (R1, R4, AC1, AC4, AC6a, AC6b)', () => {
     expect((await events(sid))[0].props).toMatchObject({ source: 'link' });
   });
 
-  it('other guest pages only start a new session in phase 1; the staff lookup records nothing', async () => {
-    for (const [page, params, search] of [[TablePage, {}, {}], [WinePage, { wineId: wine }, { dish: duck }], [SelectedPage, { wineId: wine }, { dish: duck }], [TableResultPage, {}, { dishes: `${duck},${dessert}` }]] as const) {
-      const sid = newSid(await render(page, params, search));
-      expect(names(await events(sid))).toEqual(['guest_session_started']);
-    }
-    const staff = newSid(await render(StaffPage, {}, { dish: duck }));
-    expect(await events(staff)).toEqual([]);
+  it('the table form (G5) only starts a new session; a staff sid on a guest page starts none (Q16)', async () => {
+    const sid = newSid(await render(TablePage, {}, {}));
+    expect(names(await events(sid))).toEqual(['guest_session_started']);
+    const staff = newSid(await render(StaffPage, {}, {}));
     await render(MenuPage, {}, { sid: staff });
-    expect(names(await events(staff))).toEqual(['menu_viewed']);   // a staff sid on a guest page: no start (Q16)
-  });
-
-  it('an inactive wine on G8 records nothing', async () => {
-    if (!inactiveWine) return;
-    const html = await render(SelectedPage, { wineId: inactiveWine }, {});
-    expect(await events(newSid(html))).toEqual([]);
+    expect(names(await events(staff))).toEqual(['menu_viewed']);
   });
 
   it('a page that ends in 404 records nothing (AC6a)', async () => {
@@ -238,6 +231,8 @@ describe('page views of phase 1 (R1, R4, AC1, AC4, AC6a, AC6b)', () => {
     await expect(render(WinesPage, { dishId: '00000000-0000-4000-8000-000000000000' }, { sid: UNUSED_SID })).rejects.toThrow('NEXT_NOT_FOUND');
     await expect(render(MenuPage, { slug: 'no-such-place' }, { sid: UNUSED_SID })).rejects.toThrow('NEXT_NOT_FOUND');
     await expect(render(WinePage, { wineId: '00000000-0000-4000-8000-000000000000' }, { sid: UNUSED_SID })).rejects.toThrow('NEXT_NOT_FOUND');
+    await expect(render(SelectedPage, { wineId: '00000000-0000-4000-8000-000000000000' }, { sid: UNUSED_SID, dish: duck })).rejects.toThrow('NEXT_NOT_FOUND');
+    await expect(render(StaffPage, { slug: 'no-such-place' }, { sid: UNUSED_SID, dish: duck })).rejects.toThrow('NEXT_NOT_FOUND');
     expect(next().afterTasks.length).toBe(before);
     expect(await events(UNUSED_SID)).toEqual([]);
   });
@@ -248,5 +243,122 @@ describe('page views of phase 1 (R1, R4, AC1, AC4, AC6a, AC6b)', () => {
       expect(html).toContain('Halka');
       expect(await events(newSid(html))).toEqual([]);
     }
+  });
+});
+
+describe('the wine choice: G6, G7, G8 (phase 2, #13, AC7–AC9)', () => {
+  const events = async (sid: string) => { await settle(); return repo.listBySession(restaurantId, sid); };
+
+  it('dish → wine → "Choose this wine": wine_viewed, then wine_selected with the dish, the serving and context dish (AC7)', async () => {
+    const sid = '6b2c3d4e-5f60-4b7c-9d8e-0f1a2b3c4d5e';
+    await render(WinePage, { wineId: wine }, { dish: duck, sid });
+    await render(SelectedPage, { wineId: wine }, { dish: duck, serving: 'bottle', sid });
+    const list = await events(sid);
+    expect(list.map((e) => e.name)).toEqual(['wine_viewed', 'wine_selected']);
+    expect(list[0]).toMatchObject({ dishId: duck, wineId: wine, props: { context: 'dish', menuVersion: publishedAt } });
+    expect(list[1]).toMatchObject({ dishId: duck, wineId: wine, props: { serving: 'bottle', context: 'dish', menuVersion: publishedAt } });
+    expect(list[1].props).not.toHaveProperty('dishIds');
+    expect(list[1].engineVersion).toMatch(/^wm-rules-/);
+  });
+
+  it('a glass is recorded only for a wine poured by the glass; a selection link without sid starts a `link` session', async () => {
+    const c = (await createRequestScope()).cradle;
+    const wines = await c.wineRepository.listByRestaurant(restaurantId, { activeOnly: true });
+    const byGlass = wines.find((w) => w.glassPrice !== null)!.id;
+    const bottleOnly = wines.find((w) => w.glassPrice === null)!.id;
+    const sid = newSidOf(await render(SelectedPage, { wineId: byGlass }, { serving: 'glass' }));
+    await render(SelectedPage, { wineId: bottleOnly }, { serving: 'glass', sid });
+    const list = await events(sid);
+    expect(list.map((e) => e.name)).toEqual(['guest_session_started', 'wine_selected', 'wine_selected']);
+    expect(list[0].props).toMatchObject({ source: 'link' });
+    expect(list[1]).toMatchObject({ dishId: null, wineId: byGlass, props: { serving: 'glass', context: 'direct' } });
+    expect(list[2]).toMatchObject({ wineId: bottleOnly, props: { serving: 'bottle', context: 'direct' } });
+  });
+
+  it('a dish id typed into the URL is not stored: the view is `direct`, without a dish (R8)', async () => {
+    const sid = '5a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
+    await render(WinePage, { wineId: wine }, { dish: 'not-a-dish', sid });
+    expect(await events(sid)).toMatchObject([{ name: 'wine_viewed', dishId: null, props: { context: 'direct' } }]);
+  });
+
+  it('an inactive wine on G8 records nothing, not even a new session; its G7 view is recorded (AC8, Q6)', async () => {
+    expect(inactiveWine).not.toBe('');
+    const html = await render(SelectedPage, { wineId: inactiveWine }, { dish: duck });
+    expect(html).toContain('no longer available');
+    expect(await events(newSidOf(html))).toEqual([]);
+    const sid = '7c3d4e5f-6071-4c8d-8e9f-1a2b3c4d5e6f';
+    await render(SelectedPage, { wineId: inactiveWine }, { dish: duck, sid });
+    expect(await events(sid)).toEqual([]);
+    await render(WinePage, { wineId: inactiveWine }, { dish: duck, sid });
+    expect(await events(sid)).toMatchObject([{ name: 'wine_viewed', wineId: inactiveWine }]);
+  });
+
+  it('table result → bottle → select: table_recommendation_viewed, wine_viewed, wine_selected with context table and dishIds (AC9)', async () => {
+    const sid = '8d4e5f60-7182-4d9e-9fa0-2b3c4d5e6f70';
+    const html = await render(TableResultPage, {}, { dishes: `${duck},${dessert},unknown`, sid });
+    const bottle = /href="\/r\/halka\/wine\/([^/?"]+)\?table=([^&"]+)[^"]*"/.exec(html)!;
+    const table = decodeURIComponent(bottle[2]);
+    await render(WinePage, { wineId: bottle[1] }, { table, sid });
+    await render(SelectedPage, { wineId: bottle[1] }, { table, serving: 'bottle', sid });
+    const list = await events(sid);
+    expect(list.map((e) => e.name)).toEqual(['table_recommendation_viewed', 'wine_viewed', 'wine_selected']);
+    const shown = list[0].props as { dishIds: string[]; wineIds: string[] };
+    expect(shown.dishIds).toEqual([duck, dessert]);
+    expect(shown.wineIds[0]).toBe(bottle[1]);
+    expect(list[0]).toMatchObject({ dishId: null, wineId: null });
+    expect(list[1]).toMatchObject({ dishId: null, wineId: bottle[1], props: { context: 'table' } });
+    expect(list[2]).toMatchObject({ dishId: null, wineId: bottle[1], props: { serving: 'bottle', context: 'table', dishIds: [duck, dessert] } });
+  });
+
+  it('an id typed into `table=` never reaches the event (R8); fewer than two dishes is no table result', async () => {
+    const sid = '9e5f6071-8293-4eaf-8fb1-3c4d5e6f7081';
+    await render(SelectedPage, { wineId: wine }, { table: `${duck},<b>`, sid });
+    await render(TableResultPage, {}, { dishes: duck, sid });
+    expect(await events(sid)).toMatchObject([{ name: 'wine_selected', props: { context: 'table', dishIds: [duck] } }]);
+  });
+});
+
+describe('the staff lookup: G9 (phase 3, #14, AC10, AC11)', () => {
+  const events = async (sid: string) => { await settle(); return repo.listBySession(restaurantId, sid); };
+  const everything = { from: new Date(0), to: new Date('2100-01-01') };
+
+  it('a chosen dish records staff_lookup under the staff sid, without starting a guest session (AC10, AC11)', async () => {
+    const sessionsBefore = await repo.countGuestSessions(restaurantId, everything);
+    const html = await render(StaffPage, {}, { dish: duck, serving: 'glass' });
+    const sid = newSidOf(html);
+    const list = await events(sid);
+    expect(list.map((e) => e.name)).toEqual(['staff_lookup']);
+    expect(list[0]).toMatchObject({ dishId: duck, wineId: null, props: { source: 'staff', prefs: { serving: 'glass' }, menuVersion: publishedAt } });
+    const wineIds = (list[0].props as { wineIds: string[] }).wineIds;
+    expect(wineIds.length).toBeGreaterThan(0);
+    expect(wineIds.length).toBe((html.match(/<article /g) ?? []).length);   // the wines the waiter sees, in that order
+    await render(StaffPage, {}, { dish: dessert, sid });
+    expect((await events(sid)).map((e) => e.name)).toEqual(['staff_lookup', 'staff_lookup']);
+    expect(await repo.countGuestSessions(restaurantId, everything)).toBe(sessionsBefore);
+  });
+
+  it('without an explicit dish (the first dish is only shown) or with an unknown one, nothing is recorded (Q9)', async () => {
+    const sid = 'af607182-93a4-4fb0-80c2-4d5e6f708192';
+    await render(StaffPage, {}, { sid });
+    await render(StaffPage, {}, { dish: 'not-a-dish', sid });
+    expect(await events(sid)).toEqual([]);
+  });
+
+  it('an empty result is still a lookup (`wineIds: []`)', async () => {
+    const sid = 'b0718293-a4b5-4c01-91d3-5e6f708192a3';
+    // a dish and a style with no wine in the demo list (found, not assumed)
+    const c = (await createRequestScope()).cradle;
+    const menu = (await c.catalogService.publishedMenu('halka'))!;
+    let empty: { dish: string; styles: string } | undefined;
+    for (const d of menu.dishes) {
+      for (const styles of ['sweet', 'orange', 'sparkling', 'rose', 'white', 'red'] as const) {
+        const out = await c.recommendationService.forDish('halka', d.id, { serving: 'glass', styles: [styles], maxPrice: null, weight: 'any', mood: 'any' });
+        if (out && out.result.items.length === 0) empty ??= { dish: d.id, styles };
+      }
+    }
+    expect(empty).toBeDefined();
+    const html = await render(StaffPage, {}, { dish: empty!.dish, styles: empty!.styles, serving: 'glass', sid });
+    expect(html).not.toContain('<article ');
+    expect(await events(sid)).toMatchObject([{ name: 'staff_lookup', props: { wineIds: [] } }]);
   });
 });
