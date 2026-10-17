@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: implemented
 created: 2026-10-15
 owner: Filip
 related: [issue #11, #12, #13, #14, .ai/specs/product-brief.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-15-restaurant-bootstrap-cli.md]
@@ -192,20 +192,20 @@ D01 (analityka w MVP) — realizowane; D04 — licznik sesji i wyborów, sam Att
 - **#14** Kelner otwiera `/r/halka/staff`, wybiera danie, „Show” → ranking jak dziś → zapis `staff_lookup` pod własnym `sid`, bez startu sesji → KPI sesji gości nie rośnie od pracy personelu.
 
 ## Kryteria akceptacji
-- [ ] AC1 (#12, R1) Bez JS `/r/halka` → menu → danie → wina: w `guest_interaction` są `guest_session_started`, `menu_viewed`, `recommendations_viewed` (z `dishId`, `wineIds`, `engineVersion`, `menuVersion`) z tym samym `session_id` i `restaurant_id` Halki. *E2E na PostgreSQL.*
-- [ ] AC2 (#12, R2) Żadna odpowiedź tej ścieżki nie ma `Set-Cookie`. *E2E: nagłówki odpowiedzi.*
-- [ ] AC3 (#12, R5) Gdy repozytorium rzuca, `trackUsage` nie przepuszcza wyjątku i loguje `warn`. *Test jednostkowy (mock `after`).*
-- [ ] AC4 (#12, R2) Link bez `sid` (`/r/halka/dish/{id}/wines?serving=glass`) renderuje się jak dotąd, zapisuje sesję `source: link`, a linki na stronie niosą nowy `sid`. *Test SSR + kontrakt.*
-- [ ] AC5 (#12, R3) Każdy `href`/`action` `/r/…` na stronach gościa i G9 (poza „For staff”) zawiera `sid`. *Test SSR wszystkich stron.*
-- [ ] AC6 (#12, R6) Prefetch nie tworzy zdarzeń, miękka nawigacja RSC tworzy. *Test `shouldRecord` + E2E z JS: liczba zdarzeń = liczba odwiedzonych ekranów.*
-- [ ] AC6a (#12, R6) Strona kończąca się 404 nie zapisuje zdarzeń. *E2E.*
-- [ ] AC6b (#12, R6) Żądanie z `x-wine-match-synthetic: 1` albo z UA z listy `NON_GUEST_UA` daje 200 i zero nowych wierszy; `npm run smoke` na `postgres` nie zmienia liczby wierszy `guest_interaction`. *Test `shouldRecord` + E2E (fetch z nagłówkiem).*
-- [ ] AC7 (#13) `/r/{slug}/selected/{wineId}?dish=…&sid=…`: `wine_selected` z `wineId`, `serving`, `dishId`, `context: 'dish'` w tej samej sesji. *E2E.*
-- [ ] AC8 (#13) Wino nieaktywne („no longer available”) lub spoza karty (404): brak `wine_selected`. *E2E/SSR.* (Q6 ✅)
-- [ ] AC9 (#13) Stolik → „Select” butelki: `wine_selected` z `context: 'table'` i `dishIds`. *E2E.*
-- [ ] AC10 (#14, R4) `/r/{slug}/staff?dish={id}`: `staff_lookup` z `dishId` i `props.source = 'staff'`, bez `guest_session_started`. *E2E.*
-- [ ] AC11 (#14, R7) `countGuestSessions` nie wlicza sesji kelnera. *Kontrakt (memory i PostgreSQL).*
-- [ ] AC12 (R7) Zdarzenia innej restauracji niewidoczne w `listBySession`/`countGuestSessions`; pamięć trzyma najwyżej 10 000 zdarzeń. *Kontrakt + test `core`.*
+- [x] AC1 (#12, R1) Bez JS `/r/halka` → menu → danie → wina: w `guest_interaction` są `guest_session_started`, `menu_viewed`, `recommendations_viewed` (z `dishId`, `wineIds`, `engineVersion`, `menuVersion`) z tym samym `session_id` i `restaurant_id` Halki. *E2E na PostgreSQL.* ✅ F1: `app/tests/unit/usage-events.test.ts` + E2E `usage-events.e2e.test.ts` (PostgreSQL).
+- [x] AC2 (#12, R2) Żadna odpowiedź tej ścieżki nie ma `Set-Cookie`. *E2E: nagłówki odpowiedzi.* ✅ F1: E2E (brak `Set-Cookie`); F2/F3: także G7/G8 w E2E i QA.
+- [x] AC3 (#12, R5) Gdy repozytorium rzuca, `trackUsage` nie przepuszcza wyjątku i loguje `warn`. *Test jednostkowy (mock `after`).* ✅ F1: test jednostkowy `trackUsage`.
+- [x] AC4 (#12, R2) Link bez `sid` (`/r/halka/dish/{id}/wines?serving=glass`) renderuje się jak dotąd, zapisuje sesję `source: link`, a linki na stronie niosą nowy `sid`. *Test SSR + kontrakt.* ✅ F1: test SSR wszystkich stron + E2E.
+- [x] AC5 (#12, R3) Każdy `href`/`action` `/r/…` na stronach gościa i G9 (poza „For staff”) zawiera `sid`. *Test SSR wszystkich stron.* ✅ F1: test SSR G0–G9.
+- [x] AC6 (#12, R6) Prefetch nie tworzy zdarzeń, miękka nawigacja RSC tworzy. *Test `shouldRecord` + E2E z JS: liczba zdarzeń = liczba odwiedzonych ekranów.* ✅ F1: `shouldRecord` + E2E z JS.
+- [x] AC6a (#12, R6) Strona kończąca się 404 nie zapisuje zdarzeń. *E2E.* ✅ F1 (G3, G1, G7) + F2/F3 (G8, G9): test SSR; E2E.
+- [x] AC6b (#12, R6) Żądanie z `x-wine-match-synthetic: 1` albo z UA z listy `NON_GUEST_UA` daje 200 i zero nowych wierszy; `npm run smoke` na `postgres` nie zmienia liczby wierszy `guest_interaction`. *Test `shouldRecord` + E2E (fetch z nagłówkiem).* ✅ F1: test + E2E; smoke na `postgres` nie zmienia liczby wierszy (także po F2/F3).
+- [x] AC7 (#13) `/r/{slug}/selected/{wineId}?dish=…&sid=…`: `wine_selected` z `wineId`, `serving`, `dishId`, `context: 'dish'` w tej samej sesji. *E2E.* ✅ F2: test SSR + E2E bez JS na PostgreSQL.
+- [x] AC8 (#13) Wino nieaktywne („no longer available”) lub spoza karty (404): brak `wine_selected`. *E2E/SSR.* (Q6 ✅) ✅ F2: test SSR + E2E (nieaktywne → 200 bez zdarzeń, spoza karty → 404).
+- [x] AC9 (#13) Stolik → „Select” butelki: `wine_selected` z `context: 'table'` i `dishIds`. *E2E.* ✅ F2: test SSR + E2E.
+- [x] AC10 (#14, R4) `/r/{slug}/staff?dish={id}`: `staff_lookup` z `dishId` i `props.source = 'staff'`, bez `guest_session_started`. *E2E.* ✅ F3: test SSR + E2E.
+- [x] AC11 (#14, R7) `countGuestSessions` nie wlicza sesji kelnera. *Kontrakt (memory i PostgreSQL).* ✅ F1 kontrakt (memory i PostgreSQL) + F3 test SSR (`countGuestSessions` bez zmian po lookupie).
+- [x] AC12 (R7) Zdarzenia innej restauracji niewidoczne w `listBySession`/`countGuestSessions`; pamięć trzyma najwyżej 10 000 zdarzeń. *Kontrakt + test `core`.* ✅ F1: kontrakt + test `core`.
 
 Dokumentacja (R9) — pozycja checklisty PR (CODE_REVIEW §3), nie AC.
 
@@ -248,7 +248,10 @@ Dokumentacja (R9) — pozycja checklisty PR (CODE_REVIEW §3), nie AC.
 - 2026-10-15 — from E04 review: `items: [{ wineId, tier }]` w `recommendations_viewed`, zakres konwersji (tylko danie), pomocnik `seedUsageEvents` dla testów E04.
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 
+- 2026-10-17 — fazy 2 i 3 zaimplementowane (jeden PR, #13 + #14); status `implemented`.
+
 - 2026-10-15 — superseded częściowo przez `2026-10-15-guest-short-path-and-desktop` (approved przez właściciela): G2 to przekierowanie 308, zdarzenie `dish_viewed` usunięte; wejście w danie liczy `recommendations_viewed`; `menu_viewed` także na G0.
 
 ## Realizacja
 - **Faza 1 (#12) — 2026-10-16/17, gałąź `feat/e02-f1-usage-events`, log `.ai/runs/2026-10-16-e02-f1-usage-events.md`.** Zrobione: `core/src/guest/session.ts`, `UsageEventService` + unia `UsageEvent` (`core/src/services/guest/usage-events.ts`), `GUEST_EVENT_NAMES`/`GuestInteraction` w `domain/types.ts`, port `GuestInteractionRepository` (pamięć z limitem 10 000, `PgGuestInteractionRepository` z `insertMany` bez `flush`), przypadki w `repositoryContract`, `seedUsageEvents`, `server/usage-events.ts` (`shouldRecord`, `trackUsage` w `after()`), `guestContext(…, { source })` z `session`, `sid` w `href`/`langHrefs` i ukrytych polach G5/G7/G9, zdarzenia G0 (`guest_session_started` qr + `menu_viewed`), G1, G3; nagłówek syntetyczny w `scripts/smoke.mjs`; docs (BC §1, SCREEN_SPECIFICATION, API_SPECIFICATION, DATA_MODEL, README, `packages/app/AGENTS.md`). Odstępstwa: (1) prefetch routera rozpoznaje proxy (`x-wine-prefetch`), bo `headers()` w Next.js 16 ukrywa `Next-Router-Prefetch`/`RSC` (lekcja `nextjs-headers-hide-router-prefetch`); (2) `link()` z planu to istniejący `href` z `guestContext` (ten sam kontrakt, bez drugiej nazwy); `ModeSwitch` już dostawał gotowe `href` — bez zmiany propsów; (3) `GUEST_EVENT_NAMES` w `domain/types.ts` (typ domenowy nie importuje serwisu); (4) G5–G8 w F1 zapisują tylko `guest_session_started` dla nowej sesji (R4; bez startu na G8 dla wina nieaktywnego), zdarzenia G6–G8 — F2; G9 ma sesję `staff` i `sid` w linkach/formularzu, bez zapisu — F3; (5) link „Więcej o doborze win” (`howHref`) jeszcze nie istnieje na `main` — dostanie `sid` automatycznie przez `href`.
+- **Fazy 2 (#13) i 3 (#14) — 2026-10-17, jeden PR, gałąź `feat/e02-f2-f3-selection-staff-events`, log `.ai/runs/2026-10-17-e02-f2-f3-events.md`.** Zrobione: G6 `table_recommendation_viewed` (`dishIds` = opublikowane dania z `dishes=`, najwyżej `MAX_TABLE_DISHES`, jak liczy serwis; `wineIds` w kolejności wyświetlenia, pusty wynik → `[]`; ekran „Add at least two dishes” — bez zdarzenia), G7 `wine_viewed`, G8 `wine_selected` (`serving` jak na ekranie, `dish_id` tylko dla `context: 'dish'`, `dishIds` tylko dla `table`), G9 `staff_lookup` pod sesją `staff` (bez `guest_session_started`) tylko przy jawnym `dish=` z opublikowanego menu. Nowy czysty pomocnik `wineUsageScope(q, menu)` w `core/src/guest/session.ts` (kontekst + identyfikatory dań wyłącznie z menu, R8); `UsageContext` = `UsagePath`. Testy: `core/tests/usage-events.test.ts`, `app/tests/unit/usage-events.test.ts` (SSR G6–G9), E2E bez JS na PostgreSQL (AC7–AC10). Docs: katalog w `docs/SCREEN_SPECIFICATION.md` (+ wiersze „Analytics” G6–G9). Odstępstwa i doprecyzowania: (1) `usageContext` uznaje ścieżkę stolika, gdy `table=` wskazuje co najmniej jedno danie (jak strony G7/G8 przez `parseDishIds`), a nie każdy niepusty tekst; (2) G7 dla wina nieaktywnego zapisuje `wine_viewed` (R6 wyklucza tylko G8 — literalnie); (3) identyfikatory dań w `table=` spoza opublikowanego menu są pomijane w `dishIds` (R8), więc `context: 'table'` może mieć `dishIds: []`; (4) `staff_table_lookup` (E08) i kod polecenia na G8 (E09) — poza zakresem, nie dodane. Kontrakt dla E04 F3 / E10 S4: `wine_selected` ma `dish_id` i `wine_id` w kolumnach i `props.context`; `tier` pochodzi z `recommendations_viewed.items[]` (F1), nie z `wine_selected`.

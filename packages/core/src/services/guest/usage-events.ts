@@ -1,13 +1,13 @@
 import type { RecommendationItem } from '../../engine/recommend';
 import { ENGINE_VERSION } from '../../engine/scoring';
-import { parseSessionId, type GuestSessionRef, type GuestSessionSource } from '../../guest/session';
+import { parseSessionId, type GuestSessionRef, type GuestSessionSource, type UsagePath } from '../../guest/session';
 import type { QueryInput } from '../../guest/prefs';
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import type { GuestInteractionInput, Repositories } from '../../ports/repositories';
 
 /** How a wine was placed when the guest saw it, as in the public API (`tier`). */
 export type UsageTier = 'sommelier_primary' | 'sommelier' | 'engine';
-export type UsageContext = 'table' | 'dish' | 'direct';
+export type UsageContext = UsagePath;
 /** Only the non-default preferences, as `prefsToQuery` writes them. */
 export type UsagePrefs = Record<string, string>;
 

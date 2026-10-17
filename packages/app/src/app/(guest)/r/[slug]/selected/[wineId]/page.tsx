@@ -1,4 +1,4 @@
-import { parseDishIds } from '@wine-match/core';
+import { parseDishIds, wineUsageScope } from '@wine-match/core';
 import type { Metadata } from 'next';
 import { Button, EmptyState, LanguageSwitch, TopBar } from '../../../../_components/guest-ui';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
@@ -41,8 +41,13 @@ export default async function SelectedPage({ params, searchParams }: Props) {
   const serving = q.serving === 'glass' && wine.glassPrice !== null ? 'glass' : 'bottle';
   const price = formatPrice((serving === 'glass' ? wine.glassPrice : null) ?? wine.bottlePrice, locale);
 
-  // `wine_selected` comes with phase 2 of the usage events; here only a new session (never for an inactive wine, R6)
-  await trackUsage(services, restaurant, session, []);
+  // the guest shows the wine to the waiter: `wine_selected` with the path and the dish ids of the published menu only
+  // (R8). An inactive wine (above) records nothing, not even a new session (R6, Q6).
+  const { context, dishId: selectedDish, dishIds } = wineUsageScope(q, { dishes: tableIds.length ? (await services.catalogService.publishedMenu(slug))?.dishes ?? [] : dish ? [dish] : [] });
+  await trackUsage(services, restaurant, session, [{
+    name: 'wine_selected', wineId: wine.id, ...(selectedDish ? { dishId: selectedDish } : {}),
+    props: { serving, context, ...(dishIds ? { dishIds } : {}) }
+  }]);
   return (
     <>
       <TopBar back={back} title={restaurant.name} t={t} langSwitch={langSwitch} />

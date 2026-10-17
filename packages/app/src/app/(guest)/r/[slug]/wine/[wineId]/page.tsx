@@ -1,4 +1,4 @@
-import { DEFAULT_RESTAURANT_SETTINGS, parseDishIds, styleLabel } from '@wine-match/core';
+import { DEFAULT_RESTAURANT_SETTINGS, parseDishIds, styleLabel, wineUsageScope, type UsageEvent } from '@wine-match/core';
 import type { Metadata } from 'next';
 import { BottomBar, Button, EmptyState, Explain, LanguageSwitch, Score, Seal, TopBar } from '../../../../_components/guest-ui';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
@@ -44,9 +44,12 @@ export default async function WinePage({ params, searchParams }: Props) {
     : dish ? href(`/r/${slug}/dish/${dish.id}/wines`, prefs) : href(`/r/${slug}/menu`);
   const langSwitch = <LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${slug}/wine/${wine.id}`)} t={t} />;
   const w = t.guest.wine;
+  // the path of this view, with dish ids from the published menu only (R8)
+  const { context, dishId: viewedDish } = wineUsageScope(q, { dishes: fromTable ? (await services.catalogService.publishedMenu(slug))?.dishes ?? [] : dish ? [dish] : [] });
+  const viewed: UsageEvent[] = [{ name: 'wine_viewed', wineId: wine.id, ...(viewedDish ? { dishId: viewedDish } : {}), props: { context } }];
 
   if (!wine.active) {
-    await trackUsage(services, restaurant, session, []);
+    await trackUsage(services, restaurant, session, viewed);
     return (
       <>
         <TopBar back={backHref} title={restaurant.name} t={t} langSwitch={langSwitch} />
@@ -70,8 +73,7 @@ export default async function WinePage({ params, searchParams }: Props) {
   );
   const radio = 'grid gap-0.5 rounded-[10px] border border-[#d4ccd0] bg-surface px-3.5 py-3 has-[input:checked]:border-wine has-[input:checked]:ring-1 has-[input:checked]:ring-wine has-[input:disabled]:opacity-45 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine cursor-pointer';
 
-  // `wine_viewed` comes with phase 2 of the usage events; here only a new session starts
-  await trackUsage(services, restaurant, session, []);
+  await trackUsage(services, restaurant, session, viewed);
   return (
     <>
       <TopBar back={backHref} title={restaurant.name} t={t} langSwitch={langSwitch} />

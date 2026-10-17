@@ -1,4 +1,4 @@
-import type { QueryInput } from './prefs';
+import { parseDishIds, type QueryInput } from './prefs';
 
 /**
  * The anonymous guest session (spec 2026-10-15-guest-usage-events, R2): a random UUID carried in the `sid` URL
@@ -26,12 +26,29 @@ export function parseSessionId(q: QueryInput): string | null {
   return typeof v === 'string' && SESSION_ID.test(v) ? v : null;
 }
 
+/** The path a guest view belongs to (`props.context` of `wine_viewed` and `wine_selected`). */
+export type UsagePath = 'table' | 'dish' | 'direct';
+
 /**
- * Which path a view belongs to: `table` when it came from the table result (`table=`), `dish` when it names a
- * published dish (`dish=`), otherwise `direct`.
+ * Which path a view belongs to: `table` when it came from the table result (`table=` names at least one dish, as the
+ * wine and selection pages read it), `dish` when it names a published dish (`dish=`), otherwise `direct`.
  */
-export function usageContext(q: QueryInput, menu: { dishes: ReadonlyArray<{ id: string }> }): 'table' | 'dish' | 'direct' {
-  if (typeof q.table === 'string' && q.table !== '') return 'table';
+export function usageContext(q: QueryInput, menu: { dishes: ReadonlyArray<{ id: string }> }): UsagePath {
+  if (parseDishIds({ dishes: q.table }).length > 0) return 'table';
   if (typeof q.dish === 'string' && menu.dishes.some((d) => d.id === q.dish)) return 'dish';
   return 'direct';
+}
+
+/**
+ * The path of a wine view (G7) or a selection (G8) with ids from the database only (R8): `dishId` on the dish path,
+ * `dishIds` on the table path — the published dishes named in `table=`, in that order, unknown ids dropped.
+ */
+export function wineUsageScope(q: QueryInput, menu: { dishes: ReadonlyArray<{ id: string }> }): { context: UsagePath; dishId?: string; dishIds?: string[] } {
+  const context = usageContext(q, menu);
+  if (context === 'dish') return { context, dishId: q.dish as string };
+  if (context === 'table') {
+    const known = new Set(menu.dishes.map((d) => d.id));
+    return { context, dishIds: parseDishIds({ dishes: q.table }).filter((id) => known.has(id)) };
+  }
+  return { context };
 }

@@ -1,4 +1,4 @@
-import { parseDishIds, type TableItem } from '@wine-match/core';
+import { MAX_TABLE_DISHES, parseDishIds, type TableItem } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button, EmptyState, LanguageSwitch, Notice, Price, Score, Seal, TopBar } from '../../../../_components/guest-ui';
@@ -49,8 +49,12 @@ export default async function TableResultPage({ params, searchParams }: Props) {
   const wineHref = (id: string) => href(`/r/${slug}/wine/${id}`, prefs, { table: tableParam });
   const [best, ...alts] = result.items;
 
-  // the table result event (`table_recommendation_viewed`) comes with phase 2 of the usage events; here only a new session
-  await trackUsage(services, restaurant, session, []);
+  // the dishes the bottle was chosen for (published, the first MAX_TABLE_DISHES as the service takes them) and the wines
+  // in display order; an empty result is recorded too (`wineIds: []`)
+  await trackUsage(services, restaurant, session, [{
+    name: 'table_recommendation_viewed',
+    props: { dishIds: chosen.slice(0, MAX_TABLE_DISHES).map((d) => d.id), wineIds: result.items.map((i) => i.wine.id) }
+  }]);
   return (
     <>
       <TopBar back={tablePath} title={restaurant.name} t={t} langSwitch={langSwitch} />
