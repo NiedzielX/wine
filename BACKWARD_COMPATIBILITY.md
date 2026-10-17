@@ -41,12 +41,14 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 | Element | Co jest zmianą łamiącą |
 |---|---|
 | Zastosowane migracje | **każda edycja**: migracje są tylko dopisywane (AGENTS.md §1.3) |
-| Tabele `restaurant`, `dish`, `wine`, `pairing`, `sommelier_decision`, `published_version`, `guest_interaction`, `import_job`, `app_user`, `membership`, `session` | usunięcie lub zmiana nazwy tabeli albo kolumny, zmiana typu, dodanie `NOT NULL` bez wartości domyślnej |
+| Tabele `restaurant`, `dish`, `wine`, `pairing`, `sommelier_decision`, `published_version`, `guest_interaction`, `import_job`, `app_user`, `membership`, `session`, `opportunity_dismissal` | usunięcie lub zmiana nazwy tabeli albo kolumny, zmiana typu, dodanie `NOT NULL` bez wartości domyślnej |
 | `sommelier_decision` | edycja lub usuwanie wierszy: to dziennik tylko do dopisywania |
 | `session` przechowuje tylko skrót tokenu | zapis tokenu jawnym tekstem |
 | Identyfikatory UUID, daty `timestamptz`, miękkie usuwanie `deletedAt` | zmiana typu klucza lub rezygnacja z miękkiego usuwania |
 
 **Kolumny addytywne z 2026-10-15** (spec `2026-10-15-bilingual-content`, migracja `Migration20261015140000_bilingual_content`): `dish.translations`, `wine.translations`, `restaurant.translations` (jsonb not null default `'{}'`), `pairing.comment_translations` (jsonb not null default `'{}'`), `restaurant.content_locale` (text not null default `'en'`). Kształt JSON (`{pl?: {…}, en?: {…}}`) i nazwy pól w nim są kontraktem jak kolumny. Migawka `published_version.snapshot` ma odtąd opcjonalne `content` i `pairings[].commentTranslations`; migawka bez nich jest czytana jako „bez tłumaczeń”.
+
+**Tabela addytywna z 2026-10-16** (spec `2026-10-16-sommelier-opportunities`, F1, migracja `Migration20261016152214_opportunity_dismissal`): `opportunity_dismissal` (zignorowane okazje sommeliera); istniejące tabele bez zmian. Kontraktem są nazwy kolumn, unikalność (`restaurant_id`, `opportunity_key`), format klucza (`opportunityKeySchema`) i pięć nazw w `CHECK` na `rule` — dodanie nazwy to nowa migracja, usunięcie lub zmiana nazwy jest łamiące. `down` usuwa tabelę: zignorowania nie są danymi biznesowymi, po wycofaniu okazje wracają.
 
 **Ścieżka:** expand → migrate → contract w osobnych PR-ach: najpierw dodaj nową kolumnę lub tabelę i pisz do obu, potem przenieś dane migracją, dopiero w kolejnym PR-ze usuń stare. PR z migracją zawiera test `up` i `down` (`npm run test:db`) i plan wycofania w opisie. `npm run schema:check -w @wine-match/db` musi pokazywać zgodność. Zmiana modelu aktualizuje [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
 

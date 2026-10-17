@@ -240,6 +240,30 @@ export function removeManual(plan: DishPlan, id: string): void {
   plan.normaliseRanks();
 }
 
+/** Why a dish and wine that already have a pairing cannot get a new suggestion: the code follows its status. */
+export function existingPairingError(p: Pairing): ValidationError {
+  if (isReviewed(p)) return new ValidationError('already_paired', 'This wine is already paired with the dish.', { wineId: 'already_paired' });
+  if (p.status === 'suggested') return new ValidationError('already_suggested', 'This wine is already among the suggestions for this dish.', { wineId: 'already_suggested' });
+  return new ValidationError('already_rejected', 'This pairing was rejected. Restore it in the Rejected section first.', { wineId: 'already_rejected' });
+}
+
+export interface SuggestionInput { dishId: string; wineId: string; modelScore: number }
+
+/**
+ * "Add to suggestions" from an opportunity (spec 2026-10-16-sommelier-opportunities, R5, Q14): a new `suggested`
+ * pairing for the review queue, written like an engine suggestion (no audit entry, not marked as changed: it is not a
+ * decision and guests see nothing until it is approved and published). The sommelier who clicked is `updatedBy`.
+ * A pairing of the dish and wine in any status is refused — an opportunity never undoes a rejection (R4).
+ */
+export function suggestPairing(existing: Pairing[], input: SuggestionInput, ctx: PlanContext): Pairing {
+  const found = existing.find((p) => p.dishId === input.dishId && p.wineId === input.wineId);
+  if (found) throw existingPairingError(found);
+  return {
+    id: ctx.newId(), dishId: input.dishId, wineId: input.wineId, status: 'suggested', role: null, rank: null, comment: null, commentTranslations: {},
+    modelScore: input.modelScore, source: 'engine', updatedBy: ctx.actor, updatedAt: ctx.at, dirty: false
+  };
+}
+
 /** Approves every suggestion of the dish, best score first. */
 export function approveAllSuggested(plan: DishPlan): number {
   const todo = plan.list().filter((p) => p.status === 'suggested').sort((a, b) => b.modelScore - a.modelScore || a.id.localeCompare(b.id));

@@ -113,6 +113,27 @@ export interface Pairing {
   version?: number;
 }
 
+/**
+ * The signals of the sommelier's opportunities (spec 2026-10-16-sommelier-opportunities). All five names exist from the
+ * first phase so the database check constraint never has to change; S4 and S5 arrive in later phases.
+ */
+export const OPPORTUNITY_RULES = ['dish_no_primary', 'ordered_not_reviewed', 'glass_match_unpaired', 'wine_unpaired', 'shown_rarely_chosen'] as const;
+export type OpportunityRule = (typeof OPPORTUNITY_RULES)[number];
+
+/** An ignored opportunity ("Ignore"): hidden until `expiresAt`. Keyed by the opportunity's subject, see `opportunityKey`. */
+export interface OpportunityDismissal {
+  id: string;
+  key: string;
+  rule: OpportunityRule;
+  /** the dish and wine the opportunity named when it was ignored (plain ids: the row outlives a deleted dish or wine) */
+  dishId: string | null;
+  wineId: string | null;
+  dismissedBy: string;
+  dismissedById: string | null;
+  dismissedAt: string;
+  expiresAt: string;
+}
+
 export interface RestaurantSettings {
   /** fill empty places with engine picks that the sommelier has not reviewed */
   showUnreviewed: boolean;

@@ -12,7 +12,7 @@ export interface Matchers {
   toBeLessThanOrEqual(n: number): void;
   toBeInstanceOf(type: abstract new (...args: never[]) => unknown): void;
   not: Matchers;
-  rejects: { toBeInstanceOf(type: abstract new (...args: never[]) => unknown): Promise<void> };
+  rejects: { toBeInstanceOf(type: abstract new (...args: never[]) => unknown): Promise<void>; toMatchObject(expected: unknown): Promise<void> };
 }
 
 export interface ContractRunner {

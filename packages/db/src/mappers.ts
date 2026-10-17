@@ -1,8 +1,8 @@
-import type { DecisionRecord, Dish, ImportJob, Level, Pairing, Restaurant, Wine } from '@wine-match/core';
+import type { DecisionRecord, Dish, ImportJob, Level, OpportunityDismissal, Pairing, Restaurant, Wine } from '@wine-match/core';
 import {
   DEFAULT_RESTAURANT_SETTINGS, DISH_TEXT_FIELDS, RESTAURANT_TEXT_FIELDS, WINE_TEXT_FIELDS, cleanCommentTranslations, cleanTranslations, isLocale
 } from '@wine-match/core';
-import type { DishRow, ImportJobRow, PairingRow, PublishedSnapshot, RestaurantRow, SommelierDecisionRow, WineRow } from './entities';
+import type { DishRow, ImportJobRow, OpportunityDismissalRow, PairingRow, PublishedSnapshot, RestaurantRow, SommelierDecisionRow, WineRow } from './entities';
 
 const lvl = (n: number) => Math.max(0, Math.min(5, n)) as Level;
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -62,6 +62,13 @@ export function toDecision(d: SommelierDecisionRow): DecisionRecord {
   return {
     id: d.id, pairingId: d.pairingId, dishId: d.dishId, wineId: d.wineId, actor: d.actor, actorId: d.actorId ?? null, action: d.action,
     before: d.before ?? null, after: d.after ?? null, at: d.createdAt.toISOString()
+  };
+}
+
+export function toOpportunityDismissal(d: OpportunityDismissalRow): OpportunityDismissal {
+  return {
+    id: d.id, key: d.key, rule: d.rule, dishId: d.dishId ?? null, wineId: d.wineId ?? null, dismissedBy: d.dismissedBy,
+    dismissedById: d.dismissedById ?? null, dismissedAt: d.dismissedAt.toISOString(), expiresAt: d.expiresAt.toISOString()
   };
 }
 

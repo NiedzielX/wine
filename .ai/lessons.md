@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-16] [Bez Dockera uruchom PostgreSQL z `embedded-postgres` poza repozytorium](lessons/2026-10-16-postgres-without-docker.md) — `test:db`, `migration:create` i `schema:check` lokalnie; po migracji odśwież cztery snapshoty.
 - [2026-10-16] [Strony serwerowe testuj w Vitest przez `prerender`](lessons/2026-10-16-ssr-page-tests-with-prerender.md) — `react-dom/static` renderuje asynchroniczne strony z atrapami `next/headers`; zrzuty 390 px nie z Chrome headless (min. ~500 px).
 - [2026-10-15] [Next.js 16 nadpisuje `Vary` stron App Routera](lessons/2026-10-15-nextjs-vary-header-overwritten.md) — `Vary` z proxy i `next.config` nie dochodzi do klienta; sprawdzaj nagłówki `curl -D -` na `next start`.
 - [2026-10-15] [Dokument „do wdrożenia” może dotyczyć innego produktu](lessons/2026-10-15-adopting-a-foreign-standard.md) — sprawdź, czy dotyczy repozytorium, zapisz mapowanie reguł i odstępstwa, weryfikuj każdą regułę na kodzie.

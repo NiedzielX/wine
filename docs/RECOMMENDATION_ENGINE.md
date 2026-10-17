@@ -308,3 +308,29 @@ Wyniki są zapisywane i cache’owane; normalne korzystanie z aplikacji nie gene
 | v3+ | personalizacja (profile smaku gości, między restauracjami) | zgoda gościa, konto |
 
 Na każdym etapie warstwa sommeliera (tiery, odrzucenia) pozostaje ponad modelem, a nowa wersja wchodzi przez rollout procentowy z porównaniem konwersji (A/B per sesja).
+
+## 13. Okazje w panelu sommeliera (poza silnikiem)
+
+Spec `2026-10-16-sommelier-opportunities` (E10, D17). Okazja to jedno zdanie z liczbami, które mówi sommelierowi „zobacz tutaj”. **To nie są reguły silnika:** nie zmieniają wyniku, kolejności ani etykiety rekomendacji (R02) i nie wchodzą do `ENGINE_VERSION`. Kod: `packages/core/src/services/opportunities/` (`opportunity-rules.ts` — czyste funkcje, `opportunity-service.ts` — `OpportunityService`), testy: `packages/core/tests/opportunities.test.ts`.
+
+- **Liczone przy odczycie**, z bieżących danych jednej restauracji (karta, wina, pary w każdym statusie). Macierz `pairingScore` (opublikowane dania × aktywne wina) jest liczona raz na żądanie i współdzielona przez reguły; reguły same nie wołają silnika. Wynik to zawsze bieżący `pairingScore(dish, wine).score`, bez podbijania.
+- **Determinizm:** `findOpportunities` nie używa zegara ani losowości; ta sama karta w dowolnej kolejności tablic daje tę samą listę. Remisy: najwyższy wynik, potem `id` (porządek znaków, nie `localeCompare`).
+- **Proponujemy** tylko danie `published` i wino `active`. „Bez decyzji” = brak pary (danie, wino) w jakimkolwiek statusie, więc para `rejected` blokuje okazję na stałe (R4). „Zatwierdzona” = `approved` | `modified`.
+
+| # | `rule` | Faza | Warunek | Akcja |
+|---|---|---|---|---|
+| S1 | `dish_no_primary` | F1 | danie `published`, bez par `suggested` (wtedy prowadzi je A7), bez zatwierdzonej pary Primary z aktywnym winem. Powód: `none` (brak zatwierdzonych par), `no_primary` (są, ale żadna nie jest Primary), `primary_hidden` (wino Primary jest ukryte; wymienione jako dowód, nigdy proponowane) | otwórz pary |
+| S2 | `glass_match_unpaired` | F1 | danie `published`; żadna zatwierdzona para dania nie ma aktywnego wina na kieliszek; jest aktywne wino na kieliszek bez decyzji dla dania z wynikiem ≥ `STRONG_MATCH`. Jedno na danie: najwyższy wynik, remis → `wine.id` | dodaj do propozycji |
+| S3 | `wine_unpaired` | F1 | aktywne wino bez zatwierdzonej pary z żadnym daniem `published`; jego najlepsze danie `published` bez decyzji ma wynik ≥ `STRONG_MATCH` (remis → `dish.id`). Jedno na wino, w grupie tego dania | dodaj do propozycji |
+| S4 | `shown_rarely_chosen` | F3 | para Primary rzadko wybierana przez gości (E04 `pairingStats`) | otwórz pary |
+| S5 | `ordered_not_reviewed` | F4 | para zamawiana z kodem polecenia (E09 `pairStats`), niezatwierdzona | zatwierdź / dodaj |
+
+**Progi** (stałe w `opportunity-rules.ts`): `STRONG_MATCH = 85` (mniej więcej „jedno z 2–3 najlepszych win dania” w macierzy Halki; zmiana `ENGINE_VERSION` wymaga ponownej kalibracji — pilnuje tego test „Halka”), `DISMISS_DAYS = 30`. Progi S4/S5 (`MIN_SHOWN`, `MIN_OTHER_CHOSEN`, `LOW_RATE_FACTOR`, `MIN_ORDERS`, okno 28 dni) dochodzą w F3/F4.
+
+**Klucz** to przedmiot okazji, nie konkretna propozycja: `dish_no_primary:{dishId}:{reason}`, `glass_match_unpaired:{dishId}`, `wine_unpaired:{wineId}`, `{rule}:{dishId}:{wineId}` (S4, S5); format sprawdza `opportunityKeySchema`.
+
+**Potok:** kandydaci każdej reguły → odrzucenie kluczy aktywnie zignorowanych → jedna okazja na (danie, wino), wygrywa reguła wcześniejsza w porządku S1, S5, S2, S3, S4 → sortowanie: kategoria dania (Przystawki, Dania główne, Desery), nazwa dania (`localeCompare` z `'pl'`), `id` dania, potem reguła w tym porządku i `id` wina. Zignorowanie S2 dania nie odsłania kolejnego wina; S3 tego samego wina może się pokazać (inny przedmiot).
+
+**Akcje** (komendy z `actor`): „Dodaj do propozycji” = `SommelierService.addSuggestion` — para `suggested` przez `pairingWriteRepository.addSuggestions` (`source: 'engine'`, bieżący wynik, `updatedBy` = autor, bez wpisu historii i bez `dirty`, więc nie podbija licznika publikacji; wymaga dania `published`, aktywnego wina i wyniku ≥ `MIN_MODEL_SCORE`; istniejąca para → `already_paired` / `already_suggested` / `already_rejected`). Gość nie widzi nic do „Approve” i publikacji. „Ignoruj” = `OpportunityService.dismiss` (tylko klucz bieżącego kandydata, inaczej `opportunity_stale`; ponowne przedłuża termin), „Przywróć” = `restore` (`opportunity_not_dismissed`, gdy nie ma czego przywrócić). Tabela: `opportunity_dismissal` ([DATA_MODEL.md](DATA_MODEL.md)).
+
+**Halka (dane demo, `wm-rules-1.1.0`):** przy pierwszym otwarciu 6 okazji — S1 = 0 (każde danie ma propozycje albo Primary), S2 = 2 (przegrzebki i sandacz → Solaris 85 na kieliszek; remis 85 z Rieslingiem Kabinett i Sancerre rozstrzyga `id`), S3 = 4 (Sancerre 87 i Riesling Kabinett 87 → śledź bałtycki, De Nit Rosé 86 i Bannockburn Pinot Noir 85 → risotto). Deska serów nie daje S2, bo jest szkicem (`draft`). Lista jest zapisana w teście.

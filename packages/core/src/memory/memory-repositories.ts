@@ -1,6 +1,6 @@
 import type { AuthUser, Membership, SessionRecord } from '../auth/types';
 import type { DemoDataset } from '../demo/dataset';
-import type { Dish, EntityStatus, Pairing, Restaurant, RestaurantSettings, Wine } from '../domain/types';
+import type { Dish, EntityStatus, OpportunityDismissal, Pairing, Restaurant, RestaurantSettings, Wine } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import {
   contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
@@ -10,7 +10,7 @@ import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
 import type { ImportPlan, ImportRepository } from '../ports/import';
 import type {
-  ContentWriteRepository, DecisionRecord, DishRepository, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
+  ContentWriteRepository, DecisionRecord, DishRepository, OpportunityDismissalRepository, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
   PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
@@ -34,6 +34,8 @@ export class MemoryStore {
   readonly memberships: Array<Membership & { userId: string }> = [];
   readonly sessions: SessionRecord[] = [];
   readonly importJobs: ImportJob[] = [];
+  /** ignored opportunities per restaurant, keyed by the opportunity key (a client-chosen string: a Map, never a plain object) */
+  readonly dismissals = new Map<string, Map<string, OpportunityDismissal>>();
 
   static from(...datasets: DemoDataset[]): MemoryStore {
     const s = new MemoryStore();
@@ -394,6 +396,31 @@ export class MemoryImportRepository implements ImportRepository {
   }
 }
 
+export class MemoryOpportunityDismissalRepository implements OpportunityDismissalRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async listActive(restaurantId: string, now: Date) {
+    const at = now.getTime();
+    return [...(this.store.dismissals.get(restaurantId)?.values() ?? [])]
+      .filter((d) => Date.parse(d.expiresAt) > at)
+      .sort((a, b) => Date.parse(a.expiresAt) - Date.parse(b.expiresAt) || a.key.localeCompare(b.key))
+      .map(copy);
+  }
+
+  async upsert(restaurantId: string, dismissal: OpportunityDismissal) {
+    let rows = this.store.dismissals.get(restaurantId);
+    if (!rows) this.store.dismissals.set(restaurantId, (rows = new Map()));
+    const existing = rows.get(dismissal.key);
+    rows.set(dismissal.key, existing
+      ? { ...existing, dismissedBy: dismissal.dismissedBy, dismissedById: dismissal.dismissedById, dismissedAt: dismissal.dismissedAt, expiresAt: dismissal.expiresAt }
+      : copy(dismissal));
+  }
+
+  async remove(restaurantId: string, key: string) {
+    return this.store.dismissals.get(restaurantId)?.delete(key) ?? false;
+  }
+}
+
 export function createMemoryRepositories(store: MemoryStore): Repositories {
   return {
     restaurantRepository: new MemoryRestaurantRepository(store),
@@ -405,6 +432,7 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     restaurantWriteRepository: new MemoryRestaurantWriteRepository(store),
     publishRepository: new MemoryPublishRepository(store),
     contentWriteRepository: new MemoryContentWriteRepository(store),
-    importRepository: new MemoryImportRepository(store)
+    importRepository: new MemoryImportRepository(store),
+    opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store)
   };
 }

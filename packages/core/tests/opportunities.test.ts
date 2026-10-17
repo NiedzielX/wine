@@ -1,0 +1,389 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { buildDemoDataset } from '../src/demo/dataset';
+import type { Dish, DishCategory, Pairing, PairingRole, PairingStatus, Wine } from '../src/domain/types';
+import { NotFoundError, ValidationError } from '../src/errors';
+import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repositories';
+import {
+  DISMISS_DAYS, STRONG_MATCH, findOpportunities, opportunityCandidates, opportunityKey, scoreKey, type OpportunityInput
+} from '../src/services/opportunities/opportunity-rules';
+import { OpportunityService, buildScoreMatrix } from '../src/services/opportunities/opportunity-service';
+import { SommelierService } from '../src/services/pairings/sommelier-service';
+import { opportunityKeySchema } from '../src/validators/opportunities/opportunity-key.schema';
+
+/* ---------------- pure rules on a small, hand-made menu ---------------- */
+
+const demo = buildDemoDataset();
+const dish = (id: string, over: Partial<Dish> = {}): Dish => ({ ...structuredClone(demo.dishes[0]), id, name: id, category: 'Mains', status: 'published', ...over });
+const wine = (id: string, over: Partial<Wine> = {}): Wine => ({ ...structuredClone(demo.wines[0]), id, name: id, active: true, glassPrice: 40, ...over });
+let pid = 0;
+const pairing = (dishId: string, wineId: string, status: PairingStatus, role: PairingRole | null = null): Pairing => ({
+  id: `p${String(++pid).padStart(3, '0')}`, dishId, wineId, status, role, rank: null, comment: null, commentTranslations: {}, modelScore: 80,
+  source: 'engine', updatedBy: 'Test', updatedAt: '2026-10-16T10:00:00.000Z', dirty: false
+});
+const scores = (entries: Array<[string, string, number]>) => new Map(entries.map(([d, w, s]) => [scoreKey(d, w), s]));
+const input = (over: Partial<OpportunityInput>): OpportunityInput => ({ dishes: [], wines: [], pairings: [], scores: new Map(), ...over });
+const keys = (i: OpportunityInput) => findOpportunities(i).map((o) => o.key);
+
+describe('opportunity keys', () => {
+  it('name the subject of each rule and match the key schema', () => {
+    const all = [
+      opportunityKey({ rule: 'dish_no_primary', dishId: 'd1', reason: 'primary_hidden' }),
+      opportunityKey({ rule: 'glass_match_unpaired', dishId: 'd1' }),
+      opportunityKey({ rule: 'wine_unpaired', wineId: 'w1' }),
+      opportunityKey({ rule: 'shown_rarely_chosen', dishId: 'd1', wineId: 'w1' }),
+      opportunityKey({ rule: 'ordered_not_reviewed', dishId: '0a1b2c3d-0000-4000-8000-000000000001', wineId: 'w_1' })
+    ];
+    expect(all.slice(0, 3)).toEqual(['dish_no_primary:d1:primary_hidden', 'glass_match_unpaired:d1', 'wine_unpaired:w1']);
+    for (const key of all) expect(opportunityKeySchema.safeParse({ key }).success).toBe(true);
+    for (const key of ['dish_no_primary:d1', 'dish_no_primary:d1:other', 'glass_match_unpaired:d1:w1', 'wine_unpaired:', 'nope:d1', 'wine_unpaired:a b', `wine_unpaired:${'x'.repeat(65)}`, 'wine_unpaired:__proto__ ']) {
+      expect(opportunityKeySchema.safeParse({ key }).success).toBe(false);
+    }
+    expect(opportunityKeySchema.safeParse({ key: 'wine_unpaired:w1', extra: 1 }).success).toBe(false);
+  });
+});
+
+describe('S1 dish_no_primary', () => {
+  const d = dish('d1');
+  const w = wine('w1');
+  const hidden = wine('w_hidden', { active: false });
+
+  it('fires for a published dish without pairings (none)', () => {
+    const [o] = findOpportunities(input({ dishes: [d], wines: [w] }));
+    expect(o).toMatchObject({ key: 'dish_no_primary:d1:none', rule: 'dish_no_primary', dishId: 'd1', wineId: null, action: 'open_dish', evidence: { reason: 'none' } });
+  });
+
+  it('fires when the dish has approved pairings but none is the primary (no_primary)', () => {
+    expect(keys(input({ dishes: [d], wines: [w], pairings: [pairing('d1', 'w1', 'approved', 'alternative')] }))).toEqual(['dish_no_primary:d1:no_primary']);
+  });
+
+  it('fires when the primary wine is hidden (primary_hidden) and names the wine, without proposing it', () => {
+    const list = findOpportunities(input({ dishes: [d], wines: [hidden], pairings: [pairing('d1', 'w_hidden', 'modified', 'primary')], scores: scores([['d1', 'w_hidden', 95]]) }));
+    expect(list).toEqual([expect.objectContaining({ key: 'dish_no_primary:d1:primary_hidden', wineId: 'w_hidden', action: 'open_dish' })]);
+  });
+
+  it('is silent while the dish has suggestions (the review queue leads it)', () => {
+    expect(keys(input({ dishes: [d], wines: [w], pairings: [pairing('d1', 'w1', 'suggested')] }))).toEqual([]);
+    expect(keys(input({ dishes: [d], wines: [hidden, w], pairings: [pairing('d1', 'w_hidden', 'approved', 'primary'), pairing('d1', 'w1', 'suggested')] }))).toEqual([]);
+  });
+
+  it('is silent when the primary wine is active, and for dishes guests do not see', () => {
+    expect(keys(input({ dishes: [d], wines: [w], pairings: [pairing('d1', 'w1', 'approved', 'primary')] }))).toEqual([]);
+    expect(keys(input({ dishes: [dish('d2', { status: 'draft' }), dish('d3', { status: 'hidden' })], wines: [w] }))).toEqual([]);
+  });
+
+  it('a rejected pairing is not a decision for the primary', () => {
+    expect(keys(input({ dishes: [d], wines: [w], pairings: [pairing('d1', 'w1', 'rejected')] }))).toEqual(['dish_no_primary:d1:none']);
+  });
+
+  it('another reason is another opportunity: ignoring "none" does not hide "primary_hidden"', () => {
+    const dismissedKeys = new Set(['dish_no_primary:d1:none']);
+    expect(keys(input({ dishes: [d], wines: [w], dismissedKeys }))).toEqual([]);
+    expect(keys(input({ dishes: [d], wines: [hidden], pairings: [pairing('d1', 'w_hidden', 'approved', 'primary')], dismissedKeys }))).toEqual(['dish_no_primary:d1:primary_hidden']);
+  });
+});
+
+describe('S2 glass_match_unpaired', () => {
+  // d1 has an approved primary by the bottle (w_bottle), so S1 is silent and only S2/S3 matter
+  const d = dish('d1');
+  const bottle = wine('w_bottle', { glassPrice: null });
+  const glass = wine('w_glass', { glassPrice: 46 });
+  const base = (over: Partial<OpportunityInput> = {}) => input({
+    dishes: [d], wines: [bottle, glass], pairings: [pairing('d1', 'w_bottle', 'approved', 'primary')],
+    scores: scores([['d1', 'w_bottle', 90], ['d1', 'w_glass', STRONG_MATCH]]), ...over
+  });
+  const s2 = (i: OpportunityInput) => findOpportunities(i).filter((o) => o.rule === 'glass_match_unpaired');
+
+  it('fires for a strong by-the-glass wine without a decision when no approved pairing is by the glass', () => {
+    expect(s2(base())).toEqual([{
+      key: 'glass_match_unpaired:d1', rule: 'glass_match_unpaired', dishId: 'd1', wineId: 'w_glass', action: 'add_suggestion',
+      evidence: { rule: 'glass_match_unpaired', score: 85, glassPrice: 46 }
+    }]);
+  });
+
+  it('needs a score of at least STRONG_MATCH: 84 does not fire, 85 does', () => {
+    expect(s2(base({ scores: scores([['d1', 'w_glass', 84]]) }))).toEqual([]);
+    expect(s2(base({ scores: scores([['d1', 'w_glass', 85]]) }))).toHaveLength(1);
+  });
+
+  it('is silent when an approved pairing of the dish is an active wine by the glass', () => {
+    const other = wine('w_other', { glassPrice: 30 });
+    expect(s2(base({ wines: [bottle, glass, other], pairings: [pairing('d1', 'w_bottle', 'approved', 'primary'), pairing('d1', 'w_other', 'approved', 'alternative')] }))).toEqual([]);
+    // the same pairing with a hidden wine does not count: guests cannot order it
+    expect(s2(base({ wines: [bottle, glass, { ...other, active: false }], pairings: [pairing('d1', 'w_bottle', 'approved', 'primary'), pairing('d1', 'w_other', 'approved', 'alternative')] }))).toHaveLength(1);
+  });
+
+  it('never proposes a bottle-only wine, a hidden wine, or a wine with any decision for the dish (a rejection blocks it for good)', () => {
+    expect(s2(base({ wines: [bottle, { ...glass, glassPrice: null }] }))).toEqual([]);
+    expect(s2(base({ wines: [bottle, { ...glass, active: false }] }))).toEqual([]);
+    for (const status of ['suggested', 'rejected'] as const) {
+      expect(s2(base({ pairings: [pairing('d1', 'w_bottle', 'approved', 'primary'), pairing('d1', 'w_glass', status)] }))).toEqual([]);
+    }
+  });
+
+  it('is silent for a dish guests do not see', () => {
+    expect(s2(base({ dishes: [{ ...d, status: 'draft' }] }))).toEqual([]);
+  });
+
+  it('proposes one wine per dish: the best score, ties broken by wine id', () => {
+    const a = wine('w_a'); const b = wine('w_b'); const c = wine('w_c');
+    const i = base({ wines: [bottle, c, b, a], scores: scores([['d1', 'w_c', 92], ['d1', 'w_b', 92], ['d1', 'w_a', 88]]) });
+    expect(s2(i).map((o) => o.wineId)).toEqual(['w_b']);
+  });
+});
+
+describe('S3 wine_unpaired', () => {
+  const d1 = dish('d1'); const d2 = dish('d2');
+  const lonely = wine('w_lonely', { glassPrice: null });
+  const prim = wine('w_prim', { glassPrice: null });
+  // both dishes have a primary (no S1) by the bottle; w_lonely is bottle-only too, so S2 stays out of the way
+  const base = (over: Partial<OpportunityInput> = {}) => input({
+    dishes: [d1, d2], wines: [prim, lonely],
+    pairings: [pairing('d1', 'w_prim', 'approved', 'primary'), pairing('d2', 'w_prim', 'approved', 'primary')],
+    scores: scores([['d1', 'w_lonely', 86], ['d2', 'w_lonely', 90]]), ...over
+  });
+
+  it('fires for an active wine without an approved pairing, at its best undecided published dish', () => {
+    expect(findOpportunities(base())).toEqual([{
+      key: 'wine_unpaired:w_lonely', rule: 'wine_unpaired', dishId: 'd2', wineId: 'w_lonely', action: 'add_suggestion', evidence: { rule: 'wine_unpaired', score: 90 }
+    }]);
+  });
+
+  it('needs the best dish at STRONG_MATCH or more: 84 does not fire, 85 does', () => {
+    expect(keys(base({ scores: scores([['d1', 'w_lonely', 84], ['d2', 'w_lonely', 80]]) }))).toEqual([]);
+    expect(keys(base({ scores: scores([['d1', 'w_lonely', 85], ['d2', 'w_lonely', 80]]) }))).toEqual(['wine_unpaired:w_lonely']);
+  });
+
+  it('is silent when the wine has an approved pairing with a published dish, not with a draft one', () => {
+    expect(keys(base({ pairings: [...base().pairings, pairing('d1', 'w_lonely', 'approved', 'alternative')] }))).toEqual([]);
+    const draft = dish('d0', { status: 'draft' });
+    expect(keys(base({ dishes: [draft, d1, d2], pairings: [...base().pairings, pairing('d0', 'w_lonely', 'approved', 'primary')] }))).toEqual(['wine_unpaired:w_lonely']);
+  });
+
+  it('skips dishes with a decision: a rejected or suggested best dish moves the proposal to the next one, or ends it', () => {
+    expect(findOpportunities(base({ pairings: [...base().pairings, pairing('d2', 'w_lonely', 'rejected')] }))[0]).toMatchObject({ dishId: 'd1', evidence: { score: 86 } });
+    expect(keys(base({ pairings: [...base().pairings, pairing('d2', 'w_lonely', 'rejected')], scores: scores([['d1', 'w_lonely', 70], ['d2', 'w_lonely', 90]]) }))).toEqual([]);
+    expect(findOpportunities(base({ pairings: [...base().pairings, pairing('d2', 'w_lonely', 'suggested')] }))[0]).toMatchObject({ dishId: 'd1' });
+  });
+
+  it('never proposes a hidden wine; ties between dishes go to the lower dish id', () => {
+    expect(keys(base({ wines: [prim, { ...lonely, active: false }] }))).toEqual([]);
+    expect(findOpportunities(base({ scores: scores([['d2', 'w_lonely', 88], ['d1', 'w_lonely', 88]]) }))[0].dishId).toBe('d1');
+  });
+});
+
+describe('pipeline: ignored keys, one per pair, order', () => {
+  const d = dish('d1');
+  const bottle = wine('w_bottle', { glassPrice: null });
+  const w1 = wine('w1'); const w2 = wine('w2');
+  const base = (over: Partial<OpportunityInput> = {}) => input({
+    dishes: [d], wines: [bottle, w1, w2], pairings: [pairing('d1', 'w_bottle', 'approved', 'primary')],
+    scores: scores([['d1', 'w1', 90], ['d1', 'w2', 88]]), ...over
+  });
+
+  it('keeps one opportunity per (dish, wine): S2 wins over S3 for the same pair', () => {
+    expect(findOpportunities(base()).map((o) => `${o.rule}:${o.wineId}`)).toEqual(['glass_match_unpaired:w1', 'wine_unpaired:w2']);
+    // the candidates still include S3 for w1: it can be ignored
+    expect(opportunityCandidates(base()).map((o) => o.key).sort()).toEqual(['glass_match_unpaired:d1', 'wine_unpaired:w1', 'wine_unpaired:w2']);
+  });
+
+  it('ignoring S2 for a dish does not reveal its next wine, while S3 of the wine shows', () => {
+    const list = findOpportunities(base({ dismissedKeys: new Set(['glass_match_unpaired:d1']) }));
+    expect(list.map((o) => `${o.rule}:${o.wineId}`)).toEqual(['wine_unpaired:w1', 'wine_unpaired:w2']);
+  });
+
+  it('sorts by category (Starters, Mains, Desserts), dish name in Polish order, then rule (S1, S2, S3), then wine id', () => {
+    const dishes = [dish('d_dessert', { name: 'Sernik', category: 'Desserts' }), dish('d_main_z', { name: 'Żurek', category: 'Mains' }), dish('d_main_a', { name: 'Zupa', category: 'Mains' }), dish('d_start', { name: 'Śledź', category: 'Starters' as DishCategory })];
+    const wines = [wine('w_b'), wine('w_a')];
+    const sc = scores([['d_main_a', 'w_a', 90], ['d_main_a', 'w_b', 89]]);
+    const list = findOpportunities(input({ dishes, wines, scores: sc }));
+    expect(list.map((o) => `${o.dishId}:${o.rule}:${o.wineId ?? '-'}`)).toEqual([
+      'd_start:dish_no_primary:-',
+      'd_main_a:dish_no_primary:-', 'd_main_a:glass_match_unpaired:w_a', 'd_main_a:wine_unpaired:w_b',
+      'd_main_z:dish_no_primary:-',
+      'd_dessert:dish_no_primary:-'
+    ]);
+  });
+
+  it('gives the same list for any order of the input arrays (R1)', () => {
+    const ds = buildDemoDataset({ ids: 'uuid' });
+    const sc = buildScoreMatrix(ds.dishes, ds.wines);
+    const reference = findOpportunities({ dishes: ds.dishes, wines: ds.wines, pairings: ds.pairings, scores: sc });
+    expect(reference.length).toBeGreaterThan(0);
+    const rotate = <T>(a: T[], n: number) => [...a.slice(n), ...a.slice(0, n)];
+    for (const n of [1, 5, 11]) {
+      const shuffled = { dishes: rotate([...ds.dishes].reverse(), n), wines: rotate(ds.wines, n), pairings: rotate([...ds.pairings].reverse(), n), scores: new Map([...sc].reverse()) };
+      expect(findOpportunities(shuffled)).toEqual(reference);
+    }
+  });
+});
+
+/* ---------------- the service, on the demo data with a fixed clock ---------------- */
+
+const ACTOR = { id: '00000000-0000-4000-8000-0000000000aa', name: 'Marta Wierzbicka' };
+const NOW = Date.parse('2026-10-16T10:00:00.000Z');
+const DAY = 24 * 60 * 60 * 1000;
+
+function build() {
+  const data = buildDemoDataset({ ids: 'uuid' });
+  const store = MemoryStore.from(data);
+  const repos = createMemoryRepositories(store);
+  const clock = { at: NOW, now: () => new Date(clock.at) };
+  let seq = 0;
+  const idGenerator = { uuid: () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}` };
+  return { data, store, repos, clock, svc: new OpportunityService({ ...repos, clock, idGenerator }), som: new SommelierService({ ...repos, clock, idGenerator }) };
+}
+type Built = ReturnType<typeof build>;
+const dishId = (b: Built, name: string) => b.data.dishes.find((x) => x.name === name)!.id;
+const wineId = (b: Built, name: string) => b.data.wines.find((x) => x.name === name)!.id;
+const flat = async (b: Built, opts: { dishId?: string; scope: 'dish' | 'all' } = { scope: 'all' }) =>
+  (await b.svc.list('halka', opts))!.groups.flatMap((g) => g.items.map((o) => `${o.rule} | ${g.dish.name} | ${o.wine?.name ?? '-'} | ${JSON.stringify(o.evidence)}`));
+
+describe('OpportunityService on the Halka demo data', () => {
+  let b: Built;
+  beforeEach(() => { b = build(); });
+
+  it('Halka: the opportunities a sommelier sees on first opening (reviewed list, see the PR)', async () => {
+    // S1 = 0 (every dish has suggestions or a primary), S2 = 2, S3 = 4; the cheese selection is a draft, so it stays out.
+    // Scallops and pike-perch: Solaris, Riesling Kabinett and Sancerre all score 85 by the glass; the tie goes to the lowest wine id.
+    expect(await flat(b)).toEqual([
+      'wine_unpaired | Baltic herring | Sancerre | {"rule":"wine_unpaired","score":87}',
+      'wine_unpaired | Baltic herring | Graacher Himmelreich Riesling Kabinett | {"rule":"wine_unpaired","score":87}',
+      'glass_match_unpaired | Seared scallops | Solaris | {"rule":"glass_match_unpaired","score":85,"glassPrice":38}',
+      'glass_match_unpaired | Pike-perch | Solaris | {"rule":"glass_match_unpaired","score":85,"glassPrice":38}',
+      'wine_unpaired | Wild mushroom risotto | De Nit Rosé | {"rule":"wine_unpaired","score":86}',
+      'wine_unpaired | Wild mushroom risotto | Bannockburn Pinot Noir | {"rule":"wine_unpaired","score":85}'
+    ]);
+    const view = (await b.svc.list('halka', { scope: 'all' }))!;
+    expect(view.degraded).toEqual([]);
+    expect(view.dismissed).toEqual([]);
+  });
+
+  it('shows the dish\'s approved pairings in guest order (primary first)', async () => {
+    const herring = (await b.svc.list('halka', { scope: 'dish', dishId: dishId(b, 'Baltic herring') }))!;
+    expect(herring.groups).toHaveLength(1);
+    expect(herring.groups[0].current.map((c) => `${c.wine.name}:${c.role}`)).toEqual(['Kamptaler Terrassen Grüner Veltliner:primary', 'Solaris:best_value']);
+  });
+
+  it('scope "dish" with a dish id narrows to that dish, S3 included where the wine matches it best', async () => {
+    expect(await flat(b, { scope: 'dish', dishId: dishId(b, 'Wild mushroom risotto') })).toEqual([
+      'wine_unpaired | Wild mushroom risotto | De Nit Rosé | {"rule":"wine_unpaired","score":86}',
+      'wine_unpaired | Wild mushroom risotto | Bannockburn Pinot Noir | {"rule":"wine_unpaired","score":85}'
+    ]);
+    expect(await flat(b, { scope: 'dish', dishId: dishId(b, 'Duck breast') })).toEqual([]);
+  });
+
+  it('localizes dishes and wines for the panel language', async () => {
+    const view = (await b.svc.list('halka', { scope: 'all' }, 'pl'))!;
+    const herring = b.data.dishes.find((x) => x.name === 'Baltic herring')!;
+    expect(view.groups[0].dish.name).toBe(herring.translations.pl?.name ?? herring.name);
+  });
+
+  it('returns null for an unknown restaurant; commands report it as NotFoundError', async () => {
+    expect(await b.svc.list('nowhere', { scope: 'all' })).toBeNull();
+    await expect(b.svc.dismiss('nowhere', `wine_unpaired:${wineId(b, 'Sancerre')}`, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(b.svc.restore('nowhere', `wine_unpaired:${wineId(b, 'Sancerre')}`, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('dismiss and restore (fixed clock)', () => {
+  let b: Built;
+  beforeEach(() => { b = build(); });
+  const sancerre = (x: Built) => `wine_unpaired:${wineId(x, 'Sancerre')}`;
+  const shown = async (x: Built, key: string) => (await x.svc.list('halka', { scope: 'all' }))!.groups.some((g) => g.items.some((o) => o.key === key));
+
+  it('hides an ignored opportunity until expiresAt (now + DISMISS_DAYS) and shows it again after, if the condition still holds', async () => {
+    const key = sancerre(b);
+    await b.svc.dismiss('halka', key, ACTOR);
+    expect(await shown(b, key)).toBe(false);
+    const view = (await b.svc.list('halka', { scope: 'all' }))!;
+    expect(view.dismissed).toEqual([expect.objectContaining({
+      key, rule: 'wine_unpaired', dismissedBy: ACTOR.name, expiresAt: new Date(NOW + DISMISS_DAYS * DAY).toISOString()
+    })]);
+    expect(view.dismissed[0].wine?.name).toBe('Sancerre');
+    expect(view.dismissed[0].dish?.name).toBe('Baltic herring');
+    const [row] = await b.repos.opportunityDismissalRepository.listActive(b.data.restaurant.id, new Date(NOW));
+    expect(row).toMatchObject({ dismissedById: ACTOR.id, dismissedAt: new Date(NOW).toISOString() });
+    b.clock.at = NOW + DISMISS_DAYS * DAY - 1;
+    expect(await shown(b, key)).toBe(false);
+    b.clock.at = NOW + DISMISS_DAYS * DAY;
+    expect(await shown(b, key)).toBe(true);
+    expect((await b.svc.list('halka', { scope: 'all' }))!.dismissed).toEqual([]);
+  });
+
+  it('ignoring again extends the term and keeps one row', async () => {
+    const key = sancerre(b);
+    await b.svc.dismiss('halka', key, ACTOR);
+    b.clock.at = NOW + 10 * DAY;
+    await b.svc.dismiss('halka', key, { id: '00000000-0000-4000-8000-0000000000bb', name: 'Tomasz Lis' });
+    const rows = await b.repos.opportunityDismissalRepository.listActive(b.data.restaurant.id, new Date(b.clock.at));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ key, dismissedBy: 'Tomasz Lis', expiresAt: new Date(NOW + (10 + DISMISS_DAYS) * DAY).toISOString() });
+  });
+
+  it('accepts only the key of a current candidate: anything else is opportunity_stale and stores nothing', async () => {
+    const stale = async (key: string) => {
+      await expect(b.svc.dismiss('halka', key, ACTOR)).rejects.toMatchObject({ name: 'ValidationError', code: 'opportunity_stale' });
+    };
+    await stale(`wine_unpaired:${wineId(b, 'Morgon')}`);                         // Morgon has approved pairings
+    await stale(`glass_match_unpaired:${dishId(b, 'Duck breast')}`);              // the duck has a primary by the glass
+    await stale(`dish_no_primary:${dishId(b, 'Duck breast')}:none`);
+    await stale('wine_unpaired:00000000-0000-4000-8000-00000000beef');          // a wine of another restaurant (or none)
+    await stale(`shown_rarely_chosen:${dishId(b, 'Duck breast')}:${wineId(b, 'Morgon')}`); // phase 3 signal
+    expect(await b.repos.opportunityDismissalRepository.listActive(b.data.restaurant.id, new Date(NOW))).toEqual([]);
+  });
+
+  it('a malformed key is a ValidationError from the schema', async () => {
+    for (const key of ['', 'wine_unpaired', 'constructor', '__proto__:x']) {
+      await expect(b.svc.dismiss('halka', key, ACTOR)).rejects.toMatchObject({ code: 'validation_failed' });
+      await expect(b.svc.restore('halka', key, ACTOR)).rejects.toBeInstanceOf(ValidationError);
+    }
+  });
+
+  it('ignoring an already ignored opportunity is allowed (the condition holds before the filter)', async () => {
+    const key = sancerre(b);
+    await b.svc.dismiss('halka', key, ACTOR);
+    await expect(b.svc.dismiss('halka', key, ACTOR)).resolves.toBeUndefined();
+  });
+
+  it('restore shows the opportunity at once; restoring what is not ignored is opportunity_not_dismissed', async () => {
+    const key = sancerre(b);
+    await expect(b.svc.restore('halka', key, ACTOR)).rejects.toMatchObject({ name: 'NotFoundError', code: 'opportunity_not_dismissed' });
+    await b.svc.dismiss('halka', key, ACTOR);
+    await b.svc.restore('halka', key, ACTOR);
+    expect(await shown(b, key)).toBe(true);
+  });
+
+  it('a pairing added from the opportunity ends it; its key is stale afterwards', async () => {
+    const key = sancerre(b);
+    await b.som.addSuggestion('halka', { dishId: dishId(b, 'Baltic herring'), wineId: wineId(b, 'Sancerre') }, ACTOR);
+    // the wine still has no approved pairing, so S3 moves to its next best dish if that one is strong enough
+    const after = (await b.svc.list('halka', { scope: 'all' }))!.groups.flatMap((g) => g.items).find((o) => o.key === key);
+    expect(after?.dishId).not.toBe(dishId(b, 'Baltic herring'));
+  });
+
+  it('keeps ignored opportunities within their restaurant (D18)', async () => {
+    const other = buildDemoDataset({ ids: 'uuid' });
+    const second = { ...other, restaurant: { ...other.restaurant, id: '00000000-0000-4000-8000-0000000000f2', slug: 'druga' }, users: [] };
+    const store = MemoryStore.from(b.data, second);
+    const repos = createMemoryRepositories(store);
+    const svc = new OpportunityService({ ...repos, clock: b.clock, idGenerator: { uuid: () => '00000000-0000-4000-8000-0000000000c1' } });
+    const key = sancerre(b);
+    await svc.dismiss('halka', key, ACTOR);
+    const keysOf = async (slug: string) => (await svc.list(slug, { scope: 'all' }))!.groups.flatMap((g) => g.items.map((o) => o.key));
+    expect(await keysOf('halka')).not.toContain(key);
+    expect(await keysOf('druga')).toContain(key);
+    expect((await svc.list('druga', { scope: 'all' }))!.dismissed).toEqual([]);
+    await expect(svc.restore('druga', key, ACTOR)).rejects.toMatchObject({ code: 'opportunity_not_dismissed' });
+  });
+});
+
+describe('performance budget', () => {
+  it('computes 100 dishes × 500 wines on read well within a second', () => {
+    const dishes = Array.from({ length: 100 }, (_, i) => ({ ...structuredClone(demo.dishes[i % demo.dishes.length]), id: `d${i}`, status: 'published' as const }));
+    const wines = Array.from({ length: 500 }, (_, i) => ({ ...structuredClone(demo.wines[i % demo.wines.length]), id: `w${i}`, active: true }));
+    const started = Date.now();
+    const list = findOpportunities({ dishes, wines, pairings: [], scores: buildScoreMatrix(dishes, wines) });
+    expect(Date.now() - started).toBeLessThan(3000);
+    expect(list.length).toBeGreaterThan(0);
+  });
+});

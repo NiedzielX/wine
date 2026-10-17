@@ -1,5 +1,6 @@
 import type { OnceRunner } from './contract-types';
 import type { DemoDataset } from '../demo/dataset';
+import type { OpportunityDismissal } from '../domain/types';
 import type { Repositories } from '../ports/repositories';
 
 /**
@@ -75,6 +76,57 @@ export function repositoryContract(
       const primary = forDuck.find((p) => p.role === 'primary')!;
       const expected = ds.pairings.find((p) => p.id === primary.id)!;
       t.expect({ ...primary, updatedAt: '', version: undefined }).toEqual({ ...expected, updatedAt: '', version: undefined });
+    });
+
+    /* ---- ignored opportunities (spec 2026-10-16-sommelier-opportunities, R6, AC4, AC5) ---- */
+
+    const OTHER_RESTAURANT = '00000000-0000-4000-8000-000000000000';
+    const dismissal = (key: string, over: Partial<OpportunityDismissal> = {}): OpportunityDismissal => ({
+      id: '00000000-0000-4000-8000-0000000d0001', key, rule: 'glass_match_unpaired', dishId: ds.dishes[0].id, wineId: ds.wines[0].id,
+      dismissedBy: 'Marta Wierzbicka', dismissedById: null, dismissedAt: '2026-10-16T10:00:00.000Z', expiresAt: '2026-11-15T10:00:00.000Z', ...over
+    });
+
+    t.it('stores a dismissal and lists it while it is active', async () => {
+      const d = dismissal('glass_match_unpaired:contract-active', { id: '00000000-0000-4000-8000-0000000d0011', dismissedById: ds.users[0]?.id ?? null });
+      await repos.opportunityDismissalRepository.upsert(ds.restaurant.id, d);
+      const active = await repos.opportunityDismissalRepository.listActive(ds.restaurant.id, new Date('2026-10-20T00:00:00.000Z'));
+      t.expect(active.find((x) => x.key === d.key)).toEqual(d);
+    });
+
+    t.it('upsert of the same key extends the dismissal and keeps its id', async () => {
+      const key = 'wine_unpaired:contract-extend';
+      await repos.opportunityDismissalRepository.upsert(ds.restaurant.id, dismissal(key, { id: '00000000-0000-4000-8000-0000000d0021' }));
+      await repos.opportunityDismissalRepository.upsert(ds.restaurant.id, dismissal(key, {
+        id: '00000000-0000-4000-8000-0000000d0022', dismissedBy: 'Tomasz Lis', dismissedAt: '2026-10-20T10:00:00.000Z', expiresAt: '2026-11-19T10:00:00.000Z'
+      }));
+      const rows = (await repos.opportunityDismissalRepository.listActive(ds.restaurant.id, new Date('2026-10-20T10:00:00.000Z'))).filter((x) => x.key === key);
+      t.expect(rows.length).toBe(1);
+      t.expect(rows[0]).toMatchObject({ id: '00000000-0000-4000-8000-0000000d0021', dismissedBy: 'Tomasz Lis', dismissedAt: '2026-10-20T10:00:00.000Z', expiresAt: '2026-11-19T10:00:00.000Z' });
+    });
+
+    t.it('does not list a dismissal that has expired, including one that expires exactly now', async () => {
+      const key = 'dish_no_primary:contract-expiry:none';
+      await repos.opportunityDismissalRepository.upsert(ds.restaurant.id, dismissal(key, { id: '00000000-0000-4000-8000-0000000d0031', rule: 'dish_no_primary', wineId: null, expiresAt: '2026-11-01T00:00:00.000Z' }));
+      const at = async (iso: string) => (await repos.opportunityDismissalRepository.listActive(ds.restaurant.id, new Date(iso))).some((x) => x.key === key);
+      t.expect(await at('2026-10-31T23:59:59.999Z')).toBe(true);
+      t.expect(await at('2026-11-01T00:00:00.000Z')).toBe(false);
+      t.expect(await at('2026-11-02T00:00:00.000Z')).toBe(false);
+    });
+
+    t.it('removes a dismissal and reports false when there is none', async () => {
+      const key = 'glass_match_unpaired:contract-remove';
+      await repos.opportunityDismissalRepository.upsert(ds.restaurant.id, dismissal(key, { id: '00000000-0000-4000-8000-0000000d0041' }));
+      t.expect(await repos.opportunityDismissalRepository.remove(ds.restaurant.id, key)).toBe(true);
+      t.expect(await repos.opportunityDismissalRepository.remove(ds.restaurant.id, key)).toBe(false);
+      t.expect((await repos.opportunityDismissalRepository.listActive(ds.restaurant.id, new Date('2026-10-20T00:00:00.000Z'))).some((x) => x.key === key)).toBe(false);
+    });
+
+    t.it('keeps dismissals within their restaurant', async () => {
+      const key = 'glass_match_unpaired:contract-tenant';
+      await repos.opportunityDismissalRepository.upsert(ds.restaurant.id, dismissal(key, { id: '00000000-0000-4000-8000-0000000d0051' }));
+      t.expect(await repos.opportunityDismissalRepository.listActive(OTHER_RESTAURANT, new Date('2026-10-20T00:00:00.000Z'))).toEqual([]);
+      t.expect(await repos.opportunityDismissalRepository.remove(OTHER_RESTAURANT, key)).toBe(false);
+      t.expect((await repos.opportunityDismissalRepository.listActive(ds.restaurant.id, new Date('2026-10-20T00:00:00.000Z'))).some((x) => x.key === key)).toBe(true);
     });
   });
 }

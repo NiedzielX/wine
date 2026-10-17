@@ -11,7 +11,7 @@ Zasady ogólne: `../../AGENTS.md` (§1.2–1.3 i §7). Tu tylko to, co dotyczy t
 - Nowa metoda portu: dopisz przypadek do `src/testing/repository-contract.ts`, implementację w `src/memory` i w `packages/db/src/repositories`.
 - **Walidacja wejścia:** `src/validators/<pojęcie>/<nazwa>.schema.ts` (Zod, `strictObject`), `parseWith()` zamienia błąd schematu w `ValidationError` z `fields`. Schemat jest jedynym źródłem dla trasy i (w przyszłości) formularza klienta. Słowniki z kluczami od klienta budujemy `Map` / `Object.fromEntries`.
 - **Logowanie i konfiguracja bez I/O:** `src/logging` (`createLogger`, `redact`; wzorce sekretów w tekście i klucze wrażliwe), `src/config/env.ts` (`parseEnv`, Zod; zawodzi zamykająco). `core` niczego nie drukuje: ujście logów daje aplikacja.
-- **Pojęcia:** `src/services/<pojęcie>/` (`catalog`, `dashboard`, `guest`, `pairings`, `publishing`, `restaurants`); `auth/` i `import/` to osobne foldery z własnym serwisem i typami.
+- **Pojęcia:** `src/services/<pojęcie>/` (`catalog`, `dashboard`, `guest`, `opportunities`, `pairings`, `publishing`, `restaurants`); `auth/` i `import/` to osobne foldery z własnym serwisem i typami.
 - Uwierzytelnianie: `src/auth` (`AuthService`, `permissions.ts`, typy) i porty `AuthRepository`, `PasswordHasher`, `SessionTokens`. Brak `node:crypto` w `core` — implementacje w `@wine-match/db/auth`. Każda klasa błędu ustawia `this.name` jako literał (nie `new.target.name`).
 - Publiczne API pakietu = `src/index.ts`. Eksportuj tam wszystko, czego używają inne pakiety.
 

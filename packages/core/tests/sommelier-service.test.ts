@@ -9,6 +9,10 @@ import { RecommendationService } from '../src/services/guest/recommendation-serv
 import { SommelierService } from '../src/services/pairings/sommelier-service';
 import { writeContract } from '../src/testing/write-contract';
 import { beforeEach as be } from 'vitest';
+import { DEFAULT_PREFS } from '../src/domain/types';
+import { recommendForDish } from '../src/engine/recommend';
+import { pairingScore } from '../src/engine/scoring';
+import type { Repositories } from '../src/ports/repositories';
 
 const ds0 = buildDemoDataset({ ids: 'uuid' });
 const ACTOR = { id: '00000000-0000-4000-8000-0000000000aa', name: 'Marta Wierzbicka' };
@@ -288,5 +292,82 @@ describe('PublishService', () => {
     const d = build();
     await expect(d.publish.preview('nope')).rejects.toBeInstanceOf(NotFoundError);
     await expect(d.som.approve('nope', ds0.pairings[0].id, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('addSuggestion (spec 2026-10-16-sommelier-opportunities, R5)', () => {
+  let d: ReturnType<typeof build>;
+  beforeEach(() => { d = build(); });
+  const add = (dish: string, wine: string) => d.som.addSuggestion('halka', { dishId: dishOf(d, dish).id, wineId: wineOf(d, wine).id }, ACTOR);
+
+  it('creates a suggested engine pairing with the current score, by the actor, without history, a dirty flag or an unpublished change', async () => {
+    const before = (await d.admin.pairingWorkbench('halka', dishOf(d, 'Seared scallops').id))!;
+    await add('Seared scallops', 'Solaris');
+    const p = await live(d, 'Seared scallops', 'Solaris');
+    expect(p).toMatchObject({
+      status: 'suggested', role: null, rank: null, source: 'engine', modelScore: pairingScore(dishOf(d, 'Seared scallops'), wineOf(d, 'Solaris')).score,
+      updatedBy: ACTOR.name, dirty: false
+    });
+    expect(await trail(d, p.id)).toEqual([]);
+    expect(await d.repos.publishRepository.pendingPairingChanges(d.data.restaurant.id)).toBe(0);
+    const after = (await d.admin.pairingWorkbench('halka', dishOf(d, 'Seared scallops').id))!;
+    expect(after.hasUnpublishedChanges).toBe(before.hasUnpublishedChanges);
+    expect(after.suggested.map((x) => x.wineId)).toContain(wineOf(d, 'Solaris').id);
+  });
+
+  it('refuses pairs that already exist (by their status) and dishes or wines guests do not see', async () => {
+    await expect(add('Duck breast', 'Savigny-lès-Beaune')).rejects.toMatchObject({ name: 'ValidationError', code: 'already_paired' });
+    await expect(add('Duck breast', 'Bannockburn Pinot Noir')).rejects.toMatchObject({ name: 'ValidationError', code: 'already_suggested' });
+    await d.som.reject('halka', (await live(d, 'Duck breast', 'Barbaresco')).id, ACTOR);
+    await expect(add('Duck breast', 'Barbaresco')).rejects.toMatchObject({ name: 'ValidationError', code: 'already_rejected' });
+    // the score is checked first: a weak rejected pair reads as a weak match
+    await expect(add('Pike-perch', 'Barbaresco')).rejects.toMatchObject({ code: 'low_match' });
+    await expect(add('Polish cheese selection', 'De Nit Rosé')).rejects.toMatchObject({ name: 'ValidationError', code: 'dish_not_published' });
+    await expect(add('Duck breast', 'Hochar Père et Fils')).rejects.toMatchObject({ name: 'ValidationError', code: 'wine_not_available' });
+    await expect(add('Dark chocolate tart', 'Mâcon-Verzé')).rejects.toMatchObject({ name: 'ValidationError', code: 'low_match' });
+    const solaris = wineOf(d, 'Solaris').id;
+    await expect(d.som.addSuggestion('halka', { dishId: '00000000-0000-4000-8000-00000000beef', wineId: solaris }, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(d.som.addSuggestion('halka', { dishId: dishOf(d, 'Seared scallops').id, wineId: '00000000-0000-4000-8000-00000000beef' }, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(d.som.addSuggestion('nope', { dishId: dishOf(d, 'Seared scallops').id, wineId: solaris }, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+    expect((await pairs(d, 'Seared scallops')).length).toBe(d.data.pairings.filter((p) => p.dishId === dishOf(d, 'Seared scallops').id).length);
+  });
+
+  it('refuses a score below MIN_MODEL_SCORE and accepts one at or above it', async () => {
+    const dish = dishOf(d, 'Venison loin');
+    const free = d.data.wines.filter((w) => w.active && !d.data.pairings.some((p) => p.dishId === dish.id && p.wineId === w.id))
+      .map((w) => ({ w, s: pairingScore(dish, w).score }))
+      .sort((a, b) => a.s - b.s);
+    const weak = free.filter((x) => x.s < 62).at(-1)!;
+    const ok = free.filter((x) => x.s >= 62);
+    expect(ok.length).toBeGreaterThan(0);
+    await expect(d.som.addSuggestion('halka', { dishId: dish.id, wineId: weak.w.id }, ACTOR)).rejects.toMatchObject({ code: 'low_match' });
+    for (const x of ok) await d.som.addSuggestion('halka', { dishId: dish.id, wineId: x.w.id }, ACTOR);
+    expect((await pairs(d, 'Venison loin')).filter((p) => p.status === 'suggested').length).toBe(d.data.pairings.filter((p) => p.dishId === dish.id && p.status === 'suggested').length + ok.length);
+  });
+
+  it('does not change what guests get from the engine (a suggested pairing is not a sommelier decision)', async () => {
+    const dish = dishOf(d, 'Seared scallops');
+    const wines = d.data.wines.filter((w) => w.active);
+    const guestsBefore = await d.rec.forDish('halka', dish.id);
+    const without = await pairs(d, 'Seared scallops');
+    await add('Seared scallops', 'Solaris');
+    const withIt = await pairs(d, 'Seared scallops');
+    expect(withIt.length).toBe(without.length + 1);
+    for (const prefs of [DEFAULT_PREFS, { ...DEFAULT_PREFS, serving: 'glass' as const }]) {
+      expect(recommendForDish(dish, wines, withIt, prefs)).toEqual(recommendForDish(dish, wines, without, prefs));
+    }
+    expect(await d.rec.forDish('halka', dish.id)).toEqual(guestsBefore);
+  });
+
+  it('reports every problem as a rejected promise, never a synchronous throw', async () => {
+    const r = d.som.addSuggestion('halka', { dishId: 'x', wineId: 'y' }, ACTOR);
+    expect(r).toBeInstanceOf(Promise);
+    await expect(r).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('when the store adds nothing and no pairing can be found, reports a conflict', async () => {
+    const stale: Repositories = { ...d.repos, pairingWriteRepository: { commit: (r, c) => d.repos.pairingWriteRepository.commit(r, c), addSuggestions: async () => 0 } };
+    const som = new SommelierService({ ...stale, clock: { now: () => new Date('2026-10-16T10:00:00.000Z') }, idGenerator: { uuid: () => '00000000-0000-4000-8000-0000000000ee' } });
+    await expect(som.addSuggestion('halka', { dishId: dishOf(d, 'Seared scallops').id, wineId: wineOf(d, 'Solaris').id }, ACTOR)).rejects.toBeInstanceOf(VersionConflictError);
   });
 });

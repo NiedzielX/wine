@@ -3,7 +3,9 @@ import type { DemoDataset } from '../demo/dataset';
 import type { Pairing } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import { countContentChanges } from '../i18n/content';
-import type { DecisionRecord, PairingOp, Repositories } from '../ports/repositories';
+import { pairingScore } from '../engine/scoring';
+import type { DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
+import { SommelierService } from '../services/pairings/sommelier-service';
 
 /**
  * Behaviour every write implementation must have. Used by the memory tests in core and by the
@@ -137,6 +139,54 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect((await repos.pairingRepository.findById(rid(), existing.id))!.status).toBe(existing.status);
       t.expect(await repos.publishRepository.pendingPairingChanges(rid())).toBe(0);
       t.expect(await repos.pairingWriteRepository.addSuggestions(rid(), [])).toBe(0);
+    });
+
+    /* "Add to suggestions" from an opportunity (spec 2026-10-16-sommelier-opportunities, R5, Q13–Q14, AC3) */
+    const sommelier = (r: Repositories) => new SommelierService({
+      ...r, clock: { now: () => new Date(AT) }, idGenerator: { uuid: () => '12121212-1212-4121-8121-121212121212' }
+    });
+    const MARTA = { id: '00000000-0000-4000-8000-0000000000aa', name: 'Marta Wierzbicka' };
+
+    t.it('adds a suggestion from an opportunity: suggested, by the clicking sommelier, no audit entry, not an unpublished change', async () => {
+      const dish = ds.dishes.find((d) => d.name === 'Seared scallops')!;
+      const wine = ds.wines.find((w) => w.name === 'Solaris')!;
+      const pendingBefore = await repos.publishRepository.pendingPairingChanges(rid());
+      await sommelier(repos).addSuggestion(ds.restaurant.slug, { dishId: dish.id, wineId: wine.id }, MARTA);
+      const added = (await repos.pairingRepository.listByDish(rid(), dish.id)).find((p) => p.wineId === wine.id)!;
+      t.expect(added).toMatchObject({
+        id: '12121212-1212-4121-8121-121212121212', status: 'suggested', role: null, rank: null, comment: null, source: 'engine',
+        modelScore: pairingScore(dish, wine).score, updatedBy: MARTA.name, updatedAt: AT, dirty: false
+      });
+      t.expect(await repos.pairingRepository.listDecisions(rid(), { pairingId: added.id })).toEqual([]);
+      t.expect(await repos.publishRepository.pendingPairingChanges(rid())).toBe(pendingBefore);
+      t.expect((await repos.pairingRepository.listByDish(rid(), dish.id)).some((p) => p.dirty)).toBe(false);
+      t.expect((await repos.pairingRepository.listPublishedByDish(rid(), dish.id)).some((p) => p.wineId === wine.id)).toBe(false);
+    });
+
+    t.it('a pairing created by someone else a moment earlier is reported by its status, and nothing is written', async () => {
+      // a strong pair that the sommelier rejected
+      const barbaresco = (await duckPairs()).find((p) => p.wineId === ds.wines.find((w) => w.name === 'Barbaresco')!.id)!;
+      await repos.pairingWriteRepository.commit(rid(), { ops: [{ kind: 'update', id: barbaresco.id, patch: patch({ status: 'rejected' }) }], decisions: [decision(barbaresco, 'reject')] });
+      const cases: Array<[string, string, string]> = [['Duck breast', 'Bannockburn Pinot Noir', 'already_suggested'], ['Duck breast', 'Barbaresco', 'already_rejected'], ['Duck breast', 'Savigny-lès-Beaune', 'already_paired']];
+      for (const [dishName, wineName, code] of cases) {
+        const dish = ds.dishes.find((d) => d.name === dishName)!;
+        const wine = ds.wines.find((w) => w.name === wineName)!;
+        const before = await repos.pairingRepository.listByDish(rid(), dish.id);
+        // a stale read: the service sees no pairing yet, the store already has one
+        let first = true;
+        const real = repos.pairingRepository;
+        const pairingRepository: PairingRepository = {
+          findById: (r, p) => real.findById(r, p),
+          listByRestaurant: (r) => real.listByRestaurant(r),
+          listByDish: async (r, d) => { if (first) { first = false; return []; } return real.listByDish(r, d); },
+          listPublishedByRestaurant: (r) => real.listPublishedByRestaurant(r),
+          listPublishedByDish: (r, d) => real.listPublishedByDish(r, d),
+          listDecisions: (r, f, l) => real.listDecisions(r, f, l)
+        };
+        const stale: Repositories = { ...repos, pairingRepository };
+        await t.expect(sommelier(stale).addSuggestion(ds.restaurant.slug, { dishId: dish.id, wineId: wine.id }, MARTA)).rejects.toMatchObject({ code });
+        t.expect(await repos.pairingRepository.listByDish(rid(), dish.id)).toEqual(before);
+      }
     });
 
     t.it('stores translations atomically against the version the caller saw, scoped by restaurant', async () => {

@@ -1,12 +1,13 @@
 import type { Actor } from '../../auth/types';
 import type { Dish, PairingRole, Wine } from '../../domain/types';
+import { MIN_MODEL_SCORE } from '../../engine/recommend';
 import { pairingScore } from '../../engine/scoring';
 import { NotFoundError, ValidationError, VersionConflictError } from '../../errors';
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import type { PairingChangeSet, Repositories } from '../../ports/repositories';
 import { commentTranslationsSchema } from '../../validators/catalog/translations.schema';
 import { parseWith } from '../../validators/parse';
-import { DishPlan, addManual, approve, approveAllSuggested, move, reject, removeManual, restore, setComment, setRole, type PlanContext } from './pairing-rules';
+import { DishPlan, addManual, approve, approveAllSuggested, existingPairingError, move, reject, removeManual, restore, setComment, setRole, suggestPairing, type PlanContext } from './pairing-rules';
 
 export type SommelierServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'pairingWriteRepository' | 'wineWriteRepository'> & {
   clock: Clock;
@@ -105,6 +106,29 @@ export class SommelierService {
     const plan = new DishPlan(await this.d.pairingRepository.listByDish(restaurant.id, dish.id), ctx);
     addManual(plan, { dishId: dish.id, wineId: wine.id, role, comment: input.comment ?? '', modelScore: pairingScore(dish, wine).score }, ctx);
     await this.commit(restaurant.id, plan.finish());
+  }
+
+  /**
+   * "Add to suggestions" (spec 2026-10-16-sommelier-opportunities, R5, Q13–Q14): a `suggested` pairing in the review
+   * queue with the current match score, through the same path as the import and "Generate suggestions" (no audit
+   * entry, not counted as an unpublished change). Requires a published dish, an active wine and a score of at least
+   * MIN_MODEL_SCORE. Guests see nothing until the sommelier approves it and publishes.
+   */
+  async addSuggestion(slug: string, input: { dishId: string; wineId: string }, actor: Actor): Promise<void> {
+    const restaurant = await this.restaurant(slug);
+    const dish = await this.d.dishRepository.findById(restaurant.id, input.dishId);
+    if (!dish) throw new NotFoundError('Dish');
+    if (dish.status !== 'published') throw new ValidationError('dish_not_published', 'This dish is not visible to guests.', { dishId: 'not_published' });
+    const wine = await this.d.wineRepository.findById(restaurant.id, input.wineId);
+    if (!wine) throw new NotFoundError('Wine');
+    if (!wine.active) throw new ValidationError('wine_not_available', 'This wine is hidden from guests. Show it on the wine list first.', { wineId: 'not_available' });
+    const modelScore = pairingScore(dish, wine).score;
+    if (modelScore < MIN_MODEL_SCORE) throw new ValidationError('low_match', 'This wine is a weak match for the dish.', { wineId: 'low_match' });
+    const pairing = suggestPairing(await this.d.pairingRepository.listByDish(restaurant.id, dish.id), { dishId: dish.id, wineId: wine.id, modelScore }, this.ctx(actor));
+    if (await this.d.pairingWriteRepository.addSuggestions(restaurant.id, [pairing]) > 0) return;
+    // someone paired the two a moment ago: report what the pairing is now
+    const now = (await this.d.pairingRepository.listByDish(restaurant.id, dish.id)).find((p) => p.wineId === wine.id);
+    throw now ? existingPairingError(now) : new VersionConflictError();
   }
 
   /** Approves every suggestion of one dish, or of the whole menu. Returns how many were approved. */
