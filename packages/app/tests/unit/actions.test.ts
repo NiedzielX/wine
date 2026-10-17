@@ -9,6 +9,10 @@ import * as imports from '@/app/(admin)/admin/[slug]/import-actions';
 import { loginAs } from './helpers';
 import { AuthService, buildDemoDataset } from '@wine-match/core';
 
+/** Every `revalidatePath` call of the actions (the shared setup only stubs it out). */
+const revalidated = vi.hoisted(() => [] as Array<[string, string | undefined]>);
+vi.mock('next/cache', () => ({ revalidatePath: (path: string, type?: string) => { revalidated.push([path, type]); } }));
+
 const state = () => (globalThis as { __wmNext: { cookies: Map<string, string>; RedirectSignal: new (u: string) => Error & { url: string } } }).__wmNext;
 const form = (fields: Record<string, string | Blob>) => {
   const f = new FormData();
@@ -63,6 +67,88 @@ describe('sign-in and sign-out actions', () => {
     expect(await scope.cradle.authService.authenticate(s.token)).toBeNull();
     await scope.dispose();
     expect(await redirectOf(() => logout())).toBe('/admin/login');
+  });
+});
+
+describe('opportunity actions (spec 2026-10-16-sommelier-opportunities, F2: AC7, R7, R8)', () => {
+  const back = '/admin/halka/opportunities';
+  /** The opportunities, the ignored ones and the pairings, as the pages read them. */
+  async function snapshot() {
+    const scope = await createRequestScope();
+    try {
+      const view = (await scope.cradle.opportunityService.list('halka', { scope: 'all' }))!;
+      const pairings = (await scope.cradle.adminService.listPairings('halka', {}))!.pairings;
+      const overview = (await scope.cradle.adminService.overview('halka'))!;
+      return {
+        items: view.groups.flatMap((g) => g.items),
+        dismissed: view.dismissed.map((d) => d.key),
+        pairings: pairings.map((p) => `${p.id}:${p.status}:${p.version}`).sort(),
+        unpublished: overview.unpublishedChanges
+      };
+    } finally {
+      await scope.dispose();
+    }
+  }
+
+  it('a general manager, who only looks, is refused all three actions and nothing is written', async () => {
+    await signIn('marta@halka.pl');
+    const before = await snapshot();
+    const add = before.items.find((o) => o.action === 'add_suggestion')!;
+    expect(add).toBeDefined();
+    await signIn('tomasz@halka.pl');
+    revalidated.length = 0;
+    expect(await redirectOf(() => pairing.addOpportunitySuggestion(form({ slug: 'halka', back, dishId: add.dishId, wineId: add.wineId! })))).toBe(`${back}?error=forbidden`);
+    expect(await redirectOf(() => pairing.dismissOpportunity(form({ slug: 'halka', back, key: add.key })))).toBe(`${back}?error=forbidden`);
+    expect(await redirectOf(() => pairing.restoreOpportunity(form({ slug: 'halka', back, key: add.key })))).toBe(`${back}?error=forbidden`);
+    expect(await snapshot()).toEqual(before);
+    await signIn('marta@halka.pl');
+  });
+
+  it('the sommelier ignores and restores: saved, the layout revalidated, back through safeBack', async () => {
+    await signIn('marta@halka.pl');
+    const { items } = await snapshot();
+    const target = items[0];
+    revalidated.length = 0;
+    expect(await redirectOf(() => pairing.dismissOpportunity(form({ slug: 'halka', back, key: target.key })))).toBe(`${back}?saved=opportunity_dismissed`);
+    expect(revalidated).toContainEqual(['/admin/halka', 'layout']);
+    const ignored = await snapshot();
+    expect(ignored.dismissed).toEqual([target.key]);
+    expect(ignored.items.map((o) => o.key)).not.toContain(target.key);
+    // ignoring again only extends the term; a foreign return address falls back to the dashboard
+    expect(await redirectOf(() => pairing.dismissOpportunity(form({ slug: 'halka', back: 'https://evil.example/x', key: target.key })))).toBe('/admin/halka?saved=opportunity_dismissed');
+    revalidated.length = 0;
+    expect(await redirectOf(() => pairing.restoreOpportunity(form({ slug: 'halka', back, key: target.key })))).toBe(`${back}?saved=opportunity_restored`);
+    expect(revalidated).toContainEqual(['/admin/halka', 'layout']);
+    const restored = await snapshot();
+    expect(restored.dismissed).toEqual([]);
+    expect(restored.items.map((o) => o.key)).toContain(target.key);
+  });
+
+  it('"Add to suggestions" puts the wine in the dish\'s suggestions without an unpublished change', async () => {
+    await signIn('marta@halka.pl');
+    const before = await snapshot();
+    const add = before.items.find((o) => o.action === 'add_suggestion')!;
+    const dishBack = `/admin/halka/pairings/${add.dishId}`;
+    revalidated.length = 0;
+    expect(await redirectOf(() => pairing.addOpportunitySuggestion(form({ slug: 'halka', back: dishBack, dishId: add.dishId, wineId: add.wineId! })))).toBe(`${dishBack}?saved=suggestion_added`);
+    expect(revalidated).toContainEqual(['/admin/halka', 'layout']);
+    const after = await snapshot();
+    expect(after.unpublished).toBe(before.unpublished);
+    expect(after.items.map((o) => o.key)).not.toContain(add.key);
+    const scope = await createRequestScope();
+    const rows = (await scope.cradle.adminService.listPairings('halka', { dishId: add.dishId }))!.pairings;
+    await scope.dispose();
+    expect(rows.find((p) => p.wineId === add.wineId)).toMatchObject({ status: 'suggested', source: 'engine', role: null, dirty: false });
+    // the same form again: the pairing exists now
+    expect(await redirectOf(() => pairing.addOpportunitySuggestion(form({ slug: 'halka', back: dishBack, dishId: add.dishId, wineId: add.wineId! })))).toBe(`${dishBack}?error=already_suggested`);
+  });
+
+  it('a key that is no longer an opportunity, a malformed key and a restore of nothing go back with their error', async () => {
+    await signIn('marta@halka.pl');
+    expect(await redirectOf(() => pairing.dismissOpportunity(form({ slug: 'halka', back, key: 'wine_unpaired:00000000-0000-4000-8000-000000000000' })))).toBe(`${back}?error=opportunity_stale`);
+    expect(await redirectOf(() => pairing.dismissOpportunity(form({ slug: 'halka', back, key: 'constructor' })))).toBe(`${back}?error=validation_failed`);
+    expect(await redirectOf(() => pairing.restoreOpportunity(form({ slug: 'halka', back, key: 'wine_unpaired:00000000-0000-4000-8000-000000000000' })))).toBe(`${back}?error=opportunity_not_dismissed`);
+    expect((await snapshot()).dismissed).toEqual([]);
   });
 });
 
@@ -275,3 +361,4 @@ describe('translation actions (spec 2026-10-15-bilingual-content, R6)', () => {
     expect(can('waiter', 'import.manage')).toBe(false);
   });
 });
+

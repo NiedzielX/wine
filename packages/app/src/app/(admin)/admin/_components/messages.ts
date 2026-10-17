@@ -1,4 +1,4 @@
-import { WINE_STYLES, styleLabel, type ImportIssue, type ImportKind, type Locale, type WineStyle } from '@wine-match/core';
+import { DISMISS_DAYS, WINE_STYLES, styleLabel, type ImportIssue, type ImportKind, type Locale, type WineStyle } from '@wine-match/core';
 import { en, type Dictionary } from '@/i18n/en';
 
 /**
@@ -17,13 +17,14 @@ export function savedText(f: Flash, saved: string | undefined, n: string | undef
     case 'approved_all': return s.approved_all(num(n));
     case 'published': return s.published(num(n));
     case 'suggestions': return s.suggestions(num(n));
+    case 'opportunity_dismissed': return s.opportunity_dismissed(DISMISS_DAYS);
     case 'imported': {
       const [created = 0, updated = 0, suggestions = 0] = (n ?? '0-0-0').split('-').map(num);
       return s.imported(created, updated, suggestions);
     }
     case 'approved': case 'rejected': case 'restored': case 'role': case 'note': case 'moved': case 'added': case 'deleted':
     case 'wine_shown': case 'wine_hidden': case 'settings': case 'import_uploaded': case 'import_checked': case 'import_cancelled':
-    case 'details': case 'details_slug': case 'translations': case 'content':
+    case 'details': case 'details_slug': case 'translations': case 'content': case 'suggestion_added': case 'opportunity_restored':
       return s[saved]();
     default: return undefined;
   }

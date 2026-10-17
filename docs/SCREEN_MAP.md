@@ -62,7 +62,8 @@ Wine program
  ├─ A4  Wine list ................................ /admin/wines?q=&style=
  │   └─ A5  Wine details ......................... /admin/wines/{wineId}
  ├─ A6  Pairing management ....................... /admin/pairings/{dishId}
- └─ A7  Pairing review (queue) ................... /admin/review
+ ├─ A7  Pairing review (queue) ................... /admin/review
+ └─ A14 Opportunities (Okazje) ................... /admin/opportunities
 Data
  ├─ A8  Import menu .............................. /admin/import/menu?step=preview|done
  └─ A9  Import wine list ......................... /admin/import/wines?step=preview|done
@@ -83,7 +84,10 @@ flowchart LR
     A2[A2 Menu] --> A3[A3 Dish details] --> A6[A6 Pairings]
     A4[A4 Wine list] --> A5[A5 Wine details]
     A7[A7 Review queue] --> A6
+    A14[A14 Opportunities] --> A6
+    A6 --> A14
   end
+  A1 --> A14
   subgraph Data
     A8[A8 Import menu]
     A9[A9 Import wines]
@@ -98,7 +102,7 @@ flowchart LR
 
 **Zasady nawigacji panelu**
 - Sidebar zawsze widoczny (desktop); bieżąca sekcja oznaczona `aria-current`.
-- Liczniki w nawigacji: *Review queue* (liczba propozycji `suggested`), *Publish* (liczba niepublikowanych zmian).
+- Liczniki w nawigacji: *Review queue* (liczba propozycji `suggested`), *Publish* (liczba niepublikowanych zmian). *Opportunities* (A14, po *Review queue*) celowo **bez licznika** (spec `2026-10-16-sommelier-opportunities`, Q3); ich liczbę pokazuje jedna linia na A1 (Q19).
 - Ekrany szczegółów mają breadcrumb „← Menu” / „← Wine list”.
 - Każdy adres `/admin/*` bez sesji przekierowuje na A0 z parametrem `next`; po zalogowaniu wraca na żądany ekran.
 - Wylogowanie z karty użytkownika na dole sidebara.
@@ -112,6 +116,7 @@ flowchart LR
 | A1 Dashboard | – | – | ✓ | ✓ |
 | A2–A5 | – | – | ✓ edycja | ✓ edycja |
 | A6, A7 | – | – | ✓ decyzje | podgląd |
+| A14 Opportunities | – | – | ✓ decyzje | podgląd |
 | A8, A9 | – | – | ✓ | ✓ |
 | A10 Setup | – | – | ✓ (bez slugu) | ✓ |
 | A11 Publish | – | – | ✓ | ✓ |

@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-17] [E2E „bez JavaScriptu” w agent-browser: blokuj skrypty przed pierwszą stroną, klikaj przez `eval`](lessons/2026-10-17-e2e-without-javascript.md) — `route '**/*.js' --abort` przed pierwszym `open` (cache), bez `:has-text`; lokalnie systemowy Chrome + `embedded-postgres`.
 - [2026-10-17] [`headers()` w Next.js 16 ukrywa nagłówki routera — prefetch rozpoznawaj w proxy](lessons/2026-10-17-nextjs-headers-hide-router-prefetch.md) — `Next-Router-Prefetch`/`RSC` są niewidoczne w stronie; proxy ustawia własny nagłówek, `after()` wołaj ostatni przed `return`.
 - [2026-10-16] [Bez Dockera uruchom PostgreSQL z `embedded-postgres` poza repozytorium](lessons/2026-10-16-postgres-without-docker.md) — `test:db`, `migration:create` i `schema:check` lokalnie; po migracji odśwież cztery snapshoty.
 - [2026-10-16] [Strony serwerowe testuj w Vitest przez `prerender`](lessons/2026-10-16-ssr-page-tests-with-prerender.md) — `react-dom/static` renderuje asynchroniczne strony z atrapami `next/headers`; zrzuty 390 px nie z Chrome headless (min. ~500 px).
