@@ -1,9 +1,17 @@
 import type { EngineFacts } from '@wine-match/core';
-import type { Dictionary, ExplainContext, IssueParams, WineExplainContext } from './en';
+import type { Dictionary, ExplainContext, IssueParams, TableFitText, WineExplainContext } from './en';
 
 /** Polish plural: 1 wino, 2–4 wina (but 12–14 win), 5+ win. */
 const plural = (n: number, one: string, few: string, many: string) =>
   n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
+
+/** Do trzech słabszych dań z nazwy, potem ile jeszcze (R12 E08); nazwy dań bez odmiany. */
+const weakerNamesPl = (names: string[]) =>
+  names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} i ${names.length - 3} ${names.length - 3 === 1 ? 'innego' : 'innych'}`;
+
+/** Udział w wyniku stołu w procentach (0,6 → 60); waga z przecinkiem dziesiętnym (1,5). */
+const pctPl = (weight: number) => Math.round(weight * 100);
+const decimalPl = (n: number) => String(n).replace('.', ',');
 
 const directorPl = (name: string) => name.trim() || 'sommelier restauracji';
 
@@ -47,6 +55,9 @@ export const pl = {
       restaurant: 'Restauracja'
     },
     landing: {
+      tableCardTitle: 'Kilka dań na stole?',
+      tableCardText: 'Dobierzemy jedną butelkę do wszystkich i powiemy uczciwie, do czego pasuje słabiej.',
+      tableCardAction: 'Dobierz butelkę do stołu',
       pickDish: 'Wybierz danie',
       pickDishLead: 'Pokażemy wina z naszej karty, które do niego pasują.',
       menuUpdating: 'Dzisiejsze menu jest właśnie aktualizowane. W międzyczasie kelner chętnie poleci wino.'
@@ -125,6 +136,20 @@ export const pl = {
         summary: 'Jak działają filtry?',
         points: (f: EngineFacts) => filterPointsPl(f)
       },
+      tableResult: {
+        summary: 'Jak liczymy dopasowanie ogółem?',
+        points: (f: EngineFacts, c: Pick<ExplainContext, 'showScores'>) => c.showScores
+          ? [
+              `Każde danie dostaje własną ocenę dopasowania. Wynik stołu łączy średnią (${pctPl(f.tableMeanWeight)}%, dania główne ×${decimalPl(f.tableMainsWeight)}) z najsłabszym daniem (${pctPl(f.tableMinWeight)}%), żeby butelka nie była świetna do jednego dania i słaba do drugiego.`,
+              `„Pasuje” znaczy co najmniej ${f.tableFitThreshold}%, a para odrzucona przez sommeliera nigdy nie pasuje. Desery liczymy osobno.`,
+              `Para zatwierdzona przez sommeliera ma pieczęć i podnosi wynik stołu o ${f.tableSommelierBonus} pkt (nie procent przy daniu); odrzucona obniża go mocno (najwyżej ${f.tableRejectedCap}%).`
+            ]
+          : [
+              'Każde danie dostaje własną ocenę dopasowania. Butelkę wybieramy według średniej z dań (dania główne liczą się bardziej) razem z najsłabszym daniem, żeby nie była świetna do jednego dania i słaba do drugiego.',
+              '„Pasuje” znaczy, że wino dobrze pasuje do tego dania samo w sobie; para odrzucona przez sommeliera nigdy nie pasuje. Desery liczymy osobno.',
+              'Para zatwierdzona przez sommeliera ma pieczęć i trochę podnosi butelkę w wyborze (nie kieliszek przy daniu); odrzucona mocno ją obniża.'
+            ]
+      },
       wine: {
         summary: 'Co znaczy ta ocena?',
         points: (c: WineExplainContext) => [
@@ -202,6 +227,15 @@ export const pl = {
       others: 'Inne butelki, które pasują',
       splitTitle: 'Albo na kieliszki, do każdego dania osobno',
       splitText: 'Te dania ciągną w różne strony, więc osobny kieliszek do każdego może sprawdzić się lepiej.'
+    },
+    tableFit: {
+      line: (f: TableFitText) => {
+        if (f.of === 1) return f.fits === 1 ? 'Pasuje do tego dania.' : `Słabiej pasuje do: ${f.weaker[0] ?? ''}.`;
+        if (f.fits === 0) return `Nie pasuje dobrze do żadnego z ${f.of} dań.`;
+        if (f.fits < f.of) return `Pasuje do ${f.fits} z ${f.of} dań, słabiej do: ${weakerNamesPl(f.weaker)}.`;
+        const all = f.of === 2 ? 'Pasuje do obu dań' : `Pasuje do wszystkich ${f.of} dań`;
+        return f.compromise ? `${all}, choć to kompromis.` : `${all}.`;
+      }
     },
     staff: {
       title: 'Podgląd par',
@@ -752,7 +786,7 @@ export const pl = {
         points: (f: EngineFacts) => [
           `Uzupełniaj puste miejsca: gdy włączone, gość widzi też propozycje silnika od ${f.minModelScore}%; gdy wyłączone, lista win do dania pokazuje tylko Twoje pary.`,
           'Butelkę dla „Całego stolika” silnik zawsze wybiera z całej aktywnej karty, niezależnie od tego ustawienia.',
-          'Pokazuj procent: gdy wyłączone, gość widzi kieliszek wypełniony do poziomu dopasowania, bez liczby. Na „Całym stoliku” paski przy daniach nadal pokazują procent; ekran kelnera pokazuje go zawsze.',
+          'Pokazuj procent: gdy wyłączone, gość widzi kieliszek wypełniony do poziomu dopasowania, bez liczby — także na „Całym stoliku” (paski bez liczb); ekran kelnera pokazuje procent zawsze.',
           'Oba ustawienia działają od razu, bez publikacji.'
         ]
       },

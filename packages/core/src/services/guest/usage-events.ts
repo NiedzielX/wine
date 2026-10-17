@@ -20,7 +20,7 @@ export type UsagePrefs = Record<string, string>;
 export type UsageEvent =
   | { name: 'menu_viewed' }
   | { name: 'recommendations_viewed'; dishId: string; props: { wineIds: string[]; items: Array<{ wineId: string; tier: UsageTier }>; prefs: UsagePrefs } }
-  | { name: 'table_recommendation_viewed'; props: { dishIds: string[]; wineIds: string[] } }
+  | { name: 'table_recommendation_viewed'; props: { dishIds: string[]; wineIds: string[]; /** the budget ruled out every bottle and was lifted (`table.budget_relaxed`, spec whole-table-waiter-path R13) */ budgetRelaxed: boolean } }
   | { name: 'wine_viewed'; dishId?: string; wineId: string; props: { context: UsageContext } }
   | { name: 'wine_selected'; dishId?: string; wineId: string; props: { serving: 'glass' | 'bottle'; context: UsageContext; dishIds?: string[] } }
   | { name: 'staff_lookup'; dishId: string; props: { source: 'staff'; prefs: UsagePrefs; wineIds: string[] } };

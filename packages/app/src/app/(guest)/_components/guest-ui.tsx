@@ -1,4 +1,4 @@
-import { styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RecommendationItem, type Wine, type WineStyle } from '@wine-match/core';
+import { styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RecommendationItem, type TableDishScore, type TableFit, type Wine, type WineStyle } from '@wine-match/core';
 import { InfoDisclosure } from '@wine-match/ui/brand/info-disclosure';
 import { MatchGlass } from '@wine-match/ui/brand/match-glass';
 import Link from 'next/link';
@@ -206,6 +206,36 @@ export function Explain({ id, summary, points, tone = 'page', className = '' }: 
         {points.map((p) => <li key={p}>{p}</li>)}
       </ul>
     </InfoDisclosure>
+  );
+}
+
+/**
+ * "Works with n of m dishes, less so with: …" under a table bottle (spec 2026-10-16-whole-table-waiter-path, R12):
+ * the engine's `table.fit`, worded by the dictionary. Replaces the old one-line `why` on the table screens.
+ */
+export function TableFitLine({ fit, t, className = 'mt-1.5 text-sm text-ink-2' }: { fit: TableFit; t: Dictionary; className?: string }) {
+  return <p className={className}>{t.guest.tableFit.line({ fits: fit.fits, of: fit.of, weaker: fit.weaker.map((d) => d.dish.name), compromise: fit.compromise })}</p>;
+}
+
+/**
+ * The bottle's fit with each dish (R1, R9): a bar and the percentage of the raw engine score (`engineScore` — never the
+ * ranking score with the sommelier's bonus, AGENTS §7). Without percentages (`showScores` off) only the bars stay, like
+ * the glass elsewhere. The seal marks a sommelier's pairing, named in text for screen readers (not a `title`).
+ */
+export function DishScores({ perDish, showScores, t }: { perDish: TableDishScore[]; showScores: boolean; t: Dictionary }) {
+  return (
+    <ul className="grid gap-2.5">
+      {perDish.map((x) => (
+        <li key={x.dish.id} className={`grid ${showScores ? 'grid-cols-[minmax(0,1fr)_minmax(0,120px)_36px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,120px)]'} items-center gap-2.5 text-[14.5px]`}>
+          <span className="min-w-0">
+            {x.dish.name}
+            {x.sommelierPick && <span className="ml-1.5 inline-block align-[-3px] text-brass"><Seal className="size-4" /><span className="sr-only">{t.guest.tableResult.sommelierPairing}</span></span>}
+          </span>
+          <span className="h-1.5 overflow-hidden rounded bg-line" aria-hidden="true"><i className="block h-full rounded bg-wine" style={{ width: `${x.engineScore}%` }} /></span>
+          {showScores && <b className="text-right font-semibold tabular-nums">{x.engineScore}%</b>}
+        </li>
+      ))}
+    </ul>
   );
 }
 

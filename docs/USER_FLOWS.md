@@ -38,7 +38,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  L[Restaurant landing] -->|Pair a bottle for the table| T[Whole table selection<br>/r/halka/table]
+  L[Restaurant landing] -->|card: Find a bottle for the table| T[Whole table selection<br>/r/halka/table]
   M[Dish list] -->|Whole table tab| T
   T -->|tick 2+ dishes<br>optional colour and budget| T
   T -->|Find a bottle for the table| B[Best wine for your table<br>/r/halka/table/result]
@@ -50,14 +50,14 @@ flowchart LR
 
 | Krok | Ekran | Akcja | System |
 |---|---|---|---|
-| 1 | Landing / Menu | wejście w tryb stolika | — |
+| 1 | Landing / Menu | wejście w tryb stolika: karta „Several dishes on the table?” nad menu na G0 (przycisk w nagłówku restauracji tylko, gdy karty nie ma — np. menu z samych deserów) albo przełącznik „Whole table” na G1 | — |
 | 2 | Whole table | zaznaczenie dań (licznik, przycisk aktywny od 2) | event `table_dishes_selected` |
 | 3 | Whole table | opcjonalnie: kolor, budżet na butelkę | — |
 | 4 | Whole table | „Find a bottle for the table” | `POST /recommendations/table` |
-| 5 | Best wine for your table | wynik per danie, Overall match, cena; 2 alternatywy; desery odłożone; ewentualna propozycja kieliszków | event `table_recommendation_viewed` |
+| 5 | Best wine for your table | linia „Works with n of m dishes, less so with: …” przy butelce i alternatywach; surowy wynik silnika per danie, Overall match (bez liczb, gdy restauracja ukrywa procenty), cena; 2 alternatywy; desery odłożone; budżet bez wyników → komunikat i 2 najbliższe butelki; ewentualna propozycja kieliszków | event `table_recommendation_viewed` |
 | 6 | Wine details → Confirmation | jak w flow 1, z domyślną butelką | `wine_selected` z `context=table` |
 
-Przykład z mockupu: Beef tartare 83%, Wild mushroom risotto 93%, Duck breast 83% → Savigny-lès-Beaune, overall 85%.
+Przykład (dane demo Halki, `wm-rules-1.1.0`): Beef tartare 83%, Wild mushroom risotto 90%, Duck breast 80% (surowe wyniki; pieczęć przy risotto i kaczce) → Savigny-lès-Beaune, „Works with all 3 dishes.”, overall 85%. Stół 6 dań (śledź, przegrzebki, sandacz, seler, antrykot, jeleń) → Radikon Slatnik, „Works with 5 of 6 dishes, less so with: Venison loin.”.
 
 ---
 

@@ -1,7 +1,7 @@
-import { MAX_TABLE_DISHES, parseDishIds, type TableItem } from '@wine-match/core';
+import { ENGINE_FACTS, MAX_TABLE_DISHES, parseDishIds } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Button, EmptyState, LanguageSwitch, Notice, Price, Score, Seal, TopBar } from '../../../../_components/guest-ui';
+import { Button, DishScores, EmptyState, Explain, LanguageSwitch, Notice, Price, Score, Seal, TableFitLine, TopBar } from '../../../../_components/guest-ui';
 import { isDomainError } from '@/server/domain-errors';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
@@ -14,10 +14,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 
-/** The one-line reason under a wine. A module-level component: one defined inside the page would be a new component type on every render. */
-const Why = ({ i }: { i: TableItem }) => <p className="mt-1.5 text-sm text-ink-2">{i.why}</p>;
-
-/** G6 — best wine for the table. */
+/**
+ * G6 — best wine for the table (spec 2026-10-16-whole-table-waiter-path, phase 3, R9): under each bottle the line
+ * "works with n of m dishes" (`table.fit`) instead of the old reason, per-dish bars of the raw engine score, no numbers
+ * when the restaurant hides percentages, and a budget that rules out every bottle is relaxed with a notice.
+ */
 export default async function TableResultPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { q, prefs, services, t, locale, session, href, langHrefs } = await guestContext(searchParams);
@@ -27,7 +28,7 @@ export default async function TableResultPage({ params, searchParams }: Props) {
   const l = t.guest.tableResult;
   let out;
   try {
-    out = await services.recommendationService.forTable(slug, ids, prefs, locale);
+    out = await services.recommendationService.forTable(slug, ids, prefs, locale, { relaxBudget: true });
   } catch (e) {
     if (!isDomainError(e, 'table_needs_two_dishes')) throw e;
     const menu = await services.catalogService.publishedMenu(slug, locale);
@@ -50,10 +51,10 @@ export default async function TableResultPage({ params, searchParams }: Props) {
   const [best, ...alts] = result.items;
 
   // the dishes the bottle was chosen for (published, the first MAX_TABLE_DISHES as the service takes them) and the wines
-  // in display order; an empty result is recorded too (`wineIds: []`)
+  // in display order; an empty result is recorded too (`wineIds: []`); `budgetRelaxed` when the budget was lifted (E08 R13)
   await trackUsage(services, restaurant, session, [{
     name: 'table_recommendation_viewed',
-    props: { dishIds: chosen.slice(0, MAX_TABLE_DISHES).map((d) => d.id), wineIds: result.items.map((i) => i.wine.id) }
+    props: { dishIds: chosen.slice(0, MAX_TABLE_DISHES).map((d) => d.id), wineIds: result.items.map((i) => i.wine.id), budgetRelaxed: result.notice !== null }
   }]);
   return (
     <>
@@ -62,6 +63,8 @@ export default async function TableResultPage({ params, searchParams }: Props) {
         <h1 className="font-serif text-[28px] leading-tight">{l.title}</h1>
         <p className="mt-1 text-[14.5px] text-ink-2">{l.dishes(chosen.length, chosen.map((d) => d.name).join(', '))}</p>
         {result.setAside.length > 0 && <Notice>{l.dessertsApart(result.setAside.map((d) => d.name).join(l.or))}</Notice>}
+        <Explain id="tableResult" className="mt-2" summary={t.guest.explain.tableResult.summary} points={t.guest.explain.tableResult.points(ENGINE_FACTS, { showScores })} />
+        {result.notice && <Notice>{result.notice}</Notice>}
 
         {!best ? (
           <EmptyState title={l.noneTitle} text={l.noneText} action={<Button href={tablePath} variant="secondary">{l.changePrefs}</Button>} />
@@ -73,19 +76,13 @@ export default async function TableResultPage({ params, searchParams }: Props) {
                 <div>
                   <h2 className="font-serif text-[25px] leading-[1.15]">{best.wine.name}</h2>
                   <p className="text-[14.5px] text-ink-2">{best.wine.producer}, {best.wine.region}</p>
-                  <Why i={best} />
+                  <TableFitLine fit={best.fit} t={t} />
                 </div>
                 <Score score={best.overall} colour={best.wine.colour} showScores={showScores} size={48} t={t} />
               </div>
               <div className="mt-4 grid gap-2.5 border-t border-line pt-4">
-                {best.perDish.map((x) => (
-                  <div key={x.dish.id} className="grid grid-cols-[1fr_120px_36px] items-center gap-2.5 text-[14.5px]">
-                    <span>{x.dish.name}{x.sommelierPick && <span title={l.sommelierPairing} className="ml-1.5 inline-block align-[-3px] text-brass"><Seal className="size-4" /></span>}</span>
-                    <span className="h-1.5 overflow-hidden rounded bg-line" aria-hidden="true"><i className="block h-full rounded bg-wine" style={{ width: `${x.score}%` }} /></span>
-                    <b className="text-right font-semibold tabular-nums">{x.score}%</b>
-                  </div>
-                ))}
-                <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-3"><span>{l.overall}</span><b className="font-serif text-[22px]">{best.overall}%</b></div>
+                <DishScores perDish={best.perDish} showScores={showScores} t={t} />
+                {showScores && <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-3"><span>{l.overall}</span><b className="font-serif text-[22px]">{best.overall}%</b></div>}
               </div>
               <div className="mt-3"><Price wine={best.wine} serving="bottle" t={t} locale={locale} /></div>
             </Link>
@@ -98,7 +95,7 @@ export default async function TableResultPage({ params, searchParams }: Props) {
                     <div>
                       <h3 className="font-serif text-[19px] leading-tight">{a.wine.name}</h3>
                       <p className="text-sm text-ink-2">{a.wine.producer}, {a.wine.region}</p>
-                      <Why i={a} />
+                      <TableFitLine fit={a.fit} t={t} />
                       <div className="mt-2.5"><Price wine={a.wine} serving="bottle" t={t} locale={locale} /></div>
                     </div>
                     <Score score={a.overall} colour={a.wine.colour} showScores={showScores} size={36} t={t} />
