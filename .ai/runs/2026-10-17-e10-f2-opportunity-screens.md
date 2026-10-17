@@ -28,6 +28,8 @@ Faza 2 specyfikacji `2026-10-16-sommelier-opportunities` (issue #52, epic #50): 
 - Smoke (`npm run smoke`): `DATA_SOURCE=memory` (next start :3117) — 217/217 ok; `DATA_SOURCE=postgres` (embedded PostgreSQL 17, świeża baza `migration:up` + `seed`, :3118) — 217/217 ok, w tym 7 nowych sprawdzeń A14/A6/A1/GM.
 - E2E lokalnie (`npm run test:e2e` przez `vitest.e2e.config.ts`, `TEST_DATABASE_URL` → embedded PostgreSQL, agent-browser 0.39.1 + systemowy Chrome): 3 pliki, 17/17 (admin, home, nowy opportunities: bez JS — `window.next.router` brak; S1 na A6 i A14 po odrzuceniu Primary, Ignore → „Ignored (n)” → Restore; „Add” na A6 → wiersz w „Engine suggestions”, licznik Publish bez zmian, A7 z JS widzi propozycję, Approve; „Add” z A14 zostaje na A14; GM bez przycisków).
 - Ekrany (agent-browser, emulacja widoku, Chrome): A1, A6 (risotto), A14 przy 1440 i 390 px — `scrollWidth == innerWidth` (1440/1440, 390/390), brak poziomego przewijania; A6 `data-explain` = opportunities, pairings, suggestions; A1 = dashboard; A14 = opportunities. A14 bez JS przy 390 px: Ignore → `?saved=opportunity_dismissed` (6 → 5 wierszy), Restore → `?saved=opportunity_restored` (z powrotem 6). Zrzuty: katalog roboczy `scratchpad/shots/` (poza repo).
+- Po rebase na `origin/main` (E02 F1, #61): konflikt tylko w `.ai/lessons.md` (zachowane obie linie); gate ponownie zielony — core 403, db 44, ui 9, app 187, testkit 10; build OK; E2E 4 pliki 22/22.
+- PR: #62.
 - `npm run test:db` — nie uruchamiany: F2 nie zmienia `db`, portów ani serwisów `core` (CI uruchomi).
 
 ## Wynik
