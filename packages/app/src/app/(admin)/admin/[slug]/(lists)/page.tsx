@@ -2,7 +2,9 @@ import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent, 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ENGINE_FACTS } from '@wine-match/core';
 import { Page, PageHeader } from '../../_components/admin-shell';
+import { PanelExplain } from '../../_components/explain';
 import { formatDateTime } from '../../_components/format';
 import { getRequestScope } from '@/server/request-scope';
 import { dataSource } from '@/server/container';
@@ -55,6 +57,7 @@ export default async function DashboardPage({ params }: Props) {
         </Alert>
       )}
 
+      <PanelExplain id="dashboard" className="mb-3" summary={t.admin.explain.dashboard.summary} points={t.admin.explain.dashboard.points(ENGINE_FACTS)} />
       <section aria-label={d.program} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi lead label={d.sommelierLed} value={d.sommelierLedValue(primaryCoverage.withPrimary, primaryCoverage.published)} detail={d.sommelierLedDetail} />
         <Kpi label={d.publishedDishes} value={String(dishes.published)} detail={d.publishedDishesDetail(dishes.total, dishes.draft, dishes.hidden)} />

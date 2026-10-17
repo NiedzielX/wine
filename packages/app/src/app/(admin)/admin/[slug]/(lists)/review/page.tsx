@@ -3,7 +3,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
+import { ENGINE_FACTS } from '@wine-match/core';
 import { ScoreBadge } from '../../../_components/badges';
+import { PanelExplain } from '../../../_components/explain';
 import { ActionButton } from '../../../_components/action-form';
 import { Flash, ReadOnlyNotice } from '../../../_components/flash';
 import { first } from '../../../_components/format';
@@ -48,6 +50,7 @@ export default async function ReviewPage({ params, searchParams }: Props) {
             <span className="text-muted-foreground">{m.left(progress.suggestions)}</span>
           </div>
           <Progress value={pct} aria-label={m.progressLabel} />
+          <PanelExplain id="review" summary={t.admin.explain.review.summary} points={t.admin.explain.review.points(ENGINE_FACTS)} />
         </CardContent>
       </Card>
 

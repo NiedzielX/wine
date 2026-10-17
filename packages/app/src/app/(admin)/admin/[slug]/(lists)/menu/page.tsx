@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { DishStatusBadge, ProfileBadge } from '../../../_components/badges';
+import { PanelExplain } from '../../../_components/explain';
 import { first, zl } from '../../../_components/format';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
@@ -31,6 +32,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
   return (
     <Page>
       <PageHeader title={m.title} description={m.description(menu.total)} />
+      <PanelExplain id="menu" className="-mt-3 mb-4" summary={t.admin.explain.menu.summary} points={t.admin.explain.menu.points} />
       <form action={path} method="get" className="mb-4 flex flex-wrap items-center gap-2">
         <Input name="q" type="search" defaultValue={q} placeholder={m.search} aria-label={m.search} className="max-w-xs" />
         <NativeSelect name="category" defaultValue={category} aria-label={m.category} className="w-auto">

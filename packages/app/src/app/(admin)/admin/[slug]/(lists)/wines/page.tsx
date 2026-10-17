@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { ActiveBadge } from '../../../_components/badges';
+import { PanelExplain } from '../../../_components/explain';
 import { first, zl } from '../../../_components/format';
 import { ActionButton } from '../../../_components/action-form';
 import { Flash } from '../../../_components/flash';
@@ -36,6 +37,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
   return (
     <Page>
       <PageHeader title={m.title} description={m.description(list.active, list.byGlass)} />
+      <PanelExplain id="wines" className="-mt-3 mb-4" summary={t.admin.explain.wines.summary} points={t.admin.explain.wines.points} />
       <Flash saved={first(sp.saved)} error={first(sp.error)} />
       <form action={path} method="get" className="mb-4 flex flex-wrap items-center gap-2">
         <Input name="q" type="search" defaultValue={q} placeholder={m.search} aria-label={m.searchLabel} className="max-w-xs" />

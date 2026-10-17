@@ -12,6 +12,7 @@ import WinePage from '@/app/(guest)/r/[slug]/wine/[wineId]/page';
 import { en } from '@/i18n/en';
 import { pl } from '@/i18n/pl';
 import { createRequestScope } from '@/server/container';
+import { explainIds, placementProblems } from './html';
 
 /**
  * Server-rendered guest pages of spec 2026-10-16-how-it-works-explanations, phase 1b (G3, G4, G7, G8 and the labels on
@@ -29,40 +30,9 @@ async function render(page: unknown, params: Record<string, string>, search: Rec
   return (await new Response(prelude).text()).replace(/<!-- -->/g, '');
 }
 
-const explainIds = (html: string) => [...html.matchAll(/data-explain="([^"]+)"/g)].map((m) => m[1]);
 const glasses = (html: string) => [...html.matchAll(/<svg[^>]*role="img"[^>]*aria-label="([^"]*)"/g)].map((m) => m[1]);
 /** The open explanation's text: everything inside `<details data-explain="id">`. */
 const explainText = (html: string, id: string) => /<details data-explain="([^"]+)"[^>]*>([\s\S]*?)<\/details>/g.exec(html.slice(html.indexOf(`data-explain="${id}"`) - 9))?.[2] ?? '';
-
-const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
-/**
- * Where each explanation sits (R1, R3): never inside a link, a button, a paragraph or another summary; the summary is
- * the first child of its details and holds no link or button; nothing on it needs a script.
- */
-function placementProblems(html: string): string[] {
-  const stack: string[] = [];
-  const problems: string[] = [];
-  let prev = '';
-  for (const m of html.matchAll(/<(\/?)([a-zA-Z][\w-]*)([^>]*?)(\/?)>/g)) {
-    const [, close, raw, attrs, self] = m;
-    const tag = raw.toLowerCase();
-    if (close) {
-      const i = stack.lastIndexOf(tag);
-      if (i >= 0) stack.length = i;
-      prev = `/${tag}`;
-      continue;
-    }
-    if (tag === 'details') {
-      for (const bad of ['a', 'button', 'p', 'summary']) if (stack.includes(bad)) problems.push(`<details> inside <${bad}>`);
-      if (/\son\w+=/i.test(attrs)) problems.push('<details> with an inline handler');
-    }
-    if (tag === 'summary' && prev !== 'details') problems.push('<summary> is not the first child of <details>');
-    if ((tag === 'a' || tag === 'button') && stack.includes('summary')) problems.push(`<${tag}> inside <summary>`);
-    if (!self && !VOID.has(tag)) stack.push(tag);
-    prev = tag;
-  }
-  return problems;
-}
 
 const OLD_LABELS = ['Sommelier recommendation', 'Rekomendacja sommeliera', 'Best match', 'Najlepsze dopasowanie', 'Perfect with your dish', 'Pasuje do Twojego dania', 'Para od sommeliera', 'Every recommendation follows', 'Sommelier pairing available'];
 

@@ -656,7 +656,7 @@ export const en = {
       settings: 'Guest settings',
       settingsText: 'These apply right away; they are not part of a published version.',
       showUnreviewed: 'Fill empty places with engine picks',
-      showUnreviewedText: 'When off, guests only see pairings you approved.',
+      showUnreviewedText: 'When off, a dish’s wine list shows only pairings you approved. The “Whole table” bottle still comes from the whole list.',
       showScores: 'Show match percentages to guests',
       showScoresText: 'The glass icon is always shown.',
       saveSettings: 'Save settings',
@@ -669,6 +669,79 @@ export const en = {
       upToDate: 'Up to date',
       upToDateText: 'Make a change on the Pairings or Review queue screens, then come back to publish it.',
       versionBadge: (n: number) => `Version ${n}`
+    },
+    /**
+     * "How it works" on the dashboard (spec 2026-10-16-how-it-works-explanations, phase 3): one explanation per card,
+     * as list points. Numbers only from ENGINE_FACTS (R4); the dashboard may say "engine", never "AI" (R5). A3 and A5
+     * share `score`. Texts describe today's code: the table result (E08 F1, `wm-rules-1.1.0`) still uses the whole
+     * active list and ranks with the sommelier bonus / rejected cap; E08 changes these keys when it changes that (Q15).
+     */
+    explain: {
+      dashboard: {
+        summary: 'What do these tiles count?',
+        points: (f: EngineFacts) => [
+          'Sommelier-led dishes: published dishes with an approved primary pairing. On these, guests always see your choice first.',
+          'Approved pairings: approved and modified ones. Once published, guests see them as “Sommelier’s pairing”.',
+          `Engine suggestions wait in the review queue. With “Fill empty places with engine picks” on, guests see them from ${f.minModelScore}% as “Recommended for your dish”, never as a sommelier’s pairing.`,
+          'Wines on the list: active wines. A hidden wine is never shown to guests.'
+        ]
+      },
+      menu: {
+        summary: 'How does a taste profile affect pairings?',
+        points: [
+          'The taste profile is the only dish data the engine scores from: intensity, fat, salt, sweetness, acidity, spice, umami, smoke and creaminess on a 0–5 scale, plus the main ingredient and the cooking method.',
+          'A “Draft” profile was drafted from the description at import. The same profile always gives the same scores, so a wrong profile gives wrong pairings: check it first.'
+        ]
+      },
+      score: {
+        summary: 'How does the engine score a pairing?',
+        points: (f: EngineFacts) => [
+          `Every pairing starts at ${f.baseScore}. Sommelier rules add or take away points: weight, acidity against fat, sweetness, tannin against fish, spice against alcohol, smoke and oak, salt and bubbles, creaminess, umami and classic pairings.`,
+          `The score runs from 0 to ${f.maxScore}. The same profiles always give the same score, so check a draft profile before relying on it.`,
+          `Guests see an engine suggestion only from ${f.minModelScore}%. Your approval changes a wine’s place on the list, never its score.`
+        ]
+      },
+      wines: {
+        summary: 'What does hiding a wine do?',
+        points: [
+          'A hidden wine leaves the guests’ recommendations at once, your pairings with it included. No publishing needed.',
+          '“Show” brings it back at once.'
+        ]
+      },
+      pairings: {
+        summary: 'How do guests see your pairings?',
+        points: (f: EngineFacts) => [
+          `Order: the primary pick, your other approved pairings in your order, then engine suggestions (from ${f.minModelScore}%, with “Fill empty places with engine picks” on). Guests see at most ${f.dishLimit} wines.`,
+          'The percentage is always the engine’s score: approving changes the order, never the number. Your note replaces the engine’s reason.',
+          `A rejected pairing never appears with this dish. At the “Whole table” it only lowers this dish’s score to ${f.tableRejectedCap} in the bottle ranking.`,
+          'Guest filters can hide even the primary pick (a bottle-only wine with “By the glass”, say).',
+          `Best value: your pairing with that role, if it is on the list; otherwise the cheapest bottle priced below the first wine, within ${f.bestValueWindow} points of the top one.`
+        ]
+      },
+      suggestions: {
+        summary: 'How do guests see engine suggestions?',
+        points: (f: EngineFacts) => [
+          `Until you decide, guests see a suggestion from ${f.minModelScore}% as “Recommended for your dish” (with “Fill empty places with engine picks” on), never as your pairing.`,
+          'Approve: once published, it becomes a sommelier’s pairing and goes ahead of engine picks. Reject: never recommended with this dish.'
+        ]
+      },
+      review: {
+        summary: 'What does approving do?',
+        points: (f: EngineFacts) => [
+          'Once published, an approved pairing carries the “Sommelier’s pairing” label for guests and comes before engine suggestions.',
+          `A rejected pairing is never recommended with that dish. At the “Whole table” it only lowers the dish’s score to ${f.tableRejectedCap} in the bottle ranking.`,
+          `Guests see unreviewed suggestions from ${f.minModelScore}% as “Recommended for your dish”, when “Fill empty places with engine picks” is on.`
+        ]
+      },
+      publish: {
+        summary: 'What do these settings change?',
+        points: (f: EngineFacts) => [
+          `Fill empty places with engine picks: when on, guests also see engine suggestions from ${f.minModelScore}%; when off, a dish’s wine list shows only your pairings.`,
+          'The “Whole table” bottle is always chosen from the whole active wine list, whatever this setting.',
+          'Show match percentages: when off, guests see a glass filled to the level of the match, without a number. On “Whole table” the bars per dish still show percentages; the waiter’s screen always does.',
+          'Both settings apply at once, without publishing.'
+        ]
+      }
     },
     qr: {
       title: 'QR code',
