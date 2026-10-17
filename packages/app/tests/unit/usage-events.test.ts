@@ -55,6 +55,7 @@ let restaurantId = '';
 let publishedAt: string | null = null;
 let duck = '';
 let dessert = '';
+let tartare = '';
 let wine = '';
 let inactiveWine = '';
 
@@ -66,6 +67,7 @@ beforeAll(async () => {
   publishedAt = menu.restaurant.publishedAt;
   duck = menu.dishes.find((d) => d.name === 'Duck breast')!.id;
   dessert = menu.dishes.find((d) => d.category === 'Desserts')!.id;
+  tartare = menu.dishes.find((d) => d.name === 'Beef tartare')!.id;
   const wines = await c.wineRepository.listByRestaurant(restaurantId);
   wine = (await c.recommendationService.forDish('halka', duck, { serving: 'any', styles: [], maxPrice: null, weight: 'any', mood: 'any' }))!.result.items[0].wine.id;
   inactiveWine = wines.find((w) => !w.active)?.id ?? '';
@@ -302,12 +304,22 @@ describe('the wine choice: G6, G7, G8 (phase 2, #13, AC7–AC9)', () => {
     await render(SelectedPage, { wineId: bottle[1] }, { table, serving: 'bottle', sid });
     const list = await events(sid);
     expect(list.map((e) => e.name)).toEqual(['table_recommendation_viewed', 'wine_viewed', 'wine_selected']);
-    const shown = list[0].props as { dishIds: string[]; wineIds: string[] };
+    const shown = list[0].props as { dishIds: string[]; wineIds: string[]; budgetRelaxed: boolean };
     expect(shown.dishIds).toEqual([duck, dessert]);
+    expect(shown.budgetRelaxed).toBe(false);
     expect(shown.wineIds[0]).toBe(bottle[1]);
     expect(list[0]).toMatchObject({ dishId: null, wineId: null });
     expect(list[1]).toMatchObject({ dishId: null, wineId: bottle[1], props: { context: 'table' } });
     expect(list[2]).toMatchObject({ dishId: null, wineId: bottle[1], props: { serving: 'bottle', context: 'table', dishIds: [duck, dessert] } });
+  });
+
+  it('a table budget no bottle meets is lifted and recorded as budgetRelaxed (spec whole-table-waiter-path, R13)', async () => {
+    const sid = '8d4e5f60-7182-4d9e-9fa0-2b3c4d5e6f71';
+    const html = await render(TableResultPage, {}, { dishes: `${duck},${dessert},${tartare}`, maxPrice: '150', sid });
+    expect(html).toContain('Nothing matches under 150 zł');
+    const [shown] = await events(sid);
+    expect(shown).toMatchObject({ name: 'table_recommendation_viewed', props: { budgetRelaxed: true } });
+    expect((shown.props as { wineIds: string[] }).wineIds).toHaveLength(2);
   });
 
   it('an id typed into `table=` never reaches the event (R8); fewer than two dishes is no table result', async () => {
