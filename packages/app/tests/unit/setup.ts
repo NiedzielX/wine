@@ -31,6 +31,8 @@ class ForbiddenSignal extends Error {
 export const nextState = {
   cookies: new Map<string, string>(),
   headers: new Map<string, string>(),
+  /** callbacks given to `after()`: run at once, their promises kept here so a test can await them */
+  afterTasks: [] as Array<Promise<unknown>>,
   RedirectSignal,
   NotFoundSignal,
   ForbiddenSignal
@@ -59,3 +61,12 @@ vi.mock('next/navigation', () => {
 });
 
 vi.mock('next/cache', () => ({ revalidatePath: () => undefined }));
+
+// `after()` needs a Next.js request; here it runs the callback at once (spec 2026-10-15-guest-usage-events, AC3)
+vi.mock('next/server', async (importOriginal) => {
+  const s = (globalThis as { __wmNext: typeof nextState }).__wmNext;
+  return {
+    ...(await importOriginal<typeof import('next/server')>()),
+    after: (task: (() => unknown) | Promise<unknown>) => { s.afterTasks.push(typeof task === 'function' ? Promise.resolve().then(task) : task); }
+  };
+});

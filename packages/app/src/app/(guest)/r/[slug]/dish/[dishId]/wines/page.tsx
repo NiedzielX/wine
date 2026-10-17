@@ -1,10 +1,11 @@
-import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, prefsSummary, tasteWords } from '@wine-match/core';
+import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, prefsSummary, prefsToQuery, tasteWords, usageTier } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BestCard, Button, DishList, EmptyState, Explain, GuestColumns, LanguageSwitch, Notice, QuickPrefs, RecoFooter, TopBar, WineRow } from '../../../../../_components/guest-ui';
 import { PrefChips } from '../../../../../_components/pref-chips';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
+import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,7 +23,7 @@ type Props = { params: Promise<{ slug: string; dishId: string }>; searchParams: 
  */
 export default async function WinesPage({ params, searchParams }: Props) {
   const { slug, dishId } = await params;
-  const { q, prefs, services, t, locale, href, langHrefs } = await guestContext(searchParams);
+  const { q, prefs, services, t, locale, session, href, langHrefs } = await guestContext(searchParams);
   const data = await services.recommendationService.forDish(slug, dishId, prefs, undefined, locale);
   if (!data) notFound();
   const { restaurant, dish, result } = data;
@@ -81,6 +82,11 @@ export default async function WinesPage({ params, searchParams }: Props) {
     </div>
   );
 
+  // opening or closing the filters sheet is not a new view of the wines: only the list without the sheet counts (Q7)
+  await trackUsage(services, restaurant, session, sheetOpen ? [] : [{
+    name: 'recommendations_viewed', dishId: dish.id,
+    props: { wineIds: result.items.map((i) => i.wine.id), items: result.items.map((i) => ({ wineId: i.wine.id, tier: usageTier(i) })), prefs: prefsToQuery(prefs) }
+  }]);
   return (
     <>
       <TopBar

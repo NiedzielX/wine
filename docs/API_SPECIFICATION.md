@@ -72,7 +72,7 @@ POST /v1/restaurants/7d1e…/publish
 | GET | `/public/restaurants/{slug}` | P | nazwa, adres, Wine Director, ustawienia gościa, `versionId` |
 | GET | `/public/restaurants/{slug}/menu` | P | opublikowane dania (bez profili) |
 | GET | `/public/wines/{id}` | P | `?dishId=` — szczegóły wina z wynikiem dopasowania do dania |
-| POST | `/public/events` | P | batch eventów analytics (do 50) |
+| POST | `/public/events` | P | **planowane** (nie istnieje): batch eventów analytics tylko‑JS (do 50). Dziś zdarzenia zapisuje serwer przy renderze stron gościa (spec `2026-10-15-guest-usage-events`) |
 
 ```http
 GET /v1/public/restaurants/halka/menu
@@ -267,13 +267,15 @@ POST /v1/imports/menu/0193…/confirm
 
 | Metoda | Ścieżka | Rola | Opis |
 |---|---|---|---|
-| POST | `/public/events` | P | eventy gościa |
+| POST | `/public/events` | P | eventy gościa — **planowane** (zdarzenia tylko‑JS, np. `recommendation_clicked`); zdarzenia lejka zapisują strony gościa po stronie serwera, z sesją w parametrze URL `sid` (`docs/SCREEN_SPECIFICATION.md`, „Zdarzenia użycia”) |
 | GET | `/restaurants/{id}/analytics/summary` | S M | KPI za okres `?from=&to=` + porównanie z poprzednim |
 | GET | `/restaurants/{id}/analytics/timeseries` | S M | `?metric=sessions,selections&granularity=day` |
 | GET | `/restaurants/{id}/analytics/dishes` | S M | najczęściej wyszukiwane dania |
 | GET | `/restaurants/{id}/analytics/wines` | S M | `?by=recommended|selected` |
 | GET | `/restaurants/{id}/analytics/pairings` | S M | skuteczność par: shown, chosen, conversion, source |
 | GET | `/restaurants/{id}/analytics/export` | M | CSV |
+
+Przykład docelowy (planowane, nie zaimplementowane):
 
 ```http
 POST /v1/public/events

@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import { Button, DishList, GuestColumns, LanguageSwitch } from '../../_components/guest-ui';
 import { RestaurantHero, WineDirectorNote } from '../../_components/restaurant-hero';
-import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
+import { DEFAULT_PREFS } from '@wine-match/core';
+import { guestContext, hrefWith, notFound, type SearchParams } from '@/server/guest-page';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
+import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  */
 export default async function LandingPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const { prefs, services, t, locale, href, langHrefs } = await guestContext(searchParams);
+  const { prefs, services, t, locale, lang, session, href, langHrefs } = await guestContext(searchParams, { source: 'qr' });
   const { catalogService } = services;
   const menu = await catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
@@ -30,7 +32,8 @@ export default async function LandingPage({ params, searchParams }: Props) {
   const hasMenu = menu.dishes.length > 0;
   const coverage = hasMenu ? await catalogService.pairingCoverage(r.id) : new Map<string, { hasPrimary: boolean }>();
   const tableAction = <Button href={href(`/r/${r.slug}/table`, prefs)} variant="ghost" className="mt-8 w-full lg:w-auto">{t.guest.hero.tableAction}</Button>;
-  const staffHref = href(`/r/${r.slug}/staff`);
+  // "For staff" is the one guest link without the guest's `sid`: the staff lookup keeps its own session (Q9)
+  const staffHref = hrefWith(`/r/${r.slug}/staff`, DEFAULT_PREFS, {}, { lang });
   const langSwitch = <LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${r.slug}`)} t={t} tone="light" />;
 
   const main = (
@@ -51,6 +54,8 @@ export default async function LandingPage({ params, searchParams }: Props) {
     </main>
   );
 
+  // G0 opens a QR session; it shows the menu when there is one (spec guest-short-path-and-desktop, A7)
+  await trackUsage(services, r, session, hasMenu ? [{ name: 'menu_viewed' }] : []);
   return (
     <GuestColumns
       main={main}

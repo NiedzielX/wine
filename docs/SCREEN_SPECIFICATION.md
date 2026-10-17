@@ -7,7 +7,7 @@ Identyfikatory ekranów według [SCREEN_MAP.md](SCREEN_MAP.md). Endpointy wedłu
 - G7 i G8 pobierają dane przez serwisy po stronie serwera (nie przez `GET /public/wines/{id}`); G8 nie wysyła eventów analytics do czasu Fazy 6.
 - Stany loading / `?demo=` istnieją tylko w mockupach; aplikacja pokazuje stany empty i error (404 dla nieznanej restauracji lub wina, komunikat dla nieopublikowanego dania).
 - Licznik na G5 jest progresywnym ulepszeniem (JS); bez JS przycisk jest aktywny, a serwer zwraca „Add at least two dishes”.
-- Eventy analytics z tej specyfikacji nie są jeszcze zapisywane (Faza 6).
+- Eventy analytics: zapisywane są tylko zdarzenia z katalogu „Zdarzenia użycia” niżej (E02, po stronie serwera); pozostałe nazwy z tabel „Analytics” — jeszcze nie.
 
 **Stan implementacji (Faza 2 migracji):** ekrany panelu A1–A7 działają w trybie odczytu w `packages/app` (`/admin/{slug}/…`; adresy z restauracją w ścieżce, bo logowanie i wybór lokalu dopiero w Fazie 4). Odstępstwa od opisu poniżej:
 - **A1 Dashboard** pokazuje KPI programu winnego liczone z danych katalogu (dania opublikowane, wina, zatwierdzone pairingi, pokrycie Primary, „needs attention”). KPI użycia i sprzedaży (sesje, konwersja, attach rate, przychód) oraz wykresy są w Fazie 6; do tego czasu karta „Guest activity” pokazuje stan pusty z opisu A1.
@@ -28,7 +28,23 @@ Wspólne zasady:
 - **Treści dwujęzyczne i przełącznik „Polski / English” (spec `2026-10-15-bilingual-content`):** nazwy i opisy dań, notatki degustacyjne, regiony i kraje win, notatki sommeliera oraz hasło i miasto restauracji mają wersje PL i EN. Gość widzi wersję w swoim języku z **ostatniej publikacji** (brak tłumaczenia → tekst bazowy, bez znacznika); panel — bieżące tłumaczenia w języku panelu. Nazwy win i producentów się nie zmieniają. Publiczne API `/api/v1` zwraca teksty bazowe. Przełącznik ma etykiety „Polski” i „English” (każda we własnym języku, `aria-current` na aktywnym, `aria-label` z pełną nazwą); poniżej 640 px widać „PL” / „EN”. Jest **na górze** każdego ekranu: gość — top bar po prawej, na G0 prawy górny róg nagłówka restauracji; panel — górny pasek treści (desktop) albo wiersz nagłówka nad nawigacją (wąski ekran), a nie stopka nawigacji; A0 — prawy górny róg. Działa bez JS i mieści się przy 390 px. Nagłówek restauracji (G0) pokazuje adres z miastem i hasło restauracji w języku gościa.
 - **Wyjaśnienia „Jak to działa” (spec `2026-10-16-how-it-works-explanations`, E07):** na ekranie z wynikiem silnika stoi **jedno** wyjaśnienie — natywne `<details>` / `<summary>` (komponent `InfoDisclosure` z `@wine-match/ui/brand`, u gościa nakładka `Explain`, w panelu `PanelExplain`): zamknięte domyślnie, w zamkniętym stanie jeden wiersz z ikoną „i” i widocznym pytaniem (np. „Why these wines?” / „Skąd te wina?”), otwiera się dotknięciem, Enter lub Spacją, działa bez JavaScriptu, treść w zwykłym przepływie strony (lista ≤ 6 punktów, ≤ 90 słów, G3 ≤ 110). Nigdy wewnątrz linku, przycisku ani `<p>`; bez `title` i bez najechania. U gościa tekst `ink-2` (≥ 4,5:1), cel dotyku ≥ 44 px; w panelu ≥ 24 px. Liczby w tekstach pochodzą z `ENGINE_FACTS` (`core/src/engine/facts.ts`), warianty z bieżących ustawień `showScores` / `showUnreviewed`. Gość nie czyta słów „AI”, „silnik”, „algorytm” — tylko „zasady łączenia wina z jedzeniem”. Atrybut `data-explain` nazywa ekran (`wines`, `filters`, `wine`, …); inne specyfikacje dopisują akapity do tego samego wyjaśnienia, zamiast dodawać drugie „i”. Faza 1b: G3, G4, G7; pozostałe ekrany — fazy 2 i 3 tej specyfikacji.
 - **Nazwy etykiet (D13, R01):** para sommeliera (`approved` / `modified`) — „Sommelier’s pairing” / „Para sommeliera” (z pieczęcią); najlepsza propozycja silnika na G3 — „Recommended for your dish” / „Polecane do Twojego dania” (bez pieczęci); kelner (G9) — „Sommelier’s pairing · first choice” / „Para sommeliera · pierwszy wybór” i „Sommelier’s pairing” / „Para sommeliera”; panel mówi o propozycjach silnika tą samą nazwą co gość.
-- Każdy event gościa niesie: `restaurantId`, `sessionId` (anonimowy, losowy, w sessionStorage), `menuVersion`, `engineVersion`, `ts`.
+- **Zdarzenia użycia (spec `2026-10-15-guest-usage-events`, E02; faza 1 od 2026-10-16):** zapisuje je serwer — strona gościa po udanym renderze, w `after()` (po wysłaniu odpowiedzi; błąd zapisu tylko w logu, odpowiedź bez zmian). Bez JavaScriptu, ciasteczek i pamięci przeglądarki. Każde zdarzenie niesie `restaurant_id`, `session_id`, `engine_version`, `created_at` i `props.menuVersion` (= `publishedAt` restauracji, ISO albo `null`).
+  - **Sesja:** anonimowy UUID v4 (małe litery) w parametrze URL **`sid`**. Każdy link `/r/{slug}/…` i każdy formularz GET gościa i G9 niesie bieżący `sid` (link: na końcu adresu; formularz: ukryte pole `sid`) — także przełącznik języka i linki ze wspólnych komponentów (`href` z `guestContext`). Wyjątek: link „For staff” na G0 (kelner ma własną sesję). Brak lub niepoprawny `sid` = nowa sesja. `sid` nie trafia do treści, tytułów ani `aria-*`.
+  - **Bez zapisu:** prefetch routera (proxy oznacza go nagłówkiem `x-wine-prefetch`, bo `headers()` ukrywa `Next-Router-Prefetch`), `Sec-Purpose`/`Purpose: prefetch|prerender`, **ruch własny z nagłówkiem `x-wine-match-synthetic: 1`** (smoke, CI, monitoring — strona renderuje się normalnie), pusty `User-Agent` i UA botów / podglądów linków (`bot`, `crawl`, `spider`, `slurp`, `preview`, `facebookexternalhit`, `whatsapp`, `telegrambot`, `slackbot`, `discordbot`, `linkedinbot`, `twitterbot`, `embedly`, `curl/`, `wget/`, `python-requests`, `go-http-client`, `uptime`, `pingdom`), strony kończące się 404, wino nieaktywne na G8. Miękka nawigacja z JS (`RSC: 1`) liczy się jak odsłona; odświeżenie może dać duplikat (KPI liczą unikalne).
+  - **Katalog** (`GUEST_EVENT_NAMES` w `core/src/domain/types.ts`; nazwy i klucze `props` czyta E04 — dopisujemy, nie zmieniamy):
+
+    | Ekran | Zdarzenie | `dish_id` / `wine_id` | `props` (oprócz `menuVersion`) | Od |
+    |---|---|---|---|---|
+    | G0 bez `sid` | `guest_session_started` | – | `source: 'qr'` | F1 |
+    | inna strona gościa (G1, G3, G5–G8) bez `sid` | `guest_session_started` | – | `source: 'link'` | F1 |
+    | G0 z menu, G1 | `menu_viewed` | – | – | F1 |
+    | G3 (bez `sheet`; arkusz filtrów nie zapisuje) | `recommendations_viewed` | dish | `wineIds` (kolejność wyświetlenia), `items: [{ wineId, tier }]` (`sommelier_primary` \| `sommelier` \| `engine`), `prefs` (tylko niedomyślne) | F1 |
+    | G6 | `table_recommendation_viewed` | – | `dishIds`, `wineIds` | F2 |
+    | G7 | `wine_viewed` | dish?, wine | `context` | F2 |
+    | G8 (wino aktywne) | `wine_selected` | dish?, wine | `serving`, `context`, `dishIds` (tylko `table`) | F2 |
+    | G9 (`dish=` jawnie) | `staff_lookup` | dish | `source: 'staff'`, `prefs`, `wineIds` | F3 |
+
+    `guest_session_started` jest w tym samym zapisie co pierwsze zdarzenie strony. G9 nigdy nie rozpoczyna sesji gościa. Nazwy z tabel „Analytics” niżej, których nie ma w katalogu (np. `recommendation_clicked`, `filters_opened`), wymagają JS i `POST /public/events` — planowane, nie zapisywane.
 
 ---
 
@@ -43,7 +59,7 @@ Wspólne zasady:
 | Funkcje | menu (jak G1) od razu pod nagłówkiem: wybór dania → G3 (z preferencjami z URL); „Pair a bottle for the table” → G5; link „For staff” → G9 (pod menu na telefonie) |
 | Komponenty UI | Hero w kolorze bordo z nazwą restauracji (Bodoni Moda), adres, lead, przycisk „Pair a bottle for the table”; nagłówek „Pick your dish” i lista dań; karta kuratora (inicjały, Wine Director) — na telefonie pod menu, na desktopie w lewej kolumnie |
 | Dane wejściowe | `slug` z URL |
-| Dane wyjściowe | sesja gościa (sessionId) |
+| Dane wyjściowe | sesja gościa (`sid` w linkach; nowa, gdy adres jej nie ma) |
 | Loading | tło hero od razu (kolor marki), nazwa i przyciski po pobraniu danych restauracji |
 | Empty | restauracja bez opublikowanego menu → „Tonight’s menu is being updated. Your waiter can suggest a wine in the meantime.” |
 | Error | błędny / nieaktywny slug → „This menu isn’t available” + instrukcja ponownego skanu |

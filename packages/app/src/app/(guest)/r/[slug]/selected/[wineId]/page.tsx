@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Button, EmptyState, LanguageSwitch, TopBar } from '../../../../_components/guest-ui';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
+import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,7 +18,7 @@ type Props = { params: Promise<{ slug: string; wineId: string }>; searchParams: 
  */
 export default async function SelectedPage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
-  const { q, prefs, services, t, locale, href, langHrefs } = await guestContext(searchParams);
+  const { q, prefs, services, t, locale, session, href, langHrefs } = await guestContext(searchParams);
   const tableIds = parseDishIds({ dishes: q.table });
   const dishId = typeof q.dish === 'string' ? q.dish : undefined;
   const data = await services.recommendationService.wineDetails(slug, wineId, dishId, locale);
@@ -40,6 +41,8 @@ export default async function SelectedPage({ params, searchParams }: Props) {
   const serving = q.serving === 'glass' && wine.glassPrice !== null ? 'glass' : 'bottle';
   const price = formatPrice((serving === 'glass' ? wine.glassPrice : null) ?? wine.bottlePrice, locale);
 
+  // `wine_selected` comes with phase 2 of the usage events; here only a new session (never for an inactive wine, R6)
+  await trackUsage(services, restaurant, session, []);
   return (
     <>
       <TopBar back={back} title={restaurant.name} t={t} langSwitch={langSwitch} />

@@ -36,7 +36,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     logFile: `${appDir}/test-results/e2e-app.log`,
     env: { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: databaseUrl, AUTH_COOKIE_SECURE: 'false', LOG_LEVEL: 'info' }
   });
-  project.provide('e2e', { baseUrl: app.url, appLogs: '' });
+  project.provide('e2e', { baseUrl: app.url, appLogs: '', databaseUrl });
 
   return async () => {
     await app.stop();

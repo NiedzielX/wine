@@ -1,7 +1,7 @@
 import type { ImportRepository } from './import';
 import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
 import type { Locale } from '../i18n/locale';
-import type { Dish, EntityStatus, OpportunityDismissal, Pairing, PairingRole, PairingStatus, Restaurant, RestaurantSettings, Wine } from '../domain/types';
+import type { Dish, EntityStatus, GuestEventName, GuestInteraction, OpportunityDismissal, Pairing, PairingRole, PairingStatus, Restaurant, RestaurantSettings, Wine } from '../domain/types';
 
 /**
  * Repository ports. Implementations: in-memory (`@wine-match/core/memory`) and PostgreSQL
@@ -161,6 +161,30 @@ export interface OpportunityDismissalRepository {
   remove(restaurantId: string, key: string): Promise<boolean>;
 }
 
+/** One usage event to store (spec 2026-10-15-guest-usage-events). `props` are typed by `UsageEventService` before this. */
+export interface GuestInteractionInput {
+  sessionId: string;
+  name: GuestEventName;
+  dishId?: string;
+  wineId?: string;
+  props: Record<string, unknown>;
+  engineVersion: string;
+  createdAt: Date;
+}
+
+/**
+ * Anonymous usage events (telemetry, not a command: no actor, no version, no domain errors). Scoped by restaurant
+ * like every other port. The in-memory implementation keeps at most 10 000 events.
+ */
+export interface GuestInteractionRepository {
+  /** stores the events in one write (one insert), in the given order */
+  record(restaurantId: string, events: GuestInteractionInput[]): Promise<void>;
+  /** events of one session in insertion order — contract tests and diagnostics */
+  listBySession(restaurantId: string, sessionId: string): Promise<GuestInteraction[]>;
+  /** distinct session_id with a guest_session_started event, createdAt in [from, to) */
+  countGuestSessions(restaurantId: string, range: { from: Date; to: Date }): Promise<number>;
+}
+
 /** The repositories a data source must provide, registered in the DI container under these names. */
 export interface Repositories {
   restaurantRepository: RestaurantRepository;
@@ -174,4 +198,5 @@ export interface Repositories {
   contentWriteRepository: ContentWriteRepository;
   importRepository: ImportRepository;
   opportunityDismissalRepository: OpportunityDismissalRepository;
+  guestInteractionRepository: GuestInteractionRepository;
 }

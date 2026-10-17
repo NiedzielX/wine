@@ -36,7 +36,7 @@ npm run dev
 | `npm run check:boundaries` | granice między pakietami |
 | `npm run audit:gate` | audyt zależności produkcyjnych: wysokie i krytyczne blokują, wyjątki tylko jawne i z terminem |
 | `npm run boot:check` | start zbudowanej aplikacji bez bazy (po `npm run build`): zła konfiguracja zatrzymuje serwer, demo tylko świadomie, ogólne 500 bez sekretów |
-| `npm run smoke` | smoke test uruchomionej aplikacji (`npm start` w drugim terminalu): 155 sprawdzeń stron gościa, panelu, logowania, uprawnień, importu, QR i API; loguje się kontem demo; niczego nie zmienia w danych |
+| `npm run smoke` | smoke test uruchomionej aplikacji (`npm start` w drugim terminalu): ponad 200 sprawdzeń stron gościa, panelu, logowania, uprawnień, importu, QR i API; loguje się kontem demo; niczego nie zmienia w danych. Każde żądanie ma nagłówek `x-wine-match-synthetic: 1` (ruch własny): strony renderują się normalnie, ale nie zapisują zdarzeń użycia gościa — wysyłaj go też z `curl` i monitoringu |
 | `npm run user:create` | tworzy konto do panelu (patrz niżej) |
 | `npm run engine:matrix` | przegląd kalibracji silnika: najlepsze wina dla każdego dania demo |
 | `npm run db:migration:create` | nowa migracja z różnicy encje ↔ baza |

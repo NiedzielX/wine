@@ -13,6 +13,14 @@ const PASSWORD = process.env.SMOKE_PASSWORD ?? 'demo-halka-2026';
 let failures = 0;
 let SESSION = '';   // cookie of the signed-in sommelier, used for dashboard requests
 
+/**
+ * Every request of the smoke test is our own traffic: it carries `x-wine-match-synthetic: 1`, so the guest pages render
+ * as usual but record no usage events (spec 2026-10-15-guest-usage-events, Q14). Set here once, for every fetch.
+ */
+const SYNTHETIC = { 'x-wine-match-synthetic': '1' };
+const realFetch = globalThis.fetch;
+globalThis.fetch = (url, init = {}) => realFetch(url, { ...init, headers: { ...SYNTHETIC, ...(init.headers ?? {}) } });
+
 async function check(name, path, { status = 200, has = [], hasNot = [], method = 'GET', body, redirect = 'follow', cookie, headers = {}, location } = {}) {
   const useCookie = cookie ?? (path.startsWith('/admin') ? SESSION : '');
   const res = await fetch(base + path, {
@@ -56,6 +64,8 @@ const risotto = dish('Wild mushroom risotto');
 const recs = await json(`/api/v1/dishes/${duck}/recommendations?restaurant=${slug}`);
 const wine = recs.items[0].wine.id;
 const R = `/r/${slug}`;
+// a fixed guest session: every guest link carries `sid` last (spec 2026-10-15-guest-usage-events, R3)
+const SID = '5a0be7e5-0000-4000-8000-00000000c0de';
 // spec 2026-10-16-how-it-works-explanations (R7, AC10): one name for the sommelier's pairings and the engine's top pick
 const OLD_LABELS = ['Sommelier recommendation', 'sommelier recommendation', 'Rekomendacja sommeliera', 'Best match', 'Najlepsze dopasowanie', 'Perfect with your dish', 'Pasuje do Twojego dania', 'Para od sommeliera', 'Every recommendation follows', 'Sommelier pairing available', 'Wine Director’s first choice'];
 const plain = dish('Burrata & roasted pumpkin');
@@ -68,7 +78,7 @@ await check('G2 redirects to the wines with the whole query', `${R}/dish/${duck}
 await check('G3 unknown dish', `${R}/dish/00000000-0000-4000-8000-000000000000/wines`, { status: 404 });
 await check('G3 recommendations', `${R}/dish/${duck}/wines`, { has: ['Sommelier’s pairing', 'Pinot and sour cherry jus', 'Also good with this dish', 'Savigny', 'Roasted duck breast', 'Quick preferences', 'aria-current="page"', '<details data-explain="wines"', 'Why these wines?', 'shown from 62%', 'Every wine comes from Halka’s list', 'aria-label="Match '], hasNot: ['AI recommendation', 'Powered by AI', ...OLD_LABELS, ' open=""'] });
 await check('G3 a dish without a sommelier’s pairing: the engine’s top pick', `${R}/dish/${plain}/wines`, { has: ['Recommended for your dish', 'data-explain="wines"'], hasNot: OLD_LABELS });
-await check('G3 quick chip toggles off', `${R}/dish/${duck}/wines?serving=glass`, { has: [`href="${R}/dish/${duck}/wines"`, `${R}/menu?serving=glass`] });
+await check('G3 quick chip toggles off', `${R}/dish/${duck}/wines?serving=glass&sid=${SID}`, { has: [`href="${R}/dish/${duck}/wines?sid=${SID}"`, `${R}/menu?serving=glass&amp;sid=${SID}`] });
 await check('G3 filter: glass', `${R}/dish/${duck}/wines?serving=glass`, { has: ['By the glass', 'Glass 64 zł'], hasNot: ['Bottle 380 zł'] });
 await check('G3 filter: budget too low', `${R}/dish/${dish('Dry-aged ribeye, 300 g')}/wines?serving=glass&maxPrice=45`, { has: ['Nothing matches under 45 zł'] });
 await check('G4 filters sheet', `${R}/dish/${duck}/wines?sheet=filters`, { has: ['role="dialog"', 'Refine', 'Reset', 'Mood', 'Body', 'data-explain="wines"', 'data-explain="filters"', 'How do the filters work?'] });
@@ -86,7 +96,16 @@ const PL = { 'accept-language': 'pl-PL,pl;q=0.9' };
 await check('G0 in Polish from Accept-Language', R, { headers: PL, has: ['<html lang="pl"', 'Wybierz danie', 'Pokażemy wina z naszej karty, które do niego pasują.', 'Dobierz butelkę do stolika', `${R}?lang=en`], hasNot: ['Pick your dish'] });
 await check('G0 in English without Accept-Language', R, { has: ['<html lang="en"', 'Pick your dish'], hasNot: ['Wybierz danie'] });
 await check('G0 in English for an English browser', R, { headers: { 'accept-language': 'en-GB' }, has: ['Pick your dish'] });
-await check('G0 links do not carry a language from the browser', R, { headers: PL, has: [`href="${R}/dish/${duck}/wines"`], hasNot: [`${R}/dish/${duck}/wines?lang=`] });
+await check('G0 links do not carry a language from the browser', `${R}?sid=${SID}`, { headers: PL, has: [`href="${R}/dish/${duck}/wines?sid=${SID}"`], hasNot: [`${R}/dish/${duck}/wines?lang=`] });
+// E02 phase 1: the anonymous session travels in every guest link and form, never in a cookie
+const g0 = await check('G0 without sid starts a session: its links carry a new sid, "For staff" none', R, { has: ['sid='], hasNot: [`${R}/staff?sid=`] });
+expect('G0 sets no cookie', !g0.res.headers.get('set-cookie'));
+await check('G0 with a session keeps it in the language switch', `${R}?sid=${SID}`, { has: [`?lang=pl&amp;sid=${SID}`, `${R}/table?sid=${SID}`] });
+await check('G7 with sid: 200, the form carries the session', `${R}/wine/${wine}?dish=${duck}&sid=${SID}`, { has: [`name="sid" value="${SID}"`] });
+await check('G5 form carries the session', `${R}/table?sid=${SID}`, { has: [`name="sid" value="${SID}"`] });
+await check('G9 links and form carry the staff session', `${R}/staff?sid=${SID}`, { has: [`name="sid" value="${SID}"`, `sid=${SID}`] });
+// (the router payload repeats the requested URL, so only the links are checked)
+await check('a malformed sid is replaced, not an error', `${R}/menu?sid=NOT-A-UUID`, { has: ['sid='], hasNot: ['href="/r/halka/menu?sid=NOT-A-UUID', 'sid=NOT-A-UUID" ', '&amp;sid=NOT-A-UUID'] });
 await check('G0 ?lang=en wins over a Polish browser and travels in the links', `${R}?lang=en`, { headers: PL, has: ['<html lang="en"', 'Pick your dish', `${R}/dish/${duck}/wines?lang=en`, `${R}/table?lang=en`, `${R}/staff?lang=en`, 'aria-current="true"'], hasNot: ['Wybierz danie'] });
 await check('G3 in Polish: engine reason translated, sommelier note in Polish', `${R}/dish/${duck}/wines`, { headers: PL, has: ['<html lang="pl"', 'Para sommeliera', 'Skąd te wina?', 'pokazujemy je od 62%', 'aria-label="Dopasowanie ', 'Pinot noir i sos wiśniowy', 'Też pasuje do tego dania', 'Świeża kwasowość równoważy bogactwo potrawy', 'Na kieliszki', 'Więcej…', 'Czerwone', 'Kieliszek 64\u00a0zł', 'dopasowanie'], hasNot: ['Also good with this dish', 'AI', ...OLD_LABELS] });
 await check('G3 ?lang=pl without a header', `${R}/dish/${duck}/wines?lang=pl&serving=glass`, { has: ['Para sommeliera', `${R}/menu?serving=glass&amp;lang=pl`] });

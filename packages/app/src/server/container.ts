@@ -3,7 +3,7 @@ import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
   AdminService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationService,
-  SommelierService, TranslationService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser,
+  SommelierService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser,
   type PasswordHasher, type Repositories, type SessionTokens
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
@@ -36,6 +36,7 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   publishService: PublishService;
   opportunityService: OpportunityService;
   translationService: TranslationService;
+  usageEventService: UsageEventService;
 }
 
 export type DataSource = 'memory' | 'postgres';
@@ -62,6 +63,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     publishService: asClass(PublishService).scoped(),
     opportunityService: asClass(OpportunityService).scoped(),
     translationService: asClass(TranslationService).scoped(),
+    usageEventService: asClass(UsageEventService).scoped(),
     // time and identity come from outside so core stays deterministic and testable
     clock: asValue<Clock>({ now: () => new Date() }),
     idGenerator: asValue<IdGenerator>({ uuid: () => randomUUID() }),
@@ -89,7 +91,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       contentWriteRepository: asClass(db.PgContentWriteRepository).scoped(),
       authRepository: asClass(db.PgAuthRepository).scoped(),
       importRepository: asClass(db.PgImportRepository).scoped(),
-      opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped()
+      opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped(),
+      guestInteractionRepository: asClass(db.PgGuestInteractionRepository).scoped()
     });
   } else {
     const store = MemoryStore.from(buildDemoDataset({ ids: 'uuid' }));
@@ -106,7 +109,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       contentWriteRepository: asValue(repos.contentWriteRepository),
       authRepository: asValue<AuthRepository>(new MemoryAuthRepository(store)),
       importRepository: asValue(repos.importRepository),
-      opportunityDismissalRepository: asValue(repos.opportunityDismissalRepository)
+      opportunityDismissalRepository: asValue(repos.opportunityDismissalRepository),
+      guestInteractionRepository: asValue(repos.guestInteractionRepository)
     });
   }
   return container;

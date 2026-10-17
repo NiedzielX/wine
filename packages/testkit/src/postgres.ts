@@ -34,6 +34,20 @@ export async function startTestDatabase(env: Record<string, string | undefined> 
 
 const DB_NAME = /^[a-z][a-z0-9_]{0,50}$/;
 
+/**
+ * Runs one parameterised query on a database and returns its rows — for tests that check what the running app
+ * wrote (e.g. the usage events of an end-to-end run). One short-lived connection per call.
+ */
+export async function queryDatabase<T = Record<string, unknown>>(url: string, sql: string, params: unknown[] = []): Promise<T[]> {
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    return (await client.query(sql, params)).rows as T[];
+  } finally {
+    await client.end();
+  }
+}
+
 /** Drops and recreates a database on the server, and returns a connection string to it. */
 export async function createDatabase(baseUrl: string, name: string): Promise<string> {
   if (!DB_NAME.test(name)) throw new Error(`Refusing unusual database name: "${name}"`);

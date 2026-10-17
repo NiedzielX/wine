@@ -1,7 +1,7 @@
 import type { OnceRunner } from './contract-types';
 import type { DemoDataset } from '../demo/dataset';
 import type { OpportunityDismissal } from '../domain/types';
-import type { Repositories } from '../ports/repositories';
+import type { GuestInteractionInput, Repositories } from '../ports/repositories';
 
 /**
  * Behaviour every Repositories implementation must have. Used by the memory tests in core and
@@ -127,6 +127,56 @@ export function repositoryContract(
       t.expect(await repos.opportunityDismissalRepository.listActive(OTHER_RESTAURANT, new Date('2026-10-20T00:00:00.000Z'))).toEqual([]);
       t.expect(await repos.opportunityDismissalRepository.remove(OTHER_RESTAURANT, key)).toBe(false);
       t.expect((await repos.opportunityDismissalRepository.listActive(ds.restaurant.id, new Date('2026-10-20T00:00:00.000Z'))).some((x) => x.key === key)).toBe(true);
+    });
+
+    /* ---------- usage events (spec 2026-10-15-guest-usage-events, R7, AC11, AC12) ---------- */
+    // the setup runs once per file: every case uses its own sessions and a time range of its own (2031)
+    const OTHER = '00000000-0000-4000-8000-000000000000';
+    const sid = (n: number) => `5e551000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    const at = (iso: string) => new Date(iso);
+    const ev = (sessionId: string, name: GuestInteractionInput['name'], createdAt: string, extra: Partial<GuestInteractionInput> = {}): GuestInteractionInput =>
+      ({ sessionId, name, props: { menuVersion: null }, engineVersion: 'wm-test', createdAt: at(createdAt), ...extra });
+
+    t.it('records usage events and lists one session in insertion order, scoped by restaurant', async () => {
+      const dish = ds.dishes[0].id;
+      const wine = ds.wines[0].id;
+      await repos.guestInteractionRepository.record(ds.restaurant.id, [
+        ev(sid(1), 'guest_session_started', '2031-01-01T10:00:00.000Z', { props: { source: 'qr', menuVersion: '2031-01-01T00:00:00.000Z' } }),
+        ev(sid(1), 'menu_viewed', '2031-01-01T10:00:00.000Z'),
+        ev(sid(1), 'recommendations_viewed', '2031-01-01T10:01:00.000Z', { dishId: dish, props: { wineIds: [wine], items: [{ wineId: wine, tier: 'engine' }], prefs: { serving: 'glass' }, menuVersion: null } })
+      ]);
+      await repos.guestInteractionRepository.record(ds.restaurant.id, [ev(sid(1), 'wine_viewed', '2031-01-01T10:02:00.000Z', { wineId: wine, props: { context: 'direct', menuVersion: null } })]);
+      await repos.guestInteractionRepository.record(ds.restaurant.id, []);
+      const list = await repos.guestInteractionRepository.listBySession(ds.restaurant.id, sid(1));
+      t.expect(list.map((e) => e.name)).toEqual(['guest_session_started', 'menu_viewed', 'recommendations_viewed', 'wine_viewed']);
+      t.expect(list[0]).toEqual({
+        sessionId: sid(1), name: 'guest_session_started', dishId: null, wineId: null,
+        props: { source: 'qr', menuVersion: '2031-01-01T00:00:00.000Z' }, engineVersion: 'wm-test', createdAt: '2031-01-01T10:00:00.000Z'
+      });
+      t.expect(list[2]).toMatchObject({ dishId: dish, wineId: null, props: { wineIds: [wine], items: [{ wineId: wine, tier: 'engine' }], prefs: { serving: 'glass' } } });
+      t.expect(list[3]).toMatchObject({ dishId: null, wineId: wine });
+      t.expect(await repos.guestInteractionRepository.listBySession(OTHER, sid(1))).toEqual([]);
+      t.expect(await repos.guestInteractionRepository.listBySession(ds.restaurant.id, sid(999))).toEqual([]);
+    });
+
+    t.it('counts distinct guest sessions with a start in [from, to): never staff sessions or sessions without a start', async () => {
+      const repo = repos.guestInteractionRepository;
+      await repo.record(ds.restaurant.id, [
+        ev(sid(11), 'guest_session_started', '2031-02-01T00:00:00.000Z'),   // at `from`: counted
+        ev(sid(11), 'menu_viewed', '2031-02-01T00:00:01.000Z'),
+        ev(sid(11), 'guest_session_started', '2031-02-02T00:00:00.000Z'),   // the same session twice: counted once
+        ev(sid(12), 'guest_session_started', '2031-02-05T00:00:00.000Z'),
+        ev(sid(13), 'guest_session_started', '2031-03-01T00:00:00.000Z'),   // at `to`: not counted
+        ev(sid(14), 'guest_session_started', '2031-01-31T23:59:59.999Z'),   // before `from`
+        ev(sid(15), 'staff_lookup', '2031-02-03T00:00:00.000Z', { props: { source: 'staff', prefs: {}, wineIds: [], menuVersion: null } }),
+        // a staff sid reused on a guest page: guest events without a start
+        ev(sid(15), 'menu_viewed', '2031-02-03T00:01:00.000Z'),
+        ev(sid(16), 'recommendations_viewed', '2031-02-04T00:00:00.000Z')
+      ]);
+      const range = { from: at('2031-02-01T00:00:00.000Z'), to: at('2031-03-01T00:00:00.000Z') };
+      t.expect(await repo.countGuestSessions(ds.restaurant.id, range)).toBe(2);
+      t.expect(await repo.countGuestSessions(OTHER, range)).toBe(0);
+      t.expect(await repo.countGuestSessions(ds.restaurant.id, { from: at('2031-02-28T00:00:00.000Z'), to: at('2031-03-01T00:00:00.001Z') })).toBe(1);
     });
   });
 }

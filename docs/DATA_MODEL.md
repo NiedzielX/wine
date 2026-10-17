@@ -14,7 +14,7 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | Pairing | tak | unikalność (dish, wine), częściowy indeks unikalny „jeden Primary na danie”, `version` do blokady optymistycznej |
 | SommelierDecision | tak | audyt, `actor` jako tekst do czasu wprowadzenia User; **bez klucza obcego** do pairingu (kolumna `pairing_id`), żeby historia przeżyła usunięcie pairingu; ma `restaurant_id`, `dish_id`, `wine_id` |
 | PublishedVersion | tak | migawka pairingów (approved / modified / rejected) w `snapshot` (jsonb), `number` unikalny w restauracji; goście czytają najnowszą |
-| GuestInteraction | tak | `session_id` bez tabeli GuestSession (dodana razem z analityką) |
+| GuestInteraction | tak | zapisywana od E02 F1 (spec `2026-10-15-guest-usage-events`) przez `GuestInteractionRepository` (`record`, `listBySession`, `countGuestSessions`; pamięć: do 10 000 zdarzeń). `session_id` = parametr URL `sid` (bez tabeli GuestSession); `source`, `context`, `menuVersion` (= `restaurant.published_at`) w `props`; kolumna `version_id` nie istnieje. Sesja gościa = `session_id` ze zdarzeniem `guest_session_started` |
 | ImportJob | tak | wiersze podglądu w kolumnie `rows` (jsonb) zamiast tabeli ImportRow |
 | User (`app_user`), Membership, Session | tak | hasło jako skrót scrypt; w `session` tylko SHA-256 tokenu; licznik prób i blokada w `app_user`; `membership.role`: owner, manager, sommelier, waiter. `sommelier_decision.actor_id` wskazuje konto (zwykła kolumna) |
 | ImportJob | tak | `rows` (jsonb) to sprawdzony podgląd wierszy, `notes` — jak odczytano plik, `result` — wynik zatwierdzenia; **plik nie jest przechowywany** (`storage_key` puste); status `preview_ready` → `confirmed` / `cancelled`; zatwierdzenie atomowe z blokadą wiersza. Rodzaj `sales` w Fazie 6 |
@@ -244,7 +244,7 @@ Wariant `default` dla każdego dania liczony przy publikacji; pozostałe na żą
 
 | GuestSession | | GuestInteraction | |
 |---|---|---|---|
-| id | uuid PK (losowy, w sessionStorage, bez danych osobowych) | id | bigint PK |
+| id | uuid PK (losowy UUID v4 w parametrze URL `sid`, bez ciasteczek i pamięci przeglądarki, bez danych osobowych) | id | bigint PK |
 | restaurant_id | uuid FK | session_id | uuid FK |
 | started_at | timestamptz | restaurant_id | uuid FK |
 | source | enum `qr`, `link`, `staff` | name | text — nazwa eventu (lista w SCREEN_SPECIFICATION) |
@@ -253,7 +253,7 @@ Wariant `default` dla każdego dania liczony przy publikacji; pozostałe na żą
 | | | version_id, engine_version | |
 | | | created_at | timestamptz |
 
-Partycjonowanie miesięczne. Brak cookies śledzących i danych osobowych gościa.
+Partycjonowanie miesięczne. Brak cookies śledzących i danych osobowych gościa. **Stan (E02 F1):** tabeli GuestSession nie ma — sesja to `sid` z URL, a jej źródło (`qr` / `link`) jest w `props.source` zdarzenia `guest_session_started`; kelner (`staff`) nie ma sesji gościa. Bez IP, UA, numeru stolika i tekstu od gościa.
 
 ### ImportJob, ImportRow
 
