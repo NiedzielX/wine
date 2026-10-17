@@ -268,7 +268,8 @@ export const en = {
       qr: 'QR code',
       setup: 'Setup',
       importMenu: 'Import menu',
-      importWines: 'Import wine list'
+      importWines: 'Import wine list',
+      opportunities: 'Opportunities'
     },
     language: {
       label: 'Dashboard language'
@@ -304,6 +305,7 @@ export const en = {
       wines: 'Wine list',
       pairings: 'Pairings',
       review: 'Review queue',
+      opportunities: 'Opportunities',
       publish: 'Publish',
       restaurant: 'Restaurant',
       importMenu: 'Import menu',
@@ -368,7 +370,10 @@ export const en = {
         details_slug: () => 'Details saved. The address of your guest app changed: print new QR codes, the old ones no longer work.',
         suggestions: (n: number) => `${n} engine suggestions added.`,
         translations: () => 'Translations saved. Guests see them after you publish.',
-        content: () => 'Content language and translations saved. Guests see them after you publish.'
+        content: () => 'Content language and translations saved. Guests see them after you publish.',
+        suggestion_added: () => 'Added to suggestions — approve it in “Engine suggestions”. Guests see the change only after you approve it and publish.',
+        opportunity_dismissed: (days: number) => `Opportunity ignored. It comes back after ${days} days at the earliest if it still applies.`,
+        opportunity_restored: () => 'Opportunity restored.'
       },
       errors: {
         version_conflict: 'This pairing was changed by someone else a moment ago. The page now shows the latest version, please try again.',
@@ -404,6 +409,12 @@ export const en = {
         slug_taken: 'Another restaurant already uses this address name. Choose another.',
         validation_failed: 'Check the details. The address name can use only lowercase letters, digits and hyphens (2 to 40 characters) and must not be a reserved word.',
         translation_invalid: 'Check the translations: one of them is too long.',
+        already_suggested: 'This wine is already among the suggestions for this dish.',
+        already_rejected: 'This pairing was rejected — restore it in the Rejected section.',
+        dish_not_published: 'This dish is not visible to guests.',
+        low_match: 'This wine is a weak match for the dish.',
+        opportunity_stale: 'This opportunity no longer applies.',
+        opportunity_not_dismissed: 'This opportunity is not ignored.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -451,6 +462,8 @@ export const en = {
       openMenu: 'Open the menu',
       hiddenWines: (n: number) => `${n} ${n === 1 ? 'wine is' : 'wines are'} hidden from guests.`,
       openWines: 'Open the wine list',
+      opportunities: (n: number) => `Opportunities: ${n}`,
+      openOpportunities: 'Open opportunities',
       activity: 'Guest activity',
       activityText: 'Sessions, recommendations shown, wines chosen and wine revenue.',
       noGuests: 'No guests have used Wine Match yet',
@@ -629,6 +642,42 @@ export const en = {
       sommelier: 'Sommelier’s pairing',
       bestValue: 'Best value'
     },
+    opportunities: {
+      title: 'Opportunities',
+      description: 'Places on your menu and wine list worth a look, grouped by dish.',
+      readOnly: 'You can see every opportunity. Only the Wine Director adds suggestions or ignores opportunities.',
+      badge: 'Opportunity',
+      dishTitle: 'Opportunities for this dish',
+      dishText: 'Worth a look. Nothing changes for guests until you approve a pairing and publish.',
+      all: 'All opportunities',
+      openPairings: 'Open pairings',
+      current: 'Current pairings',
+      noCurrent: 'none',
+      add: 'Add to suggestions',
+      ignore: 'Ignore',
+      restore: 'Restore',
+      emptyTitle: 'Nothing to check.',
+      emptyText: 'When a dish or a wine is worth a look, it shows up here.',
+      degraded: 'Some opportunities are temporarily unavailable.',
+      dismissed: (n: number) => `Ignored (${n})`,
+      dismissedBy: (name: string, until: string) => `${name} · back on ${until}`,
+      rules: {
+        dish_no_primary: 'Dish without a primary pick',
+        glass_match_unpaired: 'By-the-glass match',
+        wine_unpaired: 'Wine without a pairing',
+        shown_rarely_chosen: 'Rarely chosen pairing',
+        ordered_not_reviewed: 'Ordered, not approved'
+      },
+      sentences: {
+        none: () => 'This dish has no approved pairing yet.',
+        no_primary: () => 'This dish has approved pairings, but none of them is the Primary.',
+        primary_hidden: (wine: string) => `This dish’s Primary wine (${wine}) is hidden, so guests don’t see it.`,
+        glass_match_unpaired: (wine: string, score: number, price: string) => `${wine} matches this dish at ${score}%, is served by the glass (${price}), and none of this dish’s pairings is available by the glass.`,
+        wine_unpaired: (wine: string, dish: string, score: number) => `${wine} is on your list but has no approved pairing. It matches “${dish}” best (${score}%).`,
+        shown_rarely_chosen: (wine: string, shown: number, days: number, chosen: number, rate: number, otherRate: number) => `When guests saw ${wine} with this dish (${shown} times in the last ${days} days), they chose it ${chosen} ${chosen === 1 ? 'time' : 'times'} (${rate}%); they chose the other wines for this dish ${otherRate}% of the time.`,
+        ordered_not_reviewed: (wine: string, orders: number, days: number) => `${wine} was ordered with a recommendation code for this dish ${orders} ${orders === 1 ? 'time' : 'times'} in the last ${days} days, and this pairing isn’t approved.`
+      }
+    },
     publish: {
       title: 'Publish',
       description: (when: string, version: string) => `Last published ${when}${version}. Guests see the published version through the QR code.`,
@@ -740,6 +789,13 @@ export const en = {
           'The “Whole table” bottle is always chosen from the whole active wine list, whatever this setting.',
           'Show match percentages: when off, guests see a glass filled to the level of the match, without a number. On “Whole table” the bars per dish still show percentages; the waiter’s screen always does.',
           'Both settings apply at once, without publishing.'
+        ]
+      },
+      opportunities: {
+        summary: 'What are opportunities?',
+        points: (days: number) => [
+          'Opportunities point to places worth a look. We find them in your wine list and match scores and, once there is data, in guests’ choices and orders with a recommendation code — from this restaurant only.',
+          `Nothing changes without your decision; an ignored opportunity comes back after ${days} days at the earliest.`
         ]
       }
     },

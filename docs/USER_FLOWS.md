@@ -75,6 +75,10 @@ flowchart LR
   RQ -->|Approve all| PB[Publish<br>/admin/publish]
   PM -->|nav: Publish| PB
   PB -->|Publish changes| OK([Guests see changes])
+  DB -->|Opportunities: n| OP[Opportunities<br>/admin/opportunities]
+  OP -->|Add to suggestions / Ignore / Restore| OP
+  OP -->|Open pairings| PM
+  PM -->|Add to suggestions, then Approve| PM
 ```
 
 | Krok | Ekran | Akcja | API |
@@ -86,6 +90,7 @@ flowchart LR
 | 5 | Pairings | „Approve” propozycji, rola Primary, kolejność, notatka | `PATCH /pairings/{id}`, `POST /pairings/{id}/decisions` |
 | 6 | Review queue | przegląd pozostałych dań, „Approve all for this dish” | `POST /restaurants/{id}/pairings/bulk-decision` |
 | 7 | Publish | checklista, ustawienia gościa, „Publish changes” | `POST /restaurants/{id}/publish` |
+| opcj. | Opportunities (A14) / karta na A6 | „Add to suggestions” (wino trafia do „Engine suggestions” dania; gość nic nie widzi do „Approve” i publikacji), „Ignore” (wraca najwcześniej po 30 dniach), „Restore” | akcje serwerowe (spec `2026-10-16-sommelier-opportunities`, F2), bez REST |
 
 ---
 

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { buildRows, linesToRows, mapTable, type ImportIssue } from '@wine-match/core';
+import { DISMISS_DAYS, buildRows, linesToRows, mapTable, type ImportIssue } from '@wine-match/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { formatDateTime, vintageLabel, zl } from '@/app/(admin)/admin/_components/format';
 import { errorText, issueText, noteText, savedText } from '@/app/(admin)/admin/_components/messages';
@@ -138,5 +138,60 @@ describe('messages by code', () => {
     expect(noteText('Columns not used: Colour, Notes.', pl)).toBe('Nieużyte kolumny: Colour, Notes.');
     expect(noteText('No header row was found, so the columns were read in this order: name, price.', pl)).toBe('Nie znaleziono wiersza nagłówka, więc kolumny odczytano w tej kolejności: Nazwa, Cena (zł).');
     expect(noteText('Something new.', pl)).toBe('Something new.');
+  });
+});
+
+/** Every text of a dictionary branch: strings as they are, functions called with sample values (numbers and names). */
+function textsOf(node: unknown, path = ''): Array<[string, string]> {
+  if (typeof node === 'string') return [[path, node]];
+  if (typeof node === 'function') {
+    const args = Array.from({ length: node.length }, (_, i) => (i === 0 ? 'Solaris' : i + 1));
+    const out = (node as (...a: unknown[]) => unknown)(...args);
+    return Array.isArray(out) ? out.map((x, i) => [`${path}[${i}]`, String(x)]) : [[path, String(out)]];
+  }
+  if (node && typeof node === 'object') return Object.entries(node).flatMap(([k, v]) => textsOf(v, path ? `${path}.${k}` : k));
+  return [];
+}
+const keysOf = (node: unknown) => textsOf(node).map(([k]) => k);
+
+describe('opportunity texts (spec 2026-10-16-sommelier-opportunities, F2: AC9, R9)', () => {
+  const branches = (t: typeof en) => ({ opportunities: t.admin.opportunities, explain: t.admin.explain.opportunities, nav: t.admin.nav.opportunities, meta: t.admin.meta.opportunities, line: t.admin.dashboard.opportunities });
+
+  it('Polish and English have the same keys', () => {
+    expect(keysOf(branches(pl))).toEqual(keysOf(branches(en)));
+  });
+
+  it('no opportunity text says AI or artificial intelligence; the name is "Okazja" / "Opportunity"', () => {
+    for (const t of [en, pl]) {
+      for (const [key, text] of textsOf(branches(t))) expect(text, key).not.toMatch(/\bAI\b|sztuczn|artificial/i);
+    }
+    expect(pl.admin.opportunities.badge).toBe('Okazja');
+    expect(en.admin.opportunities.badge).toBe('Opportunity');
+  });
+
+  it('the number of days comes from DISMISS_DAYS, never typed in', () => {
+    for (const t of [en, pl]) {
+      expect(t.admin.explain.opportunities.points(DISMISS_DAYS).join(' ')).toContain(String(DISMISS_DAYS));
+      expect(t.admin.explain.opportunities.points(1234).join(' ')).toContain('1234');
+      expect(t.admin.explain.opportunities.points(1234).join(' ')).not.toMatch(/\b30\b/);
+    }
+    expect(savedText(pl.admin.flash, 'opportunity_dismissed', undefined)).toContain(`${DISMISS_DAYS} dniach`);
+    expect(savedText(en.admin.flash, 'suggestion_added', undefined)).toContain('only after you approve it and publish');
+    expect(savedText(pl.admin.flash, 'opportunity_restored', undefined)).toBe('Okazja przywrócona.');
+  });
+
+  it('the new error codes have their messages', () => {
+    for (const code of ['already_suggested', 'already_rejected', 'dish_not_published', 'low_match', 'opportunity_stale', 'opportunity_not_dismissed']) {
+      expect(errorText(pl.admin.flash, code)).not.toBe(pl.admin.flash.errors.unexpected);
+      expect(errorText(en.admin.flash, code)).not.toBe(en.admin.flash.errors.unexpected);
+    }
+    expect(errorText(pl.admin.flash, 'opportunity_stale')).toBe('Ta okazja jest już nieaktualna.');
+  });
+
+  it('Polish plurals in the usage and order sentences', () => {
+    const s = pl.admin.opportunities.sentences;
+    expect(s.ordered_not_reviewed('Solaris', 1, 28)).toContain('1 raz ');
+    expect(s.ordered_not_reviewed('Solaris', 5, 28)).toContain('5 razy ');
+    expect(s.shown_rarely_chosen('Solaris', 30, 28, 2, 7, 40)).toContain('wybrali je 2 razy (7%)');
   });
 });

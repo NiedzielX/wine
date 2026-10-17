@@ -94,6 +94,24 @@ export async function publishChanges(form: FormData) {
   });
 }
 
+/** Opportunities (spec 2026-10-16-sommelier-opportunities, F2): "Add to suggestions" puts the wine in the review queue; guests see nothing until it is approved and published. */
+export async function addOpportunitySuggestion(form: FormData) {
+  return act(form, 'pairings.decide', async ({ c, slug, actor, form: f }) => {
+    await c.sommelierService.addSuggestion(slug, { dishId: str(f, 'dishId'), wineId: str(f, 'wineId') }, actor);
+    return { saved: 'suggestion_added' };
+  });
+}
+
+/** "Ignore": hides the opportunity for DISMISS_DAYS; a key that is no longer a candidate is `opportunity_stale`. */
+export async function dismissOpportunity(form: FormData) {
+  return act(form, 'pairings.decide', async ({ c, slug, actor, form: f }) => { await c.opportunityService.dismiss(slug, str(f, 'key'), actor); return { saved: 'opportunity_dismissed' }; });
+}
+
+/** "Restore": the ignored opportunity shows again right away. */
+export async function restoreOpportunity(form: FormData) {
+  return act(form, 'pairings.decide', async ({ c, slug, actor, form: f }) => { await c.opportunityService.restore(slug, str(f, 'key'), actor); return { saved: 'opportunity_restored' }; });
+}
+
 export async function saveGuestSettings(form: FormData) {
   return act(form, 'settings.change', async ({ c, slug, form: f }) => {
     await c.publishService.updateSettings(slug, { showUnreviewed: f.get('showUnreviewed') === 'on', showScores: f.get('showScores') === 'on' });
