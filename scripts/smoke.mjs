@@ -165,7 +165,7 @@ const write = (extra = {}) => ({ 'x-csrf-token': CSRF, cookie: SESSION, ...extra
 
 await check('no session: /admin goes to the sign-in page', '/admin', { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });
 await check('no session: the dashboard goes to sign-in and remembers where you were', `/admin/${slug}`, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(`/admin/${slug}`)}` });
-for (const path of [`/menu`, `/wines`, `/review`, `/publish`, `/pairings/${duck}`, `/menu/${duck}`]) {
+for (const path of [`/menu`, `/wines`, `/review`, `/opportunities`, `/publish`, `/pairings/${duck}`, `/menu/${duck}`]) {
   await check(`no session: ${path} is not reachable and sign-in remembers it`, `/admin/${slug}${path}`, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(`/admin/${slug}${path}`)}` });
 }
 await check('sign-in page', '/admin/login', { cookie: '', has: ['Sign in', 'Work e-mail', 'Password'] });
@@ -214,6 +214,7 @@ expect('the general manager can sign in', gm.res.status === 200 && gm.body.membe
 const gmw = { 'x-csrf-token': gm.body.csrfToken, cookie: GM };
 await check('GM sees the pairing screen as view-only', `/admin/${slug}/pairings/${duck}`, { cookie: GM, has: ['View only', 'What guests see now'], hasNot: ['Set role', 'Add your own pairing', 'Approve all'] });
 await check('GM sees the review queue without approve buttons', `/admin/${slug}/review`, { cookie: GM, has: ['View only'], hasNot: ['Approve all'] });
+await check('GM sees the opportunities without buttons', `/admin/${slug}/opportunities`, { cookie: GM, has: ['View only', '>Opportunity<', 'Current pairings:'], hasNot: ['Add to suggestions', '>Ignore<'] });
 await check('GM cannot change a pairing through the API', pUrl, { method: 'PATCH', body: { comment: 'x' }, headers: { ...gmw, 'if-match': `"${target.version}"` }, status: 403, has: ['forbidden'] });
 await check('GM cannot bulk-approve', `/api/v1/restaurants/${slug}/pairings/bulk-decision`, { method: 'POST', body: { action: 'approve_all' }, headers: gmw, status: 403 });
 await check('GM can read pairings', `/api/v1/restaurants/${slug}/pairings`, { cookie: GM, has: ['"data"'] });
@@ -324,6 +325,12 @@ await check('A6 pairings index redirects to a dish', `${A}/pairings`, { has: ['W
 await check('A6 pairings of a dish', `${A}/pairings/${duck}`, { has: ['Pairings: Duck breast', 'Sommelier approved', 'Primary', 'What guests see now', 'Sommelier’s pairing', '<span class="sr-only"> Engine match score</span>', 'data-explain="pairings"', 'How do guests see your pairings?', 'data-explain="suggestions"', '<span class="sr-only">How do guests see engine suggestions?</span>'], hasNot: [...OLD_LABELS, 'title="Engine match score"'] });
 await check('A7 review queue', `${A}/review`, { has: ['Review queue', 'dishes have at least one approved pairing', 'suggestions left', 'Open pairings', 'role="progressbar"', 'aria-valuenow', 'data-explain="review"', 'What does approving do?'], hasNot: ['data-state="indeterminate"', ...OLD_LABELS] });
 await check('A11 publish: the engine’s label for unreviewed suggestions', `${A}/publish`, { has: ['Guest settings', 'data-explain="publish"', 'What do these settings change?', 'The “Whole table” bottle still comes from the whole list.'], hasNot: [...OLD_LABELS, 'When off, guests only see pairings you approved.'] });
+// A14 opportunities (spec 2026-10-16-sommelier-opportunities, F2): outside (lists), works without JavaScript; the demo data has some
+await check('A14 opportunities', `${A}/opportunities`, { has: ['Opportunities | Wine Match dashboard', '>Opportunities</h1>', '<details data-explain="opportunities"', 'What are opportunities?', 'Current pairings:', '>Opportunity<', 'Add to suggestions', '>Ignore<', 'data-opportunity="wine_unpaired"', `name="back" value="${A}/opportunities"`], hasNot: [' open=""', 'Powered by AI', ' AI '] });
+await check('A14 opportunities in Polish', `${A}/opportunities`, { cookie: `${SESSION}; wm_lang=pl`, has: ['>Okazje</h1>', '>Okazja<', 'Dodaj do propozycji', 'Ignoruj', 'Obecne parowania:', 'Czym są okazje?'], hasNot: [' AI ', 'sztuczn'] });
+await check('A14 of a restaurant without access: 403', '/admin/nope/opportunities', { status: 403 });
+await check('A6 a dish with opportunities has their card', `${A}/pairings/${risotto}`, { has: ['Opportunities for this dish', 'All opportunities', 'data-explain="opportunities"', 'data-explain="pairings"', 'Add to suggestions'] });
+await check('A1 links to the opportunities, the sidebar too (no counter)', A, { has: ['Opportunities: ', `href="${A}/opportunities">Open opportunities</a>`, `href="${A}/opportunities"`] });
 await check('a restaurant the user has no access to: 403', '/admin/nope', { status: 403 });
 await check('dashboard uses no guest wording', A, { hasNot: ['AI recommendation', 'Powered by AI'] });
 

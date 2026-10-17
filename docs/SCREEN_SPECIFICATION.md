@@ -17,6 +17,7 @@ Identyfikatory ekranów według [SCREEN_MAP.md](SCREEN_MAP.md). Endpointy wedłu
 - **Faza 5:** **A8 / A9 Import** działają (`/admin/{slug}/import/menu|wines`, `?job=` to podgląd): upload (CSV, XLSX, PDF), podgląd z kontrolą każdego wiersza (błędy blokują, ostrzeżenia nie), edycja pól, zaznaczanie, „Check again”, atomowe zatwierdzenie, ekran wyniku. Odstępstwa od opisu: dla `.xls` komunikat „zapisz jako .xlsx lub CSV”; PDF jest czytany tylko jako tekst (bez OCR); duplikaty (to samo danie / ta sama nazwa, producent i rocznik wina) są domyślnie niezaznaczonymi aktualizacjami; plik nie jest przechowywany. **A10 Setup** (lista kroków wdrożenia, dane restauracji, „Generate suggestions”): dane i slug edytuje tylko Owner / GM, Sommelier widzi je w trybie „View only”. **A12 QR**: podgląd stojaka (układ do druku bez paneli), pobranie SVG i PNG (1024 / 2048 px), link; adres z `PUBLIC_BASE_URL`.
 - Eventy analityczne i import sprzedaży nadal Faza 6.
 - Stan loading (skeleton) mają ekrany list; strony szczegółów nie, żeby zwracały poprawne kody HTTP. Ekrany list wymagają JavaScriptu.
+- **Okazje (spec `2026-10-16-sommelier-opportunities`, E10 F2):** **A14 Opportunities** (`/admin/{slug}/opportunities`, poza `(lists)`, działa bez JS), karta „Opportunities for this dish” na **A6** i linia „Opportunities: n” na **A1**. Sygnały S1–S3 (S4/S5 dochodzą w F3/F4); „Add to suggestions”, „Ignore”, „Restore” to formularze z akcjami serwerowymi (`pairings.decide`). W UI „Okazja” / „Opportunity”, bez słowa „AI”.
 
 Wspólne zasady:
 - **Loading** w aplikacji gościa: skeleton w kształcie docelowej treści (bez spinnerów). W mockupie wymuszany parametrem `?demo=loading`.
@@ -270,6 +271,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Permissions | Sommelier, GM |
 | API | `GET /restaurants/{id}/analytics/summary?from=&to=`, `/analytics/timeseries`, `/analytics/pairings` |
 | Analytics | `dashboard_viewed` (produkcja) |
+| Okazje (E10 F2) | w karcie „Needs your attention” jedna linia „Opportunities: n” / „Okazje: n” z linkiem „Open opportunities” → A14, gdy n > 0 (S1–S3 całej karty, bez zapytań po zdarzeniach gości); bez licznika w nawigacji i bez drugiego „i”. „Nothing to review” pokazuje się tylko przy n = 0 |
 
 ## A2 Menu — `/admin/menu?q=&cat=`
 
@@ -370,6 +372,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Permissions | decyzje: Sommelier; GM podgląd |
 | API | `GET /dishes/{id}/pairings`, `POST /pairings`, `PATCH /pairings/{id}`, `DELETE /pairings/{id}`, `POST /pairings/{id}/decisions`, `PUT /dishes/{id}/pairings/order`, `GET /dishes/{id}/recommendations?preview=true` |
 | Analytics | `pairing_status_changed`, `pairing_role_changed`, `pairing_added`, `pairing_deleted` |
+| Okazje (E10 F2) | karta „Opportunities for this dish” / „Okazje dla tego dania” **nad** „Approved for guests”, tylko gdy danie ma okazje S1–S3 (gdy nie ma — karty nie ma). Nagłówek: link „All opportunities” → A14, opis, własne „i” „What are opportunities?” (`data-explain="opportunities"`, ten sam tekst co A14; jedno „i” na kartę). Wiersz: odznaka „Opportunity”, jedno zdanie z liczbami, „Add to suggestions” (S2, S3) i „Ignore”; S1 tylko „Ignore”. Po „Add” wino trafia do „Engine suggestions” na tej samej stronie (flash „Added to suggestions — approve it in “Engine suggestions”…”), bez wpisu historii i bez „Unpublished change”. GM widzi kartę bez przycisków |
 
 ## A7 Pairing review — `/admin/review`
 
@@ -478,3 +481,25 @@ Jak A8, z różnicami:
 | Permissions | Sommelier, GM |
 | API | `GET /restaurants/{id}/qr?format=svg|png` (produkcja; w mockupie generowane lokalnie biblioteką `qrcode`) |
 | Analytics | `qr_downloaded {format}` |
+
+## A14 Opportunities — `/admin/opportunities`
+
+Spec `2026-10-16-sommelier-opportunities` (E10, D17), faza 2. Sygnały i progi: [RECOMMENDATION_ENGINE.md](RECOMMENDATION_ENGINE.md) §13.
+
+| Pole | Opis |
+|---|---|
+| Cel | Pokazać sommelierowi, gdzie w karcie i parach warto zajrzeć („zobacz tutaj”, nie „ja wiem lepiej”) |
+| Użytkownik | Sommelier (decyzje); GM, Owner (podgląd) |
+| Funkcje | grupy per danie (kolejność: Przystawki, Dania główne, Desery, potem nazwa): nazwa dania, „Open pairings” → A6, „Current pairings:” (wino + rola w kolejności gościa; „none”, gdy brak), potem okazje; wiersz: odznaka „Opportunity”, jedno zdanie z liczbami, „Add to suggestions” (S2, S3) i „Ignore”; `<details>` „Ignored (n)”: rodzaj okazji, danie i wino, autor, data powrotu, „Restore” |
+| Zdania (EN / PL) | S1: „This dish has no approved pairing yet.” / „To danie nie ma jeszcze zatwierdzonego parowania.”; „…approved pairings, but none of them is the Primary.” / „…żadne nie jest podstawowe.”; „This dish’s Primary wine ({wine}) is hidden…” / „Wino podstawowe tego dania ({wine}) jest ukryte…”; S2: „{wine} matches this dish at {score}%, is served by the glass ({price}), and none of this dish’s pairings is available by the glass.”; S3: „{wine} is on your list but has no approved pairing. It matches “{dish}” best ({score}%).” |
+| Wyjaśnienie | „What are opportunities?” / „Czym są okazje?” (`data-explain="opportunities"`) pod nagłówkiem strony; liczba dni z `DISMISS_DAYS` |
+| Dane wejściowe | `OpportunityService.list(slug, { scope: 'all' }, locale)` |
+| Dane wyjściowe | para `suggested` (`SommelierService.addSuggestion`), wiersz `opportunity_dismissal` (Ignore / Restore) |
+| Loading | brak (strona poza `(lists)`, bez `loading.tsx`, działa bez JavaScriptu) |
+| Empty | `EmptyState` „Nothing to check.” / „Nic do sprawdzenia.” |
+| Error | `degraded` niepuste (F3/F4: zdarzenia gości, zamówienia z kodem) → uwaga „Some opportunities are temporarily unavailable.” i `logger.warn`; pozostałe okazje widoczne. Nieznana restauracja → 404, brak członkostwa → 403 |
+| Success | flash: „Added to suggestions — approve it in “Engine suggestions”…”, „Opportunity ignored. It comes back after 30 days at the earliest…”, „Opportunity restored.”; błędy: `already_suggested`, `already_rejected`, `dish_not_published`, `low_match`, `wine_not_available`, `opportunity_stale`, `opportunity_not_dismissed` |
+| Walidacje | klucz okazji ze schematu `opportunityKeySchema`; „Ignore” tylko dla bieżącego kandydata (inaczej `opportunity_stale`); „Add” wymaga dania `published`, aktywnego wina i wyniku ≥ `MIN_MODEL_SCORE` |
+| Permissions | widzi każdy z dostępem do panelu (`requireAccess`); akcje `authorizeAction(slug, 'pairings.decide')` (tylko Sommelier); GM / Owner bez przycisków, z „View only” |
+| API | brak tras HTTP: akcje serwerowe `addOpportunitySuggestion`, `dismissOpportunity`, `restoreOpportunity` (`?saved=` / `?error=`, `revalidatePath(..., 'layout')`, `safeBack`) |
+| Układ | 390 i 1440 px bez poziomego przewijania (`min-w-0` w wierszach) |

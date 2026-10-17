@@ -32,8 +32,11 @@ function Kpi({ label, value, detail, lead = false }: { label: string; value: str
 /** A1 — dashboard: the state of the wine program (catalog KPIs) and what needs attention. */
 export default async function DashboardPage({ params }: Props) {
   const { slug } = await params;
-  const o = await (await getRequestScope()).cradle.adminService.overview(slug, (await getI18n()).locale);
+  const { adminService, opportunityService } = (await getRequestScope()).cradle;
+  const o = await adminService.overview(slug, (await getI18n()).locale);
   if (!o) notFound();
+  // Q19: one line with the number of S1–S3 opportunities of the whole menu (no queries on guest events), no counter in the sidebar
+  const opportunities = (await opportunityService.list(slug, { scope: 'dish' }))?.groups.reduce((n, g) => n + g.items.length, 0) ?? 0;
   const base = `/admin/${slug}`;
   const { dishes, wines, pairings, primaryCoverage, review } = o;
   const { locale, t } = await getI18n();
@@ -72,7 +75,7 @@ export default async function DashboardPage({ params }: Props) {
             <CardDescription>{d.attentionText(review.reviewedDishes, review.dishesWithPairings)}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 text-sm">
-            {primaryCoverage.without.length === 0 && dishes.draftProfiles === 0 && review.suggestions === 0 && wines.inactive === 0 && o.unpublishedChanges === 0 && dishes.total > 0 && wines.total > 0 ? (
+            {primaryCoverage.without.length === 0 && dishes.draftProfiles === 0 && review.suggestions === 0 && wines.inactive === 0 && o.unpublishedChanges === 0 && opportunities === 0 && dishes.total > 0 && wines.total > 0 ? (
               <p className="text-muted-foreground">{d.upToDate}</p>
             ) : null}
             {dishes.total === 0 && <p><b className="font-medium">{d.menuEmpty}</b>{' '}<Link className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" href={`${base}/import/menu`}>{d.importMenu}</Link></p>}
@@ -90,6 +93,9 @@ export default async function DashboardPage({ params }: Props) {
                   {primaryCoverage.without.length > 6 && <li className="text-muted-foreground">{d.andMore(primaryCoverage.without.length - 6)}</li>}
                 </ul>
               </div>
+            )}
+            {opportunities > 0 && (
+              <p><b className="font-medium">{d.opportunities(opportunities)}</b>{' '}<Link className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" href={`${base}/opportunities`}>{d.openOpportunities}</Link></p>
             )}
             {dishes.draftProfiles > 0 && (
               <p><b className="font-medium">{d.draftProfiles(dishes.draftProfiles)}</b>{' '}<Link className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" href={`${base}/menu`}>{d.openMenu}</Link></p>

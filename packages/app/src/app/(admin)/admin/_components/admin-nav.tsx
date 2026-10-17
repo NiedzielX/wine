@@ -7,7 +7,7 @@ import { Fragment } from 'react';
 
 /** Ready-made texts from the dictionary (a client component gets texts, not dictionary functions). */
 export interface NavLabels {
-  label: string; dashboard: string; menu: string; wines: string; pairings: string; review: string; publish: string;
+  label: string; dashboard: string; menu: string; wines: string; pairings: string; review: string; opportunities: string; publish: string;
   restaurant: string; importMenu: string; importWines: string; setup: string; qr: string;
 }
 interface Props { slug: string; reviewCount: number; publishCount: number; labels: NavLabels }
@@ -22,6 +22,8 @@ export function AdminNav({ slug, reviewCount, publishCount, labels: l }: Props) 
     { href: `${base}/wines`, label: l.wines },
     { href: `${base}/pairings`, label: l.pairings },
     { href: `${base}/review`, label: l.review, count: reviewCount },
+    // no counter here (spec 2026-10-16-sommelier-opportunities, Q3): counting would compute the opportunities on every page
+    { href: `${base}/opportunities`, label: l.opportunities },
     { href: `${base}/publish`, label: l.publish, count: publishCount },
     { href: `${base}/import/menu`, label: l.importMenu, group: l.restaurant },
     { href: `${base}/import/wines`, label: l.importWines },

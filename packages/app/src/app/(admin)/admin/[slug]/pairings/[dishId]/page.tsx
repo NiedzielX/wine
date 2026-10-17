@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { ActionButton, Hidden } from '../../../_components/action-form';
-import { ENGINE_FACTS } from '@wine-match/core';
+import { DISMISS_DAYS, ENGINE_FACTS } from '@wine-match/core';
 import { DishStatusBadge, PairingStatusBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
 import { PanelExplain } from '../../../_components/explain';
 import { Flash, ReadOnlyNotice } from '../../../_components/flash';
+import { OpportunityList } from '../../../_components/opportunity-list';
 import { first, formatDateTime, zl } from '../../../_components/format';
 import { addPairing, approveAllPairings, approvePairing, deletePairing, movePairing, rejectPairing, restorePairing, savePairingNote, setPairingRole } from '../../actions';
 import { getRequestScope } from '@/server/request-scope';
@@ -25,7 +26,7 @@ type Props = { params: Promise<{ slug: string; dishId: string }>; searchParams: 
 export default async function PairingsPage({ params, searchParams }: Props) {
   const { slug, dishId } = await params;
   const sp = await searchParams;
-  const { adminService, recommendationService } = (await getRequestScope()).cradle;
+  const { adminService, opportunityService, recommendationService } = (await getRequestScope()).cradle;
   const decide = (await requireAccess(slug)).can('pairings.decide');
   const { locale, t } = await getI18n();
   const m = t.admin.pairings;
@@ -35,6 +36,9 @@ export default async function PairingsPage({ params, searchParams }: Props) {
   const { dish } = w;
   const guest = await recommendationService.forDish(slug, dish.id, {}, undefined, locale);
   const guestItems = guest?.result.items ?? [];
+  // S1–S3 of this dish only (no queries on guest events): the card is there only when something is worth a look
+  const opportunities = (await opportunityService.list(slug, { dishId: dish.id, scope: 'dish' }, locale))?.groups[0]?.items ?? [];
+  const o = t.admin.opportunities;
   const path = `/admin/${slug}/pairings/${dish.id}`;
   const common = { slug, back: path };
   const pair = (p: { id: string; version?: number }) => ({ ...common, pairingId: p.id, version: p.version });
@@ -67,6 +71,22 @@ export default async function PairingsPage({ params, searchParams }: Props) {
         </nav>
 
         <div className="grid min-w-0 content-start gap-6">
+          {opportunities.length > 0 && (
+            <Card className="gap-0 py-0">
+              <CardHeader className="border-b py-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <CardTitle>{o.dishTitle}</CardTitle>
+                  <Link className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" href={`/admin/${slug}/opportunities`}>{o.all}</Link>
+                </div>
+                <CardDescription>{o.dishText}</CardDescription>
+                <PanelExplain id="opportunities" summary={t.admin.explain.opportunities.summary} points={t.admin.explain.opportunities.points(DISMISS_DAYS)} />
+              </CardHeader>
+              <CardContent className="px-0">
+                <OpportunityList items={opportunities} dish={dish} slug={slug} back={path} decide={decide} t={t} locale={locale} />
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="gap-0 py-0">
             <CardHeader className="border-b py-4">
               <CardTitle>{m.approvedTitle}</CardTitle>

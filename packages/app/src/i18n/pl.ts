@@ -239,7 +239,8 @@ export const pl = {
       qr: 'Kod QR',
       setup: 'Ustawienia',
       importMenu: 'Import menu',
-      importWines: 'Import karty win'
+      importWines: 'Import karty win',
+      opportunities: 'Okazje'
     },
     language: {
       label: 'Język panelu'
@@ -275,6 +276,7 @@ export const pl = {
       wines: 'Karta win',
       pairings: 'Parowania',
       review: 'Do przeglądu',
+      opportunities: 'Okazje',
       publish: 'Publikacja',
       restaurant: 'Restauracja',
       importMenu: 'Import menu',
@@ -339,7 +341,10 @@ export const pl = {
         details_slug: () => 'Dane zapisane. Adres aplikacji gościa się zmienił: wydrukuj nowe kody QR, stare już nie działają.',
         suggestions: (n: number) => `Dodano propozycje silnika: ${n}.`,
         translations: () => 'Tłumaczenia zapisane. Goście zobaczą je po publikacji.',
-        content: () => 'Język treści i tłumaczenia zapisane. Goście zobaczą je po publikacji.'
+        content: () => 'Język treści i tłumaczenia zapisane. Goście zobaczą je po publikacji.',
+        suggestion_added: () => 'Dodano do propozycji — zatwierdź je w „Propozycjach silnika”. Goście zobaczą zmianę dopiero po zatwierdzeniu i publikacji.',
+        opportunity_dismissed: (days: number) => `Okazja zignorowana. Wróci najwcześniej po ${days} dniach, jeśli nadal będzie aktualna.`,
+        opportunity_restored: () => 'Okazja przywrócona.'
       },
       errors: {
         version_conflict: 'Ktoś przed chwilą zmienił to parowanie. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
@@ -375,6 +380,12 @@ export const pl = {
         slug_taken: 'Inna restauracja używa już tej nazwy w adresie. Wybierz inną.',
         validation_failed: 'Sprawdź dane. Nazwa w adresie może zawierać tylko małe litery, cyfry i myślniki (od 2 do 40 znaków) i nie może być słowem zastrzeżonym.',
         translation_invalid: 'Sprawdź tłumaczenia: któreś jest za długie.',
+        already_suggested: 'To wino jest już w propozycjach tego dania.',
+        already_rejected: 'To parowanie zostało odrzucone — przywróć je w sekcji „Odrzucone”.',
+        dish_not_published: 'To danie nie jest widoczne dla gości.',
+        low_match: 'To wino słabo pasuje do dania.',
+        opportunity_stale: 'Ta okazja jest już nieaktualna.',
+        opportunity_not_dismissed: 'Ta okazja nie jest zignorowana.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
     },
@@ -422,6 +433,8 @@ export const pl = {
       openMenu: 'Otwórz menu',
       hiddenWines: (n: number) => `Wina ukryte przed gośćmi: ${n}.`,
       openWines: 'Otwórz kartę win',
+      opportunities: (n: number) => `Okazje: ${n}`,
+      openOpportunities: 'Otwórz okazje',
       activity: 'Aktywność gości',
       activityText: 'Sesje, pokazane rekomendacje, wybrane wina i przychód z wina.',
       noGuests: 'Goście jeszcze nie korzystali z Wine Match',
@@ -600,6 +613,42 @@ export const pl = {
       sommelier: 'Para sommeliera',
       bestValue: 'Najlepsza cena'
     },
+    opportunities: {
+      title: 'Okazje',
+      description: 'Miejsca w menu i karcie win, w które warto zajrzeć, pogrupowane po daniach.',
+      readOnly: 'Widzisz wszystkie okazje. Do propozycji dodaje i okazje ignoruje tylko Wine Director.',
+      badge: 'Okazja',
+      dishTitle: 'Okazje dla tego dania',
+      dishText: 'Warto zajrzeć. Dla gości nic się nie zmienia, dopóki nie zatwierdzisz parowania i nie opublikujesz zmian.',
+      all: 'Wszystkie okazje',
+      openPairings: 'Otwórz parowania',
+      current: 'Obecne parowania',
+      noCurrent: 'brak',
+      add: 'Dodaj do propozycji',
+      ignore: 'Ignoruj',
+      restore: 'Przywróć',
+      emptyTitle: 'Nic do sprawdzenia.',
+      emptyText: 'Gdy w daniu albo winie będzie coś wartego uwagi, pojawi się tutaj.',
+      degraded: 'Część okazji jest chwilowo niedostępna.',
+      dismissed: (n: number) => `Zignorowane (${n})`,
+      dismissedBy: (name: string, until: string) => `${name} · wróci ${until}`,
+      rules: {
+        dish_no_primary: 'Danie bez podstawowego wyboru',
+        glass_match_unpaired: 'Dopasowanie na kieliszki',
+        wine_unpaired: 'Wino bez parowania',
+        shown_rarely_chosen: 'Rzadko wybierane parowanie',
+        ordered_not_reviewed: 'Zamawiane, niezatwierdzone'
+      },
+      sentences: {
+        none: () => 'To danie nie ma jeszcze zatwierdzonego parowania.',
+        no_primary: () => 'To danie ma zatwierdzone parowania, ale żadne nie jest podstawowe.',
+        primary_hidden: (wine: string) => `Wino podstawowe tego dania (${wine}) jest ukryte, więc goście go nie widzą.`,
+        glass_match_unpaired: (wine: string, score: number, price: string) => `${wine} pasuje do tego dania na ${score}%, jest na kieliszki (${price}), a żadne z parowań tego dania nie jest na kieliszki.`,
+        wine_unpaired: (wine: string, dish: string, score: number) => `${wine} jest w karcie, ale nie ma żadnego zatwierdzonego parowania. Najlepiej pasuje do „${dish}” (${score}%).`,
+        shown_rarely_chosen: (wine: string, shown: number, days: number, chosen: number, rate: number, otherRate: number) => `Gdy goście widzieli ${wine} przy tym daniu (${shown} ${plural(shown, 'raz', 'razy', 'razy')} w ostatnich ${days} dniach), wybrali je ${chosen} ${plural(chosen, 'raz', 'razy', 'razy')} (${rate}%); pozostałe wina do tego dania wybierali w ${otherRate}% przypadków.`,
+        ordered_not_reviewed: (wine: string, orders: number, days: number) => `${wine} zamówiono z kodem polecenia do tego dania ${orders} ${plural(orders, 'raz', 'razy', 'razy')} w ostatnich ${days} dniach, a to parowanie nie jest zatwierdzone.`
+      }
+    },
     publish: {
       title: 'Publikacja',
       description: (when: string, version: string) => `Ostatnia publikacja: ${when}${version}. Goście widzą opublikowaną wersję przez kod QR.`,
@@ -705,6 +754,13 @@ export const pl = {
           'Butelkę dla „Całego stolika” silnik zawsze wybiera z całej aktywnej karty, niezależnie od tego ustawienia.',
           'Pokazuj procent: gdy wyłączone, gość widzi kieliszek wypełniony do poziomu dopasowania, bez liczby. Na „Całym stoliku” paski przy daniach nadal pokazują procent; ekran kelnera pokazuje go zawsze.',
           'Oba ustawienia działają od razu, bez publikacji.'
+        ]
+      },
+      opportunities: {
+        summary: 'Czym są okazje?',
+        points: (days: number) => [
+          'Okazje to podpowiedzi, gdzie warto zajrzeć. Liczymy je z Twojej karty i ocen dopasowania, a gdy są dane — z wyborów gości i zamówień z kodem polecenia, tylko w tej restauracji.',
+          `Nic się nie zmienia bez Twojej decyzji; zignorowana okazja wraca najwcześniej po ${days} dniach.`
         ]
       }
     },
