@@ -1,6 +1,6 @@
 import type { AuthUser, Membership, SessionRecord } from '../auth/types';
 import type { DemoDataset } from '../demo/dataset';
-import type { Dish, EntityStatus, OpportunityDismissal, Pairing, Restaurant, RestaurantSettings, Wine } from '../domain/types';
+import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, Pairing, Restaurant, RestaurantSettings, Wine } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import {
   contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
@@ -10,7 +10,7 @@ import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
 import type { ImportPlan, ImportRepository } from '../ports/import';
 import type {
-  ContentWriteRepository, DecisionRecord, DishRepository, OpportunityDismissalRepository, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
+  ContentWriteRepository, DecisionRecord, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
   PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
@@ -36,6 +36,8 @@ export class MemoryStore {
   readonly importJobs: ImportJob[] = [];
   /** ignored opportunities per restaurant, keyed by the opportunity key (a client-chosen string: a Map, never a plain object) */
   readonly dismissals = new Map<string, Map<string, OpportunityDismissal>>();
+  /** usage events, oldest first; capped at `MAX_MEMORY_GUEST_EVENTS` (the oldest go first) */
+  readonly guestInteractions: Array<GuestInteractionInput & { restaurantId: string }> = [];
 
   static from(...datasets: DemoDataset[]): MemoryStore {
     const s = new MemoryStore();
@@ -421,6 +423,39 @@ export class MemoryOpportunityDismissalRepository implements OpportunityDismissa
   }
 }
 
+/** The in-memory data source keeps this many usage events at most (R7): a demo server must not grow without bound. */
+export const MAX_MEMORY_GUEST_EVENTS = 10_000;
+
+export class MemoryGuestInteractionRepository implements GuestInteractionRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async record(restaurantId: string, events: GuestInteractionInput[]) {
+    const list = this.store.guestInteractions;
+    for (const e of events) list.push({ ...copy(e), restaurantId });
+    if (list.length > MAX_MEMORY_GUEST_EVENTS) list.splice(0, list.length - MAX_MEMORY_GUEST_EVENTS);
+  }
+
+  async listBySession(restaurantId: string, sessionId: string): Promise<GuestInteraction[]> {
+    return this.store.guestInteractions
+      .filter((e) => e.restaurantId === restaurantId && e.sessionId === sessionId)
+      .map((e) => ({
+        sessionId: e.sessionId, name: e.name, dishId: e.dishId ?? null, wineId: e.wineId ?? null,
+        props: copy(e.props), engineVersion: e.engineVersion, createdAt: e.createdAt.toISOString()
+      }));
+  }
+
+  async countGuestSessions(restaurantId: string, range: { from: Date; to: Date }) {
+    const from = range.from.getTime();
+    const to = range.to.getTime();
+    const sessions = new Set<string>();
+    for (const e of this.store.guestInteractions) {
+      const at = e.createdAt.getTime();
+      if (e.restaurantId === restaurantId && e.name === 'guest_session_started' && at >= from && at < to) sessions.add(e.sessionId);
+    }
+    return sessions.size;
+  }
+}
+
 export function createMemoryRepositories(store: MemoryStore): Repositories {
   return {
     restaurantRepository: new MemoryRestaurantRepository(store),
@@ -433,6 +468,7 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     publishRepository: new MemoryPublishRepository(store),
     contentWriteRepository: new MemoryContentWriteRepository(store),
     importRepository: new MemoryImportRepository(store),
-    opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store)
+    opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
+    guestInteractionRepository: new MemoryGuestInteractionRepository(store)
   };
 }

@@ -4,6 +4,7 @@ import { LanguageSwitch, ModeSwitch, TopBar } from '../../../_components/guest-u
 import { SelectionCount } from '../../../_components/selection-count';
 import { CATEGORIES, guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
+import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,7 +16,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 /** G5 — whole table selection. A plain GET form: works without JavaScript. */
 export default async function TablePage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const { q, prefs, services, t, locale, lang, href, langHrefs } = await guestContext(searchParams);
+  const { q, prefs, services, t, locale, lang, session, href, langHrefs } = await guestContext(searchParams);
   const menu = await services.catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
   const selected = new Set(parseDishIds(q));
@@ -25,6 +26,8 @@ export default async function TablePage({ params, searchParams }: Props) {
   const counts = Array.from({ length: menu.dishes.length + 1 }, (_, n) => n);
   const pill = 'inline-flex min-h-9 cursor-pointer items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-sm font-medium has-[input:checked]:border-ink has-[input:checked]:bg-ink has-[input:checked]:text-paper has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine';
 
+  // G5 records no event of its own, but a guest who arrives here by a link starts a session
+  await trackUsage(services, menu.restaurant, session, []);
   return (
     <>
       <TopBar back={href(`/r/${slug}`, prefs)} title={menu.restaurant.name} t={t} langSwitch={<LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${slug}/table`)} t={t} />} />
@@ -35,6 +38,7 @@ export default async function TablePage({ params, searchParams }: Props) {
           {prefs.weight !== 'any' && <input type="hidden" name="weight" value={prefs.weight} />}
           {prefs.mood !== 'any' && <input type="hidden" name="mood" value={prefs.mood} />}
           {lang && <input type="hidden" name="lang" value={lang} />}
+          <input type="hidden" name="sid" value={session.id} />
           <ModeSwitch dishHref={href(`/r/${slug}/menu`, prefs)} tableHref={href(`/r/${slug}/table`, prefs)} mode="table" t={t} />
           <p className="text-ink-2">{l.lead}</p>
           {CATEGORIES.map((c) => {

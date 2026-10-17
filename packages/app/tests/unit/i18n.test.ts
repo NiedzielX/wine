@@ -67,27 +67,33 @@ describe('server i18n helpers', () => {
 describe('guest links carry an explicit language only', () => {
   beforeEach(() => headers().clear());
 
-  it('lang from the URL goes into every link, last; a language from the browser does not', async () => {
+  const SID = '0b5e7a1c-1d2e-4f30-8a4b-5c6d7e8f9a0b';
+
+  it('lang from the URL goes into every link, before the session (sid, last); a language from the browser does not', async () => {
     headers().set('x-wine-lang', 'pl');
-    const browser = await guestContext(Promise.resolve({ serving: 'glass' }));
+    const browser = await guestContext(Promise.resolve({ serving: 'glass', sid: SID }));
     expect(browser.locale).toBe('pl');
     expect(browser.lang).toBeUndefined();
-    expect(browser.href('/r/halka/menu', browser.prefs)).toBe('/r/halka/menu?serving=glass');
+    expect(browser.href('/r/halka/menu', browser.prefs)).toBe(`/r/halka/menu?serving=glass&sid=${SID}`);
     headers().set('x-wine-lang', 'en');
-    const chosen = await guestContext(Promise.resolve({ serving: 'glass', lang: 'en' }));
+    const chosen = await guestContext(Promise.resolve({ serving: 'glass', lang: 'en', sid: SID }));
     expect(chosen.lang).toBe('en');
-    expect(chosen.href('/r/halka/menu', chosen.prefs, { dish: 'd1' })).toBe('/r/halka/menu?dish=d1&serving=glass&lang=en');
-    expect(chosen.href('/r/halka')).toBe('/r/halka?lang=en');
+    expect(chosen.href('/r/halka/menu', chosen.prefs, { dish: 'd1' })).toBe(`/r/halka/menu?dish=d1&serving=glass&lang=en&sid=${SID}`);
+    expect(chosen.href('/r/halka')).toBe(`/r/halka?lang=en&sid=${SID}`);
     expect(hrefWith('/r/halka', DEFAULT_PREFS)).toBe('/r/halka');
     const junk = await guestContext(Promise.resolve({ lang: 'de' }));
     expect(junk.lang).toBeUndefined();
   });
 
-  it('the language switch keeps the whole query and replaces lang', async () => {
+  it('the language switch keeps the whole query, replaces lang and keeps (or starts) the session', async () => {
     expect(langHref('/r/halka/table/result', { dish: ['a', 'b'], lang: 'en', serving: 'bottle' }, 'pl')).toBe('/r/halka/table/result?dish=a&dish=b&serving=bottle&lang=pl');
     expect(langHref('/r/halka', {}, 'en')).toBe('/r/halka?lang=en');
-    const ctx = await guestContext(Promise.resolve({ styles: 'red,white' }));
-    expect(ctx.langHrefs('/r/halka')).toEqual({ pl: '/r/halka?styles=red%2Cwhite&lang=pl', en: '/r/halka?styles=red%2Cwhite&lang=en' });
+    expect(langHref('/r/halka', { sid: 'old', serving: 'glass' }, 'en', SID)).toBe(`/r/halka?serving=glass&lang=en&sid=${SID}`);
+    const ctx = await guestContext(Promise.resolve({ styles: 'red,white', sid: SID }));
+    expect(ctx.langHrefs('/r/halka')).toEqual({ pl: `/r/halka?styles=red%2Cwhite&lang=pl&sid=${SID}`, en: `/r/halka?styles=red%2Cwhite&lang=en&sid=${SID}` });
+    const fresh = await guestContext(Promise.resolve({}));
+    expect(fresh.session.isNew).toBe(true);
+    expect(fresh.langHrefs('/r/halka').en).toBe(`/r/halka?lang=en&sid=${fresh.session.id}`);
   });
 });
 

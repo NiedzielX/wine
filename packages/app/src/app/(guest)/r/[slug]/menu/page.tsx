@@ -3,6 +3,7 @@ import { DishList, GuestColumns, LanguageSwitch, ModeSwitch, TopBar } from '../.
 import { RestaurantHero } from '../../../_components/restaurant-hero';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { getI18n } from '@/server/i18n';
+import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 /** G1 — dish list. A dish opens its wines directly; the guest's preferences travel in the links. */
 export default async function MenuPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const { prefs, services, t, locale, href, langHrefs } = await guestContext(searchParams);
+  const { prefs, services, t, locale, session, href, langHrefs } = await guestContext(searchParams);
   const { catalogService } = services;
   const menu = await catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
@@ -38,6 +39,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
     </main>
   );
 
+  await trackUsage(services, menu.restaurant, session, [{ name: 'menu_viewed' }]);
   return (
     <>
       <TopBar back={href(`/r/${slug}`, prefs)} title={menu.restaurant.name} t={t} langSwitch={<LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${slug}/menu`)} t={t} />} />

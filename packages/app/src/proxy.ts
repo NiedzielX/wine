@@ -1,6 +1,7 @@
 import { isLocale, pickLocale, type Locale } from '@wine-match/core';
 import { NextResponse, type NextRequest } from 'next/server';
 import { LANG_COOKIE } from './server/lang-cookie';
+import { PREFETCH_HEADER } from './server/prefetch';
 
 /** Dashboard language cookie (spec 2026-10-15-polish-language R4); read only for `/admin`, never on guest pages. */
 export { LANG_COOKIE };
@@ -35,6 +36,10 @@ export function proxy(req: NextRequest) {
   if (admin) headers.set('x-pathname', req.nextUrl.pathname + req.nextUrl.search);
   else headers.delete('x-pathname');
   headers.set('x-wine-lang', requestLocale(req));
+  // 3. Marks router prefetches for the usage events (spec 2026-10-15-guest-usage-events, R6): server components cannot
+  //    see Next.js's own `Next-Router-Prefetch` headers, which `headers()` hides.
+  if (req.headers.has('next-router-prefetch') || req.headers.has('next-router-segment-prefetch')) headers.set(PREFETCH_HEADER, '1');
+  else headers.delete(PREFETCH_HEADER);
   return NextResponse.next({ request: { headers } });
 }
 

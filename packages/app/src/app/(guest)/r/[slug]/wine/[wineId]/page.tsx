@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { BottomBar, Button, EmptyState, Explain, LanguageSwitch, Score, Seal, TopBar } from '../../../../_components/guest-ui';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
+import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,7 +31,7 @@ function Dots({ label, value, valueLabel }: { label: string; value: number; valu
  */
 export default async function WinePage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
-  const { q, prefs, services, t, locale, lang, href, langHrefs } = await guestContext(searchParams);
+  const { q, prefs, services, t, locale, lang, session, href, langHrefs } = await guestContext(searchParams);
   const tableIds = parseDishIds({ dishes: q.table });
   const fromTable = tableIds.length > 0;
   const dishId = typeof q.dish === 'string' ? q.dish : undefined;
@@ -45,6 +46,7 @@ export default async function WinePage({ params, searchParams }: Props) {
   const w = t.guest.wine;
 
   if (!wine.active) {
+    await trackUsage(services, restaurant, session, []);
     return (
       <>
         <TopBar back={backHref} title={restaurant.name} t={t} langSwitch={langSwitch} />
@@ -68,6 +70,8 @@ export default async function WinePage({ params, searchParams }: Props) {
   );
   const radio = 'grid gap-0.5 rounded-[10px] border border-[#d4ccd0] bg-surface px-3.5 py-3 has-[input:checked]:border-wine has-[input:checked]:ring-1 has-[input:checked]:ring-wine has-[input:disabled]:opacity-45 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine cursor-pointer';
 
+  // `wine_viewed` comes with phase 2 of the usage events; here only a new session starts
+  await trackUsage(services, restaurant, session, []);
   return (
     <>
       <TopBar back={backHref} title={restaurant.name} t={t} langSwitch={langSwitch} />
@@ -75,6 +79,7 @@ export default async function WinePage({ params, searchParams }: Props) {
         {dish && <input type="hidden" name="dish" value={dish.id} />}
         {fromTable && <input type="hidden" name="table" value={tableIds.join(',')} />}
         {lang && <input type="hidden" name="lang" value={lang} />}
+        <input type="hidden" name="sid" value={session.id} />
         <main className="flex-1 px-5 pt-5 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">
           <div className="grid grid-cols-[1fr_auto] items-start gap-4">
             <div>

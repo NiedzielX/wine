@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-progress
 created: 2026-10-15
 owner: Filip
 related: [issue #11, #12, #13, #14, .ai/specs/product-brief.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-15-restaurant-bootstrap-cli.md]
@@ -251,3 +251,4 @@ Dokumentacja (R9) — pozycja checklisty PR (CODE_REVIEW §3), nie AC.
 - 2026-10-15 — superseded częściowo przez `2026-10-15-guest-short-path-and-desktop` (approved przez właściciela): G2 to przekierowanie 308, zdarzenie `dish_viewed` usunięte; wejście w danie liczy `recommendations_viewed`; `menu_viewed` także na G0.
 
 ## Realizacja
+- **Faza 1 (#12) — 2026-10-16/17, gałąź `feat/e02-f1-usage-events`, log `.ai/runs/2026-10-16-e02-f1-usage-events.md`.** Zrobione: `core/src/guest/session.ts`, `UsageEventService` + unia `UsageEvent` (`core/src/services/guest/usage-events.ts`), `GUEST_EVENT_NAMES`/`GuestInteraction` w `domain/types.ts`, port `GuestInteractionRepository` (pamięć z limitem 10 000, `PgGuestInteractionRepository` z `insertMany` bez `flush`), przypadki w `repositoryContract`, `seedUsageEvents`, `server/usage-events.ts` (`shouldRecord`, `trackUsage` w `after()`), `guestContext(…, { source })` z `session`, `sid` w `href`/`langHrefs` i ukrytych polach G5/G7/G9, zdarzenia G0 (`guest_session_started` qr + `menu_viewed`), G1, G3; nagłówek syntetyczny w `scripts/smoke.mjs`; docs (BC §1, SCREEN_SPECIFICATION, API_SPECIFICATION, DATA_MODEL, README, `packages/app/AGENTS.md`). Odstępstwa: (1) prefetch routera rozpoznaje proxy (`x-wine-prefetch`), bo `headers()` w Next.js 16 ukrywa `Next-Router-Prefetch`/`RSC` (lekcja `nextjs-headers-hide-router-prefetch`); (2) `link()` z planu to istniejący `href` z `guestContext` (ten sam kontrakt, bez drugiej nazwy); `ModeSwitch` już dostawał gotowe `href` — bez zmiany propsów; (3) `GUEST_EVENT_NAMES` w `domain/types.ts` (typ domenowy nie importuje serwisu); (4) G5–G8 w F1 zapisują tylko `guest_session_started` dla nowej sesji (R4; bez startu na G8 dla wina nieaktywnego), zdarzenia G6–G8 — F2; G9 ma sesję `staff` i `sid` w linkach/formularzu, bez zapisu — F3; (5) link „Więcej o doborze win” (`howHref`) jeszcze nie istnieje na `main` — dostanie `sid` automatycznie przez `href`.

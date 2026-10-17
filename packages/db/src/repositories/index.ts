@@ -5,11 +5,14 @@ import {
   type ContentWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
-  type WineRepository, type WineWriteRepository
+  type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository
 } from '@wine-match/core';
-import { DishEntity, OpportunityDismissalEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity, type PublishedSnapshot, type PublishedVersionRow } from '../entities';
+import {
+  DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
+  type PublishedSnapshot, type PublishedVersionRow
+} from '../entities';
 import { translate } from './errors';
-import { toDecision, toDish, toOpportunityDismissal, toPairing, toPublishedPairing, toRestaurant, toWine } from '../mappers';
+import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairing, toPublishedPairing, toRestaurant, toWine } from '../mappers';
 
 /**
  * PostgreSQL implementations of the @wine-match/core repository ports.
@@ -380,6 +383,38 @@ export class PgOpportunityDismissalRepository implements OpportunityDismissalRep
 
   async remove(restaurantId: string, key: string) {
     return (await this.em.nativeDelete(OpportunityDismissalEntity, { restaurant: restaurantId, key })) > 0;
+  }
+}
+
+/**
+ * Usage events (spec 2026-10-15-guest-usage-events). `record` is one native multi-row insert and never flushes: the
+ * write runs after the response (`after()`), on the request's EntityManager, and must not persist anything else
+ * waiting in its identity map. The count is native SQL too.
+ */
+export class PgGuestInteractionRepository implements GuestInteractionRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  async record(restaurantId: string, events: GuestInteractionInput[]) {
+    if (!events.length) return;
+    await this.em.insertMany(GuestInteractionEntity, events.map((e) => ({
+      restaurant: restaurantId, sessionId: e.sessionId, name: e.name, dishId: e.dishId ?? null, wineId: e.wineId ?? null,
+      props: e.props, engineVersion: e.engineVersion, createdAt: e.createdAt
+    })));
+  }
+
+  async listBySession(restaurantId: string, sessionId: string) {
+    const rows = await this.em.find(GuestInteractionEntity, { restaurant: restaurantId, sessionId }, { orderBy: { id: 'asc' } });
+    return rows.map(toGuestInteraction);
+  }
+
+  async countGuestSessions(restaurantId: string, range: { from: Date; to: Date }) {
+    const rows = await this.em.getConnection().execute<Array<{ n: string }>>(
+      `select count(distinct session_id)::text as n from guest_interaction
+        where restaurant_id = ? and name = 'guest_session_started' and created_at >= ? and created_at < ?`,
+      [restaurantId, range.from, range.to]
+    );
+    return Number(rows[0]?.n ?? 0);
   }
 }
 

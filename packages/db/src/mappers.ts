@@ -1,8 +1,8 @@
-import type { DecisionRecord, Dish, ImportJob, Level, OpportunityDismissal, Pairing, Restaurant, Wine } from '@wine-match/core';
+import type { DecisionRecord, Dish, GuestEventName, GuestInteraction, ImportJob, Level, OpportunityDismissal, Pairing, Restaurant, Wine } from '@wine-match/core';
 import {
   DEFAULT_RESTAURANT_SETTINGS, DISH_TEXT_FIELDS, RESTAURANT_TEXT_FIELDS, WINE_TEXT_FIELDS, cleanCommentTranslations, cleanTranslations, isLocale
 } from '@wine-match/core';
-import type { DishRow, ImportJobRow, OpportunityDismissalRow, PairingRow, PublishedSnapshot, RestaurantRow, SommelierDecisionRow, WineRow } from './entities';
+import type { DishRow, GuestInteractionRow, ImportJobRow, OpportunityDismissalRow, PairingRow, PublishedSnapshot, RestaurantRow, SommelierDecisionRow, WineRow } from './entities';
 
 const lvl = (n: number) => Math.max(0, Math.min(5, n)) as Level;
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -69,6 +69,13 @@ export function toOpportunityDismissal(d: OpportunityDismissalRow): OpportunityD
   return {
     id: d.id, key: d.key, rule: d.rule, dishId: d.dishId ?? null, wineId: d.wineId ?? null, dismissedBy: d.dismissedBy,
     dismissedById: d.dismissedById ?? null, dismissedAt: d.dismissedAt.toISOString(), expiresAt: d.expiresAt.toISOString()
+  };
+}
+
+export function toGuestInteraction(e: GuestInteractionRow): GuestInteraction {
+  return {
+    sessionId: e.sessionId, name: e.name as GuestEventName, dishId: e.dishId ?? null, wineId: e.wineId ?? null,
+    props: e.props ?? {}, engineVersion: e.engineVersion ?? null, createdAt: e.createdAt.toISOString()
   };
 }
 

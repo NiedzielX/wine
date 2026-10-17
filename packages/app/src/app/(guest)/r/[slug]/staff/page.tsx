@@ -14,7 +14,9 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 /** G9 — quick pairing lookup for the floor team. Same engine and order as the guest sees. */
 export default async function StaffPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const { q, prefs, services, t, locale, lang, href, langHrefs } = await guestContext(searchParams);
+  // the staff lookup has its own session (never a guest session); its links and form carry it. `staff_lookup` is
+  // recorded from phase 3 of the usage events (spec 2026-10-15-guest-usage-events)
+  const { q, prefs, services, t, locale, lang, session, href, langHrefs } = await guestContext(searchParams, { source: 'staff' });
   const menu = await services.catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
   const dish = menu.dishes.find((d) => d.id === q.dish) ?? menu.dishes[0];
@@ -31,7 +33,7 @@ export default async function StaffPage({ params, searchParams }: Props) {
         {dish ? (
           <>
             <form action={path} method="get" className="grid gap-1.5">
-              {Object.entries({ serving: prefs.serving !== 'any' ? prefs.serving : '', styles: prefs.styles.join(','), maxPrice: prefs.maxPrice ? String(prefs.maxPrice) : '', weight: prefs.weight !== 'any' ? prefs.weight : '', mood: prefs.mood !== 'any' ? prefs.mood : '', lang: lang ?? '' })
+              {Object.entries({ serving: prefs.serving !== 'any' ? prefs.serving : '', styles: prefs.styles.join(','), maxPrice: prefs.maxPrice ? String(prefs.maxPrice) : '', weight: prefs.weight !== 'any' ? prefs.weight : '', mood: prefs.mood !== 'any' ? prefs.mood : '', lang: lang ?? '', sid: session.id })
                 .filter(([, v]) => v).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
               <label htmlFor="staff-dish" className="text-[13.5px] font-semibold text-ink-2">{l.dish}</label>
               <div className="flex gap-2">

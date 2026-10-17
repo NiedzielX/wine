@@ -175,3 +175,24 @@ export const DEFAULT_PREFS: GuestPreferences = {
   weight: 'any',
   mood: 'any'
 };
+
+/**
+ * The catalogue of guest usage events written to `guest_interaction` (spec 2026-10-15-guest-usage-events). The names
+ * and their `props` keys are read by the KPI dashboard (E04): add names, never rename one. The same list is in
+ * docs/SCREEN_SPECIFICATION.md (Analytics).
+ */
+export const GUEST_EVENT_NAMES = [
+  'guest_session_started', 'menu_viewed', 'recommendations_viewed', 'table_recommendation_viewed', 'wine_viewed', 'wine_selected', 'staff_lookup'
+] as const;
+export type GuestEventName = (typeof GUEST_EVENT_NAMES)[number];
+
+/** A stored usage event as read back. `props` is untyped on read: old or damaged rows are possible. */
+export interface GuestInteraction {
+  sessionId: string;
+  name: GuestEventName;
+  dishId: string | null;
+  wineId: string | null;
+  props: Record<string, unknown>;
+  engineVersion: string | null;
+  createdAt: string;
+}
