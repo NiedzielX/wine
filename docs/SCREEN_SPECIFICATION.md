@@ -243,6 +243,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Użytkownik | GM, Sommelier |
 | Funkcje | baner kolejki review → A7; link Guest view; wiersze tabeli „Pairing performance” → A6 |
 | Komponenty UI | 2 rzędy KPI (Wine attach rate wyróżniony; revenue per guest, avg bottle, avg glass; sessions, recommendations shown, conversion, revenue per table) z deltami; wykres liniowy sesji i wyborów; paski: najczęściej wyszukiwane dania, rekomendowane wina, wybierane wina; tabela skuteczności par (Sommelier / Engine, shown, chosen, conversion) |
+| Wyjaśnienie | „What do these tiles count?” / „Co liczą te kafelki?” (`data-explain="dashboard"`) bezpośrednio nad kafelkami „Wine program”: dania prowadzone przez sommeliera, zatwierdzone pary (u gościa „Sommelier’s pairing”), propozycje silnika w kolejce — gość widzi je od `minModelScore`% jako „Recommended for your dish” przy „Fill empty places…”; ukryte wino nie trafia do gości |
 | Dane wejściowe | okres (domyślnie 28 dni), eventy, dane sprzedaży |
 | Dane wyjściowe | brak |
 | Loading | skeleton kafelków KPI |
@@ -262,6 +263,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Użytkownik | Sommelier, GM |
 | Funkcje | wyszukiwanie (debounce 350 ms), filtr kategorii, wiersz → A3, „Import menu” → A8 |
 | Komponenty UI | tabela: nazwa + opis, kategoria, cena, status (Published / Draft / Hidden), profil (Confirmed / Draft, needs check), pairingi (reviewed / to review) |
+| Wyjaśnienie | „How does a taste profile affect pairings?” / „Jak profil smaku wpływa na pary?” (`data-explain="menu"`) pod nagłówkiem strony (poza `<p>` opisu), nad filtrami: profil smaku (skale 0–5, główny składnik, technika) to jedyne dane dania dla silnika; profil „Draft” pochodzi z importu i wymaga sprawdzenia |
 | Dane wejściowe | dishes, pairings |
 | Dane wyjściowe | nawigacja |
 | Loading | skeleton 8 wierszy |
@@ -281,6 +283,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Użytkownik | Sommelier |
 | Funkcje | edycja pól; suwaki profilu 0–5; główny składnik; metoda; podgląd „Top matches with this profile” na żywo; „Save and update suggestions”; „Manage pairings” → A6; „View as guest”; **„Translations / Tłumaczenia”** (od 2026-10-15): kolumny Polski i English z polami Name i Description (placeholder = tekst bazowy, puste pole = tekst bazowy), „Save translations”, flash „Translations saved. Guests see them after you publish.”; konflikt wersji (ktoś zmienił tłumaczenia) → komunikat `version_conflict`; za długi tekst → „Check the translations…”. Zapis: akcja serwerowa → `TranslationService.setDishTranslations` (uprawnienie `import.manage`), zmiana liczy się do „Publish”. Role bez `import.manage` widzą pola tylko do odczytu |
 | Komponenty UI | panel Details (formularz 2-kolumnowy), panel podglądu (top 5 win z % i uzasadnieniem), panel Taste profile (siatka suwaków z wartością) |
+| Wyjaśnienie | „How does the engine score a pairing?” / „Jak silnik liczy ocenę?” (`data-explain="score"`, wspólne z A5) w nagłówku karty „Top matches”: start od `baseScore`, reguły sommelierskie, skala 0–`maxScore`, te same profile dają tę samą ocenę, gość widzi propozycję silnika od `minModelScore`%, zatwierdzenie zmienia miejsce, nie ocenę |
 | Dane wejściowe | Dish, DishProfile, wines |
 | Dane wyjściowe | zaktualizowany Dish i DishProfile (`source: confirmed`); przeliczone pairingi |
 | Loading | skeleton formularza |
@@ -300,6 +303,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Użytkownik | Sommelier |
 | Funkcje | wyszukiwanie (producent, wino, region, szczep); filtr stylu; przełącznik Active w wierszu; wiersz → A5; „Import wine list” → A9 |
 | Komponenty UI | tabela: producent + wino, rocznik, region + kraj, szczep, styl, serwowanie (Glass and bottle / Bottle only), cena kieliszka, cena butelki, Active |
+| Wyjaśnienie | „What does hiding a wine do?” / „Co znaczy ukrycie wina?” (`data-explain="wines"`) pod nagłówkiem strony, nad filtrami: ukryte wino od razu znika z rekomendacji (także z par sommeliera), bez publikacji; „Show” przywraca je od razu |
 | Dane wejściowe | wines |
 | Dane wyjściowe | `active` |
 | Loading | skeleton wierszy |
@@ -319,6 +323,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Użytkownik | Sommelier |
 | Funkcje | producent, nazwa, ceny, „Poured by the glass”, „Available tonight”, nota; suwaki profilu; podgląd „Best dishes for this wine” na żywo; Save wine |
 | Komponenty UI | jak A3 |
+| Wyjaśnienie | jak A3 (`data-explain="score"`) w nagłówku karty „Best dishes” |
 | Dane wejściowe | Wine, WineProfile |
 | Dane wyjściowe | zaktualizowany Wine; przeliczone wyniki par z tym winem |
 | Loading | skeleton formularza |
@@ -338,6 +343,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Użytkownik | Sommelier |
 | Funkcje | lista dań z licznikami; **Approved for guests**: rola (Primary / Alternative / Best value), góra / dół, notatka dla gości (pole bazowe w języku treści oraz pola „Note in Polski” / „Note in English” — `comment_pl`, `comment_en`, każde ≤ 140 znaków; wiersz pokazuje notatkę w języku panelu), Reject, Delete (dla par ręcznych); **Engine suggestions**: Approve / Reject / Approve all; **Add your own pairing**: wino (z wynikiem silnika), rola, notatka; **Rejected**: Restore; **What guests see now** |
 | Komponenty UI | układ 2-kolumnowy: lista dań (sticky) + panele; wiersz pary: pozycja (serif), wino, ceny, odznaki statusu i roli, wynik silnika, „Unpublished change”, notatka (italic) |
+| Wyjaśnienie | dwa, po jednym na kartę: „How do guests see your pairings?” / „Jak gość widzi Twoje pary?” (`data-explain="pairings"`) w nagłówku „Approved for guests” — kolejność u gościa, najwyżej `dishLimit` win, procent = ocena silnika, notatka zastępuje uzasadnienie, odrzucona para nie pojawia się przy daniu (przy „Whole table” tylko obniża wynik dania do `tableRejectedCap` w rankingu butelek), filtry gościa mogą ukryć parę podstawową, „Best value” (`bestValueWindow`); kompaktowe „i” (`data-explain="suggestions"`, nazwa `sr-only`) przy tytule „Engine suggestions” — jak gość widzi nieprzejrzane propozycje i co robi Approve / Reject |
 | Dane wejściowe | Dish, pairings, wines |
 | Dane wyjściowe | Pairing (status, role, rank, comment), SommelierDecision |
 | Loading | skeleton paneli |
@@ -357,6 +363,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | Użytkownik | Sommelier |
 | Funkcje | Approve / Reject per propozycja; Approve all for this dish; Approve all N (→ A11); Open pairings → A6 |
 | Komponenty UI | pasek postępu (dania z ≥ 1 zatwierdzoną parą); grupy per danie z informacją „no primary pick yet”; wiersz: wino, uzasadnienie z reguł, wynik |
+| Wyjaśnienie | „What does approving do?” / „Co daje zatwierdzenie?” (`data-explain="review"`) pod paskiem postępu: zatwierdzona para po publikacji ma etykietę „Sommelier’s pairing” i stoi przed propozycjami silnika; odrzucona nie jest polecana do dania (przy „Whole table” obniża wynik do `tableRejectedCap`); nieprzejrzane — od `minModelScore`% jako „Recommended for your dish” przy „Fill empty places…” |
 | Dane wejściowe | pairings `suggested` |
 | Dane wyjściowe | decyzje |
 | Loading | skeleton grup |
@@ -425,6 +432,7 @@ Jak A8, z różnicami:
 | Użytkownik | Sommelier, GM |
 | Funkcje | checklista „Before you publish” z przyciskami Fix / Review / Check; ustawienia gościa (Fill empty places with engine picks, Show match percentages); Preview guest app; Publish changes |
 | Komponenty UI | checklista z ikonami ok / uwaga; przełączniki; pasek publikacji z liczbą zmian |
+| Wyjaśnienie | „What do these settings change?” / „Co zmieniają te ustawienia?” (`data-explain="publish"`) w nagłówku karty „Guest settings”: „Fill empty places…” (od `minModelScore`%; wyłączone — przy winach do dania tylko pary sommeliera), butelka dla „Whole table” zawsze z całej aktywnej karty, „Show match percentages” (kieliszek bez liczby; na „Whole table” paski przy daniach nadal z procentem, ekran kelnera zawsze z procentem), działają od razu. Opis przełącznika „Fill empty places…” mówi, że stół nadal bierze całą kartę (Q4) |
 | Dane wejściowe | liczniki zmian, stan danych |
 | Dane wyjściowe | PublishedVersion; ustawienia |
 | Loading | przycisk „Publishing…” (produkcja) |

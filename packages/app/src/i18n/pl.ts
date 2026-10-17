@@ -627,7 +627,7 @@ export const pl = {
       settings: 'Ustawienia dla gości',
       settingsText: 'Działają od razu; nie są częścią publikowanej wersji.',
       showUnreviewed: 'Uzupełniaj puste miejsca propozycjami silnika',
-      showUnreviewedText: 'Po wyłączeniu goście widzą tylko zatwierdzone przez Ciebie parowania.',
+      showUnreviewedText: 'Po wyłączeniu lista win do dania pokazuje tylko zatwierdzone przez Ciebie parowania. Butelkę dla „Całego stolika” silnik nadal wybiera z całej karty.',
       showScores: 'Pokazuj gościom procent dopasowania',
       showScoresText: 'Ikona kieliszka jest widoczna zawsze.',
       saveSettings: 'Zapisz ustawienia',
@@ -640,6 +640,73 @@ export const pl = {
       upToDate: 'Wszystko aktualne',
       upToDateText: 'Wprowadź zmianę w Parowaniach lub w kolejce Do przeglądu, potem wróć tutaj, aby ją opublikować.',
       versionBadge: (n: number) => `Wersja ${n}`
+    },
+    explain: {
+      dashboard: {
+        summary: 'Co liczą te kafelki?',
+        points: (f: EngineFacts) => [
+          'Dania z parowaniem sommeliera: opublikowane dania z zatwierdzoną parą podstawową. Przy nich gość zawsze widzi najpierw Twój wybór.',
+          'Zatwierdzone parowania: zatwierdzone i zmienione. Po publikacji gość widzi je jako „Para sommeliera”.',
+          `Propozycje silnika czekają w kolejce. Gdy włączone „Uzupełniaj puste miejsca propozycjami silnika”, gość widzi je od ${f.minModelScore}% jako „Polecane do Twojego dania”, nigdy jako „Para sommeliera”.`,
+          'Wina w karcie: aktywne wina. Ukrytego wina gość nigdy nie zobaczy.'
+        ]
+      },
+      menu: {
+        summary: 'Jak profil smaku wpływa na pary?',
+        points: [
+          'Profil smaku to jedyne dane dania, z których silnik liczy ocenę: intensywność, tłuszcz, sól, słodycz, kwasowość, ostrość, umami, dym i kremowość w skali 0–5 oraz główny składnik i technika.',
+          'Profil „Szkic” powstał z opisu przy imporcie. Ten sam profil zawsze daje te same oceny, więc błędny profil daje błędne pary: najpierw go sprawdź.'
+        ]
+      },
+      score: {
+        summary: 'Jak silnik liczy ocenę?',
+        points: (f: EngineFacts) => [
+          `Każda para startuje od ${f.baseScore}. Reguły sommelierskie dodają lub odejmują punkty: waga, kwasowość wobec tłuszczu, słodycz, taniny wobec ryby, ostrość wobec alkoholu, dym i beczka, sól i bąbelki, kremowość, umami oraz klasyczne połączenia.`,
+          `Wynik mieści się w skali 0–${f.maxScore}. Te same profile zawsze dają tę samą ocenę, więc sprawdź profil szkicowy, zanim mu zaufasz.`,
+          `Gość widzi propozycję silnika dopiero od ${f.minModelScore}%. Twoje zatwierdzenie zmienia miejsce wina na liście, nigdy jego ocenę.`
+        ]
+      },
+      wines: {
+        summary: 'Co znaczy ukrycie wina?',
+        points: [
+          'Ukryte wino od razu znika z rekomendacji dla gości, także z Twoich par. Publikacja nie jest potrzebna.',
+          '„Pokaż” od razu je przywraca.'
+        ]
+      },
+      pairings: {
+        summary: 'Jak gość widzi Twoje pary?',
+        points: (f: EngineFacts) => [
+          `Kolejność: para podstawowa, pozostałe zatwierdzone w Twojej kolejności, potem propozycje silnika (od ${f.minModelScore}%, gdy włączone „Uzupełniaj puste miejsca…”). Gość widzi najwyżej ${f.dishLimit} ${plural(f.dishLimit, 'wino', 'wina', 'win')}.`,
+          'Procent to zawsze ocena silnika: zatwierdzenie zmienia kolejność, nie liczbę. Twoja notatka zastępuje uzasadnienie silnika.',
+          `Odrzucona para nigdy nie pojawi się przy tym daniu. Przy „Całym stoliku” tylko obniża wynik tego dania do ${f.tableRejectedCap} w rankingu butelek.`,
+          'Filtry gościa mogą ukryć nawet parę podstawową (np. wino tylko na butelki przy filtrze „Na kieliszki”).',
+          `Najlepsza cena: Twoja para w tej roli, jeśli jest na liście; bez niej najtańsza butelka tańsza od pierwszego wina, najwyżej ${f.bestValueWindow} pkt słabsza od najlepszej.`
+        ]
+      },
+      suggestions: {
+        summary: 'Jak gość widzi propozycje silnika?',
+        points: (f: EngineFacts) => [
+          `Dopóki nie zdecydujesz, gość widzi propozycję od ${f.minModelScore}% jako „Polecane do Twojego dania” (gdy włączone „Uzupełniaj puste miejsca…”), nigdy jako Twoją parę.`,
+          'Zatwierdź: po publikacji staje się „Parą sommeliera” i wyprzedza propozycje silnika. Odrzuć: nigdy nie będzie polecana do tego dania.'
+        ]
+      },
+      review: {
+        summary: 'Co daje zatwierdzenie?',
+        points: (f: EngineFacts) => [
+          'Po publikacji zatwierdzona para ma u gościa etykietę „Para sommeliera” i stoi przed propozycjami silnika.',
+          `Odrzucona para nigdy nie będzie polecana do tego dania. Przy „Całym stoliku” tylko obniża wynik dania do ${f.tableRejectedCap} w rankingu butelek.`,
+          `Nieprzejrzane propozycje gość widzi od ${f.minModelScore}% jako „Polecane do Twojego dania”, gdy włączone „Uzupełniaj puste miejsca…”.`
+        ]
+      },
+      publish: {
+        summary: 'Co zmieniają te ustawienia?',
+        points: (f: EngineFacts) => [
+          `Uzupełniaj puste miejsca: gdy włączone, gość widzi też propozycje silnika od ${f.minModelScore}%; gdy wyłączone, lista win do dania pokazuje tylko Twoje pary.`,
+          'Butelkę dla „Całego stolika” silnik zawsze wybiera z całej aktywnej karty, niezależnie od tego ustawienia.',
+          'Pokazuj procent: gdy wyłączone, gość widzi kieliszek wypełniony do poziomu dopasowania, bez liczby. Na „Całym stoliku” paski przy daniach nadal pokazują procent; ekran kelnera pokazuje go zawsze.',
+          'Oba ustawienia działają od razu, bez publikacji.'
+        ]
+      }
     },
     qr: {
       title: 'Kod QR',

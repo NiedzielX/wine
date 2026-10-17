@@ -2,7 +2,9 @@ import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent, 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ENGINE_FACTS } from '@wine-match/core';
 import { Page, PageHeader } from '../../_components/admin-shell';
+import { PanelExplain } from '../../_components/explain';
 import { ActionButton, Hidden } from '../../_components/action-form';
 import { Flash, ReadOnlyNotice } from '../../_components/flash';
 import { first, formatDateTime } from '../../_components/format';
@@ -73,7 +75,11 @@ export default async function PublishPage({ params, searchParams }: Props) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>{m.settings}</CardTitle><CardDescription>{m.settingsText}</CardDescription></CardHeader>
+          <CardHeader>
+            <CardTitle>{m.settings}</CardTitle>
+            <CardDescription>{m.settingsText}</CardDescription>
+            <PanelExplain id="publish" summary={t.admin.explain.publish.summary} points={t.admin.explain.publish.points(ENGINE_FACTS)} />
+          </CardHeader>
           <CardContent>
             <form action={saveGuestSettings} className="grid gap-4">
               <Hidden fields={common} />

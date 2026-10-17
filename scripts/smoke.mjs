@@ -286,25 +286,25 @@ await check('the waiter pairing lookup stays public', `/r/${slug}/staff?dish=${d
 
 // --- dashboard (read-only screens of Phase 2)
 await check('admin root redirects to the dashboard', '/admin', { has: ['Dashboard', 'Sommelier-led dishes'] });
-await check('A1 dashboard', A, { has: ['Dashboard', 'Sommelier-led dishes', 'Published dishes', 'Wines on the list', 'Approved pairings', 'engine suggestions are waiting', 'No guests have used Wine Match yet', 'Review queue', 'Recommended for your dish'], hasNot: OLD_LABELS });
-await check('A2 menu', `${A}/menu`, { has: ['Beef tartare', 'Draft, needs check', 'to review', 'Published', 'Filter'] });
+await check('A1 dashboard', A, { has: ['Dashboard', 'Sommelier-led dishes', 'Published dishes', 'Wines on the list', 'Approved pairings', 'engine suggestions are waiting', 'No guests have used Wine Match yet', 'Review queue', 'Recommended for your dish', '<details data-explain="dashboard"', 'What do these tiles count?'], hasNot: [...OLD_LABELS, ' open=""'] });
+await check('A2 menu', `${A}/menu`, { has: ['Beef tartare', 'Draft, needs check', 'to review', 'Published', 'Filter', 'data-explain="menu"', 'How does a taste profile affect pairings?'] });
 await check('A2 menu: text filter', `${A}/menu?q=porcini`, { has: ['Wild mushroom risotto'], hasNot: ['Beef tartare'] });
 await check('A2 menu: category filter', `${A}/menu?category=Desserts`, { has: ['Dark chocolate tart'], hasNot: ['Duck breast'] });
 await check('A2 menu: no results', `${A}/menu?q=zzzz`, { has: ['No dishes found', 'Try another search or category.'] });
-await check('A3 dish details', `${A}/menu/${duck}`, { has: ['Duck breast', 'Top matches with this profile', 'Taste profile', 'Manage pairings', 'View as guest', 'Translations', 'name="name_pl"', 'value="Pierś z kaczki"', 'name="description_en"', 'Save translations'] });
+await check('A3 dish details', `${A}/menu/${duck}`, { has: ['Duck breast', 'Top matches with this profile', 'Taste profile', 'Manage pairings', 'View as guest', 'Translations', 'name="name_pl"', 'value="Pierś z kaczki"', 'name="description_en"', 'Save translations', 'data-explain="score"', 'How does the engine score a pairing?', 'Every pairing starts at 72'] });
 await check('A3 unknown dish', `${A}/menu/00000000-0000-4000-8000-000000000000`, { status: 404 });
-await check('A4 wine list', `${A}/wines`, { has: ['Wine list', '19 active wines', 'Hidden', 'Bottle only', 'Hochar'] });
+await check('A4 wine list', `${A}/wines`, { has: ['Wine list', '19 active wines', 'Hidden', 'Bottle only', 'Hochar', 'data-explain="wines"', 'What does hiding a wine do?'] });
 await check('A4 wine list: style filter', `${A}/wines?style=sweet`, { has: ['Royal Tokaji'], hasNot: ['Marcel Lapierre'] });
 await check('A4 wine list: no results', `${A}/wines?q=zzzz`, { has: ['No wines found'] });
 const list = await (await fetch(`${base}${A}/wines`, { headers: { cookie: SESSION } })).text();
 const hidden = /href="[^"]*\/wines\/([0-9a-f-]{36})"[^>]*>Château Musar/.exec(list)?.[1];
 if (hidden) await check('A5 wine details of a hidden wine', `${A}/wines/${hidden}`, { has: ['Hidden from guests', 'Château Musar'] });
-await check('A5 wine details', `${A}/wines/${wine}`, { has: ['Listing and prices', 'Best dishes for this wine', 'Wine profile', 'Approved pairings', 'Duck breast', 'Translations', 'name="tastingNote_pl"', 'name="country_en"'] });
+await check('A5 wine details', `${A}/wines/${wine}`, { has: ['Listing and prices', 'Best dishes for this wine', 'Wine profile', 'Approved pairings', 'Duck breast', 'Translations', 'name="tastingNote_pl"', 'name="country_en"', 'data-explain="score"'] });
 await check('A5 unknown wine', `${A}/wines/00000000-0000-4000-8000-000000000000`, { status: 404 });
 await check('A6 pairings index redirects to a dish', `${A}/pairings`, { has: ['What guests see now', 'Approved for guests'] });
-await check('A6 pairings of a dish', `${A}/pairings/${duck}`, { has: ['Pairings: Duck breast', 'Sommelier approved', 'Primary', 'What guests see now', 'Sommelier’s pairing', '<span class="sr-only"> Engine match score</span>'], hasNot: [...OLD_LABELS, 'title="Engine match score"'] });
-await check('A7 review queue', `${A}/review`, { has: ['Review queue', 'dishes have at least one approved pairing', 'suggestions left', 'Open pairings', 'role="progressbar"', 'aria-valuenow'], hasNot: ['data-state="indeterminate"', ...OLD_LABELS] });
-await check('A11 publish: the engine’s label for unreviewed suggestions', `${A}/publish`, { has: ['Guest settings'], hasNot: OLD_LABELS });
+await check('A6 pairings of a dish', `${A}/pairings/${duck}`, { has: ['Pairings: Duck breast', 'Sommelier approved', 'Primary', 'What guests see now', 'Sommelier’s pairing', '<span class="sr-only"> Engine match score</span>', 'data-explain="pairings"', 'How do guests see your pairings?', 'data-explain="suggestions"', '<span class="sr-only">How do guests see engine suggestions?</span>'], hasNot: [...OLD_LABELS, 'title="Engine match score"'] });
+await check('A7 review queue', `${A}/review`, { has: ['Review queue', 'dishes have at least one approved pairing', 'suggestions left', 'Open pairings', 'role="progressbar"', 'aria-valuenow', 'data-explain="review"', 'What does approving do?'], hasNot: ['data-state="indeterminate"', ...OLD_LABELS] });
+await check('A11 publish: the engine’s label for unreviewed suggestions', `${A}/publish`, { has: ['Guest settings', 'data-explain="publish"', 'What do these settings change?', 'The “Whole table” bottle still comes from the whole list.'], hasNot: [...OLD_LABELS, 'When off, guests only see pairings you approved.'] });
 await check('a restaurant the user has no access to: 403', '/admin/nope', { status: 403 });
 await check('dashboard uses no guest wording', A, { hasNot: ['AI recommendation', 'Powered by AI'] });
 
@@ -327,7 +327,7 @@ await check('A0 Polish error message by code', '/admin/login?error=invalid_crede
 await check('A1 dashboard with wm_lang=pl', A, { cookie: PLC, headers: { 'accept-language': 'en-GB' }, has: ['<html lang="pl"', 'Pulpit', 'Karta win', 'Parowania', 'Do przeglądu', 'Publikacja', 'Kod QR', 'Ustawienia', 'Wyloguj', 'Dania z parowaniem sommeliera', 'Wymaga uwagi', 'aria-current="true"', '<title>Pulpit | Panel Wine Match</title>'], hasNot: ['Sign out', 'Sommelier-led dishes'] });
 await check('A2 menu in Polish', `${A}/menu`, { cookie: PLC, has: ['Szukaj dań', 'Przystawki', 'Szkic, do sprawdzenia', 'Opublikowane', '<title>Menu | Panel Wine Match</title>'] });
 await check('A4 wine list in Polish: styles, prices with NBSP', `${A}/wines`, { cookie: PLC, has: ['Karta win', 'Tylko butelka', 'Czerwone', '\u00a0zł', 'Ukryj'] });
-await check('A6 pairings in Polish: roles, flash by code, Polish engine reasons', `${A}/pairings/${duck}?saved=approved`, { cookie: PLC, has: ['Parowanie zatwierdzone.', 'Zatwierdzone dla gości', 'Podstawowe', 'Najlepsza cena', 'Propozycje silnika', 'Co teraz widzą goście', 'Ustaw rolę'], hasNot: ['Approved for guests', 'Set role', ...OLD_LABELS] });
+await check('A6 pairings in Polish: roles, flash by code, Polish engine reasons', `${A}/pairings/${duck}?saved=approved`, { cookie: PLC, has: ['Parowanie zatwierdzone.', 'Zatwierdzone dla gości', 'Podstawowe', 'Najlepsza cena', 'Propozycje silnika', 'Co teraz widzą goście', 'Ustaw rolę', 'Jak gość widzi Twoje pary?', 'Gość widzi najwyżej 4 wina.'], hasNot: ['Approved for guests', 'Set role', ...OLD_LABELS] });
 await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą zmienił to parowanie'] });
 await check('A7 review queue in Polish', `${A}/review`, { cookie: PLC, has: ['Do przeglądu', 'Zatwierdź', 'Odrzuć', 'Otwórz parowania', 'para sommeliera'], hasNot: OLD_LABELS });
 await check('A3 dish in Polish: content in the panel language', `${A}/menu/${duck}`, { cookie: PLC, has: ['Pierś z kaczki', 'Tłumaczenia', 'Zapisz tłumaczenia'] });
@@ -335,7 +335,7 @@ await check('A6 note form in Polish has PL and EN fields', `${A}/pairings/${duck
 await check('A10 content language and translations', `${A}/setup`, { has: ['Content language and translations', 'name="contentLocale"', 'name="city_pl"', 'value="Warszawa"'] });
 await check('A1 panel has the language switch at the top', A, { has: ['aria-label="Polski"', 'aria-label="English"', '>Polski<', '>English<'] });
 await check('A10 setup in Polish', `${A}/setup`, { cookie: PLC, has: ['Lista kroków', 'Dane restauracji', 'Zaimportuj menu', 'Wydrukuj kod QR', 'W szkicu: 4 z 15 profili dań.'] });
-await check('A11 publish in Polish', `${A}/publish`, { cookie: PLC, has: ['Przed publikacją', 'Opublikuj zmiany', 'Ostatnia publikacja:'], hasNot: OLD_LABELS });
+await check('A11 publish in Polish', `${A}/publish`, { cookie: PLC, has: ['Przed publikacją', 'Opublikuj zmiany', 'Ostatnia publikacja:', 'Co zmieniają te ustawienia?', 'z całej karty'], hasNot: OLD_LABELS });
 await check('A12 QR in Polish', `${A}/qr`, { cookie: PLC, has: ['Kod QR', 'Drukuj stojak na stolik'] });
 await check('guest pages ignore wm_lang (no cookies for guests)', R, { cookie: 'wm_lang=pl', has: ['<html lang="en"', 'Pick your dish'], hasNot: ['Wybierz danie'] });
 // the switch is a plain form post to a server action: no JavaScript, no session needed

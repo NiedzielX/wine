@@ -65,6 +65,19 @@ describe('admin panel', () => {
     }
   });
 
+  it('A6 has two closed explanations, one per card; a tap opens each (spec 2026-10-16-how-it-works-explanations, phase 3)', async () => {
+    await browser.open(`${baseUrl()}/admin/halka/pairings`);
+    await browser.waitForPageText('Approved for guests');
+    expect(await browser.count('details[data-explain]')).toBe(2);
+    expect(await browser.count('details[data-explain][open]')).toBe(0);
+    await browser.click('details[data-explain="pairings"] summary');
+    expect(await browser.count('details[data-explain="pairings"][open]')).toBe(1);
+    expect(await browser.waitForPageText('Guests see at most 4 wines.')).toContain('A rejected pairing never appears with this dish.');
+    await browser.click('details[data-explain="suggestions"] summary');
+    expect(await browser.count('details[data-explain="suggestions"][open]')).toBe(1);
+    expect(await browser.waitForPageText('never as your pairing')).toContain('Recommended for your dish');
+  });
+
   it('the menu opens from the sidebar with the seeded dishes', async () => {
     await browser.clickRole('link', 'Menu');
     expect(await browser.waitForUrl('/admin/halka/menu')).toContain('/admin/halka/menu');

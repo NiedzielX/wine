@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { ActionButton, Hidden } from '../../../_components/action-form';
+import { ENGINE_FACTS } from '@wine-match/core';
 import { DishStatusBadge, PairingStatusBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
+import { PanelExplain } from '../../../_components/explain';
 import { Flash, ReadOnlyNotice } from '../../../_components/flash';
 import { first, formatDateTime, zl } from '../../../_components/format';
 import { addPairing, approveAllPairings, approvePairing, deletePairing, movePairing, rejectPairing, restorePairing, savePairingNote, setPairingRole } from '../../actions';
@@ -69,6 +71,7 @@ export default async function PairingsPage({ params, searchParams }: Props) {
             <CardHeader className="border-b py-4">
               <CardTitle>{m.approvedTitle}</CardTitle>
               <CardDescription>{m.approvedText}</CardDescription>
+              <PanelExplain id="pairings" summary={t.admin.explain.pairings.summary} points={t.admin.explain.pairings.points(ENGINE_FACTS)} />
             </CardHeader>
             <CardContent className="px-0">
               {w.approved.length === 0 && <p className="px-6 py-8 text-center text-sm text-muted-foreground">{m.noneApproved}</p>}
@@ -132,7 +135,12 @@ export default async function PairingsPage({ params, searchParams }: Props) {
 
           <Card className="gap-0 py-0">
             <CardHeader className="flex-row items-center justify-between gap-3 border-b py-4">
-              <div><CardTitle>{m.suggestionsTitle}</CardTitle><CardDescription>{m.suggestionsText}</CardDescription></div>
+              {/* the title floats so the compact "i" sits next to it and its open text spans the header below (no positioning) */}
+              <div className="min-w-0">
+                <CardTitle className="float-left mr-1.5 leading-6">{m.suggestionsTitle}</CardTitle>
+                <PanelExplain id="suggestions" compact summary={t.admin.explain.suggestions.summary} points={t.admin.explain.suggestions.points(ENGINE_FACTS)} />
+                <CardDescription className="clear-left pt-1.5">{m.suggestionsText}</CardDescription>
+              </div>
               {decide && w.suggested.length > 0 && <ActionButton action={approveAllPairings} fields={{ ...common, dishId: dish.id }}>{m.approveAll(w.suggested.length)}</ActionButton>}
             </CardHeader>
             <CardContent className="px-0">

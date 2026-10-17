@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { ActiveBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
+import { PanelExplain } from '../../../_components/explain';
 import { first, vintageLabel, zl } from '../../../_components/format';
 import { Flash } from '../../../_components/flash';
 import { TranslationsCard } from '../../../_components/translations-form';
 import { saveWineTranslations } from '../../actions';
-import { TEXT_LIMITS, translationsVersion } from '@wine-match/core';
+import { ENGINE_FACTS, TEXT_LIMITS, translationsVersion } from '@wine-match/core';
 import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
@@ -66,6 +67,7 @@ export default async function WinePage({ params, searchParams }: Props) {
           <CardHeader>
             <CardTitle>{m.bestDishes}</CardTitle>
             <CardDescription>{m.bestDishesText}</CardDescription>
+            <PanelExplain id="score" summary={t.admin.explain.score.summary} points={t.admin.explain.score.points(ENGINE_FACTS)} />
           </CardHeader>
           <CardContent className="grid gap-3">
             {bestDishes.map((x) => (
