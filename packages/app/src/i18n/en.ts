@@ -95,6 +95,7 @@ export const en = {
       table: 'Pair for the table',
       tableResult: 'Best wine for your table',
       staff: 'Pairing lookup',
+      staffTable: 'Whole table — staff',
       howItWorks: 'How we pick your wine'
     },
     categories: { Starters: 'Starters', Mains: 'Mains', Desserts: 'Desserts' },
@@ -272,6 +273,19 @@ export const en = {
           'Show this screen to your waiter, who will take your order.'
         ]
       },
+      /**
+       * G11, the waiter's whole table (spec 2026-10-16-whole-table-waiter-path, R11, UI/UX): the screen's one
+       * explanation. Numbers from ENGINE_FACTS; no promise of "first in the order" (a table has no tiers).
+       */
+      staffTable: {
+        summary: 'How is the table bottle chosen?',
+        points: (f: EngineFacts) => [
+          `Each dish gets its own match. The table score combines the average (${pct(f.tableMeanWeight)}%, mains ×${f.tableMainsWeight}) with the weakest dish (${pct(f.tableMinWeight)}%), so the bottle isn’t great with one dish and poor with another.`,
+          `“Works with” means at least ${f.tableFitThreshold}%; a pairing the sommelier rejected never counts. Desserts are paired separately.`,
+          `A sommelier’s pairing has the seal and adds ${f.tableSommelierBonus} points to the table score, not to the dish’s percentage; a rejected one counts as ${f.tableRejectedCap}% at most.`,
+          `Below ${f.compromiseThreshold}% for the table, or ${f.weakDishThreshold}% for the weakest dish, we also suggest a glass for each dish.`
+        ]
+      },
       wine: {
         summary: 'What does this score mean?',
         points: (c: WineExplainContext) => [
@@ -387,6 +401,35 @@ export const en = {
       say: (why: string) => `Say: “${why}”`,
       noDishesTitle: 'No dishes on the menu',
       noDishesText: 'The menu is being updated.'
+    },
+    /** G11, the waiter's whole table (spec 2026-10-16-whole-table-waiter-path, R5–R7). */
+    staffTable: {
+      title: 'Whole table',
+      lead: 'Tick the table’s dishes and show the bottle. Same pairings the guest sees.',
+      search: 'Find a dish',
+      dessertsApart: 'paired separately',
+      colour: 'Colour',
+      submit: 'Show the bottle',
+      needTwo: 'Tick at least two dishes.',
+      truncated: (n: number) => `We worked out the first ${n} dishes.`,
+      /** the sentence the waiter reads to the table, with the wine-list number when there is one (R6) */
+      thisBottle: (listNumber: number | undefined, name: string) => listNumber === undefined ? `This bottle: ${name}.` : `This bottle: No. ${listNumber} ${name}.`,
+      others: 'Other bottles',
+      listNo: (n: number) => `No. ${n}`,
+      fitsOf: (fits: number, of: number) => `${fits} of ${of}`,
+      choose: 'Choose this one',
+      dessertsNote: (names: string) => `Desserts are paired separately: ${names}.`,
+      changeTable: 'Change the table',
+      newTable: 'New table',
+      nothingTitle: 'Nothing fits',
+      nothingText: 'Change the colour, or leave it open.',
+      /** the recommendation code next to the bottle (E09, `source: 'staff'`) */
+      code: {
+        title: 'Code',
+        hint: 'Put it in the order comment.',
+        spoken: (code: string) => code.split('').join(', '),
+        unavailable: 'No code for this one — order as usual.'
+      }
     },
     notFound: {
       title: 'This menu isn’t available',

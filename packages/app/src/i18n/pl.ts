@@ -44,6 +44,7 @@ export const pl = {
       table: 'Wino dla stolika',
       tableResult: 'Najlepsze wino dla stolika',
       staff: 'Podgląd par',
+      staffTable: 'Cały stolik — obsługa',
       howItWorks: 'Jak dobieramy wino'
     },
     categories: { Starters: 'Przystawki', Mains: 'Dania główne', Desserts: 'Desery' },
@@ -197,6 +198,15 @@ export const pl = {
           'Pokaż ten ekran kelnerowi — przyjmie zamówienie.'
         ]
       },
+      staffTable: {
+        summary: 'Jak wybieramy butelkę do stolika?',
+        points: (f: EngineFacts) => [
+          `Każde danie dostaje własną ocenę dopasowania. Wynik stołu łączy średnią (${pctPl(f.tableMeanWeight)}%, dania główne ×${decimalPl(f.tableMainsWeight)}) z najsłabszym daniem (${pctPl(f.tableMinWeight)}%), żeby butelka nie była świetna do jednego dania i słaba do drugiego.`,
+          `„Pasuje” znaczy co najmniej ${f.tableFitThreshold}%, a para odrzucona przez sommeliera nigdy nie pasuje. Desery liczymy osobno.`,
+          `Para sommeliera ma pieczęć i podnosi wynik stołu o ${f.tableSommelierBonus} pkt (nie procent przy daniu); odrzucona liczy się najwyżej jako ${f.tableRejectedCap}%.`,
+          `Gdy wynik stołu jest poniżej ${f.compromiseThreshold}% albo najsłabsze danie poniżej ${f.weakDishThreshold}%, proponujemy też kieliszki osobno do każdego dania.`
+        ]
+      },
       wine: {
         summary: 'Co znaczy ta ocena?',
         points: (c: WineExplainContext) => [
@@ -305,6 +315,32 @@ export const pl = {
       say: (why: string) => `Powiedz: „${why}”`,
       noDishesTitle: 'Brak dań w menu',
       noDishesText: 'Menu jest właśnie aktualizowane.'
+    },
+    staffTable: {
+      title: 'Cały stolik',
+      lead: 'Zaznacz dania stolika i pokaż butelkę. Te same pary, które widzi gość.',
+      search: 'Szukaj dania',
+      dessertsApart: 'liczone osobno',
+      colour: 'Kolor',
+      submit: 'Pokaż butelkę',
+      needTwo: 'Zaznacz co najmniej dwa dania.',
+      truncated: (n: number) => `Policzyliśmy pierwsze ${n} ${plural(n, 'danie', 'dania', 'dań')}.`,
+      thisBottle: (listNumber: number | undefined, name: string) => listNumber === undefined ? `Ta butelka: ${name}.` : `Ta butelka: nr ${listNumber} ${name}.`,
+      others: 'Inne butelki',
+      listNo: (n: number) => `nr ${n}`,
+      fitsOf: (fits: number, of: number) => `${fits} z ${of}`,
+      choose: 'Wybierz tę',
+      dessertsNote: (names: string) => `Desery dobieramy osobno: ${names}.`,
+      changeTable: 'Zmień stolik',
+      newTable: 'Nowy stolik',
+      nothingTitle: 'Nic nie pasuje',
+      nothingText: 'Zmień kolor albo zostaw go pusty.',
+      code: {
+        title: 'Kod',
+        hint: 'Wpisz go w komentarzu zamówienia.',
+        spoken: (code: string) => code.split('').join(', '),
+        unavailable: 'Bez kodu — zamów jak zwykle.'
+      }
     },
     notFound: {
       title: 'To menu jest niedostępne',

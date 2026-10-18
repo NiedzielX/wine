@@ -26,6 +26,7 @@ G0  Restaurant landing + menu ................. /r/{slug}
  │       └─ G7  Wine details ................... /r/{slug}/wine/{wineId}?table=1
  │           └─ G8  Selection confirmation
  ├─ G9  Staff lookup (waiter) ................. /r/{slug}/staff?dish={dishId}
+ │   └─ G11 Whole table (waiter) ............... /r/{slug}/staff/table?dishes=&wine=   (przełącznik „One dish / Whole table” na G9 i G11)
  └─ G12 How we pick your wine ................. /r/{slug}/how-it-works   (także ze stopki G3)
 
 Stany systemowe: unknown restaurant (dowolny błędny slug), ?demo=loading|empty|error
@@ -37,6 +38,7 @@ flowchart TD
   G0 --> G1[G1 Dish list]
   G0 --> G5[G5 Whole table]
   G0 --> G9[G9 Staff lookup]
+  G9 <--> G11[G11 Whole table — waiter]
   G1 <--> G5
   G1 --> G3[G3 Dish + recommendations]
   G3 <--> G4[G4 Filters sheet]
@@ -53,7 +55,7 @@ flowchart TD
 - Ikona filtrów w top barze jest widoczna tylko na G3.
 - Główne akcje są w przyklejonym dolnym pasku w zasięgu kciuka (G5, G7); na desktopie pasek jest zwykłym blokiem pod treścią.
 - Preferencje gościa (kieliszek / butelka, styl, budżet, body, mood) i wybór stolika są trzymane wyłącznie w parametrach URL i przechodzą między ekranami w linkach (bez ciasteczek i pamięci przeglądarki).
-- Desktop (≥ 1024 px): G0 i G1 — nagłówek restauracji po lewej, menu po prawej; G3 — menu z bieżącym daniem po lewej, wina po prawej, filtry jako panel z prawej; G5–G9 w kolumnie do 720 px.
+- Desktop (≥ 1024 px): G0 i G1 — nagłówek restauracji po lewej, menu po prawej; G3 — menu z bieżącym daniem po lewej, wina po prawej, filtry jako panel z prawej; G5–G9 i G11 w kolumnie do 720 px.
 
 ## Restaurant / Sommelier dashboard
 
@@ -116,7 +118,7 @@ flowchart LR
 | Ekran | Guest | Waiter | Sommelier | Owner / GM |
 |---|:-:|:-:|:-:|:-:|
 | G0–G8 | ✓ | ✓ | ✓ | ✓ |
-| G9 | – | ✓ | ✓ | ✓ |
+| G9, G11 | – | ✓ | ✓ | ✓ |
 | A1 Dashboard | – | – | ✓ | ✓ |
 | A2–A5 | – | – | ✓ edycja | ✓ edycja |
 | A6, A7 | – | – | ✓ decyzje | podgląd |

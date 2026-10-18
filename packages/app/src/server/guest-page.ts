@@ -68,3 +68,6 @@ export function langHref(path: string, q: QueryInput, lang: Locale, sid?: string
 export { notFound };
 
 export const CATEGORIES = ['Starters', 'Mains', 'Desserts'] as const;
+
+/** The dishes in the order the menu shows them (by section, then as listed): the order a table form submits. */
+export const inMenuOrder = <D extends { category: string }>(dishes: D[]): D[] => CATEGORIES.flatMap((c) => dishes.filter((d) => d.category === c));
