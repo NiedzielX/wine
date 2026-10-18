@@ -246,7 +246,8 @@ describe('RecommendationCodeService.issue (R3–R5, R13, Q4, Q18)', () => {
     expect(await repo.findByCode(ds.restaurant.id, dayOf(4), 'C4U')).toBeNull();
     expect(await repo.findByCode(ds.restaurant.id, dayOf(5), 'C4U')).not.toBeNull();
     expect((await repo.totals(ds.restaurant.id, { from: dayOf(0), to: dayOf(total) })).issued).toBe(MAX_MEMORY_RECOMMENDATION_CODES);
-  });
+    // 10 005 inserts, each scanning the store: ~5 s on a CI runner with coverage, over the default 5 s timeout
+  }, 30_000);
 });
 
 describe('windows in service days (E10 F4)', () => {
