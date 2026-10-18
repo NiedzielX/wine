@@ -10,8 +10,9 @@ import {
 } from '../src/engine/recommend';
 import { BASE_SCORE, ENGINE_VERSION, MAX_SCORE, pairingScore } from '../src/engine/scoring';
 import {
-  COMPROMISE_THRESHOLD, recommendForTable, TABLE_FIT_THRESHOLD, TABLE_LIMIT, TABLE_MAINS_WEIGHT, TABLE_MEAN_WEIGHT, TABLE_MIN_WEIGHT,
-  TABLE_REJECTED_CAP, TABLE_SOMMELIER_BONUS, tableFit, type TableDishScore, WEAK_DISH_THRESHOLD
+  COMPROMISE_THRESHOLD, recommendForTable, TABLE_FIT_THRESHOLD, TABLE_LIMIT, TABLE_MAINS_WEIGHT, TABLE_MAX_EXTRA_GLASSES, TABLE_MEAN_WEIGHT,
+  TABLE_MIN_WEIGHT, TABLE_ML_PER_PERSON, TABLE_PEOPLE_MAX, TABLE_PEOPLE_MIN, TABLE_REJECTED_CAP, TABLE_SOMMELIER_BONUS, tableFit, tablePeople,
+  tableQuantity, type TableDishScore, WEAK_DISH_THRESHOLD
 } from '../src/engine/table';
 import * as CoreIndex from '../src/index';
 
@@ -284,9 +285,83 @@ describe('table.budget_relaxed', () => {
   });
 });
 
+describe('table.people_default', () => {
+  // owner's decision Q4: no default number of people — a quantity only after an explicit choice
+  it('accepts only a whole number of people from 2 to 12; anything else is no choice', () => {
+    expect([TABLE_PEOPLE_MIN, TABLE_PEOPLE_MAX]).toEqual([2, 12]);
+    for (const n of [2, 4, 12]) expect(tablePeople(n)).toBe(n);
+    for (const n of [1, 13, 2.5, 0, -4, Number.NaN, null, undefined]) expect(tablePeople(n)).toBeNull();
+  });
+
+  it('without a chosen number there is no default: people null and no quantity on any bottle', () => {
+    for (const options of [{}, { people: null }, { people: 1 }, { people: 13 }]) {
+      const r = recommendForTable(demoDishes(SIX), demo.wines, demo.pairings, DEFAULT_PREFS, undefined, 'en', options);
+      expect(r.people).toBeNull();
+      expect(r.items.every((i) => i.quantity === null)).toBe(true);
+    }
+  });
+
+  it('the number of people never changes the ranking (Q6)', () => {
+    const plain = recommendForTable(demoDishes(SIX), demo.wines, demo.pairings, DEFAULT_PREFS);
+    for (const people of [2, 5, 12]) {
+      const r = recommendForTable(demoDishes(SIX), demo.wines, demo.pairings, DEFAULT_PREFS, undefined, 'en', { people });
+      expect(r.people).toBe(people);
+      expect(r.items.map((i) => [i.wine.id, i.overall, i.fit.fits])).toEqual(plain.items.map((i) => [i.wine.id, i.overall, i.fit.fits]));
+      expect(r.splitSuggested).toBe(plain.splitSuggested);
+    }
+  });
+});
+
+describe('table.quantity', () => {
+  const base = wine('w_radikon');
+  const w = (over: Partial<Wine>, style = base.profile.style): Wine => ({ ...base, bottleSize: 750, bottlePrice: 300, glassPrice: 70, glassPour: 150, ...over, profile: { ...base.profile, style } });
+  const q = (people: number, x: Wine) => { const r = tableQuantity(people, x); return r && [r.bottles, r.glasses]; };
+
+  it('uses the owner-approved constants (Q3): 300 ml a person, up to 2 extra glasses', () => {
+    expect(TABLE_ML_PER_PERSON).toBe(300);
+    expect(TABLE_MAX_EXTRA_GLASSES).toBe(2);
+  });
+
+  // AC17
+  it('750 ml bottle, 150 ml glass with a price: full bottles, then up to two glasses instead of another bottle', () => {
+    const x = w({});
+    expect([2, 3, 4, 5, 6, 8].map((n) => q(n, x))).toEqual([[1, 0], [1, 1], [2, 0], [2, 0], [2, 2], [3, 1]]);
+  });
+
+  it('without a glass price the rest is one more bottle', () => {
+    const x = w({ glassPrice: null });
+    expect([3, 6].map((n) => q(n, x))).toEqual([[2, 0], [3, 0]]);
+  });
+
+  it('a 125 ml pour takes more glasses for the same rest', () => {
+    expect(q(3, w({ glassPour: 125 }))).toEqual([1, 2]);
+  });
+
+  it('the total is the bottles and the glasses at their prices; always at least one bottle', () => {
+    expect(tableQuantity(6, w({}))).toEqual({ people: 6, bottles: 2, glasses: 2, total: 2 * 300 + 2 * 70 });
+    expect(tableQuantity(2, w({ bottleSize: 1500, glassPour: 300 }))).toEqual({ people: 2, bottles: 1, glasses: 0, total: 300 });
+  });
+
+  it('no quantity for a sweet wine or a table served by the glass', () => {
+    expect(tableQuantity(4, w({}, 'sweet'))).toBeNull();
+    expect(tableQuantity(4, w({}), 'glass')).toBeNull();
+    const glass = recommendForTable(demoDishes(FOUR), demo.wines, demo.pairings, { ...DEFAULT_PREFS, serving: 'glass' }, undefined, 'en', { people: 4 });
+    expect(glass.items.length).toBeGreaterThan(0);
+    expect(glass.items.every((i) => i.serving === 'glass' && i.quantity === null)).toBe(true);
+  });
+
+  // AC18 — with Q4 the number of people is chosen (no default), here the six people of the six-dish table
+  it('Halka, six dishes for six people: Radikon Slatnik, 3 bottles, no glasses, 960 zł', () => {
+    const r = recommendForTable(demoDishes(SIX), demo.wines, demo.pairings, DEFAULT_PREFS, undefined, 'en', { people: 6 });
+    expect(r.items[0].wine.id).toBe('w_radikon');
+    expect(r.items[0].quantity).toEqual({ people: 6, bottles: 3, glasses: 0, total: 960 });
+    expect(r.items.every((i) => i.quantity !== null)).toBe(true);
+  });
+});
+
 describe('ENGINE_VERSION', () => {
-  it('is wm-rules-1.1.0 (minor: table.fit and table.budget_relaxed are new rules; results unchanged)', () => {
-    expect(ENGINE_VERSION).toBe('wm-rules-1.1.0');
+  it('is wm-rules-1.2.0 (minor: table.people_default and table.quantity are new rules; results unchanged)', () => {
+    expect(ENGINE_VERSION).toBe('wm-rules-1.2.0');
   });
 });
 
@@ -338,6 +413,10 @@ describe('ENGINE_FACTS', () => {
       tableSommelierBonus: TABLE_SOMMELIER_BONUS,
       tableRejectedCap: TABLE_REJECTED_CAP,
       tableFitThreshold: TABLE_FIT_THRESHOLD,
+      tableMlPerPerson: TABLE_ML_PER_PERSON,
+      tableMaxExtraGlasses: TABLE_MAX_EXTRA_GLASSES,
+      tablePeopleMin: TABLE_PEOPLE_MIN,
+      tablePeopleMax: TABLE_PEOPLE_MAX,
       compromiseThreshold: COMPROMISE_THRESHOLD,
       weakDishThreshold: WEAK_DISH_THRESHOLD
     });

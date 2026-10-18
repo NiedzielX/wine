@@ -83,7 +83,7 @@ describe('public guest API', () => {
     const data = (await ok.json()) as { engineVersion: string; items: Array<Record<string, unknown> & { perDish: Array<Record<string, unknown>> }> };
     expect(Object.keys(data).sort()).toEqual(['engineVersion', 'items', 'setAside', 'split', 'splitSuggested']);
     expect(data.engineVersion).toBe(ENGINE_VERSION);
-    expect(ENGINE_VERSION).toBe('wm-rules-1.1.0');
+    expect(ENGINE_VERSION).toBe('wm-rules-1.2.0');
     expect(data.items.length).toBeGreaterThan(0);
     for (const item of data.items) {
       expect(Object.keys(item).sort()).toEqual(['overall', 'perDish', 'price', 'serving', 'why', 'wine']);

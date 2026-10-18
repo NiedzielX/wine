@@ -1,6 +1,6 @@
 import type { Dish, GuestPreferences, WineStyle } from '../domain/types';
 import { DEFAULT_PREFS } from '../domain/types';
-import type { TableItem } from '../engine/table';
+import { tablePeople, type TableItem } from '../engine/table';
 import type { Locale, Localized } from '../i18n/locale';
 
 /**
@@ -133,3 +133,18 @@ export function pickTableItem(items: TableItem[], wineId: string | null | undefi
   const picked = wineId ? items.find((i) => i.wine.id === wineId) : undefined;
   return picked ? [picked, ...items.filter((i) => i !== picked)] : items;
 }
+
+/**
+ * The number of people from `people=` (spec 2026-10-16-whole-table-waiter-path, R14): a whole number the table rule
+ * accepts (`table.people_default`, 2–12), or null — for `people=` ("not saying"), a missing, repeated, fractional or
+ * out-of-range value. Null means no quantity is shown: there is no default (owner's decision Q4).
+ */
+export function parsePeople(q: QueryInput): number | null {
+  const v = q.people;
+  if (typeof v !== 'string' || !/^\d{1,2}$/.test(v)) return null;
+  return tablePeople(Number(v));
+}
+
+/** The numbers of people offered as one tap each (G5, G6, G11); "8+" stands for TABLE_PEOPLE_MORE (R16). */
+export const TABLE_PEOPLE_CHOICES = [2, 3, 4, 5, 6, 7, 8] as const;
+export const TABLE_PEOPLE_MORE = 10;

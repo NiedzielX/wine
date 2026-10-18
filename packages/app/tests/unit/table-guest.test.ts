@@ -208,8 +208,10 @@ describe('the fit line and the G6 explanation in the dictionaries (R11, R12)', (
       const on = t.guest.explain.tableResult.points(marked, { showScores: true }).join(' ');
       for (const n of ['1071%', '1003', '1050%', '55%', '45%']) expect(on).toContain(n);
       expect(on).toMatch(/×1[.,]25/);
-      const off = t.guest.explain.tableResult.points(marked, { showScores: false }).join(' ');
+      // no score in any form; the only numbers are the amount per person (ml, glasses — E08 F4), which is not a score
+      const off = t.guest.explain.tableResult.points(marked, { showScores: false }).slice(0, -1).join(' ');
       expect(off).not.toMatch(/\d/);
+      expect(t.guest.explain.tableResult.points(marked, { showScores: false }).at(-1)).not.toMatch(/%/);
       expect(t.guest.explain.tableResult.points(ENGINE_FACTS, { showScores: true }).join(' ')).toContain(`${ENGINE_FACTS.tableFitThreshold}%`);
     }
   });

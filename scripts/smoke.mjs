@@ -97,6 +97,11 @@ await check('G6 six dishes in Polish', `${R}/table/result?dishes=${SIX}&lang=pl`
 await check('G6 red up to 200 zł: the budget notice, not an empty screen', `${R}/table/result?dishes=${FOUR}&styles=red&maxPrice=200`, { has: ['Nothing matches under 200 zł. These are the closest options.', 'Works with'], hasNot: ['No bottle fits these filters'] });
 await check('G6 up to 150 zł: the budget notice', `${R}/table/result?dishes=${FOUR}&maxPrice=150`, { has: ['Nothing matches under 150 zł.'], hasNot: ['No bottle fits these filters'] });
 await check('G6 table with one dish', `${R}/table/result?dish=${duck}`, { has: ['Add at least two dishes'] });
+// E08 F4: the quantity only after a chosen number of people (no default, Q4); `people` travels to G7 and G8
+await check('G6 without people: no quantity, the people links', `${R}/table/result?dishes=${SIX}`, { has: ['How many people are drinking wine?', 'aria-label="6 people"', 'Choose how many people are drinking'], hasNot: ['data-table-quantity'] });
+await check('G6 for 6 people: 3 bottles', `${R}/table/result?dishes=${SIX}&people=6`, { has: ['For 6 people: 3 bottles · 960', 'people=6'] });
+await check('G6 for 6 people in Polish', `${R}/table/result?dishes=${SIX}&people=6&lang=pl`, { has: ['Dla 6 osób: 3 butelki · 960', 'Ile osób pije wino?'] });
+await check('G5 asks how many people', `${R}/table?people=4`, { has: ['How many people are drinking wine?', 'name="people"'] });
 await check('G9 staff lookup', `${R}/staff?dish=${duck}`, { has: ['Say:', 'Sommelier’s pairing · first choice', 'no. 112', 'data-explain="staff"', 'Why this order?'], hasNot: OLD_LABELS });
 // spec 2026-10-16-whole-table-waiter-path, phase 2: the waiter's whole table, G11 (R5–R7, R11, AC7–AC11). The smoke test is
 // synthetic traffic, so no recommendation code is issued: the code slot says so instead
@@ -105,6 +110,8 @@ await check('G11 six dishes: the bottle to say, n of m, alternatives', `${R}/sta
 await check('G11 two dishes by repeated dish=: works with', `${R}/staff/table?dish=${tartare}&dish=${duck}`, { has: ['This bottle:', 'Works with'] });
 await check('G11 in Polish', `${R}/staff/table?dishes=${SIX}&lang=pl`, { has: ['Ta butelka: nr 109 Radikon Slatnik.', 'Pasuje do 5 z 6 dań, słabiej do: Comber z jelenia.', 'Wybierz tę', 'name="lang" value="pl"'] });
 await check('G11 one dish: tick at least two', `${R}/staff/table?dish=${duck}`, { has: ['Tick at least two dishes.'], hasNot: ['data-staff-table-result'] });
+await check('G11 for 6 people: the quantity under the bottle', `${R}/staff/table?dishes=${SIX}&people=6`, { has: ['This bottle: No. 109 Radikon Slatnik.', 'For 6 people: 3 bottles · 960'] });
+await check('G11 without people: no quantity', `${R}/staff/table?dishes=${SIX}`, { has: ['How many people are drinking wine?'], hasNot: ['data-table-quantity'] });
 await check('G11 red up to 200 zł: the budget notice and an answer', `${R}/staff/table?dishes=${FOUR}&styles=red&maxPrice=200`, { has: ['Nothing matches under 200 zł', 'This bottle:'] });
 await check('G11 links and form carry the staff session', `${R}/staff/table?dishes=${FOUR}&sid=${SID}`, { has: [`name="sid" value="${SID}"`, `${R}/staff?sid=${SID}`, `&amp;sid=${SID}`] });
 await check('G9 switches to the whole table', `${R}/staff?dish=${duck}&sid=${SID}`, { has: [`href="${R}/staff/table?sid=${SID}"`, 'Whole table', 'One dish'] });

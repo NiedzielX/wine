@@ -71,7 +71,7 @@ describe('phase 2 texts: numbers from ENGINE_FACTS, limits, variants (AC6, R4, R
         const expected: Record<string, Array<keyof EngineFacts>> = {
           landing: ['dishLimit'],
           menu: [],
-          table: ['tableMainsWeight', 'budgetFallbackCount'],
+          table: ['tableMainsWeight', 'budgetFallbackCount', 'tableMlPerPerson'],
           staff: c.showUnreviewed ? ['minModelScore', 'dishLimit'] : ['dishLimit']
         };
         for (const [id, keys] of Object.entries(expected)) {
@@ -100,7 +100,7 @@ describe('phase 2 texts: numbers from ENGINE_FACTS, limits, variants (AC6, R4, R
       const c = contexts()[0];
       const ex = explanations(t, ENGINE_FACTS, c);
       expect(numbersIn(ex.landing.join(' '))).toContain(ENGINE_FACTS.dishLimit);
-      expect(numbersIn(ex.table.join(' '))).toEqual([ENGINE_FACTS.tableMainsWeight, ENGINE_FACTS.budgetFallbackCount]);
+      expect(numbersIn(ex.table.join(' '))).toEqual([ENGINE_FACTS.tableMainsWeight, ENGINE_FACTS.budgetFallbackCount, ENGINE_FACTS.tableMlPerPerson]);
       expect(numbersIn(ex.staff.join(' '))).toEqual([ENGINE_FACTS.minModelScore, ENGINE_FACTS.dishLimit]);
       // decimals in the page's language (R4): "1,5" in Polish, "1.5" in English
       expect(ex.table.join(' ')).toContain(lang === 'pl' ? '×1,5' : '×1.5');

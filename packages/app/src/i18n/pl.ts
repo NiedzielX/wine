@@ -1,5 +1,5 @@
 import type { EngineFacts } from '@wine-match/core';
-import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, WineExplainContext } from './en';
+import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, TableQuantityText, WineExplainContext } from './en';
 
 /** Polish plural: 1 wino, 2–4 wina (but 12–14 win), 5+ win. */
 const plural = (n: number, one: string, few: string, many: string) =>
@@ -14,6 +14,11 @@ const pctPl = (weight: number) => Math.round(weight * 100);
 const decimalPl = (n: number) => String(n).replace('.', ',');
 
 const directorPl = (name: string) => name.trim() || 'sommelier restauracji';
+
+/** Punkt E08 F4 w wyjaśnieniach stołu (G5, G6, G11): ilość na osobę, jeśli wszyscy piją to samo wino (Q3, Q4); G11 dodaje kieliszki. */
+const quantityPointPl = (f: EngineFacts) => `Ilość: ok. ${f.tableMlPerPerson} ml na osobę, jeśli wszyscy piją to samo wino.`;
+const quantityGlassesPl = (f: EngineFacts) =>
+  `Do pełnych butelek doliczamy najwyżej ${f.tableMaxExtraGlasses} ${plural(f.tableMaxExtraGlasses, 'kieliszek', 'kieliszki', 'kieliszków')} zamiast kolejnej butelki; ilość podajemy dopiero po wyborze liczby osób.`;
 
 /** Punkt 5 G3 i arkusz G4: filtry twarde wykluczają, miękkie zmieniają kolejność; luzowanie budżetu. */
 const filterPointsPl = (f: EngineFacts) => [
@@ -163,23 +168,26 @@ export const pl = {
           `Każde wino z karty oceniamy do każdego zaznaczonego dania; dania główne liczą się mocniej (×${decimalPl(f.tableMainsWeight)}).`,
           'Liczy się średnia, ale też najsłabsze danie — wolimy butelkę dobrą do wszystkiego niż świetną do jednego dania i słabą do reszty.',
           'Desery wybierasz osobno, po daniach głównych (chyba że stół zamawia tylko desery).',
-          `Bierzemy tylko wina w wybranym kolorze i budżecie; gdy żadna butelka nie mieści się w budżecie, piszemy o tym i pokazujemy ${f.budgetFallbackCount} ${plural(f.budgetFallbackCount, 'najlepiej pasującą butelkę', 'najlepiej pasujące butelki', 'najlepiej pasujących butelek')} spoza niego.`
+          `Bierzemy tylko wina w wybranym kolorze i budżecie; gdy żadna butelka nie mieści się w budżecie, piszemy o tym i pokazujemy ${f.budgetFallbackCount} ${plural(f.budgetFallbackCount, 'najlepiej pasującą butelkę', 'najlepiej pasujące butelki', 'najlepiej pasujących butelek')} spoza niego.`,
+          quantityPointPl(f)
         ]
       },
       tableResult: {
         summary: 'Jak liczymy dopasowanie ogółem?',
         points: (f: EngineFacts, c: Pick<ExplainContext, 'showScores'>) => c.showScores
           ? [
-              `Paski pokazują dopasowanie do każdego dania. Dopasowanie ogółem to ${pctPl(f.tableMeanWeight)}% średniej (dania główne ×${decimalPl(f.tableMainsWeight)}) i ${pctPl(f.tableMinWeight)}% wyniku najsłabszego dania, więc jedno danie nie wystarczy.`,
+              `Paski pokazują dopasowanie do każdego dania. Dopasowanie ogółem to ${pctPl(f.tableMeanWeight)}% średniej (dania główne ×${decimalPl(f.tableMainsWeight)}) i ${pctPl(f.tableMinWeight)}% wyniku najsłabszego dania.`,
               `„Pasuje” znaczy co najmniej ${f.tableFitThreshold}%, a para odrzucona przez sommeliera nigdy nie pasuje. Desery liczymy osobno.`,
-              `Para sommeliera ma pieczęć i dodaje ${f.tableSommelierBonus} pkt do dopasowania ogółem, nie do procentu przy daniu; odrzucona liczy się najwyżej jako ${f.tableRejectedCap}%.`,
-              `Gdy ogółem wychodzi poniżej ${f.compromiseThreshold}% albo najsłabsze danie poniżej ${f.weakDishThreshold}%, proponujemy też kieliszki osobno do każdego dania.`
+              `Para sommeliera ma pieczęć i dodaje ${f.tableSommelierBonus} pkt do dopasowania ogółem, nie do procentu przy daniu; odrzucona liczy się najwyżej za ${f.tableRejectedCap}%.`,
+              `Gdy ogółem wychodzi poniżej ${f.compromiseThreshold}% albo najsłabsze danie poniżej ${f.weakDishThreshold}%, proponujemy też osobny kieliszek do każdego dania.`,
+              quantityPointPl(f)
             ]
           : [
               'Paski pokazują dopasowanie do każdego dania. Butelkę wybieramy według średniej z dań (dania główne liczą się bardziej) i najsłabszego dania.',
               '„Pasuje” znaczy, że wino dobrze pasuje do tego dania samo w sobie; para odrzucona przez sommeliera nigdy nie pasuje. Desery liczymy osobno.',
               'Para sommeliera ma pieczęć i trochę podnosi butelkę w wyborze (nie pasek przy daniu); odrzucona mocno ją obniża.',
-              'Gdy jedna butelka jest kompromisem, proponujemy też kieliszki osobno do każdego dania.'
+              'Gdy jedna butelka jest kompromisem, proponujemy też kieliszki osobno do każdego dania.',
+              quantityPointPl(f)
             ]
       },
       staff: {
@@ -204,7 +212,8 @@ export const pl = {
           `Każde danie dostaje własną ocenę dopasowania. Wynik stołu łączy średnią (${pctPl(f.tableMeanWeight)}%, dania główne ×${decimalPl(f.tableMainsWeight)}) z najsłabszym daniem (${pctPl(f.tableMinWeight)}%), żeby butelka nie była świetna do jednego dania i słaba do drugiego.`,
           `„Pasuje” znaczy co najmniej ${f.tableFitThreshold}%, a para odrzucona przez sommeliera nigdy nie pasuje. Desery liczymy osobno.`,
           `Para sommeliera ma pieczęć i podnosi wynik stołu o ${f.tableSommelierBonus} pkt (nie procent przy daniu); odrzucona liczy się najwyżej jako ${f.tableRejectedCap}%.`,
-          `Gdy wynik stołu jest poniżej ${f.compromiseThreshold}% albo najsłabsze danie poniżej ${f.weakDishThreshold}%, proponujemy też kieliszki osobno do każdego dania.`
+          `Gdy wynik stołu jest poniżej ${f.compromiseThreshold}% albo najsłabsze danie poniżej ${f.weakDishThreshold}%, proponujemy też kieliszki osobno do każdego dania.`,
+          `${quantityPointPl(f)} ${quantityGlassesPl(f)}`
         ]
       },
       wine: {
@@ -300,6 +309,16 @@ export const pl = {
         const all = f.of === 2 ? 'Pasuje do obu dań' : `Pasuje do wszystkich ${f.of} dań`;
         return f.compromise ? `${all}, choć to kompromis.` : `${all}.`;
       }
+    },
+    tableQuantity: {
+      question: 'Ile osób pije wino?',
+      skip: 'Pomiń',
+      more: '8+',
+      hint: 'Wybierz, ile osób pije wino, a podamy, ile go zamówić.',
+      peopleLabel: (n: number) => `${n} osób`,
+      // „Dla N osób” — przy co najmniej 2 osobach dopełniacz liczby mnogiej jest zawsze ten sam
+      line: (q: TableQuantityText) =>
+        `Dla ${q.people} osób: ${q.bottles} ${plural(q.bottles, 'butelka', 'butelki', 'butelek')}${q.glasses > 0 ? ` + ${q.glasses} ${plural(q.glasses, 'kieliszek', 'kieliszki', 'kieliszków')}` : ''} · ${q.total}`
     },
     staff: {
       title: 'Podgląd par',

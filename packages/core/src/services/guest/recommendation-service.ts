@@ -1,7 +1,7 @@
 import type { Dish, GuestPreferences, Restaurant, Wine } from '../../domain/types';
 import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS } from '../../domain/types';
 import { recommendForDish, type RecommendationItem, type RecommendationResult } from '../../engine/recommend';
-import { recommendForTable, type TableOptions, type TableResult } from '../../engine/table';
+import { recommendForTable, tablePeople, tableQuantity, type TableOptions, type TableQuantity, type TableResult } from '../../engine/table';
 import { MAX_TABLE_DISHES } from '../../guest/prefs';
 import type { Repositories } from '../../ports/repositories';
 import type { Locale } from '../../i18n/locale';
@@ -120,6 +120,25 @@ export class RecommendationService {
       this.content(restaurant, locale)
     ]);
     return { restaurant: c.restaurant, result: recommendForTable(picked.map(c.dish), wines.map(c.wine), pairings.map(c.pairing), { ...DEFAULT_PREFS, ...prefs }, undefined, locale ?? 'en', options) };
+  }
+
+  /**
+   * The table quantity of one bottle (`table.quantity`) for the confirmation screen (G8 "For the table"): the same rules
+   * as the table result, by the bottle. Null when the number of people was not chosen (`table.people_default`), the
+   * restaurant or the wine is unknown, the wine is inactive, or fewer than two of the dishes are published.
+   */
+  async tableWineQuantity(slug: string, wineId: string, dishIds: string[], people: number | null): Promise<TableQuantity | null> {
+    const chosen = tablePeople(people);
+    if (chosen === null) return null;
+    const restaurant = await this.repos.restaurantRepository.findBySlug(slug);
+    if (!restaurant) return null;
+    const [wine, dishes] = await Promise.all([
+      this.repos.wineRepository.findById(restaurant.id, wineId),
+      this.repos.dishRepository.listByRestaurant(restaurant.id, { statuses: ['published'] })
+    ]);
+    if (!wine || !wine.active) return null;
+    if (dishIds.filter((id) => dishes.some((d) => d.id === id)).length < 2) return null;
+    return tableQuantity(chosen, wine, 'bottle');
   }
 }
 
