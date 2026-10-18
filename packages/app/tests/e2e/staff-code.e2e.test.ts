@@ -154,6 +154,23 @@ describe('G9 "Order from a code" in a browser without JavaScript: 390 and 1440 p
   const { browser } = e2eSuite('staff-code');
   const evalJs = async (js: string) => JSON.parse((await browser.run('eval', js)).trim()) as unknown;
   const press = (label: string) => evalJs(`(() => { const b = [...document.querySelectorAll('[data-staff-code] button')].find((x) => x.textContent.trim() === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
+  /**
+   * The page text once it shows `text`. A native form post replaces the document: while the new page loads, reading
+   * `body` fails ("Element not found"), so a failed read is retried like a page without the text yet.
+   */
+  async function waitText(text: string, timeoutMs = 15_000): Promise<string> {
+    const deadline = Date.now() + timeoutMs;
+    let last: unknown;
+    while (Date.now() < deadline) {
+      try {
+        return await browser.waitForPageText(text, Math.min(2_000, Math.max(deadline - Date.now(), 1)));
+      } catch (e) {
+        last = e;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    }
+    throw last;
+  }
 
   beforeAll(async () => {
     await AgentBrowser.verifyVersion();
@@ -169,22 +186,22 @@ describe('G9 "Order from a code" in a browser without JavaScript: 390 and 1440 p
   it('type the code, Find, Ordered, Undo — native forms only, no sideways scroll', async () => {
     const { code, day } = await issueCode();
     await browser.open(`${base()}/r/halka/staff?lang=en`);
-    await browser.waitForPageText('Order from a code');
+    await waitText('Order from a code');
     expect(await evalJs('typeof window.next === "object" && !!window.next?.router')).toBe(false);
     await browser.fill('#staff-code', ` ${code.toLowerCase()} `);
     expect(await press('Find')).toBe(true);
-    await browser.waitForPageText(`Code ${code}, shown at`);
+    await waitText(`Code ${code}, shown at`);
     expect(await evalJs('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
     expect(await press('Ordered')).toBe(true);
-    await browser.waitForPageText('Marked as ordered.');
+    await waitText('Marked as ordered.');
     expect((await rowOf(code, day))?.confirmed_at).not.toBeNull();
     expect(await evalJs('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
     await browser.run('set', 'viewport', '1440', '900');
     await browser.run('reload');
-    await browser.waitForPageText('Marked at');
+    await waitText('Marked at');
     expect(await evalJs('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
     expect(await press('Undo')).toBe(true);
-    await browser.waitForPageText('Mark removed.');
+    await waitText('Mark removed.');
     expect((await rowOf(code, day))?.confirmed_at).toBeNull();
   });
 });

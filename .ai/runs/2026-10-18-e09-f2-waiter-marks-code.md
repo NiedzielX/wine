@@ -31,6 +31,8 @@ Faza 2 specyfikacji E09 (kroki 6–7 planu; R6, R7, AC7, AC8, AC15 i przypadki b
 - Panel przeglądarki (postgres): 390 px PL — karta „Marcel Lapierre Morgon, nr 111, 1 butelka, 750 ml, 230 zł, Wybrane bez dania, Kod G7T, pokazany o 20:13, Oznaczone o 20:13, Cofnij”; „Cofnij” z JS → „Cofnięto oznaczenie.” i znów „Zamówione”; `scrollWidth` 390 = 390, konsola bez błędów. 1440 px EN, `X9X` → „There is no code X9X today in this restaurant. …”, `scrollWidth` 1440.
 - Po rebase na `origin/main` (7d9bd5d, E10 F4 dodał `pairStats` do tego samego serwisu i testu — konflikt rozwiązany, obie części zostają): gate ponownie zielony (core 453, app 278), `test:db` 80/80, E2E 8 plików / 45 testów.
 - CI PR #71: job `unit` czerwony — test F1 „the memory store keeps at most 10 000 recommendations” przekroczył domyślny limit 5 s (5,36 s z pokryciem na runnerze; ten sam czerwony `unit` na `main` po E10 F4). Poprawka: jawny limit 30 s dla tego testu (10 005 wstawień), bez zmiany logiki.
+- CI PR #71, job `e2e`: test przeglądarki bez JS padł na CI („agent-browser get text body failed: Element not found: body”) — natywny POST/GET formularza podmienia dokument i `waitForPageText` nie ponawia nieudanego odczytu. Poprawka w teście: `waitText` ponawia odczyt podczas nawigacji; lokalnie 5/5.
+- Drugi rebase (aa7b800, E08 F4 `people`): konflikt w `BACKWARD_COMPATIBILITY.md` §1 (wiersz parametrów) — zostają `people` i `code`. Gate zielony (core 467, app 297), `test:db` 80/80, E2E 9 plików / 47 testów.
 - Bez self-QA (risk-high): QA zostaje dla QA reviewera (`needs-qa`).
 
 ## Wynik
