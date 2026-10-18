@@ -5,9 +5,9 @@ import { memorySink, createLogger } from '../src/logging/logger';
 import { createMemoryRepositories, MAX_MEMORY_RECOMMENDATION_CODES, MemoryStore } from '../src/memory/memory-repositories';
 import type { RecommendationCodeInput, RecommendationCodeRepository } from '../src/ports/repositories';
 import { CODE_DIGITS, CODE_LETTERS, codeFromUuid, findCodeInText, isWholeCellCode, normalizeCode } from '../src/recommendation-code/code-format';
-import { formatServiceTime, serviceDay } from '../src/recommendation-code/service-day';
+import { formatServiceTime, lastFullServiceDays, serviceDay, shiftServiceDay } from '../src/recommendation-code/service-day';
 import {
-  MAX_CODES_PER_SESSION_DAY, MAX_STAFF_CODES_PER_SESSION_DAY, RecommendationCodeService, type IssueCodeInput
+  MAX_CODES_PER_SESSION_DAY, MAX_PERIOD_DAYS, MAX_STAFF_CODES_PER_SESSION_DAY, RecommendationCodeService, type IssueCodeInput
 } from '../src/services/recommendations/recommendation-code-service';
 
 /** Spec 2026-10-16-recommendation-code, phase 1: the code format, the service day and issuing on G8. */
@@ -246,5 +246,62 @@ describe('RecommendationCodeService.issue (R3–R5, R13, Q4, Q18)', () => {
     expect(await repo.findByCode(ds.restaurant.id, dayOf(4), 'C4U')).toBeNull();
     expect(await repo.findByCode(ds.restaurant.id, dayOf(5), 'C4U')).not.toBeNull();
     expect((await repo.totals(ds.restaurant.id, { from: dayOf(0), to: dayOf(total) })).issued).toBe(MAX_MEMORY_RECOMMENDATION_CODES);
+  });
+});
+
+describe('windows in service days (E10 F4)', () => {
+  it('shiftServiceDay moves by calendar days across months, years and leap days', () => {
+    expect(shiftServiceDay('2026-10-16', -1)).toBe('2026-10-15');
+    expect(shiftServiceDay('2026-03-01', -1)).toBe('2026-02-28');
+    expect(shiftServiceDay('2028-03-01', -1)).toBe('2028-02-29');
+    expect(shiftServiceDay('2026-12-31', 1)).toBe('2027-01-01');
+    expect(shiftServiceDay('2026-02-30', 0)).toBe('2026-03-02');   // not a real date: normalized
+  });
+
+  it('lastFullServiceDays: the 28 service days before the current one, both ends inclusive', () => {
+    expect(lastFullServiceDays(NOW, 28)).toEqual({ from: '2026-09-18', to: '2026-10-15' });
+    // 02:00 in Warsaw on the 17th still belongs to the service day of the 16th
+    expect(lastFullServiceDays(new Date('2026-10-17T00:00:00.000Z'), 28)).toEqual({ from: '2026-09-18', to: '2026-10-15' });
+    expect(lastFullServiceDays(new Date('2026-10-17T02:00:00.000Z'), 28)).toEqual({ from: '2026-09-19', to: '2026-10-16' });
+    expect(lastFullServiceDays(NOW, 1)).toEqual({ from: '2026-10-15', to: '2026-10-15' });
+  });
+});
+
+describe('RecommendationCodeService.pairStats (R12, Q12)', () => {
+  const dish = published[0];
+  async function issued(repo: RecommendationCodeRepository, i: number, over: Partial<RecommendationCodeInput> = {}) {
+    await repo.tryIssue(ds.restaurant.id, {
+      id: uuid(0x20000 + i), code: codeOf(i), serviceDay: '2026-10-15', sessionId: uuid(0x30000 + i), source: 'guest', context: 'dish',
+      wineId: glassWine.id, dishIds: [dish.id], serving: 'bottle', menuVersion: null, tier: null, engineVersion: 'wm-test', issuedAt: NOW.toISOString(), ...over
+    });
+  }
+
+  it('reads the rows of the restaurant for the period: dish and table rows, no direct ones', async () => {
+    const { service, repo } = setup();
+    await issued(repo, 1);
+    await issued(repo, 2);
+    await repo.setConfirmed(ds.restaurant.id, '2026-10-15', codeOf(2), NOW, 'staff_view');
+    await issued(repo, 3, { context: 'table', dishIds: [published[0].id, published[1].id].sort() });
+    await issued(repo, 4, { context: 'direct', dishIds: [] });
+    await issued(repo, 5, { serviceDay: '2026-10-14' });
+    const stats = await service.pairStats('halka', { from: '2026-10-15', to: '2026-10-15' });
+    expect(stats.filter((s) => s.context === 'dish')).toEqual([
+      { dishId: dish.id, wineId: glassWine.id, context: 'dish', issued: 2, staffConfirmed: 1, posMatched: 0, ordered: 1 }
+    ]);
+    expect(stats.filter((s) => s.context === 'table')).toHaveLength(2);
+    expect(stats.every((s) => s.context !== 'direct')).toBe(true);
+  });
+
+  it('rejects an invalid period (invalid_period) and an unknown restaurant (NotFoundError)', async () => {
+    const { service } = setup();
+    for (const period of [
+      { from: '2026-10-16', to: '2026-10-15' }, { from: '2026-02-30', to: '2026-03-02' }, { from: '16.10.2026', to: '2026-10-16' },
+      { from: '2025-10-15', to: '2026-10-16' }
+    ]) {
+      await expect(service.pairStats('halka', period)).rejects.toMatchObject({ name: 'ValidationError', code: 'invalid_period' });
+    }
+    expect(MAX_PERIOD_DAYS).toBe(366);
+    await expect(service.pairStats('halka', { from: '2025-10-16', to: '2026-10-16' })).resolves.toEqual([]);
+    await expect(service.pairStats('nowhere', { from: '2026-10-15', to: '2026-10-15' })).rejects.toMatchObject({ name: 'NotFoundError' });
   });
 });

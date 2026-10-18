@@ -6,17 +6,21 @@ import { localizeDish, localizeWine } from '../../i18n/content';
 import type { Locale } from '../../i18n/locale';
 import type { Repositories } from '../../ports/repositories';
 import type { Clock, IdGenerator } from '../../ports/runtime';
+import { lastFullServiceDays } from '../../recommendation-code/service-day';
 import { opportunityKeySchema } from '../../validators/opportunities/opportunity-key.schema';
 import { parseWith } from '../../validators/parse';
 import { orderReviewed } from '../pairings/pairing-rules';
-import { DISMISS_DAYS, findOpportunities, opportunityCandidates, scoreKey, type Opportunity, type OpportunityInput } from './opportunity-rules';
+import {
+  DISMISS_DAYS, WINDOW_DAYS, findOpportunities, opportunityCandidates, scoreKey, type Opportunity, type OpportunityInput, type OrderedPair
+} from './opportunity-rules';
 
-export type OpportunityServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'opportunityDismissalRepository'> & {
+export type OpportunityServiceDeps = Pick<Repositories,
+  'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'opportunityDismissalRepository' | 'recommendationCodeRepository'> & {
   clock: Clock;
   idGenerator: IdGenerator;
 };
 
-/** `dish`: S1–S3 only, no queries on guest events (A6, A1); `all`: every signal (A14). Phase 1 has S1–S3 in both. */
+/** `dish`: S1–S3 only, no aggregate queries (A6, A1); `all`: every signal (A14), S5 from the recommendation codes. */
 export type OpportunityScope = 'dish' | 'all';
 
 export interface OpportunityItem extends Opportunity {
@@ -79,6 +83,15 @@ export class OpportunityService {
     return r;
   }
 
+  /**
+   * S5 input: orders with a recommendation code per (dish, wine) in the last WINDOW_DAYS full service days. Only rows
+   * of context `dish`: a table code would credit one order to every dish of the table (E09 Q12).
+   */
+  private async orders(restaurantId: string): Promise<OrderedPair[]> {
+    const stats = await this.d.recommendationCodeRepository.pairStats(restaurantId, lastFullServiceDays(this.d.clock.now(), WINDOW_DAYS));
+    return stats.filter((s) => s.context === 'dish').map((s) => ({ dishId: s.dishId, wineId: s.wineId, orders: s.ordered }));
+  }
+
   /** Current data of one restaurant (the panel reads the current state, not the published one). */
   private async input(restaurantId: string): Promise<Omit<OpportunityInput, 'dismissedKeys'>> {
     const [dishes, wines, pairings] = await Promise.all([
@@ -97,8 +110,17 @@ export class OpportunityService {
       this.input(restaurant.id),
       this.d.opportunityDismissalRepository.listActive(restaurant.id, this.d.clock.now())
     ]);
-    // S4 (usage) and S5 (orders) join here in phases 3 and 4, for scope "all" only
-    const items = findOpportunities({ ...data, dismissedKeys: new Set(dismissals.map((x) => x.key)) })
+    // S5 (orders) for scope "all" only; a failed read leaves the other signals and says so (S4, usage: phase 3)
+    const degraded: OpportunityView['degraded'] = [];
+    let orders: OrderedPair[] | undefined;
+    if (opts.scope === 'all') {
+      try {
+        orders = await this.orders(restaurant.id);
+      } catch {
+        degraded.push('orders');
+      }
+    }
+    const items = findOpportunities({ ...data, orders, dismissedKeys: new Set(dismissals.map((x) => x.key)) })
       .filter((o) => !opts.dishId || o.dishId === opts.dishId);
 
     const dishes = new Map(data.dishes.map((x) => [x.id, locale ? localizeDish(x, locale) : x]));
@@ -122,7 +144,7 @@ export class OpportunityService {
         key: x.key, rule: x.rule, dish: x.dishId ? dishes.get(x.dishId) ?? null : null, wine: x.wineId ? wines.get(x.wineId) ?? null : null,
         dismissedBy: x.dismissedBy, expiresAt: x.expiresAt
       }));
-    return { restaurant, groups, dismissed, degraded: [] };
+    return { restaurant, groups, dismissed, degraded };
   }
 
   /**
@@ -132,7 +154,10 @@ export class OpportunityService {
   async dismiss(slug: string, key: string, actor: Actor): Promise<void> {
     const input = parseWith(opportunityKeySchema, { key }, 'This opportunity is not valid.');
     const restaurant = await this.restaurant(slug);
-    const candidate = opportunityCandidates(await this.input(restaurant.id)).find((o) => o.key === input.key);
+    const data = await this.input(restaurant.id);
+    // S5 keys need the orders (a read error propagates: nothing is stored); other keys never query them
+    const orders = input.key.startsWith('ordered_not_reviewed:') ? await this.orders(restaurant.id) : undefined;
+    const candidate = opportunityCandidates({ ...data, orders }).find((o) => o.key === input.key);
     if (!candidate) throw new ValidationError('opportunity_stale', 'This opportunity is no longer current.');
     const now = this.d.clock.now();
     await this.d.opportunityDismissalRepository.upsert(restaurant.id, {

@@ -1,12 +1,13 @@
-import type { CodeServing, CodeSource, CodeTier, RecommendationCodeRecord } from '../../domain/types';
+import type { CodeServing, CodeSource, CodeTier, PairCodeStats, RecommendationCodeRecord } from '../../domain/types';
 import { ENGINE_VERSION } from '../../engine/scoring';
+import { NotFoundError, ValidationError } from '../../errors';
 import { MAX_TABLE_DISHES } from '../../guest/prefs';
 import type { GuestSessionRef } from '../../guest/session';
 import type { Logger } from '../../logging/logger';
-import type { Repositories } from '../../ports/repositories';
+import type { Repositories, ServiceDayPeriod } from '../../ports/repositories';
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import { codeFromUuid, type CodeLength } from '../../recommendation-code/code-format';
-import { serviceDay } from '../../recommendation-code/service-day';
+import { serviceDay, shiftServiceDay } from '../../recommendation-code/service-day';
 
 /** At most this many recommendations per guest session and service day (R13): a loop over `table=` cannot drain the code space. */
 export const MAX_CODES_PER_SESSION_DAY = 30;
@@ -14,6 +15,18 @@ export const MAX_CODES_PER_SESSION_DAY = 30;
 export const MAX_STAFF_CODES_PER_SESSION_DAY = 300;
 /** Candidates tried per code length before the longer form, and before giving up (Q4). */
 export const CODE_ATTEMPTS_PER_LENGTH = 6;
+/** The longest period of a read (`pairStats`), in service days: one year, as the sales period of E03. */
+export const MAX_PERIOD_DAYS = 366;
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** A real calendar date `YYYY-MM-DD` (not 2026-02-30). */
+const isDay = (d: string) => DAY.test(d) && shiftServiceDay(d, 0) === d;
+
+/** `invalid_period` unless both ends are dates, `from ≤ to`, and the period has at most MAX_PERIOD_DAYS days. */
+export function assertServiceDayPeriod(period: ServiceDayPeriod): void {
+  const ok = isDay(period.from) && isDay(period.to) && period.from <= period.to && shiftServiceDay(period.from, MAX_PERIOD_DAYS - 1) >= period.to;
+  if (!ok) throw new ValidationError('invalid_period', 'The period is not valid.');
+}
 
 export interface IssueCodeInput {
   /** the anonymous session (E02) of the guest, or of the waiter on the staff screens */
@@ -101,5 +114,17 @@ export class RecommendationCodeService {
     }
     this.deps.logger.warn('recommendation code space exhausted', { restaurantId: restaurant.id, serviceDay: day });
     return null;
+  }
+
+  /**
+   * Results per (dish, wine, context) for the service days of the period, both ends inclusive (R12, Q12): a table code
+   * gives one row per dish with context `table`, a `direct` code none. Readers that credit an order to one dish (E10
+   * S5) take context `dish` only. Until POS matching (phase 3) `ordered` = `staffConfirmed`.
+   */
+  async pairStats(slug: string, period: ServiceDayPeriod): Promise<PairCodeStats[]> {
+    assertServiceDayPeriod(period);
+    const restaurant = await this.deps.restaurantRepository.findBySlug(slug);
+    if (!restaurant) throw new NotFoundError('Restaurant');
+    return this.deps.recommendationCodeRepository.pairStats(restaurant.id, { from: period.from, to: period.to });
   }
 }

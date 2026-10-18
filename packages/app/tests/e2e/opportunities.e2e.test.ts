@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AgentBrowser } from '@wine-match/testkit';
+import { MIN_ORDERS, WINDOW_DAYS, lastFullServiceDays } from '@wine-match/core';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { AgentBrowser, queryDatabase } from '@wine-match/testkit';
 import { e2eSuite } from './support';
 
 /**
  * Spec 2026-10-16-sommelier-opportunities, phase 2 (AC7, AC8): A6 and A14 work WITHOUT JavaScript — every script
  * request of the session is aborted, so forms post natively and the server redirects. A7 lives in `(lists)` with a
  * `loading.tsx` (streams, needs JavaScript), so the new suggestion is checked there in a second session with scripts on.
- * Every change is undone at the end, so the other suites see the restaurant as seeded.
+ * Every change is undone at the end, so the other suites see the restaurant as seeded. Phase 4 (AC12): S5 from
+ * recommendation codes stored straight in the database (confirming a code on G9 is E09 phase 2), then "Approve".
  */
 
 type ApiPairing = { id: string; dishId: string; wineId: string; status: string; role: string | null; version: number };
@@ -180,5 +182,74 @@ describe('opportunities without JavaScript (A6, A14)', () => {
     await manager.waitForPageText('View only');
     expect(await manager.count('[data-opportunity]')).toBeGreaterThan(0);
     expect(await manager.count('[data-opportunity] button')).toBe(0);
+  });
+});
+
+describe('S5 without JavaScript: ordered with a recommendation code, then "Approve" (phase 4, AC12)', () => {
+  const { browser, baseUrl } = e2eSuite('opportunities-s5');
+  const codeIds: string[] = [];
+  let pairing: ApiPairing | undefined;
+  const db = () => inject('e2e').databaseUrl;
+  const pairingsOf = (dishId: string) => readJson<{ data: ApiPairing[] }>(browser, `/api/v1/restaurants/halka/pairings?dishId=${dishId}`).then((r) => r.data);
+  const press = (pairingId: string, button: string) => clickButton(browser, `form:has(input[name="pairingId"][value="${pairingId}"])`, button);
+
+  beforeAll(async () => {
+    await browser.open('about:blank');
+    await browser.run('network', 'route', '**/*.js', '--abort');
+    await signIn(browser, baseUrl(), 'marta@halka.pl');
+  });
+
+  afterAll(async () => {
+    // the pairing back to a suggestion (Reject, then Restore as suggestion), the codes out of the database
+    if (pairing) {
+      const dishId = pairing.dishId;
+      const id = pairing.id;
+      await (async () => {
+        await browser.open(`${baseUrl()}/admin/halka/pairings/${dishId}`);
+        if ((await pairingsOf(dishId)).find((p) => p.id === id)?.status !== 'suggested') {
+          if ((await pairingsOf(dishId)).find((p) => p.id === id)?.status !== 'rejected') { await press(id, 'Reject'); await browser.waitForUrl('saved=rejected'); }
+          await press(id, 'Restore as suggestion');
+          await browser.waitForUrl('saved=restored');
+        }
+      })().catch(() => undefined);
+    }
+    if (codeIds.length) await queryDatabase(db(), 'delete from recommendation_code where id = any($1::uuid[])', [codeIds]);
+    await browser.close();
+  });
+
+  it('five staff-confirmed codes for a suggested pair give S5 in A14; "Approve" posts the version and ends it', async () => {
+    const [{ id: restaurantId }] = await queryDatabase<{ id: string }>(db(), "select id::text from restaurant where slug = 'halka'");
+    const menu = await readJson<{ categories: Array<{ dishes: Array<{ id: string; name: string }> }> }>(browser, '/api/v1/public/restaurants/halka/menu');
+    for (const dish of menu.categories.flatMap((c) => c.dishes)) {
+      pairing = (await pairingsOf(dish.id)).find((p) => p.status === 'suggested');
+      if (pairing) break;
+    }
+    expect(pairing, 'a suggested pairing of a published dish').toBeDefined();
+    const { id: pairingId, dishId, wineId } = pairing!;
+
+    // the last full service day is inside the 28-day window; orders = codes the waiter confirmed (E09 F1: no POS yet)
+    const day = lastFullServiceDays(new Date(), WINDOW_DAYS).to;
+    for (let i = 0; i < MIN_ORDERS; i++) {
+      const id = randomUUID();
+      codeIds.push(id);
+      await queryDatabase(db(),
+        `insert into recommendation_code (id, restaurant_id, service_day, code, session_id, source, context, wine_id, dish_ids, serving, engine_version, issued_at, confirmed_at)
+         values ($1, $2, $3, $4, $5, 'guest', 'dish', $6, $7::jsonb, 'bottle', 'wm-e2e', now(), now())`,
+        [id, restaurantId, day, `Y${9 - i}Y`, randomUUID(), wineId, JSON.stringify([dishId])]);
+    }
+
+    await browser.open(`${baseUrl()}/admin/halka/opportunities`);
+    await browser.waitForPageText('What are opportunities?');
+    const row = `[data-opportunity="ordered_not_reviewed"]:has(input[name="pairingId"][value="${pairingId}"])`;
+    expect(await browser.count(row)).toBe(1);
+    expect(await browser.text(row)).toMatch(/was ordered with a recommendation code for this dish 5 times in the last 28 days, and this pairing isn’t approved\./);
+    const version = (await browser.run('eval', `document.querySelector(${JSON.stringify(`${row} input[name="version"]`)}).value`)).trim().replace(/"/g, '');
+    expect(version).toBe(String(pairing!.version));
+
+    await clickButton(browser, row, 'Approve');
+    expect(await browser.waitForUrl('saved=approved')).toContain('/admin/halka/opportunities');
+    await browser.waitForPageText('What are opportunities?');
+    expect(await browser.count(row)).toBe(0);
+    expect((await pairingsOf(dishId)).find((p) => p.id === pairingId)!.status).toBe('approved');
   });
 });

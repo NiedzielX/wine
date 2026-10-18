@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildDemoDataset } from '../src/demo/dataset';
-import type { Dish, DishCategory, Pairing, PairingRole, PairingStatus, Wine } from '../src/domain/types';
+import type { CodeContext, Dish, DishCategory, Pairing, PairingRole, PairingStatus, Wine } from '../src/domain/types';
+import { MIN_MODEL_SCORE } from '../src/engine/recommend';
 import { NotFoundError, ValidationError } from '../src/errors';
 import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repositories';
+import type { RecommendationCodeRepository } from '../src/ports/repositories';
 import {
-  DISMISS_DAYS, STRONG_MATCH, findOpportunities, opportunityCandidates, opportunityKey, scoreKey, type OpportunityInput
+  DISMISS_DAYS, MIN_ORDERS, STRONG_MATCH, WINDOW_DAYS, findOpportunities, opportunityCandidates, opportunityKey, scoreKey, type OpportunityInput
 } from '../src/services/opportunities/opportunity-rules';
 import { OpportunityService, buildScoreMatrix } from '../src/services/opportunities/opportunity-service';
 import { SommelierService } from '../src/services/pairings/sommelier-service';
@@ -385,5 +387,208 @@ describe('performance budget', () => {
     const list = findOpportunities({ dishes, wines, pairings: [], scores: buildScoreMatrix(dishes, wines) });
     expect(Date.now() - started).toBeLessThan(3000);
     expect(list.length).toBeGreaterThan(0);
+  });
+});
+
+/* ---------------- phase 4: S5 ordered_not_reviewed (orders with a recommendation code, E09) ---------------- */
+
+describe('S5 ordered_not_reviewed (pure rule)', () => {
+  const d = dish('d1');
+  const w = wine('w1', { glassPrice: null });
+  const primary = wine('w_p', { glassPrice: null });
+  // the dish has an approved primary bottle-only wine, so S1 is silent; bottle-only wines keep S2 out
+  const base = (over: Partial<OpportunityInput> = {}) => input({
+    dishes: [d], wines: [w, primary], pairings: [pairing('d1', 'w_p', 'approved', 'primary')],
+    scores: scores([['d1', 'w1', 70], ['d1', 'w_p', 80]]), orders: [{ dishId: 'd1', wineId: 'w1', orders: MIN_ORDERS }], ...over
+  });
+  const s5 = (i: OpportunityInput) => findOpportunities(i).filter((o) => o.rule === 'ordered_not_reviewed');
+
+  it('fires from MIN_ORDERS orders for a pair without a pairing: 4 does not, 5 does, with "Add to suggestions"', () => {
+    expect(MIN_ORDERS).toBe(5);
+    expect(WINDOW_DAYS).toBe(28);
+    expect(s5(base({ orders: [{ dishId: 'd1', wineId: 'w1', orders: MIN_ORDERS - 1 }] }))).toEqual([]);
+    expect(s5(base())).toEqual([{
+      key: 'ordered_not_reviewed:d1:w1', rule: 'ordered_not_reviewed', dishId: 'd1', wineId: 'w1', action: 'add_suggestion',
+      evidence: { rule: 'ordered_not_reviewed', orders: MIN_ORDERS }
+    }]);
+  });
+
+  it('a suggested pairing gets "Approve" with the pairing id and the version the sommelier saw', () => {
+    const suggested = { ...pairing('d1', 'w1', 'suggested'), version: 3 };
+    expect(s5(base({ pairings: [pairing('d1', 'w_p', 'approved', 'primary'), suggested] }))).toEqual([expect.objectContaining({
+      action: 'approve', pairingId: suggested.id, pairingVersion: 3, evidence: { rule: 'ordered_not_reviewed', orders: MIN_ORDERS }
+    })]);
+  });
+
+  it('skips approved, modified and rejected pairs (R4)', () => {
+    for (const status of ['approved', 'modified', 'rejected'] as const) {
+      const p = pairing('d1', 'w1', status, status === 'rejected' ? null : 'alternative');
+      expect(s5(base({ pairings: [pairing('d1', 'w_p', 'approved', 'primary'), p] }))).toEqual([]);
+    }
+  });
+
+  it('skips a dish guests do not see and a hidden or unknown wine', () => {
+    expect(s5(base({ dishes: [dish('d1', { status: 'draft' })] }))).toEqual([]);
+    expect(s5(base({ wines: [wine('w1', { active: false, glassPrice: null }), primary] }))).toEqual([]);
+    expect(s5(base({ orders: [{ dishId: 'd1', wineId: 'w_unknown', orders: 9 }] }))).toEqual([]);
+  });
+
+  it('without a pairing and below MIN_MODEL_SCORE, it opens the dish instead of offering an add the command would refuse', () => {
+    expect(s5(base({ scores: scores([['d1', 'w1', MIN_MODEL_SCORE - 1], ['d1', 'w_p', 80]]) }))[0].action).toBe('open_dish');
+    expect(s5(base({ scores: scores([['d1', 'w1', MIN_MODEL_SCORE], ['d1', 'w_p', 80]]) }))[0].action).toBe('add_suggestion');
+  });
+
+  it('wins over S2 and S3 for the same pair; both stay candidates, so each can still be ignored', () => {
+    const glass = wine('w1', { glassPrice: 40 });
+    const i = base({ wines: [glass, primary], scores: scores([['d1', 'w1', 90], ['d1', 'w_p', 80]]) });
+    expect(findOpportunities(i).map((o) => `${o.rule}:${o.wineId}`)).toEqual(['ordered_not_reviewed:w1']);
+    expect(opportunityCandidates(i).map((o) => o.key).sort()).toEqual(['glass_match_unpaired:d1', 'ordered_not_reviewed:d1:w1', 'wine_unpaired:w1']);
+  });
+
+  it('is silent without orders (scope "dish") and gives the same list for any order of the order rows', () => {
+    expect(s5(base({ orders: undefined }))).toEqual([]);
+    const w2 = wine('w2', { glassPrice: null });
+    const rows = [{ dishId: 'd1', wineId: 'w1', orders: 6 }, { dishId: 'd1', wineId: 'w2', orders: 7 }];
+    const i = base({ wines: [w, w2, primary], scores: scores([['d1', 'w1', 70], ['d1', 'w2', 75], ['d1', 'w_p', 80]]), orders: rows });
+    expect(findOpportunities(i).map((o) => o.wineId)).toEqual(['w1', 'w2']);
+    expect(findOpportunities({ ...i, orders: [...rows].reverse() })).toEqual(findOpportunities(i));
+  });
+});
+
+describe('OpportunityService: S5 from the recommendation codes', () => {
+  let b: Built;
+  beforeEach(() => { b = build(); });
+  let seq = 0;
+  /** `n` codes for (dishes, wine) on `day`, confirmed by the waiter unless `confirmed: false` */
+  async function codes(x: Built, dishIds: string[], wine: string, day: string, n: number, opts: { confirmed?: boolean; context?: CodeContext } = {}) {
+    const repo = x.repos.recommendationCodeRepository;
+    for (let i = 0; i < n; i++) {
+      seq++;
+      const id = `00000000-0000-4000-9000-${String(seq).padStart(12, '0')}`;
+      const code = `C${(seq % 8) + 2}${'ACDEFGHJKLMNPRTUVWXY'[Math.floor(seq / 8) % 20]}${(Math.floor(seq / 160) % 8) + 2}`;
+      const res = await repo.tryIssue(x.data.restaurant.id, {
+        id, code, serviceDay: day, sessionId: id, source: 'guest', context: opts.context ?? (dishIds.length === 1 ? 'dish' : 'table'), wineId: wine,
+        dishIds: [...dishIds].sort(), serving: 'bottle', menuVersion: null, tier: null, engineVersion: 'wm-test', issuedAt: `${day}T19:00:00.000Z`
+      });
+      expect(res.status).toBe('created');
+      if (opts.confirmed !== false) await repo.setConfirmed(x.data.restaurant.id, day, code, new Date(`${day}T19:05:00.000Z`), 'staff_view');
+    }
+  }
+  /** a pair of the demo data without any pairing, strong enough for "Add to suggestions" */
+  const unpaired = (x: Built) => {
+    const sc = buildScoreMatrix(x.data.dishes, x.data.wines);
+    const decided = new Set(x.data.pairings.map((p) => `${p.dishId}:${p.wineId}`));
+    const ok = (dishId: string, wineId: string) => !decided.has(`${dishId}:${wineId}`) && (sc.get(scoreKey(dishId, wineId)) ?? 0) >= MIN_MODEL_SCORE;
+    const d = x.data.dishes.find((dd) => dd.status === 'published' && x.data.wines.some((ww) => ww.active && ok(dd.id, ww.id)))!;
+    const w = x.data.wines.find((ww) => ww.active && ok(d.id, ww.id))!;
+    return { dish: d.id, wine: w.id };
+  };
+  const s5 = async (x: Built, svc: OpportunityService = x.svc) =>
+    (await svc.list('halka', { scope: 'all' }))!.groups.flatMap((g) => g.items).filter((o) => o.rule === 'ordered_not_reviewed');
+  const withCodes = (x: Built, codesRepo: RecommendationCodeRepository) =>
+    new OpportunityService({ ...x.repos, recommendationCodeRepository: codesRepo, clock: x.clock, idGenerator: { uuid: () => '00000000-0000-4000-8000-0000000000c2' } });
+  // NOW = 2026-10-16 12:00 in Warsaw: the window is the service days 2026-09-18 … 2026-10-15
+  const FIRST = '2026-09-18';
+  const LAST = '2026-10-15';
+
+  it('counts staff-confirmed orders of context "dish" in the last 28 full service days', async () => {
+    const p = unpaired(b);
+    await codes(b, [p.dish], p.wine, FIRST, 2);
+    await codes(b, [p.dish], p.wine, LAST, 2);
+    await codes(b, [p.dish], p.wine, '2026-10-16', 3);   // today: not a full day yet
+    await codes(b, [p.dish], p.wine, '2026-09-17', 3);   // the 29th day back
+    await codes(b, [p.dish], p.wine, LAST, 3, { confirmed: false });   // issued, never ordered
+    expect(await s5(b)).toEqual([]);
+    await codes(b, [p.dish], p.wine, '2026-10-01', 1);
+    const [o] = await s5(b);
+    expect(o).toMatchObject({ key: `ordered_not_reviewed:${p.dish}:${p.wine}`, action: 'add_suggestion', evidence: { orders: 5 } });
+    expect(o.wine?.id).toBe(p.wine);
+  });
+
+  it('ignores rows of context "table": one table order would count for every dish of the table', async () => {
+    const p = unpaired(b);
+    const other = b.data.dishes.find((d) => d.status === 'published' && d.id !== p.dish)!;
+    await codes(b, [p.dish, other.id], p.wine, LAST, 9);
+    expect(await s5(b)).toEqual([]);
+  });
+
+  it('is not computed for scope "dish" (A6, A1): no query on the codes', async () => {
+    const p = unpaired(b);
+    await codes(b, [p.dish], p.wine, LAST, 6);
+    const repo = b.repos.recommendationCodeRepository;
+    let calls = 0;
+    const counting: RecommendationCodeRepository = Object.assign(Object.create(repo) as RecommendationCodeRepository, {
+      pairStats: async (...a: Parameters<RecommendationCodeRepository['pairStats']>) => { calls++; return repo.pairStats(...a); }
+    });
+    const svc = withCodes(b, counting);
+    const dishView = (await svc.list('halka', { scope: 'dish', dishId: p.dish }))!;
+    expect(dishView.groups.flatMap((g) => g.items).some((o) => o.rule === 'ordered_not_reviewed')).toBe(false);
+    expect(calls).toBe(0);
+    expect((await s5(b, svc)).length).toBe(1);
+    expect(calls).toBe(1);
+  });
+
+  it('a failed read keeps S1–S3 and reports degraded: ["orders"]; ignoring an S5 key then stores nothing', async () => {
+    const before = await flat(b);
+    const failing: RecommendationCodeRepository = Object.assign(Object.create(b.repos.recommendationCodeRepository) as RecommendationCodeRepository, {
+      pairStats: async () => { throw new Error('db down'); }
+    });
+    const svc = withCodes(b, failing);
+    const view = (await svc.list('halka', { scope: 'all' }))!;
+    expect(view.degraded).toEqual(['orders']);
+    expect(view.groups.flatMap((g) => g.items.map((o) => `${o.rule} | ${g.dish.name} | ${o.wine?.name ?? '-'} | ${JSON.stringify(o.evidence)}`))).toEqual(before);
+    expect((await svc.list('halka', { scope: 'dish' }))!.degraded).toEqual([]);
+    const p = unpaired(b);
+    await expect(svc.dismiss('halka', `ordered_not_reviewed:${p.dish}:${p.wine}`, ACTOR)).rejects.toThrow('db down');
+    expect(await b.repos.opportunityDismissalRepository.listActive(b.data.restaurant.id, new Date(NOW))).toEqual([]);
+  });
+
+  it('a suggested pairing: "Approve" with the version ends the opportunity; a stale version is a VersionConflictError', async () => {
+    const published = new Set(b.data.dishes.filter((d) => d.status === 'published').map((d) => d.id));
+    const active = new Set(b.data.wines.filter((w) => w.active).map((w) => w.id));
+    const suggested = b.data.pairings.find((p) => p.status === 'suggested' && published.has(p.dishId) && active.has(p.wineId))!;
+    await codes(b, [suggested.dishId], suggested.wineId, LAST, MIN_ORDERS);
+    const [o] = await s5(b);
+    expect(o).toMatchObject({ action: 'approve', pairingId: suggested.id, evidence: { orders: MIN_ORDERS } });
+    expect(o.pairingVersion).toEqual(expect.any(Number));
+    // a version the pairing no longer has (the form is older than the pairing) is a conflict, and nothing changes
+    await expect(b.som.approve('halka', o.pairingId!, ACTOR, o.pairingVersion! + 1)).rejects.toMatchObject({ name: 'VersionConflictError', code: 'version_conflict' });
+    expect(await s5(b)).toEqual([o]);
+    // the form's version approves it and ends the opportunity
+    await b.som.approve('halka', o.pairingId!, ACTOR, o.pairingVersion);
+    expect(await s5(b)).toEqual([]);
+    // a second sommelier submitting the same form afterwards gets the conflict, not a second decision
+    await expect(b.som.approve('halka', o.pairingId!, ACTOR, o.pairingVersion)).rejects.toMatchObject({ code: 'version_conflict' });
+  });
+
+  it('an approved or rejected pair never gives S5 (R4)', async () => {
+    const published = new Set(b.data.dishes.filter((d) => d.status === 'published').map((d) => d.id));
+    const approved = b.data.pairings.find((p) => p.status === 'approved' && published.has(p.dishId))!;
+    await codes(b, [approved.dishId], approved.wineId, LAST, 9);
+    const p = unpaired(b);
+    await b.som.addSuggestion('halka', { dishId: p.dish, wineId: p.wine }, ACTOR);
+    const added = (await b.repos.pairingRepository.listByRestaurant(b.data.restaurant.id)).find((x) => x.dishId === p.dish && x.wineId === p.wine)!;
+    await b.som.reject('halka', added.id, ACTOR, added.version);
+    await codes(b, [p.dish], p.wine, LAST, 9);
+    expect(await s5(b)).toEqual([]);
+  });
+
+  it('"Add to suggestions" turns it into "Approve"; ignoring the S5 key hides it and "Restore" shows it again', async () => {
+    const p = unpaired(b);
+    await codes(b, [p.dish], p.wine, LAST, MIN_ORDERS);
+    const key = `ordered_not_reviewed:${p.dish}:${p.wine}`;
+    await b.som.addSuggestion('halka', { dishId: p.dish, wineId: p.wine }, ACTOR);
+    expect((await s5(b))[0]).toMatchObject({ key, action: 'approve' });
+    await b.svc.dismiss('halka', key, ACTOR);
+    expect(await s5(b)).toEqual([]);
+    expect((await b.svc.list('halka', { scope: 'all' }))!.dismissed).toEqual([expect.objectContaining({ key, rule: 'ordered_not_reviewed' })]);
+    await b.svc.restore('halka', key, ACTOR);
+    expect((await s5(b)).map((o) => o.key)).toEqual([key]);
+  });
+
+  it('an S5 key without enough orders is stale', async () => {
+    const p = unpaired(b);
+    await codes(b, [p.dish], p.wine, LAST, MIN_ORDERS - 1);
+    await expect(b.svc.dismiss('halka', `ordered_not_reviewed:${p.dish}:${p.wine}`, ACTOR)).rejects.toMatchObject({ code: 'opportunity_stale' });
   });
 });
