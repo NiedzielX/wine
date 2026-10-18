@@ -6,7 +6,11 @@ import {
   TABLE_LIMIT,
   TABLE_MAINS_WEIGHT,
   TABLE_MEAN_WEIGHT,
+  TABLE_MAX_EXTRA_GLASSES,
   TABLE_MIN_WEIGHT,
+  TABLE_ML_PER_PERSON,
+  TABLE_PEOPLE_MAX,
+  TABLE_PEOPLE_MIN,
   TABLE_REJECTED_CAP,
   TABLE_SOMMELIER_BONUS,
   WEAK_DISH_THRESHOLD
@@ -41,6 +45,13 @@ const FACTS = {
   tableRejectedCap: TABLE_REJECTED_CAP,
   /** a dish "works" with the table bottle from this raw engine score up; a rejected pair never does (`table.fit`) */
   tableFitThreshold: TABLE_FIT_THRESHOLD,
+  /** wine per person in a table quantity, in ml (`table.quantity`) */
+  tableMlPerPerson: TABLE_ML_PER_PERSON,
+  /** up to this many glasses top up the full bottles instead of one more bottle (`table.quantity`) */
+  tableMaxExtraGlasses: TABLE_MAX_EXTRA_GLASSES,
+  /** the number of people a table quantity accepts, chosen explicitly — there is no default (`table.people_default`) */
+  tablePeopleMin: TABLE_PEOPLE_MIN,
+  tablePeopleMax: TABLE_PEOPLE_MAX,
   /** below this table score a split (one glass per dish) is suggested */
   compromiseThreshold: COMPROMISE_THRESHOLD,
   /** below this score for the weakest dish a split is suggested */

@@ -1,6 +1,6 @@
-import { ENGINE_FACTS, budgetOptions, parseDishIds } from '@wine-match/core';
+import { ENGINE_FACTS, budgetOptions, parseDishIds, parsePeople } from '@wine-match/core';
 import type { Metadata } from 'next';
-import { BudgetChoice, Explain, LanguageSwitch, ModeSwitch, StyleChoice, TableDishPicker, TopBar } from '../../../_components/guest-ui';
+import { BudgetChoice, Explain, LanguageSwitch, ModeSwitch, PeopleChoice, StyleChoice, TableDishPicker, TopBar } from '../../../_components/guest-ui';
 import { SelectionCount } from '../../../_components/selection-count';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { getI18n } from '@/server/i18n';
@@ -16,7 +16,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 /**
  * G5 — whole table selection. A plain GET form: works without JavaScript. "How do we pick one bottle for the table?"
  * sits under the lead (spec 2026-10-16-how-it-works-explanations, phase 2); inside the form, but a `<details>` is no
- * form control, so nothing is submitted with it.
+ * form control, so nothing is submitted with it. "How many people are drinking wine?" (`people`, spec
+ * whole-table-waiter-path F4, R16) follows the dishes: "Skip" by default, as there is no default number (Q4).
  */
 export default async function TablePage({ params, searchParams }: Props) {
   const { slug } = await params;
@@ -45,6 +46,7 @@ export default async function TablePage({ params, searchParams }: Props) {
           <p className="text-ink-2">{l.lead}</p>
           <Explain id="table" className="mt-1" summary={t.guest.explain.table.summary} points={t.guest.explain.table.points(ENGINE_FACTS)} />
           <TableDishPicker dishes={menu.dishes} selected={selected} variant="rows" t={t} locale={locale} />
+          <PeopleChoice people={parsePeople(q)} t={t} />
           <details className="mt-6" open={prefs.styles.length > 0 || prefs.maxPrice !== null}>
             <summary className="cursor-pointer font-semibold">{l.colourAndBudget}</summary>
             <StyleChoice prefs={prefs} legend={t.guest.prefs.colour} locale={locale} />

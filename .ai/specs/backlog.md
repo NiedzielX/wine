@@ -45,7 +45,7 @@ Positioning accepted by the product owner on 2026-10-16. Specs approved by the p
 | Id | Issue | Title | Spec | Depends on | Adopted |
 |---|---|---|---|---|---|
 | E07 | #36 | How it works: explanations and the "i" disclosure on every engine screen | .ai/specs/2026-10-16-how-it-works-explanations.md | — | no |
-| E08 | #41 | Whole table: the differentiator and the waiter path | .ai/specs/2026-10-16-whole-table-waiter-path.md | E07 F1a/F1b, E02 F1 | no |
+| E08 | #41 | Whole table: the differentiator and the waiter path | .ai/specs/implemented/2026-10-16-whole-table-waiter-path.md | E07 F1a/F1b, E02 F1 | no |
 | E09 | #46 | Recommendation code ("show the waiter: W7K") and sales attribution without POS integration | .ai/specs/2026-10-16-recommendation-code.md | E02 F1–F2; E03 F2 for phase 3 | no |
 | E10 | #50 | Opportunities in the sommelier panel (no POS in the MVP) | .ai/specs/2026-10-16-sommelier-opportunities.md | E07 F1b; E02/E04 F3 for S4; E09 F1 for S5 | no |
 

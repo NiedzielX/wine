@@ -64,6 +64,26 @@ const weakerNamesEn = (names: string[]) =>
 /** A share of the table score as a whole percentage (0.6 → 60). */
 const pct = (weight: number) => Math.round(weight * 100);
 
+/**
+ * How much wine for the table (spec whole-table-waiter-path, F4, R16): `table.quantity` for the chosen number of people,
+ * with the total already formatted. Only shown after an explicit choice (`table.people_default`, owner's decision Q4).
+ */
+export interface TableQuantityText {
+  people: number;
+  bottles: number;
+  glasses: number;
+  /** the total price, formatted (`formatPrice`) */
+  total: string;
+}
+
+/**
+ * The point E08 F4 adds to the table explanations (G5, G6, G11): the amount per person, if everyone drinks the same wine
+ * (spec whole-table-waiter-path, UI/UX, Q3, Q4). G11 adds how the glasses top up the bottles.
+ */
+const quantityPointEn = (f: EngineFacts) => `Amount: about ${f.tableMlPerPerson} ml a person, if everyone drinks the same wine.`;
+const quantityGlassesEn = (f: EngineFacts) =>
+  `Up to ${f.tableMaxExtraGlasses} glasses top up the full bottles instead of another bottle; no amount until you choose how many people drink.`;
+
 const directorEn = (name: string) => name.trim() || 'the restaurant’s sommelier';
 
 /** G3 point 5 and the G4 sheet: hard filters leave wines out, soft ones reorder, the budget fallback. */
@@ -225,8 +245,9 @@ export const en = {
         points: (f: EngineFacts) => [
           `We rate every wine on the list with each dish you tick; mains count more (×${f.tableMainsWeight}).`,
           'The average counts, and so does the weakest dish: we’d rather pick a bottle good with everything than great with one dish and poor with the rest.',
-          'Desserts are paired separately, after the mains (unless the table orders only desserts).',
-          `Only wines in your colour and budget count; if no bottle fits the budget, we say so and show the ${f.budgetFallbackCount} best-matching ones above it.`
+          'Desserts are paired separately (unless the table orders only desserts).',
+          `Only wines in your colour and budget count; if no bottle fits the budget, we say so and show the ${f.budgetFallbackCount} best-matching ones above it.`,
+          quantityPointEn(f)
         ]
       },
       /**
@@ -238,16 +259,18 @@ export const en = {
         summary: 'How is the overall match worked out?',
         points: (f: EngineFacts, c: Pick<ExplainContext, 'showScores'>) => c.showScores
           ? [
-              `Bars show each dish’s own match. The overall match is ${pct(f.tableMeanWeight)}% the average (mains ×${f.tableMainsWeight}) plus ${pct(f.tableMinWeight)}% the weakest dish, so one dish can’t carry the bottle.`,
+              `Bars show each dish’s own match. Overall is ${pct(f.tableMeanWeight)}% the average (mains ×${f.tableMainsWeight}) plus ${pct(f.tableMinWeight)}% the weakest dish.`,
               `“Works with” means at least ${f.tableFitThreshold}%; a pairing the sommelier rejected never counts. Desserts are paired separately.`,
-              `A sommelier’s pairing has the seal and adds ${f.tableSommelierBonus} points to the overall match, not to the dish’s percentage; a rejected one counts as ${f.tableRejectedCap}% at most.`,
-              `Below ${f.compromiseThreshold}% overall, or ${f.weakDishThreshold}% for the weakest dish, we also suggest a glass for each dish.`
+              `A sommelier’s pairing has the seal and adds ${f.tableSommelierBonus} points to the overall match, not the dish’s percentage; a rejected one counts ${f.tableRejectedCap}% at most.`,
+              `Below ${f.compromiseThreshold}% overall, or ${f.weakDishThreshold}% for the weakest dish, we also suggest a glass for each dish.`,
+              quantityPointEn(f)
             ]
           : [
-              'Bars show each dish’s own match. The bottle is chosen on the average across the dishes (mains count more) and the weakest dish.',
-              '“Works with” means a good fit for that dish alone; a pairing the sommelier rejected never counts. Desserts are paired separately.',
+              'Bars show each dish’s own match. The bottle is chosen on the dishes’ average (mains count more) and the weakest dish.',
+              '“Works with” means a good fit for that dish; a pairing the sommelier rejected never counts. Desserts are paired separately.',
               'A sommelier’s pairing has the seal and lifts the bottle a little, not the dish’s bar; a rejected one pulls it down hard.',
-              'When one bottle is a compromise, we also suggest a glass for each dish.'
+              'When one bottle is a compromise, we also suggest a glass for each dish.',
+              quantityPointEn(f)
             ]
       },
       /** G9, under the lead. The waiter always sees the percentage, also when guests do not. */
@@ -283,7 +306,8 @@ export const en = {
           `Each dish gets its own match. The table score combines the average (${pct(f.tableMeanWeight)}%, mains ×${f.tableMainsWeight}) with the weakest dish (${pct(f.tableMinWeight)}%), so the bottle isn’t great with one dish and poor with another.`,
           `“Works with” means at least ${f.tableFitThreshold}%; a pairing the sommelier rejected never counts. Desserts are paired separately.`,
           `A sommelier’s pairing has the seal and adds ${f.tableSommelierBonus} points to the table score, not to the dish’s percentage; a rejected one counts as ${f.tableRejectedCap}% at most.`,
-          `Below ${f.compromiseThreshold}% for the table, or ${f.weakDishThreshold}% for the weakest dish, we also suggest a glass for each dish.`
+          `Below ${f.compromiseThreshold}% for the table, or ${f.weakDishThreshold}% for the weakest dish, we also suggest a glass for each dish.`,
+          `${quantityPointEn(f)} ${quantityGlassesEn(f)}`
         ]
       },
       wine: {
@@ -386,6 +410,20 @@ export const en = {
         const all = f.of === 2 ? 'Works with both dishes' : `Works with all ${f.of} dishes`;
         return f.compromise ? `${all}, though it’s a compromise.` : `${all}.`;
       }
+    },
+    /** How much wine for the table (spec whole-table-waiter-path, F4, R16): G5, G6, G11 and G8 "For the table". */
+    tableQuantity: {
+      question: 'How many people are drinking wine?',
+      /** the "not saying" option of the form (no quantity: there is no default, Q4) */
+      skip: 'Skip',
+      /** the label of the last option, which stands for 10 people */
+      more: '8+',
+      /** under the result before a choice: no amount is shown until someone picks a number (Q4) */
+      hint: 'Choose how many people are drinking to see how much wine to order.',
+      /** the accessible name of one number link */
+      peopleLabel: (n: number) => `${n} people`,
+      line: (q: TableQuantityText) =>
+        `For ${q.people} people: ${q.bottles} ${q.bottles === 1 ? 'bottle' : 'bottles'}${q.glasses > 0 ? ` + ${q.glasses} ${q.glasses === 1 ? 'glass' : 'glasses'}` : ''} · ${q.total}`
     },
     staff: {
       title: 'Pairing lookup',

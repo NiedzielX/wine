@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { buildDemoDataset } from '../src/demo/dataset';
 import { DEFAULT_PREFS } from '../src/domain/types';
 import {
-  budgetOptions, canPairTable, MAX_TABLE_DISHES, parseDishIds, parseGuestPrefs, pickTableItem, prefsSummary, prefsToQuery, toQueryString,
-  withBudget, withServing, withStyleToggled
+  budgetOptions, canPairTable, MAX_TABLE_DISHES, parseDishIds, parseGuestPrefs, parsePeople, pickTableItem, prefsSummary, prefsToQuery,
+  TABLE_PEOPLE_CHOICES, TABLE_PEOPLE_MORE, toQueryString, withBudget, withServing, withStyleToggled
 } from '../src/guest/prefs';
 import { tasteWords } from '../src/guest/taste';
 import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repositories';
@@ -135,5 +135,48 @@ describe('the whole table (spec 2026-10-16-whole-table-waiter-path)', () => {
     expect(pickTableItem(result.items, undefined)).toBe(result.items);
     expect(pickTableItem(result.items, '')).toBe(result.items);
     expect(pickTableItem([], 'x')).toEqual([]);
+  });
+});
+
+describe('the number of people at the table (spec 2026-10-16-whole-table-waiter-path, F4, R14)', () => {
+  // AC16 with the owner's decision Q4: no default — anything but an explicit 2–12 is null (no quantity)
+  it('parses only a whole number from 2 to 12', () => {
+    expect(parsePeople({ people: '4' })).toBe(4);
+    expect(parsePeople({ people: '12' })).toBe(12);
+    for (const people of ['1', '13', '2.5', 'x', '', ' 4', '04x', '-2', '100']) expect(parsePeople({ people })).toBeNull();
+    expect(parsePeople({ people: ['4', '5'] })).toBeNull();
+    expect(parsePeople({})).toBeNull();
+  });
+
+  it('offers 2–8 and "8+" (10), all accepted by the parser', () => {
+    expect([...TABLE_PEOPLE_CHOICES]).toEqual([2, 3, 4, 5, 6, 7, 8]);
+    for (const n of [...TABLE_PEOPLE_CHOICES, TABLE_PEOPLE_MORE]) expect(parsePeople({ people: String(n) })).toBe(n);
+  });
+
+  it('the service passes the chosen number to the table result; without it there is no quantity', async () => {
+    const ids = ['Beef tartare', 'Wild mushroom risotto', 'Duck breast'].map((n) => dish(n).id);
+    const none = (await svc().forTable('halka', ids))!.result;
+    expect(none.people).toBeNull();
+    expect(none.items.every((i) => i.quantity === null)).toBe(true);
+    const five = (await svc().forTable('halka', ids, {}, 'en', { people: 5 }))!.result;
+    expect(five.people).toBe(5);
+    expect(five.items[0].quantity).toMatchObject({ people: 5, bottles: 2 });
+  });
+
+  it('tableWineQuantity: the same rule for one bottle (G8), only with a choice, an active wine and two published dishes', async () => {
+    const ids = ['Beef tartare', 'Wild mushroom risotto'].map((n) => dish(n).id);
+    const savigny = wine('Savigny-lès-Beaune');
+    const s = svc();
+    // AC19 / the spec's example: Savigny 320 zł a bottle, 64 zł a glass → for 3 people 1 bottle + 1 glass, 384 zł
+    expect(await s.tableWineQuantity('halka', savigny.id, ids, 3)).toEqual({ people: 3, bottles: 1, glasses: 1, total: 384 });
+    expect(await s.tableWineQuantity('halka', savigny.id, ids, null)).toBeNull();
+    expect(await s.tableWineQuantity('halka', savigny.id, ids, 13)).toBeNull();
+    expect(await s.tableWineQuantity('halka', savigny.id, [ids[0]], 3)).toBeNull();
+    expect(await s.tableWineQuantity('nope', savigny.id, ids, 3)).toBeNull();
+    expect(await s.tableWineQuantity('halka', 'missing', ids, 3)).toBeNull();
+    const inactive = ds.wines.find((w) => !w.active);
+    if (inactive) expect(await s.tableWineQuantity('halka', inactive.id, ids, 3)).toBeNull();
+    const sweet = ds.wines.find((w) => w.active && w.profile.style === 'sweet')!;
+    expect(await s.tableWineQuantity('halka', sweet.id, ids, 3)).toBeNull();
   });
 });

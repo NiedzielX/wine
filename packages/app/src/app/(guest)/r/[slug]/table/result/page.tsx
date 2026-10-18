@@ -1,7 +1,7 @@
-import { ENGINE_FACTS, MAX_TABLE_DISHES, parseDishIds } from '@wine-match/core';
+import { ENGINE_FACTS, MAX_TABLE_DISHES, parseDishIds, parsePeople } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Button, DishScores, EmptyState, Explain, LanguageSwitch, Notice, Price, Score, TableFitLine, TopBar } from '../../../../_components/guest-ui';
+import { Button, DishScores, EmptyState, Explain, LanguageSwitch, Notice, PeopleLinks, Price, Score, TableFitLine, TableQuantityLine, TopBar } from '../../../../_components/guest-ui';
 import { isDomainError } from '@/server/domain-errors';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
@@ -20,17 +20,21 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
  * when the restaurant hides percentages, and a budget that rules out every bottle is relaxed with a notice.
  * One explanation, "How is the overall match worked out?", above the card and outside its link: E08's paragraph and
  * E07's points in one key (spec 2026-10-16-how-it-works-explanations, phase 2, Q15). The card's header has no seal.
+ * Phase 4 (R16): under the card "How many people are drinking wine?" as links 2–8; only after a choice (`people`, no
+ * default — Q4) the line "For 6 people: 3 bottles · 960 zł" (`table.quantity`). `people` travels on to G7 and G8.
  */
 export default async function TableResultPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { q, prefs, services, t, locale, session, href, langHrefs } = await guestContext(searchParams);
   const ids = parseDishIds(q);
-  const tablePath = href(`/r/${slug}/table`, prefs, { dishes: ids.join(',') });
+  const people = parsePeople(q);
+  const peopleParam = people === null ? undefined : String(people);
+  const tablePath = href(`/r/${slug}/table`, prefs, { dishes: ids.join(','), people: peopleParam });
   const langSwitch = <LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${slug}/table/result`)} t={t} />;
   const l = t.guest.tableResult;
   let out;
   try {
-    out = await services.recommendationService.forTable(slug, ids, prefs, locale, { relaxBudget: true });
+    out = await services.recommendationService.forTable(slug, ids, prefs, locale, { relaxBudget: true, people });
   } catch (e) {
     if (!isDomainError(e, 'table_needs_two_dishes')) throw e;
     const menu = await services.catalogService.publishedMenu(slug, locale);
@@ -49,14 +53,17 @@ export default async function TableResultPage({ params, searchParams }: Props) {
   const menu = await services.catalogService.publishedMenu(slug, locale);
   const chosen = ids.map((id) => menu?.dishes.find((d) => d.id === id)).filter((d) => !!d);
   const tableParam = ids.join(',');
-  const wineHref = (id: string) => href(`/r/${slug}/wine/${id}`, prefs, { table: tableParam });
+  const wineHref = (id: string) => href(`/r/${slug}/wine/${id}`, prefs, { table: tableParam, people: peopleParam });
   const [best, ...alts] = result.items;
 
   // the dishes the bottle was chosen for (published, the first MAX_TABLE_DISHES as the service takes them) and the wines
   // in display order; an empty result is recorded too (`wineIds: []`); `budgetRelaxed` when the budget was lifted (E08 R13)
   await trackUsage(services, restaurant, session, [{
     name: 'table_recommendation_viewed',
-    props: { dishIds: chosen.slice(0, MAX_TABLE_DISHES).map((d) => d.id), wineIds: result.items.map((i) => i.wine.id), budgetRelaxed: result.notice !== null }
+    props: {
+      dishIds: chosen.slice(0, MAX_TABLE_DISHES).map((d) => d.id), wineIds: result.items.map((i) => i.wine.id), budgetRelaxed: result.notice !== null,
+      ...(result.people !== null ? { people: result.people } : {})
+    }
   }]);
   return (
     <>
@@ -89,6 +96,14 @@ export default async function TableResultPage({ params, searchParams }: Props) {
               </div>
               <div className="mt-3"><Price wine={best.wine} serving="bottle" t={t} locale={locale} /></div>
             </Link>
+
+            {/* how much wine: links outside the card's link; no amount until a number is chosen (R16, Q4); none by the glass */}
+            {best.serving === 'bottle' && (
+              <section data-table-people="" className="mt-4">
+                {best.quantity && <TableQuantityLine quantity={best.quantity} t={t} locale={locale} className="text-[15.5px] font-semibold tabular-nums" />}
+                <PeopleLinks people={result.people} hrefFor={(n) => href(`/r/${slug}/table/result`, prefs, { dishes: tableParam, people: String(n) })} t={t} />
+              </section>
+            )}
 
             {alts.length > 0 && (
               <section className="mt-7">

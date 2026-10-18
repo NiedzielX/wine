@@ -1,7 +1,7 @@
-import { ENGINE_FACTS, MAX_TABLE_DISHES, budgetOptions, parseDishIds, pickTableItem, prefsToQuery, type GuestPreferences, type TableResult } from '@wine-match/core';
+import { ENGINE_FACTS, MAX_TABLE_DISHES, budgetOptions, parseDishIds, parsePeople, pickTableItem, prefsToQuery, type GuestPreferences, type TableResult } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BudgetChoice, DishScores, EmptyState, Explain, LanguageSwitch, ModeSwitch, Notice, StyleChoice, TableDishPicker, TableFitLine, TopBar } from '../../../../_components/guest-ui';
+import { BudgetChoice, DishScores, EmptyState, Explain, LanguageSwitch, ModeSwitch, Notice, PeopleChoice, PeopleLinks, StyleChoice, TableDishPicker, TableFitLine, TableQuantityLine, TopBar } from '../../../../_components/guest-ui';
 import { DishSearch } from '../../../../_components/dish-search';
 import { CodeForWaiter } from '../../../../_components/recommendation-code';
 import { SelectionCount } from '../../../../_components/selection-count';
@@ -27,7 +27,9 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
  * the URL is ignored) and a budget no bottle meets is relaxed with a notice. One recommendation code per answer, for the
  * bottle shown first (E09 Q19, `source: 'staff'`); an alternative gets its code only once chosen — its link never
  * prefetches, so a prefetch cannot issue a code for a bottle nobody chose. The waiter's own session (`source: 'staff'`)
- * records `staff_table_lookup`, never a guest session.
+ * records `staff_table_lookup`, never a guest session. Phase 4 (R16): "How many people are drinking wine?" in the form
+ * and as links 2–8 under the bottle; the quantity line ("For 6 people: 3 bottles · 960 zł") only after a choice — there
+ * is no default (Q4). The links never prefetch either: the page they open issues a code.
  */
 export default async function StaffTablePage({ params, searchParams }: Props) {
   const { slug } = await params;
@@ -37,6 +39,8 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
   const path = `/r/${slug}/staff/table`;
   const l = t.guest.staffTable;
   const prefs: GuestPreferences = { ...urlPrefs, serving: 'bottle' };
+  const people = parsePeople(q);
+  const peopleParam = people === null ? undefined : String(people);
   const dishes = inMenuOrder(menu.dishes);
   const asked = new Set(parseDishIds(q));
   // the published dishes asked for, in menu order (the order the form submits); the first MAX_TABLE_DISHES are paired
@@ -46,7 +50,7 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
   let needTwo = asked.size > 0 && chosen.length < 2;
   if (!needTwo && chosen.length >= 2) {
     try {
-      result = (await services.recommendationService.forTable(slug, used.map((d) => d.id), prefs, locale, { relaxBudget: true }))?.result ?? null;
+      result = (await services.recommendationService.forTable(slug, used.map((d) => d.id), prefs, locale, { relaxBudget: true, people }))?.result ?? null;
     } catch (e) {
       if (!isDomainError(e, 'table_needs_two_dishes')) throw e;
       needTwo = true;
@@ -71,7 +75,8 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
     props: {
       source: 'staff', dishIds: used.map((d) => d.id), wineIds: items.map((i) => i.wine.id), ...(pickedWineId ? { pickedWineId } : {}),
       // the serving is always a bottle here: only what the waiter chose is recorded
-      prefs: prefsToQuery({ ...prefs, serving: 'any' }), splitSuggested: result.splitSuggested, budgetRelaxed: result.notice !== null
+      prefs: prefsToQuery({ ...prefs, serving: 'any' }), splitSuggested: result.splitSuggested, budgetRelaxed: result.notice !== null,
+      ...(result.people !== null ? { people: result.people } : {})
     }
   }] : []);
   return (
@@ -105,6 +110,11 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
                   <div className="mt-3 border-t border-line pt-3">
                     <DishScores perDish={best.perDish} showScores t={t} />
                   </div>
+                  <div data-table-people="" className="mt-3 border-t border-line pt-3">
+                    {best.quantity && <TableQuantityLine quantity={best.quantity} t={t} locale={locale} className="text-[16px] font-semibold tabular-nums" />}
+                    {/* never prefetched: the page issues a code for the bottle (E09 Q19) */}
+                    <PeopleLinks people={result.people} hrefFor={(n) => href(path, urlPrefs, { dishes: dishesParam, wine: pickedWineId, people: String(n) })} prefetch={false} t={t} />
+                  </div>
                   {alts.length > 0 && (
                     <div className="mt-4 border-t border-line pt-3">
                       <h3 className="text-[14px] font-semibold text-ink-2">{l.others}</h3>
@@ -116,7 +126,7 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
                               <span className="text-ink-2 tabular-nums"> · {l.fitsOf(a.fit.fits, a.fit.of)} · {formatPrice(a.wine.bottlePrice, locale)}</span>
                             </span>
                             {/* never prefetched: opening it issues a code (E09 Q19, R6) */}
-                            <Link href={href(path, urlPrefs, { dishes: dishesParam, wine: a.wine.id })} prefetch={false} data-choose={a.wine.id}
+                            <Link href={href(path, urlPrefs, { dishes: dishesParam, wine: a.wine.id, people: peopleParam })} prefetch={false} data-choose={a.wine.id}
                               className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#d4ccd0] bg-paper px-3.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-wine">{l.choose}</Link>
                           </li>
                         ))}
@@ -158,6 +168,7 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
               <div id="staff-table-dishes">
                 <TableDishPicker dishes={dishes} selected={new Set(chosen.map((d) => d.id))} variant="tiles" dessertsNote={l.dessertsApart} t={t} locale={locale} />
               </div>
+              <PeopleChoice people={people} t={t} />
               <BudgetChoice prefs={prefs} budgets={budgetOptions('bottle')} legend={t.guest.table.budgetPerBottle} className="mt-6" t={t} locale={locale} />
               <details className="mt-5" open={prefs.styles.length > 0}>
                 <summary className="min-h-11 cursor-pointer content-center font-semibold">{l.colour}</summary>

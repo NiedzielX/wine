@@ -1,4 +1,4 @@
-# Wine Matching Engine v1 (`wm-rules-1.1.0`)
+# Wine Matching Engine v1 (`wm-rules-1.2.0`)
 
 Silnik działa **bez zewnętrznego API LLM**: czyste funkcje TypeScript, deterministyczne, bez sieci i losowości. Ten sam kod działa w przeglądarce (mockup, podgląd na żywo w panelu) i na serwerze (Node). Implementacja i testy:
 
@@ -233,6 +233,26 @@ Identyfikator dokumentacyjny. `recommendForTable(…, locale, { relaxBudget: tru
 
 Limit dań: serwis (`RecommendationService.forTable`) bierze pierwsze `MAX_TABLE_DISHES` = 12 opublikowanych dań (ten sam limit co schemat API).
 
+### Reguła `table.people_default` — bez domyślnej liczby osób
+
+Identyfikator dokumentacyjny (spec `2026-10-16-whole-table-waiter-path`, F4, R14; decyzja właściciela Q4 z 2026-10-16). Liczba osób wchodzi przez `recommendForTable(…, { people })` i liczy się tylko wtedy, gdy ktoś ją **jawnie wybrał**: liczba całkowita od `TABLE_PEOPLE_MIN` = 2 do `TABLE_PEOPLE_MAX` = 12 (`tablePeople(x)`; w aplikacji `parsePeople(q)` z parametru `people`). Każda inna wartość — brak, `people=` („Pomiń”), 1, 13, 2,5, tekst, parametr powtórzony — daje `people = null`, a wtedy **żadna pozycja nie ma ilości** (`quantity = null`). Domyślnej liczby (np. liczby dań) celowo nie ma: para dzieląca 4 dania dostałaby „Dla 4 osób: 2 butelki”, co wygląda jak dosprzedaż. Wynik ma `people: number | null`. Liczba osób nie zmienia rankingu, `overall`, `fit` ani propozycji kieliszków (Q6).
+
+### Reguła `table.quantity` — ile wina dla liczby osób
+
+Identyfikator dokumentacyjny (F4, R15; decyzja właściciela Q3). Czysta funkcja `tableQuantity(people, wine, serving = 'bottle')`, zakładająca, że **wszyscy piją to samo wino**:
+
+```
+need    = people × TABLE_ML_PER_PERSON                      // 300 ml ≈ 2 kieliszki po 150 ml
+bottles = ⌊need / bottleSize⌋,  rest = need − bottles × bottleSize
+rest > 0:  glassPrice ≠ null i rest ≤ TABLE_MAX_EXTRA_GLASSES × glassPour   // 2 kieliszki
+             → glasses = ⌈rest / glassPour⌉
+           wpp. → bottles += 1
+bottles ≥ 1 (butelka większa niż potrzeba = 1 butelka, bez samych kieliszków)
+total   = bottles × bottlePrice + glasses × glassPrice
+```
+
+`null` dla pozycji kieliszkowej (`serving = 'glass'`) i wina słodkiego (`profile.style = 'sweet'` — wina słodkie i wzmacniane podaje się w małych porcjach). Każda pozycja wyniku stolika ma `quantity` (dla wybranej liczby osób), a serwis ma `RecommendationService.tableWineQuantity(slug, wineId, dishIds, people)` dla jednej butelki (G8 „Dla stołu”: wino aktywne, ≥ 2 opublikowane dania, liczba osób wybrana). Przykłady (750 ml, kieliszek 150 ml z ceną): 2 → 1 butelka, 3 → 1 + 1 kieliszek, 4 i 5 → 2, 6 → 2 + 2, 8 → 3 + 1; bez ceny kieliszka 3 → 2, 6 → 3; kieliszek 125 ml: 3 → 1 + 2. Halka: stół 6 dań dla 6 osób → Radikon Slatnik (bez kieliszka) 3 butelki, 960 zł; Savigny-lès-Beaune dla 3 osób → 1 butelka + 1 kieliszek, 384 zł.
+
 ## 9. Preferencje miękkie
 
 | Preferencja | Efekt na `rankScore` |
@@ -249,7 +269,7 @@ Preferencje miękkie nie zmieniają wyświetlanego wyniku.
 - brak losowości, czasu i sieci w funkcjach silnika;
 - jawne rozstrzyganie remisów (`wine.id`);
 - wersja silnika (`ENGINE_VERSION`) zapisywana przy każdym wyniku i evencie;
-- testy w `packages/core/tests/engine.test.ts` obejmują m.in.: determinizm, zakres 0–99 dla całej macierzy, czerwone > białe do ribeye, karę za taniny z rybą, półwytrawny Riesling do ostrego dania, wykluczenie win deserowych do dań wytrawnych, pierwszeństwo Primary nad wyższym wynikiem modelu, wykluczenie par odrzuconych, filtr kieliszka, luzowanie budżetu z komunikatem, uczciwy Match Score, wzór dla stolika, odkładanie deserów, propozycję kieliszków, surowy wynik per danie przy stoliku, reguły `table.fit` i `table.budget_relaxed` (bloki `describe` o tych nazwach) oraz drafter importu;
+- testy w `packages/core/tests/engine.test.ts` obejmują m.in.: determinizm, zakres 0–99 dla całej macierzy, czerwone > białe do ribeye, karę za taniny z rybą, półwytrawny Riesling do ostrego dania, wykluczenie win deserowych do dań wytrawnych, pierwszeństwo Primary nad wyższym wynikiem modelu, wykluczenie par odrzuconych, filtr kieliszka, luzowanie budżetu z komunikatem, uczciwy Match Score, wzór dla stolika, odkładanie deserów, propozycję kieliszków, surowy wynik per danie przy stoliku, reguły `table.fit`, `table.budget_relaxed`, `table.people_default` i `table.quantity` (bloki `describe` o tych nazwach) oraz drafter importu;
 - **test złoty** (`packages/core/tests/engine-golden.test.ts`, migawki w `tests/__snapshots__/engine-golden.*.txt`): pełne wyniki `recommendForDish` dla każdego dania demo i `recommendForTable` dla każdej pary i trójki dań demo × 18 zestawów preferencji (domyślne, kieliszek / butelka, każdy styl, budżet 0 / 60 / 200, lżejsze / pełniejsze, klasyczne / odważne) oraz scenariusz z odrzuconymi parami. `npm run engine:matrix` obejmuje tylko `pairing_score`; test złoty pilnuje warstwy rankingu nad nim (filtry, tiery, okno „Najlepsza cena”, luzowanie budżetu, wagi stolika, premia i limit 50). Migawkę zmienia się świadomie (`npx vitest run tests/engine-golden.test.ts -u` w `packages/core`) tylko razem ze specyfikacją zmiany wyników i podniesieniem `ENGINE_VERSION`;
 - produkcyjnie dodatkowo: **testy złote** dla restauracji referencyjnych (ich własne karty); każda zmiana reguł pokazuje diff rankingów do akceptacji.
 
@@ -272,6 +292,9 @@ Liczby, które opisują działanie silnika (wyjaśnienia „Jak to działa”, s
 | `tableSommelierBonus` | `TABLE_SOMMELIER_BONUS` | 3 | §8, para sommeliera przy stoliku |
 | `tableRejectedCap` | `TABLE_REJECTED_CAP` | 50 | §8, para odrzucona przy stoliku |
 | `tableFitThreshold` | `TABLE_FIT_THRESHOLD` | 70 | §8, `table.fit` — „pasuje” od tego surowego wyniku |
+| `tableMlPerPerson` | `TABLE_ML_PER_PERSON` | 300 | §8, `table.quantity` — ml wina na osobę |
+| `tableMaxExtraGlasses` | `TABLE_MAX_EXTRA_GLASSES` | 2 | §8, `table.quantity` — najwyżej tyle kieliszków zamiast kolejnej butelki |
+| `tablePeopleMin` / `tablePeopleMax` | `TABLE_PEOPLE_MIN` / `TABLE_PEOPLE_MAX` | 2 / 12 | §8, `table.people_default` — zakres jawnie wybranej liczby osób |
 | `compromiseThreshold` | `COMPROMISE_THRESHOLD` | 76 | §8, propozycja kieliszków |
 | `weakDishThreshold` | `WEAK_DISH_THRESHOLD` | 64 | §8, propozycja kieliszków |
 
@@ -283,6 +306,7 @@ Nazwanie stałych nie zmieniło wyników (test złoty na migawce sprzed zmiany),
 |---|---|
 | `wm-rules-1.0.0` | reguły §4–§9 |
 | `wm-rules-1.1.0` | nowe reguły stolika `table.fit` i `table.budget_relaxed` (opcja), surowy `engineScore` per danie (spec `2026-10-16-whole-table-waiter-path`, F1). Minor (BC §7): ranking, `overall` i wyniki API bez zmian — test złoty przechodzi na migawkach z `wm-rules-1.0.0`. |
+| `wm-rules-1.2.0` | nowe reguły stolika `table.people_default` (bez domyślnej liczby osób) i `table.quantity` (ilość dla wybranej liczby osób), pola `TableItem.quantity`, `TableResult.people` (spec `2026-10-16-whole-table-waiter-path`, F4). Minor (BC §7): ranking, `overall` i odpowiedzi API bez zmian — test złoty przechodzi bez zmiany migawek. |
 
 ## 11. Gdzie (opcjonalnie) pomaga LLM
 

@@ -20,9 +20,9 @@ export type UsagePrefs = Record<string, string>;
 export type UsageEvent =
   | { name: 'menu_viewed' }
   | { name: 'recommendations_viewed'; dishId: string; props: { wineIds: string[]; items: Array<{ wineId: string; tier: UsageTier }>; prefs: UsagePrefs } }
-  | { name: 'table_recommendation_viewed'; props: { dishIds: string[]; wineIds: string[]; /** the budget ruled out every bottle and was lifted (`table.budget_relaxed`, spec whole-table-waiter-path R13) */ budgetRelaxed: boolean } }
+  | { name: 'table_recommendation_viewed'; props: { dishIds: string[]; wineIds: string[]; /** the budget ruled out every bottle and was lifted (`table.budget_relaxed`, spec whole-table-waiter-path R13) */ budgetRelaxed: boolean; /** the number of people chosen on the table screens (`table.people_default`), only when chosen (R16) */ people?: number } }
   | { name: 'wine_viewed'; dishId?: string; wineId: string; props: { context: UsageContext } }
-  | { name: 'wine_selected'; dishId?: string; wineId: string; props: { serving: 'glass' | 'bottle'; context: UsageContext; dishIds?: string[] } }
+  | { name: 'wine_selected'; dishId?: string; wineId: string; props: { serving: 'glass' | 'bottle'; context: UsageContext; dishIds?: string[]; /** from the table, when a number of people was chosen (R16) */ people?: number } }
   | { name: 'staff_lookup'; dishId: string; props: { source: 'staff'; prefs: UsagePrefs; wineIds: string[] } }
   /**
    * the waiter's whole-table lookup on G11 (spec 2026-10-16-whole-table-waiter-path, R13): `wineId` is the bottle shown
@@ -31,7 +31,7 @@ export type UsageEvent =
    */
   | {
     name: 'staff_table_lookup'; wineId?: string;
-    props: { source: 'staff'; dishIds: string[]; wineIds: string[]; pickedWineId?: string; prefs: UsagePrefs; splitSuggested: boolean; budgetRelaxed: boolean };
+    props: { source: 'staff'; dishIds: string[]; wineIds: string[]; pickedWineId?: string; prefs: UsagePrefs; splitSuggested: boolean; budgetRelaxed: boolean; people?: number };
   }
   /** the "How we pick your wine" page (G12) was viewed: one cheap signal of interest in the long explanation (E07 Q9) */
   | { name: 'explainer_viewed' };

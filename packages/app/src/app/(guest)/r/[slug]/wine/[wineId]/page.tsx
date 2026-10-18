@@ -1,4 +1,4 @@
-import { DEFAULT_RESTAURANT_SETTINGS, parseDishIds, styleLabel, wineUsageScope, type UsageEvent } from '@wine-match/core';
+import { DEFAULT_RESTAURANT_SETTINGS, parseDishIds, parsePeople, styleLabel, wineUsageScope, type UsageEvent } from '@wine-match/core';
 import type { Metadata } from 'next';
 import { BottomBar, Button, EmptyState, Explain, LanguageSwitch, Score, Seal, TopBar } from '../../../../_components/guest-ui';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
@@ -27,20 +27,23 @@ function Dots({ label, value, valueLabel }: { label: string; value: number; valu
  * G7 — wine details. Context: `?dish=<id>` (from a dish) or `?table=<ids>` (from the table result).
  * The match glass appears only with a real score for that dish: never from the table result, without a dish, or for a
  * wine the dish does not suggest (spec 2026-10-16-how-it-works-explanations, Q13). "What does this score mean?" sits
- * under the reason (or under the facts when there is none).
+ * under the reason (or under the facts when there is none). From the table the chosen number of people (`people`, spec
+ * whole-table-waiter-path F4, R16) travels back to G6 and on to G8, which shows the quantity.
  */
 export default async function WinePage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
   const { q, prefs, services, t, locale, lang, session, href, langHrefs } = await guestContext(searchParams);
   const tableIds = parseDishIds({ dishes: q.table });
   const fromTable = tableIds.length > 0;
+  const people = fromTable ? parsePeople(q) : null;
+  const peopleParam = people === null ? undefined : String(people);
   const dishId = typeof q.dish === 'string' ? q.dish : undefined;
   const data = await services.recommendationService.wineDetails(slug, wineId, dishId, locale);
   if (!data) notFound();
   const { restaurant, wine, dish } = data;
   // from the table result the dish score is not the one the guest saw, so no score at all
   const match = fromTable ? null : data.match;
-  const backHref = fromTable ? href(`/r/${slug}/table/result`, prefs, { dishes: tableIds.join(',') })
+  const backHref = fromTable ? href(`/r/${slug}/table/result`, prefs, { dishes: tableIds.join(','), people: peopleParam })
     : dish ? href(`/r/${slug}/dish/${dish.id}/wines`, prefs) : href(`/r/${slug}/menu`);
   const langSwitch = <LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${slug}/wine/${wine.id}`)} t={t} />;
   const w = t.guest.wine;
@@ -80,6 +83,7 @@ export default async function WinePage({ params, searchParams }: Props) {
       <form action={`/r/${slug}/selected/${wine.id}`} method="get" className="flex flex-1 flex-col">
         {dish && <input type="hidden" name="dish" value={dish.id} />}
         {fromTable && <input type="hidden" name="table" value={tableIds.join(',')} />}
+        {peopleParam && <input type="hidden" name="people" value={peopleParam} />}
         {lang && <input type="hidden" name="lang" value={lang} />}
         <input type="hidden" name="sid" value={session.id} />
         <main className="flex-1 px-5 pt-5 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">

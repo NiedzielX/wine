@@ -1,5 +1,5 @@
 import type { Dish, GuestPreferences, Pairing, Wine } from '../domain/types';
-import { BUDGET_FALLBACK_COUNT, budgetNotice, passesHardFilters, preferenceAdjustment, priceFor, recommendForDish } from './recommend';
+import { BUDGET_FALLBACK_COUNT, budgetNotice, passesHardFilters, preferenceAdjustment, priceFor, recommendForDish, type Serving } from './recommend';
 import type { Locale } from '../i18n/locale';
 import { MAX_SCORE, pairingScore } from './scoring';
 
@@ -17,7 +17,10 @@ import { MAX_SCORE, pairingScore } from './scoring';
  *
  * Named rules (documentation ids, docs/RECOMMENDATION_ENGINE.md §8; the table emits no `Factor`):
  * - `table.fit` — "works with n of m dishes" (`tableFit`);
- * - `table.budget_relaxed` — with `relaxBudget`, a budget that rules out every wine is lifted, with a notice.
+ * - `table.budget_relaxed` — with `relaxBudget`, a budget that rules out every wine is lifted, with a notice;
+ * - `table.people_default` — no default number of people: only a number the guest or the waiter chose counts (`tablePeople`);
+ * - `table.quantity` — how much of the bottle the chosen number of people needs (`tableQuantity`).
+ * People never change the ranking (spec Q6): only the quantity and its total price.
  */
 
 export const TABLE_MEAN_WEIGHT = 0.6;
@@ -34,6 +37,13 @@ export const TABLE_SOMMELIER_BONUS = 3;
 export const TABLE_REJECTED_CAP = 50;
 /** `table.fit`: a dish "works" with the bottle from this raw engine score up (never when the sommelier rejected the pair). */
 export const TABLE_FIT_THRESHOLD = 70;
+/** `table.quantity`: wine per person at the table, in ml (about two 150 ml glasses; owner's decision Q3, 2026-10-16). */
+export const TABLE_ML_PER_PERSON = 300;
+/** `table.quantity`: what is left over after full bottles is topped up with up to this many glasses instead of one more bottle. */
+export const TABLE_MAX_EXTRA_GLASSES = 2;
+/** `table.people_default`: the number of people a table quantity accepts (the chosen value must be a whole number in this range). */
+export const TABLE_PEOPLE_MIN = 2;
+export const TABLE_PEOPLE_MAX = 12;
 
 export interface TableDishScore {
   dish: Dish;
@@ -60,6 +70,17 @@ export interface TableFit {
 export interface TableOptions {
   /** `table.budget_relaxed`: when the budget rules out every wine, list the closest bottles with a notice (screens; not the API) */
   relaxBudget?: boolean;
+  /** `table.people_default`: the number of people the guest or the waiter chose; anything else means no quantity (no default) */
+  people?: number | null;
+}
+
+/** `table.quantity`: full bottles plus up to TABLE_MAX_EXTRA_GLASSES glasses for `people`, and what it costs. */
+export interface TableQuantity {
+  people: number;
+  bottles: number;
+  glasses: number;
+  /** bottles × bottle price + glasses × glass price, in zł */
+  total: number;
 }
 
 export interface TableItem {
@@ -71,6 +92,8 @@ export interface TableItem {
   serving: 'glass' | 'bottle';
   why: string;
   fit: TableFit;
+  /** `table.quantity` for the chosen number of people; null without a choice, by the glass, or for a sweet wine */
+  quantity: TableQuantity | null;
 }
 
 export interface TableResult {
@@ -83,6 +106,8 @@ export interface TableResult {
   split: Array<{ dish: Dish; wine: Wine; score: number }>;
   /** set when the budget was relaxed to avoid an empty result (`table.budget_relaxed`); otherwise null */
   notice: string | null;
+  /** the number of people chosen (`table.people_default`); null when nobody chose one, and then no item has a quantity */
+  people: number | null;
 }
 
 const weightOf = (d: Dish) => (d.category === 'Mains' ? TABLE_MAINS_WEIGHT : 1);
@@ -104,6 +129,7 @@ export function recommendForTable(
   const scored = savoury.length > 0 ? savoury : dishes;
   const setAside = savoury.length > 0 ? dishes.filter((d) => d.category === 'Desserts') : [];
   const tablePrefs: GuestPreferences = { ...prefs, serving: prefs.serving === 'any' ? 'bottle' : prefs.serving };
+  const people = tablePeople(options.people);
 
   const build = (ignoreBudget: boolean): TableItem[] => {
     const items: TableItem[] = [];
@@ -124,7 +150,8 @@ export function recommendForTable(
       const weakest = perDish.reduce((m, x) => (x.score < m.score ? x : m), perDish[0]);
       const overall = Math.round(TABLE_MEAN_WEIGHT * mean + TABLE_MIN_WEIGHT * weakest.score);
       const { price, serving } = priceFor(wine, tablePrefs.serving);
-      items.push({ wine, overall, perDish, weakest, price, serving, why: tableWhy(perDish, locale), fit: tableFit(perDish, overall) });
+      const quantity = people === null ? null : tableQuantity(people, wine, serving);
+      items.push({ wine, overall, perDish, weakest, price, serving, why: tableWhy(perDish, locale), fit: tableFit(perDish, overall), quantity });
     }
     return items.sort((a, b) => compareTableItems(a, b, prefs));
   };
@@ -146,7 +173,40 @@ export function recommendForTable(
       })
     : [];
 
-  return { items: top, setAside, splitSuggested, split, notice };
+  return { items: top, setAside, splitSuggested, split, notice, people };
+}
+
+/**
+ * `table.people_default`: there is no default number of people (owner's decision Q4, 2026-10-16) — guessing it from the
+ * number of dishes would show a couple sharing four dishes "for 4 people: 2 bottles", which reads as an upsell. Only a
+ * whole number from TABLE_PEOPLE_MIN to TABLE_PEOPLE_MAX that someone chose counts; anything else is null (no quantity).
+ */
+export function tablePeople(people: number | null | undefined): number | null {
+  return typeof people === 'number' && Number.isInteger(people) && people >= TABLE_PEOPLE_MIN && people <= TABLE_PEOPLE_MAX ? people : null;
+}
+
+/**
+ * `table.quantity`: TABLE_ML_PER_PERSON for each person, if everyone drinks the same wine. Full bottles first; what is
+ * left is poured by the glass when the wine is sold by the glass and it takes at most TABLE_MAX_EXTRA_GLASSES glasses,
+ * otherwise it is one more bottle. Always at least one bottle. No quantity for a wine served by the glass (the table
+ * chose glasses) or a sweet wine (sweet and fortified wines are poured in small measures).
+ */
+export function tableQuantity(people: number, wine: Wine, serving: Serving = 'bottle'): TableQuantity | null {
+  if (serving === 'glass' || wine.profile.style === 'sweet') return null;
+  const need = people * TABLE_ML_PER_PERSON;
+  let bottles = Math.floor(need / wine.bottleSize);
+  const rest = need - bottles * wine.bottleSize;
+  let glasses = 0;
+  if (rest > 0) {
+    if (wine.glassPrice !== null && rest <= TABLE_MAX_EXTRA_GLASSES * wine.glassPour) glasses = Math.ceil(rest / wine.glassPour);
+    else bottles += 1;
+  }
+  if (bottles === 0) {
+    // a bottle larger than the table needs: one bottle, never glasses alone
+    bottles = 1;
+    glasses = 0;
+  }
+  return { people, bottles, glasses, total: bottles * wine.bottlePrice + glasses * (wine.glassPrice ?? 0) };
 }
 
 /**

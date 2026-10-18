@@ -52,12 +52,13 @@ flowchart LR
 |---|---|---|---|
 | 1 | Landing / Menu | wejście w tryb stolika: karta „Several dishes on the table?” nad menu na G0 (przycisk w nagłówku restauracji tylko, gdy karty nie ma — np. menu z samych deserów) albo przełącznik „Whole table” na G1 | — |
 | 2 | Whole table | zaznaczenie dań (licznik, przycisk aktywny od 2) | event `table_dishes_selected` |
-| 3 | Whole table | opcjonalnie: kolor, budżet na butelkę | — |
+| 3 | Whole table | opcjonalnie: „How many people are drinking wine?” (2–8, „8+”; domyślnie „Skip”), kolor, budżet na butelkę | — |
 | 4 | Whole table | „Find a bottle for the table” | `POST /recommendations/table` |
 | 5 | Best wine for your table | linia „Works with n of m dishes, less so with: …” przy butelce i alternatywach; surowy wynik silnika per danie, Overall match (bez liczb, gdy restauracja ukrywa procenty), cena; 2 alternatywy; desery odłożone; budżet bez wyników → komunikat i 2 najbliższe butelki; ewentualna propozycja kieliszków | event `table_recommendation_viewed` |
-| 6 | Wine details → Confirmation | jak w flow 1, z domyślną butelką | `wine_selected` z `context=table` |
+| 5a | Best wine for your table | ilość (E08 F4): bez wybranej liczby osób **żadnej ilości** — tylko pytanie i linki 2–8; jedno dotknięcie liczby → „For 6 people: 3 bottles · 960 zł” (300 ml na osobę, do 2 kieliszków zamiast kolejnej butelki, jeśli wszyscy piją to samo wino) | event `table_recommendation_viewed` z `people` |
+| 6 | Wine details → Confirmation | jak w flow 1, z domyślną butelką; `people` przechodzi dalej, a „For the table” na potwierdzeniu pokazuje tę samą linię ilości dla wybranego wina | `wine_selected` z `context=table` (i `people`, gdy wybrano) |
 
-Przykład (dane demo Halki, `wm-rules-1.1.0`): Beef tartare 83%, Wild mushroom risotto 90%, Duck breast 80% (surowe wyniki; pieczęć przy risotto i kaczce) → Savigny-lès-Beaune, „Works with all 3 dishes.”, overall 85%. Stół 6 dań (śledź, przegrzebki, sandacz, seler, antrykot, jeleń) → Radikon Slatnik, „Works with 5 of 6 dishes, less so with: Venison loin.”.
+Przykład (dane demo Halki, `wm-rules-1.2.0`): Beef tartare 83%, Wild mushroom risotto 90%, Duck breast 80% (surowe wyniki; pieczęć przy risotto i kaczce) → Savigny-lès-Beaune, „Works with all 3 dishes.”, overall 85%. Stół 6 dań (śledź, przegrzebki, sandacz, seler, antrykot, jeleń) → Radikon Slatnik, „Works with 5 of 6 dishes, less so with: Venison loin.”.
 
 ---
 
@@ -147,7 +148,7 @@ flowchart LR
   R --> T([Read the line to the table,<br>code in the order comment])
 ```
 
-5 dotknięć do wyniku dla stołu 4 dań (4 kafle + „Show the bottle”), bez JS; przy karcie 30+ dań dochodzą przewinięcia albo kotwice sekcji (z JS — pole „Find a dish”). Zdanie „pasuje do n z m, słabiej do …” zastępuje „Say: …”. Jeden kod polecenia na wynik (butelka pokazana jako pierwsza); alternatywa dostaje kod dopiero po „Choose this one”. Zdarzenie `staff_table_lookup` w sesji kelnera.
+5 dotknięć do wyniku dla stołu 4 dań (4 kafle + „Show the bottle”), bez JS; przy karcie 30+ dań dochodzą przewinięcia albo kotwice sekcji (z JS — pole „Find a dish”). Zdanie „pasuje do n z m, słabiej do …” zastępuje „Say: …”. Jeden kod polecenia na wynik (butelka pokazana jako pierwsza); alternatywa dostaje kod dopiero po „Choose this one”. Zdarzenie `staff_table_lookup` w sesji kelnera. Ilość (F4): kelner dotyka liczby osób pod butelką (2–8) albo wybiera ją w formularzu — dopiero wtedy „For 6 people: 3 bottles · 960 zł”; bez wyboru ilości nie ma.
 
 ---
 

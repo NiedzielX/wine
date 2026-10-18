@@ -1,4 +1,4 @@
-import { WINE_STYLES, styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RecommendationItem, type TableDishScore, type TableFit, type Wine, type WineStyle } from '@wine-match/core';
+import { TABLE_PEOPLE_CHOICES, TABLE_PEOPLE_MORE, WINE_STYLES, styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RecommendationItem, type TableDishScore, type TableFit, type TableQuantity, type Wine, type WineStyle } from '@wine-match/core';
 import { InfoDisclosure } from '@wine-match/ui/brand/info-disclosure';
 import { MatchGlass } from '@wine-match/ui/brand/match-glass';
 import Link from 'next/link';
@@ -254,6 +254,57 @@ export function ModeSwitch({ dishHref, tableHref, mode, t }: { dishHref: string;
       <Link href={dishHref} aria-current={mode === 'dish' ? 'page' : undefined} className={base}>{t.guest.menu.oneDish}</Link>
       <Link href={tableHref} aria-current={mode === 'table' ? 'page' : undefined} className={base}>{t.guest.menu.wholeTable}</Link>
     </nav>
+  );
+}
+
+/**
+ * "For 6 people: 3 bottles · 960 zł" (spec 2026-10-16-whole-table-waiter-path, F4, R16): the engine's `table.quantity`
+ * for the number of people someone chose, worded by the dictionary. Never rendered without a choice (Q4).
+ */
+export function TableQuantityLine({ quantity, t, locale, className = 'mt-3 text-[15.5px] font-semibold tabular-nums' }: { quantity: TableQuantity; t: Dictionary; locale: Locale; className?: string }) {
+  return <p data-table-quantity="" className={className}>{t.guest.tableQuantity.line({ ...quantity, total: formatPrice(quantity.total, locale) })}</p>;
+}
+
+/**
+ * "How many people are drinking wine?" as links 2–8 on a result (G6, G11; R16, Q4): one tap shows the quantity, the
+ * current number is marked `aria-current` (9–12 only in the line itself). Without a choice a hint says why there is no
+ * amount. `prefetch={false}` where opening the page issues a recommendation code (G11).
+ */
+export function PeopleLinks({ people, hrefFor, prefetch, t }: { people: number | null; hrefFor: (n: number) => string; prefetch?: false; t: Dictionary }) {
+  const l = t.guest.tableQuantity;
+  return (
+    <nav aria-label={l.question} data-people-links="" className="mt-3">
+      <p className="text-[14.5px] font-semibold">{l.question}</p>
+      {people === null && <p className="mt-0.5 text-sm text-ink-2">{l.hint}</p>}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {TABLE_PEOPLE_CHOICES.map((n) => (
+          <Link key={n} href={hrefFor(n)} scroll={false} prefetch={prefetch} aria-label={l.peopleLabel(n)} aria-current={people === n ? 'true' : undefined}
+            className={`${chipBase} ${chipOn} min-h-11 min-w-11 justify-center tabular-nums`}>{n}</Link>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+/**
+ * The number of people in a table form (G5, G11; R16): native radios `people`, "Skip" (`people=`, no quantity — there is
+ * no default, Q4), 2–8 and "8+" (10). No script.
+ */
+export function PeopleChoice({ people, className = 'mt-6', t }: { people: number | null; className?: string; t: Dictionary }) {
+  const l = t.guest.tableQuantity;
+  return (
+    <fieldset className={`${className} border-0 p-0`}>
+      <legend className="mb-2.5 text-[15px] font-semibold">{l.question}</legend>
+      <div className="flex flex-wrap gap-2">
+        <label className={pill}><input type="radio" name="people" value="" defaultChecked={people === null} className="sr-only" />{l.skip}</label>
+        {[...TABLE_PEOPLE_CHOICES, TABLE_PEOPLE_MORE].map((n) => (
+          <label key={n} className={`${pill} min-w-11 justify-center tabular-nums`}>
+            <input type="radio" name="people" value={n} defaultChecked={people === n} className="sr-only" />
+            {n === TABLE_PEOPLE_MORE ? <><span aria-hidden="true">{l.more}</span><span className="sr-only">{l.peopleLabel(n)}</span></> : n}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
