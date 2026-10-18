@@ -1,4 +1,7 @@
-import type { DecisionRecord, Dish, GuestEventName, GuestInteraction, ImportJob, Level, OpportunityDismissal, Pairing, Restaurant, Wine } from '@wine-match/core';
+import type {
+  CodeContext, CodeServing, CodeSource, CodeTier, DecisionRecord, Dish, GuestEventName, GuestInteraction, ImportJob, Level, OpportunityDismissal, Pairing,
+  RecommendationCodeRecord, Restaurant, Wine
+} from '@wine-match/core';
 import {
   DEFAULT_RESTAURANT_SETTINGS, DISH_TEXT_FIELDS, RESTAURANT_TEXT_FIELDS, WINE_TEXT_FIELDS, cleanCommentTranslations, cleanTranslations, isLocale
 } from '@wine-match/core';
@@ -84,5 +87,32 @@ export function toImportJob(j: ImportJobRow): ImportJob {
     id: j.id, restaurantId: j.restaurant.id, kind: j.kind as ImportJob['kind'], fileName: j.fileName, fileType: j.fileType, fileSize: j.fileSize,
     status: j.status, parser: j.parser ?? null, rows: j.rows ?? [], notes: j.notes ?? [], error: j.error ?? null, createdBy: j.createdBy,
     createdAt: j.createdAt.toISOString(), confirmedAt: j.confirmedAt ? j.confirmedAt.toISOString() : null, result: j.result ?? null
+  };
+}
+
+/** A `recommendation_code` row as the native statements of `PgRecommendationCodeRepository` select it. */
+export interface RecommendationCodeSqlRow {
+  code: string;
+  service_day: string;
+  session_id: string;
+  source: CodeSource;
+  context: CodeContext;
+  wine_id: string;
+  dish_ids: string[];
+  serving: CodeServing;
+  menu_version: Date | string | null;
+  tier: CodeTier | null;
+  engine_version: string;
+  issued_at: Date | string;
+  confirmed_at: Date | string | null;
+}
+
+const instant = (d: Date | string | null) => (d === null ? null : new Date(d).toISOString());
+
+export function toRecommendationCode(r: RecommendationCodeSqlRow): RecommendationCodeRecord {
+  return {
+    code: r.code, serviceDay: r.service_day, sessionId: r.session_id, source: r.source, context: r.context, wineId: r.wine_id,
+    dishIds: [...r.dish_ids], serving: r.serving, menuVersion: instant(r.menu_version), tier: r.tier, engineVersion: r.engine_version,
+    issuedAt: new Date(r.issued_at).toISOString(), confirmedAt: instant(r.confirmed_at)
   };
 }

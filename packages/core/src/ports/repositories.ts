@@ -1,7 +1,10 @@
 import type { ImportRepository } from './import';
 import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
 import type { Locale } from '../i18n/locale';
-import type { Dish, EntityStatus, GuestEventName, GuestInteraction, OpportunityDismissal, Pairing, PairingRole, PairingStatus, Restaurant, RestaurantSettings, Wine } from '../domain/types';
+import type {
+  CodeSummary, Dish, EntityStatus, GuestEventName, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, PairingRole, PairingStatus, RecommendationCodeRecord,
+  Restaurant, RestaurantSettings, Wine
+} from '../domain/types';
 
 /**
  * Repository ports. Implementations: in-memory (`@wine-match/core/memory`) and PostgreSQL
@@ -185,6 +188,38 @@ export interface GuestInteractionRepository {
   countGuestSessions(restaurantId: string, range: { from: Date; to: Date }): Promise<number>;
 }
 
+/** A recommendation to store: the record without its confirmation, plus the row id (`IdGenerator`). */
+export type RecommendationCodeInput = Omit<RecommendationCodeRecord, 'confirmedAt'> & { id: string };
+
+/** A period of service days (`YYYY-MM-DD`), both ends inclusive. */
+export interface ServiceDayPeriod { from: string; to: string }
+
+/**
+ * Recommendation codes (spec 2026-10-16-recommendation-code, R11). A code is unique per (restaurant, service day); a
+ * choice — (service day, session, wine, serving, dish ids) — has one code. Issuing is telemetry-like (AGENTS §1.3,
+ * Q7), confirming is a command of the service. POS matching (R9) needs `sales_record` (phase 3): until then
+ * `posMatched` is 0. The in-memory implementation keeps at most 10 000 recommendations.
+ */
+export interface RecommendationCodeRepository {
+  /** inserts unless (serviceDay, code) or the choice exists; `existing` returns the stored record of the same choice */
+  tryIssue(restaurantId: string, input: RecommendationCodeInput):
+    Promise<{ status: 'created' | 'existing'; record: RecommendationCodeRecord } | { status: 'code_taken' }>;
+  /** the whole code only, never a prefix */
+  findByCode(restaurantId: string, serviceDay: string, code: string): Promise<RecommendationCodeRecord | null>;
+  /** `at` set: confirmed_at = coalesce(confirmed_at, at) (idempotent); `at` null: clears it. Null for an unknown code. */
+  setConfirmed(restaurantId: string, serviceDay: string, code: string, at: Date | null, by: string | null): Promise<RecommendationCodeRecord | null>;
+  /** issued codes of one session on one service day (R13) */
+  countBySession(restaurantId: string, serviceDay: string, sessionId: string): Promise<number>;
+  /** serviceDay in the period; rows only for context dish (one) and table (one per dish); sorted by dish, wine, context */
+  pairStats(restaurantId: string, period: ServiceDayPeriod): Promise<PairCodeStats[]>;
+  /** totals per R10 for the period, including context 'direct' */
+  totals(restaurantId: string, period: ServiceDayPeriod): Promise<Omit<CodeSummary, 'period' | 'unmatchedPosCodes'>>;
+  /** stored checks in the period whose code matches no issued code (A13 card); 0 until phase 3 */
+  unmatchedPosCodes(restaurantId: string, period: ServiceDayPeriod): Promise<number>;
+  /** import preview: how many of these distinct (businessDate, code) pairs have no issued code */
+  countUnmatched(restaurantId: string, pairs: Array<{ businessDate: string; code: string }>): Promise<number>;
+}
+
 /** The repositories a data source must provide, registered in the DI container under these names. */
 export interface Repositories {
   restaurantRepository: RestaurantRepository;
@@ -199,4 +234,5 @@ export interface Repositories {
   importRepository: ImportRepository;
   opportunityDismissalRepository: OpportunityDismissalRepository;
   guestInteractionRepository: GuestInteractionRepository;
+  recommendationCodeRepository: RecommendationCodeRepository;
 }

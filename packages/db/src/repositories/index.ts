@@ -5,13 +5,15 @@ import {
   type ContentWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
-  type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository
+  type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository,
+  type RecommendationCodeInput, type RecommendationCodeRecord, type RecommendationCodeRepository, type ServiceDayPeriod
 } from '@wine-match/core';
 import {
   DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
   type PublishedSnapshot, type PublishedVersionRow
 } from '../entities';
 import { translate } from './errors';
+import { toRecommendationCode, type RecommendationCodeSqlRow } from '../mappers';
 import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairing, toPublishedPairing, toRestaurant, toWine } from '../mappers';
 
 /**
@@ -413,6 +415,114 @@ export class PgGuestInteractionRepository implements GuestInteractionRepository 
       `select count(distinct session_id)::text as n from guest_interaction
         where restaurant_id = ? and name = 'guest_session_started' and created_at >= ? and created_at < ?`,
       [restaurantId, range.from, range.to]
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+}
+
+/** The columns of a recommendation as `toRecommendationCode` reads them (dates as text, so no time zone applies). */
+const CODE_COLUMNS = `code, service_day::text as service_day, session_id, source, context, wine_id, dish_ids, serving,
+  menu_version, tier, engine_version, issued_at, confirmed_at`;
+
+/**
+ * Recommendation codes (spec 2026-10-16-recommendation-code, R11). Native statements throughout, so the identity
+ * map never holds a stale row. `tryIssue` is one `insert … on conflict do nothing returning`: a conflict on either
+ * unique index (the code of the day, or the choice) inserts nothing, and a read by the choice key tells `existing`
+ * from `code_taken`. POS matching (R9) needs `sales_record` (phase 3): `posMatched` is 0 until then.
+ */
+export class PgRecommendationCodeRepository implements RecommendationCodeRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  private run<T>(sql: string, params: unknown[]) {
+    return this.em.getConnection().execute<T[]>(sql, params);
+  }
+
+  async tryIssue(restaurantId: string, input: RecommendationCodeInput) {
+    const inserted = await this.run<RecommendationCodeSqlRow>(
+      `insert into recommendation_code (id, restaurant_id, service_day, code, session_id, source, context, wine_id, dish_ids, serving, menu_version, tier, engine_version, issued_at)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
+       on conflict do nothing
+       returning ${CODE_COLUMNS}`,
+      [
+        input.id, restaurantId, input.serviceDay, input.code, input.sessionId, input.source, input.context, input.wineId, JSON.stringify(input.dishIds),
+        input.serving, input.menuVersion ? new Date(input.menuVersion) : null, input.tier, input.engineVersion, new Date(input.issuedAt)
+      ]
+    );
+    if (inserted[0]) return { status: 'created' as const, record: toRecommendationCode(inserted[0]) };
+    const existing = await this.run<RecommendationCodeSqlRow>(
+      `select ${CODE_COLUMNS} from recommendation_code
+        where restaurant_id = ? and service_day = ? and session_id = ? and wine_id = ? and serving = ? and dish_ids = ?::jsonb`,
+      [restaurantId, input.serviceDay, input.sessionId, input.wineId, input.serving, JSON.stringify(input.dishIds)]
+    );
+    return existing[0] ? { status: 'existing' as const, record: toRecommendationCode(existing[0]) } : { status: 'code_taken' as const };
+  }
+
+  async findByCode(restaurantId: string, serviceDay: string, code: string): Promise<RecommendationCodeRecord | null> {
+    const rows = await this.run<RecommendationCodeSqlRow>(
+      `select ${CODE_COLUMNS} from recommendation_code where restaurant_id = ? and service_day = ? and code = ?`,
+      [restaurantId, serviceDay, code]
+    );
+    return rows[0] ? toRecommendationCode(rows[0]) : null;
+  }
+
+  async setConfirmed(restaurantId: string, serviceDay: string, code: string, at: Date | null, by: string | null) {
+    // R7: one statement; a second confirmation keeps the first time and author
+    const rows = await this.run<RecommendationCodeSqlRow>(
+      at === null
+        ? `update recommendation_code set confirmed_at = null, confirmed_by = null
+            where restaurant_id = ? and service_day = ? and code = ? returning ${CODE_COLUMNS}`
+        : `update recommendation_code set confirmed_by = case when confirmed_at is null then ? else confirmed_by end, confirmed_at = coalesce(confirmed_at, ?)
+            where restaurant_id = ? and service_day = ? and code = ? returning ${CODE_COLUMNS}`,
+      at === null ? [restaurantId, serviceDay, code] : [by, at, restaurantId, serviceDay, code]
+    );
+    return rows[0] ? toRecommendationCode(rows[0]) : null;
+  }
+
+  async countBySession(restaurantId: string, serviceDay: string, sessionId: string) {
+    const rows = await this.run<{ n: string }>(
+      'select count(*)::text as n from recommendation_code where restaurant_id = ? and service_day = ? and session_id = ?',
+      [restaurantId, serviceDay, sessionId]
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  async pairStats(restaurantId: string, period: ServiceDayPeriod) {
+    const rows = await this.run<{ dish_id: string; wine_id: string; context: 'dish' | 'table'; issued: string; confirmed: string }>(
+      `select d.dish_id, r.wine_id, r.context, count(*)::text as issued, count(r.confirmed_at)::text as confirmed
+         from recommendation_code r cross join lateral jsonb_array_elements_text(r.dish_ids) as d(dish_id)
+        where r.restaurant_id = ? and r.service_day between ? and ? and r.context in ('dish', 'table')
+        group by d.dish_id, r.wine_id, r.context`,
+      [restaurantId, period.from, period.to]
+    );
+    return rows
+      .map((r) => ({
+        dishId: r.dish_id, wineId: r.wine_id, context: r.context, issued: Number(r.issued),
+        staffConfirmed: Number(r.confirmed), posMatched: 0, ordered: Number(r.confirmed)
+      }))
+      .sort((a, b) => a.dishId.localeCompare(b.dishId) || a.wineId.localeCompare(b.wineId) || a.context.localeCompare(b.context));
+  }
+
+  async totals(restaurantId: string, period: ServiceDayPeriod) {
+    const rows = await this.run<{ issued: string; confirmed: string }>(
+      `select count(*)::text as issued, count(confirmed_at)::text as confirmed from recommendation_code
+        where restaurant_id = ? and service_day between ? and ?`,
+      [restaurantId, period.from, period.to]
+    );
+    const confirmed = Number(rows[0]?.confirmed ?? 0);
+    return { issued: Number(rows[0]?.issued ?? 0), staffConfirmed: confirmed, posMatched: 0, ordered: confirmed };
+  }
+
+  async unmatchedPosCodes() {
+    return 0;
+  }
+
+  async countUnmatched(restaurantId: string, pairs: Array<{ businessDate: string; code: string }>) {
+    if (!pairs.length) return 0;
+    const rows = await this.run<{ n: string }>(
+      `select count(*)::text as n from (select distinct p.day, p.code from jsonb_to_recordset(?::jsonb) as p(day date, code text)) p
+        where not exists (select 1 from recommendation_code r where r.restaurant_id = ? and r.service_day = p.day and r.code = p.code)`,
+      [JSON.stringify(pairs.map((x) => ({ day: x.businessDate, code: x.code }))), restaurantId]
     );
     return Number(rows[0]?.n ?? 0);
   }

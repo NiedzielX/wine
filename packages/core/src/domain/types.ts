@@ -196,3 +196,58 @@ export interface GuestInteraction {
   engineVersion: string | null;
   createdAt: string;
 }
+
+/* ---------- recommendation codes (spec 2026-10-16-recommendation-code) ---------- */
+
+/** Who received the code: the guest on G8, or the waiter on the staff table result (E08). */
+export const CODE_SOURCES = ['guest', 'staff'] as const;
+export type CodeSource = (typeof CODE_SOURCES)[number];
+/** `dish`: one published dish; `table`: 2–12 published dishes; `direct`: a wine opened without a dish (R5). */
+export const CODE_CONTEXTS = ['dish', 'table', 'direct'] as const;
+export type CodeContext = (typeof CODE_CONTEXTS)[number];
+/** How the wine was placed for the dish when the guest chose it (Q18), as `tier` in the API and the usage events. */
+export const CODE_TIERS = ['sommelier_primary', 'sommelier', 'engine'] as const;
+export type CodeTier = (typeof CODE_TIERS)[number];
+export type CodeServing = 'glass' | 'bottle';
+
+/**
+ * One recommendation: a code issued for one choice (R5). Validated values only: no IP, user agent, table number or
+ * text typed by anyone. `dishIds` is sorted and without duplicates (1 for `dish`, 2–12 for `table`, none for `direct`);
+ * `tier` only for a guest's dish choice. `serviceDay` is `YYYY-MM-DD`, times are ISO strings.
+ */
+export interface RecommendationCodeRecord {
+  code: string;
+  serviceDay: string;
+  sessionId: string;
+  source: CodeSource;
+  context: CodeContext;
+  wineId: string;
+  dishIds: string[];
+  serving: CodeServing;
+  menuVersion: string | null;
+  tier: CodeTier | null;
+  engineVersion: string;
+  issuedAt: string;
+  confirmedAt: string | null;
+}
+
+/** Results per (dish, wine, context) for E04 and E10; `ordered` = staff-confirmed ∪ POS-matched (R10). */
+export interface PairCodeStats {
+  dishId: string;
+  wineId: string;
+  context: CodeContext;
+  issued: number;
+  staffConfirmed: number;
+  posMatched: number;
+  ordered: number;
+}
+
+/** Totals for a period of service days, both inclusive (Q12). */
+export interface CodeSummary {
+  period: { from: string; to: string };
+  issued: number;
+  staffConfirmed: number;
+  posMatched: number;
+  ordered: number;
+  unmatchedPosCodes: number;
+}

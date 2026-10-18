@@ -2,12 +2,13 @@ import { asClass, asFunction, asValue, createContainer, InjectionMode, type Awil
 import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
-  AdminService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationService,
-  SommelierService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser,
+  AdminService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService,
+  SommelierService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
   type PasswordHasher, type Repositories, type SessionTokens
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
 import { env } from './env';
+import { logger } from './logger';
 
 /**
  * Composition root (the only place that knows concrete implementations).
@@ -37,6 +38,8 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   opportunityService: OpportunityService;
   translationService: TranslationService;
   usageEventService: UsageEventService;
+  recommendationCodeService: RecommendationCodeService;
+  logger: Logger;
 }
 
 export type DataSource = 'memory' | 'postgres';
@@ -64,6 +67,9 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     opportunityService: asClass(OpportunityService).scoped(),
     translationService: asClass(TranslationService).scoped(),
     usageEventService: asClass(UsageEventService).scoped(),
+    recommendationCodeService: asClass(RecommendationCodeService).scoped(),
+    // the application's logger, for services that report without failing (recommendation codes)
+    logger: asValue<Logger>(logger),
     // time and identity come from outside so core stays deterministic and testable
     clock: asValue<Clock>({ now: () => new Date() }),
     idGenerator: asValue<IdGenerator>({ uuid: () => randomUUID() }),
@@ -92,7 +98,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       authRepository: asClass(db.PgAuthRepository).scoped(),
       importRepository: asClass(db.PgImportRepository).scoped(),
       opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped(),
-      guestInteractionRepository: asClass(db.PgGuestInteractionRepository).scoped()
+      guestInteractionRepository: asClass(db.PgGuestInteractionRepository).scoped(),
+      recommendationCodeRepository: asClass(db.PgRecommendationCodeRepository).scoped()
     });
   } else {
     const store = MemoryStore.from(buildDemoDataset({ ids: 'uuid' }));
@@ -110,7 +117,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       authRepository: asValue<AuthRepository>(new MemoryAuthRepository(store)),
       importRepository: asValue(repos.importRepository),
       opportunityDismissalRepository: asValue(repos.opportunityDismissalRepository),
-      guestInteractionRepository: asValue(repos.guestInteractionRepository)
+      guestInteractionRepository: asValue(repos.guestInteractionRepository),
+      recommendationCodeRepository: asValue(repos.recommendationCodeRepository)
     });
   }
   return container;

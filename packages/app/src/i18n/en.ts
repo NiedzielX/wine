@@ -243,7 +243,20 @@ export const en = {
       withDish: (dish: string) => `With the ${dish.toLowerCase()}`,
       forTable: 'For the table',
       pairAnother: 'Pair another dish',
-      done: 'Done'
+      done: 'Done',
+      /** the recommendation code (spec 2026-10-16-recommendation-code, G8) */
+      code: {
+        title: 'Code for your waiter',
+        hint: 'Show it to your waiter with the wine.',
+        /** what a screen reader says: the characters one by one */
+        spoken: (code: string) => code.split('').join(', '),
+        unavailable: 'Code unavailable — name the wine to your waiter.',
+        /**
+         * The paragraph about the code for the screen's one explanation (`guest.explain.selected`, E07 Q15), only when a
+         * code is shown. G8 has no explanation yet (E07 F2): until then the block stands without an "i".
+         */
+        explain: 'The code links this wine to the recommendation, so the restaurant knows what guests enjoy. It holds no information about you.'
+      }
     },
     table: {
       lead: 'Tick everything your table is ordering. We’ll find one bottle that works across all of it.',

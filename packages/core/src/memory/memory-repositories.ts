@@ -1,6 +1,6 @@
 import type { AuthUser, Membership, SessionRecord } from '../auth/types';
 import type { DemoDataset } from '../demo/dataset';
-import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, Pairing, Restaurant, RestaurantSettings, Wine } from '../domain/types';
+import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import {
   contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
@@ -10,7 +10,7 @@ import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
 import type { ImportPlan, ImportRepository } from '../ports/import';
 import type {
-  ContentWriteRepository, DecisionRecord, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
+  ContentWriteRepository, DecisionRecord, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
   PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
@@ -21,6 +21,8 @@ const isReviewed = (p: Pairing) => p.status === 'approved' || p.status === 'modi
 /** What a published version keeps: the decisions guests need (reviewed and rejected pairings). */
 const publishable = (p: Pairing) => isReviewed(p) || p.status === 'rejected';
 const copy = <T>(x: T): T => structuredClone(x);
+
+interface StoredCode { restaurantId: string; id: string; record: RecommendationCodeRecord; confirmedBy: string | null }
 
 /** In-memory data store. Tenant-scoped like the database: every record belongs to one restaurant. */
 export class MemoryStore {
@@ -38,6 +40,8 @@ export class MemoryStore {
   readonly dismissals = new Map<string, Map<string, OpportunityDismissal>>();
   /** usage events, oldest first; capped at `MAX_MEMORY_GUEST_EVENTS` (the oldest go first) */
   readonly guestInteractions: Array<GuestInteractionInput & { restaurantId: string }> = [];
+  /** recommendation codes, oldest first; capped at `MAX_MEMORY_RECOMMENDATION_CODES` (the oldest go first) */
+  readonly recommendationCodes: StoredCode[] = [];
 
   static from(...datasets: DemoDataset[]): MemoryStore {
     const s = new MemoryStore();
@@ -456,6 +460,90 @@ export class MemoryGuestInteractionRepository implements GuestInteractionReposit
   }
 }
 
+/** The in-memory data source keeps this many recommendation codes at most (R11). */
+export const MAX_MEMORY_RECOMMENDATION_CODES = 10_000;
+
+const sameChoice = (a: RecommendationCodeRecord, b: Omit<RecommendationCodeRecord, 'confirmedAt'>) =>
+  a.serviceDay === b.serviceDay && a.sessionId === b.sessionId && a.wineId === b.wineId && a.serving === b.serving &&
+  a.dishIds.length === b.dishIds.length && a.dishIds.every((id, i) => id === b.dishIds[i]);
+
+export class MemoryRecommendationCodeRepository implements RecommendationCodeRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  private rows(restaurantId: string) {
+    return this.store.recommendationCodes.filter((r) => r.restaurantId === restaurantId);
+  }
+
+  private inPeriod(restaurantId: string, period: ServiceDayPeriod) {
+    return this.rows(restaurantId).filter((r) => r.record.serviceDay >= period.from && r.record.serviceDay <= period.to);
+  }
+
+  async tryIssue(restaurantId: string, input: RecommendationCodeInput) {
+    const rows = this.rows(restaurantId);
+    const existing = rows.find((r) => sameChoice(r.record, input));
+    if (existing) return { status: 'existing' as const, record: copy(existing.record) };
+    if (rows.some((r) => r.record.serviceDay === input.serviceDay && r.record.code === input.code)) return { status: 'code_taken' as const };
+    const { id, ...fields } = copy(input);
+    const record: RecommendationCodeRecord = { ...fields, confirmedAt: null };
+    const list = this.store.recommendationCodes;
+    list.push({ restaurantId, id, record, confirmedBy: null });
+    if (list.length > MAX_MEMORY_RECOMMENDATION_CODES) list.splice(0, list.length - MAX_MEMORY_RECOMMENDATION_CODES);
+    return { status: 'created' as const, record: copy(record) };
+  }
+
+  async findByCode(restaurantId: string, serviceDay: string, code: string) {
+    const row = this.rows(restaurantId).find((r) => r.record.serviceDay === serviceDay && r.record.code === code);
+    return row ? copy(row.record) : null;
+  }
+
+  async setConfirmed(restaurantId: string, serviceDay: string, code: string, at: Date | null, by: string | null) {
+    const row = this.rows(restaurantId).find((r) => r.record.serviceDay === serviceDay && r.record.code === code);
+    if (!row) return null;
+    if (at === null) {
+      row.record.confirmedAt = null;
+      row.confirmedBy = null;
+    } else if (row.record.confirmedAt === null) {
+      row.record.confirmedAt = at.toISOString();
+      row.confirmedBy = by;
+    }
+    return copy(row.record);
+  }
+
+  async countBySession(restaurantId: string, serviceDay: string, sessionId: string) {
+    return this.rows(restaurantId).filter((r) => r.record.serviceDay === serviceDay && r.record.sessionId === sessionId).length;
+  }
+
+  async pairStats(restaurantId: string, period: ServiceDayPeriod): Promise<PairCodeStats[]> {
+    const stats = new Map<string, PairCodeStats>();
+    for (const { record: r } of this.inPeriod(restaurantId, period)) {
+      if (r.context === 'direct') continue;
+      for (const dishId of r.dishIds) {
+        const key = `${dishId}|${r.wineId}|${r.context}`;
+        const s = stats.get(key) ?? { dishId, wineId: r.wineId, context: r.context, issued: 0, staffConfirmed: 0, posMatched: 0, ordered: 0 };
+        s.issued += 1;
+        if (r.confirmedAt !== null) { s.staffConfirmed += 1; s.ordered += 1; }
+        stats.set(key, s);
+      }
+    }
+    return [...stats.values()].sort((a, b) => a.dishId.localeCompare(b.dishId) || a.wineId.localeCompare(b.wineId) || a.context.localeCompare(b.context));
+  }
+
+  async totals(restaurantId: string, period: ServiceDayPeriod) {
+    const rows = this.inPeriod(restaurantId, period);
+    const staffConfirmed = rows.filter((r) => r.record.confirmedAt !== null).length;
+    return { issued: rows.length, staffConfirmed, posMatched: 0, ordered: staffConfirmed };
+  }
+
+  async unmatchedPosCodes() {
+    return 0;
+  }
+
+  async countUnmatched(restaurantId: string, pairs: Array<{ businessDate: string; code: string }>) {
+    const issued = new Set(this.rows(restaurantId).map((r) => `${r.record.serviceDay}|${r.record.code}`));
+    return new Set(pairs.map((p) => `${p.businessDate}|${p.code}`).filter((k) => !issued.has(k))).size;
+  }
+}
+
 export function createMemoryRepositories(store: MemoryStore): Repositories {
   return {
     restaurantRepository: new MemoryRestaurantRepository(store),
@@ -469,6 +557,7 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     contentWriteRepository: new MemoryContentWriteRepository(store),
     importRepository: new MemoryImportRepository(store),
     opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
-    guestInteractionRepository: new MemoryGuestInteractionRepository(store)
+    guestInteractionRepository: new MemoryGuestInteractionRepository(store),
+    recommendationCodeRepository: new MemoryRecommendationCodeRepository(store)
   };
 }
