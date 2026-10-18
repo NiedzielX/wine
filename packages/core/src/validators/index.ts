@@ -8,3 +8,4 @@ export * from './imports/row-edits.schema';
 export * from './guest/table-recommendation.schema';
 export * from './catalog/translations.schema';
 export * from './opportunities/opportunity-key.schema';
+export * from './recommendations/code-action.schema';

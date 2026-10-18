@@ -196,7 +196,8 @@ export const pl = {
           `Kolejność jak u gościa: najpierw pierwszy wybór sommeliera, potem pozostałe pary sommeliera w ustalonej kolejności${c.showUnreviewed ? `, potem wina dobrane według zasad (od ${f.minModelScore}%)` : '; innych win restauracja nie pokazuje'}. Najwyżej ${f.dishLimit} ${plural(f.dishLimit, 'wino', 'wina', 'win')}.`,
           'Procent to ocena dopasowania do dania — para sommeliera nie dostaje wyższego procentu. Widzisz go zawsze, także gdy gość go nie widzi.',
           '„Powiedz:” to notatka sommeliera albo uzasadnienie z zasad łączenia wina z jedzeniem.',
-          'Filtry działają jak u gościa.'
+          'Filtry działają jak u gościa.',
+          '„Zamówienie z kodu”: wpisz kod z ekranu gościa i oznacz wino jako zamówione (można cofnąć). Działają tylko dzisiejsze kody.'
         ]
       },
       selected: {
@@ -333,7 +334,24 @@ export const pl = {
       listNo: (n: number) => `nr ${n}`,
       say: (why: string) => `Powiedz: „${why}”`,
       noDishesTitle: 'Brak dań w menu',
-      noDishesText: 'Menu jest właśnie aktualizowane.'
+      noDishesText: 'Menu jest właśnie aktualizowane.',
+      code: {
+        title: 'Zamówienie z kodu',
+        label: 'Kod z ekranu gościa',
+        find: 'Znajdź',
+        notFound: (code: string) => `Nie ma dziś kodu ${code} w tej restauracji. Sprawdź znaki z ekranu gościa.`,
+        forDish: (dish: string) => `Danie: ${dish}`,
+        forTable: (dishes: string) => `Dla stołu: ${dishes}`,
+        noDish: 'Wybrane bez dania',
+        dishOffMenu: 'Danie spoza obecnej karty',
+        wineGone: 'Wina nie ma już w karcie',
+        issuedAt: (code: string, time: string) => `Kod ${code}, pokazany o ${time}`,
+        confirm: 'Zamówione',
+        markedAt: (time: string) => `Oznaczone o ${time}`,
+        undo: 'Cofnij',
+        confirmed: 'Oznaczono jako zamówione.',
+        undone: 'Cofnięto oznaczenie.'
+      }
     },
     staffTable: {
       title: 'Cały stolik',

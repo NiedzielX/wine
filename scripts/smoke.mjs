@@ -116,6 +116,10 @@ await check('G11 red up to 200 zł: the budget notice and an answer', `${R}/staf
 await check('G11 links and form carry the staff session', `${R}/staff/table?dishes=${FOUR}&sid=${SID}`, { has: [`name="sid" value="${SID}"`, `${R}/staff?sid=${SID}`, `&amp;sid=${SID}`] });
 await check('G9 switches to the whole table', `${R}/staff?dish=${duck}&sid=${SID}`, { has: [`href="${R}/staff/table?sid=${SID}"`, 'Whole table', 'One dish'] });
 await check('G11 unknown restaurant', '/r/no-such-place/staff/table', { status: 404 });
+// E09 F2 (spec 2026-10-16-recommendation-code): "Order from a code" on G9 — GET only, the smoke never marks a code
+await check('G9 code form', `${R}/staff?sid=${SID}`, { has: ['data-staff-code', 'Order from a code', `action="${R}/staff" method="get"`, 'name="code"', '“Order from a code” marks the guest’s wine as ordered'], hasNot: ['data-code-card', 'role="status"'] });
+await check('G9 unknown code: one "not found" sentence, 200', `${R}/staff?code=AAA&sid=${SID}`, { has: ['There is no code AAA today in this restaurant.'], hasNot: ['data-code-card'] });
+await check('G9 malformed code in Polish', `${R}/staff?code=AAA&lang=pl`, { has: ['Nie ma dziś kodu AAA w tej restauracji.', 'Zamówienie z kodu'], hasNot: ['data-code-card'] });
 // spec 2026-10-16-how-it-works-explanations, phase 2 (R9, AC12): the "How we pick your wine" page (G12)
 await check('G12 how we pick your wine', `${R}/how-it-works?sid=${SID}`, { has: ['<h1', 'How we pick your wine</h1>', 'The sommelier has the last word', 'Pairing rules', 'shown from 62%', 'pinot noir with duck', 'No producer pays to be listed.', `href="${R}?sid=${SID}"`, 'Back to the menu'], hasNot: [' AI ', 'engine', 'algorithm', ...OLD_LABELS] });
 await check('G12 in Polish keeps the language in the way back', `${R}/how-it-works?lang=pl`, { has: ['<html lang="pl"', 'Jak dobieramy wino</h1>', 'Sommelier ma ostatnie słowo', 'Zasady łączenia wina z jedzeniem', `href="${R}?lang=pl&amp;sid=`, 'Wróć do menu'], hasNot: ['silnik', 'algorytm', 'How we pick your wine</h1>'] });

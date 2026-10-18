@@ -1,4 +1,4 @@
-import type { CodeServing, CodeSource, CodeTier, PairCodeStats, RecommendationCodeRecord } from '../../domain/types';
+import type { CodeServing, CodeSource, CodeTier, PairCodeStats, RecommendationCodeRecord, Wine } from '../../domain/types';
 import { ENGINE_VERSION } from '../../engine/scoring';
 import { NotFoundError, ValidationError } from '../../errors';
 import { MAX_TABLE_DISHES } from '../../guest/prefs';
@@ -6,7 +6,7 @@ import type { GuestSessionRef } from '../../guest/session';
 import type { Logger } from '../../logging/logger';
 import type { Repositories, ServiceDayPeriod } from '../../ports/repositories';
 import type { Clock, IdGenerator } from '../../ports/runtime';
-import { codeFromUuid, type CodeLength } from '../../recommendation-code/code-format';
+import { codeFromUuid, normalizeCode, type CodeLength } from '../../recommendation-code/code-format';
 import { serviceDay, shiftServiceDay } from '../../recommendation-code/service-day';
 
 /** At most this many recommendations per guest session and service day (R13): a loop over `table=` cannot drain the code space. */
@@ -49,6 +49,21 @@ export interface IssuedCode {
   issuedAt: string;
 }
 
+/** A recommendation found by its code (G9): the record and the wine as stored (also an inactive one), or null when the wine is gone. */
+export interface CodeLookup {
+  record: RecommendationCodeRecord;
+  wine: Wine | null;
+}
+
+/**
+ * Who marks a code (R7, Q7): the public staff view G9, without a sign-in (Q8). Stored in `confirmed_by`; a signed-in
+ * waiter (a separate spec with a PIN) would add a value here.
+ */
+export type CodeActor = 'staff_view';
+
+/** The one answer for a code that is unknown, of another restaurant, of another service day or malformed (R6, AC8). */
+export const CODE_NOT_FOUND = 'code_not_found';
+
 export interface RecommendationCodeServiceDeps extends Pick<Repositories, 'restaurantRepository' | 'wineRepository' | 'dishRepository' | 'recommendationCodeRepository'> {
   clock: Clock;
   idGenerator: IdGenerator;
@@ -58,7 +73,8 @@ export interface RecommendationCodeServiceDeps extends Pick<Repositories, 'resta
 /**
  * Recommendation codes (spec 2026-10-16-recommendation-code). Issuing a code is not a command (AGENTS.md §1.3,
  * approved exception Q7): no actor, no expected version, no domain errors — anything that prevents a code gives
- * `null`, and the page renders without one. Confirming and undoing (phase 2) are commands.
+ * `null`, and the page renders without one. Confirming and undoing (phase 2) are commands: an actor, and a domain error
+ * (`code_not_found`) for anything that is not a code of this restaurant's current service day.
  */
 export class RecommendationCodeService {
   constructor(private readonly deps: RecommendationCodeServiceDeps) {}
@@ -126,5 +142,55 @@ export class RecommendationCodeService {
     const restaurant = await this.deps.restaurantRepository.findBySlug(slug);
     if (!restaurant) throw new NotFoundError('Restaurant');
     return this.deps.recommendationCodeRepository.pairStats(restaurant.id, { from: period.from, to: period.to });
+  }
+
+  /**
+   * The recommendation of this code on the current service day of the restaurant (R6), or null — the same null for
+   * an unknown code, a code of another restaurant or of another service day, a malformed code and an unknown slug, so
+   * the answer never tells that a code existed yesterday. A malformed code never reaches the repository.
+   */
+  async lookup(slug: string, rawCode: string): Promise<CodeLookup | null> {
+    const found = await this.find(slug, rawCode);
+    if (!found) return null;
+    const record = await this.deps.recommendationCodeRepository.findByCode(found.restaurantId, found.day, found.code);
+    return record ? this.withWine(found.restaurantId, record) : null;
+  }
+
+  /**
+   * "Ordered" (R7): idempotent — a second confirmation keeps the first time (`COALESCE` in one statement). Only a code
+   * of the current service day; anything else is `code_not_found`, with no change.
+   */
+  async confirm(slug: string, rawCode: string, actor: CodeActor): Promise<CodeLookup> {
+    return this.mark(slug, rawCode, actor);
+  }
+
+  /**
+   * "Undo" (R7): clears the confirmation and its author, only on the current service day; anything else is
+   * `code_not_found`. The actor names who undoes it (the command's author); nothing of it is kept on an undone code.
+   */
+  async undo(slug: string, rawCode: string, _actor: CodeActor): Promise<CodeLookup> {
+    return this.mark(slug, rawCode, null);
+  }
+
+  private async mark(slug: string, rawCode: string, by: CodeActor | null): Promise<CodeLookup> {
+    const found = await this.find(slug, rawCode);
+    const record = found
+      ? await this.deps.recommendationCodeRepository.setConfirmed(found.restaurantId, found.day, found.code, by ? this.deps.clock.now() : null, by)
+      : null;
+    if (!found || !record) throw new NotFoundError('Code', CODE_NOT_FOUND, 'There is no such code today in this restaurant.');
+    return this.withWine(found.restaurantId, record);
+  }
+
+  /** The restaurant, the current service day and the code in its stored form, or null for a malformed code or an unknown slug. */
+  private async find(slug: string, rawCode: string): Promise<{ restaurantId: string; day: string; code: string } | null> {
+    const code = normalizeCode(rawCode);
+    if (!code) return null;
+    const restaurant = await this.deps.restaurantRepository.findBySlug(slug);
+    if (!restaurant) return null;
+    return { restaurantId: restaurant.id, day: serviceDay(this.deps.clock.now()), code };
+  }
+
+  private async withWine(restaurantId: string, record: RecommendationCodeRecord): Promise<CodeLookup> {
+    return { record, wine: await this.deps.wineRepository.findById(restaurantId, record.wineId) };
   }
 }

@@ -1,9 +1,13 @@
-import { DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, prefsToQuery } from '@wine-match/core';
+import {
+  DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, formatServiceTime, normalizeCode, prefsToQuery, type CodeLookup, type Locale, type Wine
+} from '@wine-match/core';
 import type { Metadata } from 'next';
 import { Button, EmptyState, Explain, LanguageSwitch, ModeSwitch, Price, Seal, TopBar } from '../../../_components/guest-ui';
 import { PrefChips } from '../../../_components/pref-chips';
+import { CodeSection, type CodeCard } from './code-section';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
-import { getI18n } from '@/server/i18n';
+import type { Dictionary } from '@/i18n/en';
+import { formatPrice, getI18n } from '@/server/i18n';
 import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +21,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
  * G9 — quick pairing lookup for the floor team. Same engine and order as the guest sees. "Why this order?" sits under
  * the lead (spec 2026-10-16-how-it-works-explanations, phase 2), true to the live "Fill empty places" setting.
  * "One dish / Whole table" on top leads to the waiter's whole table, G11 (spec 2026-10-16-whole-table-waiter-path, R7).
+ * "Order from a code" above the dish choice (spec 2026-10-16-recommendation-code, phase 2, R6): `?code=` shows today's
+ * recommendation of that code with "Ordered" / "Undo" (`markCode`), or one "not found" answer for anything else.
  */
 export default async function StaffPage({ params, searchParams }: Props) {
   const { slug } = await params;
@@ -24,6 +30,15 @@ export default async function StaffPage({ params, searchParams }: Props) {
   const { q, prefs, services, t, locale, lang, session, href, langHrefs } = await guestContext(searchParams, { source: 'staff' });
   const menu = await services.catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
+
+  const codeInput = typeof q.code === 'string' ? q.code.trim().slice(0, 16) : '';
+  const found = codeInput ? await services.recommendationCodeService.lookup(slug, codeInput) : null;
+  const card = found
+    ? codeCard(found, (await services.recommendationService.wineDetails(slug, found.record.wineId, undefined, locale))?.wine ?? found.wine, menu.dishes, t, locale)
+    : null;
+  const marked = q.marked === 'confirmed' ? t.guest.staff.code.confirmed : q.marked === 'undone' ? t.guest.staff.code.undone : null;
+  // R6: an unknown, foreign, yesterday's or malformed code — the same sentence, whatever the reason
+  const codeMessage = codeInput ? (card ? marked : t.guest.staff.code.notFound(normalizeCode(codeInput) ?? codeInput)) : null;
   // `staff_lookup` only when the waiter chose a dish (`dish=` of the published menu), not for the first dish shown (Q9)
   const chosen = menu.dishes.find((d) => d.id === q.dish);
   const dish = chosen ?? menu.dishes[0];
@@ -43,6 +58,7 @@ export default async function StaffPage({ params, searchParams }: Props) {
         <ModeSwitch dishHref={href(path, prefs, { dish: chosen?.id })} tableHref={href(`${path}/table`, prefs)} mode="dish" t={t} />
         <p className="text-ink-2">{l.lead}</p>
         <Explain id="staff" className="mt-1 mb-3" summary={t.guest.explain.staff.summary} points={t.guest.explain.staff.points(ENGINE_FACTS, { showUnreviewed })} />
+        <CodeSection path={path} slug={slug} input={card?.code ?? codeInput} lang={lang} sid={session.id} message={codeMessage} card={card} t={t} />
         {dish ? (
           <>
             <form action={path} method="get" className="grid gap-1.5">
@@ -83,4 +99,28 @@ export default async function StaffPage({ params, searchParams }: Props) {
       </main>
     </>
   );
+}
+
+/**
+ * The texts of one recommendation on G9. The wine comes localised from the published content (also an inactive one);
+ * dish names from tonight's published menu, in menu order — a dish no longer on it reads "Dish not on the current menu".
+ */
+function codeCard({ record }: CodeLookup, wine: Wine | null, dishes: ReadonlyArray<{ id: string; name: string }>, t: Dictionary, locale: Locale): CodeCard {
+  const c = t.guest.staff.code;
+  const s = t.guest.selected;
+  const order = new Map(dishes.map((d, i) => [d.id, i]));
+  const names = [...record.dishIds]
+    .sort((a, b) => (order.get(a) ?? dishes.length) - (order.get(b) ?? dishes.length))
+    .map((id) => dishes[order.get(id) ?? -1]?.name ?? c.dishOffMenu);
+  const time = (iso: string) => formatServiceTime(new Date(iso), locale);
+  return {
+    code: record.code,
+    wine: wine ? { title: `${wine.producer} ${wine.name}`, listNumber: wine.listNumber } : null,
+    serving: !wine ? '' : record.serving === 'glass'
+      ? s.oneGlass(wine.glassPour, formatPrice(wine.glassPrice ?? wine.bottlePrice, locale))
+      : s.oneBottle(wine.bottleSize, formatPrice(wine.bottlePrice, locale)),
+    dishes: record.context === 'dish' ? c.forDish(names[0] ?? c.dishOffMenu) : record.context === 'table' ? c.forTable(names.join(', ')) : c.noDish,
+    issuedAt: time(record.issuedAt),
+    confirmedAt: record.confirmedAt ? time(record.confirmedAt) : null
+  };
 }

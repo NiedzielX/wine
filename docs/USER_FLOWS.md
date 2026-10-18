@@ -150,6 +150,17 @@ flowchart LR
 
 5 dotknięć do wyniku dla stołu 4 dań (4 kafle + „Show the bottle”), bez JS; przy karcie 30+ dań dochodzą przewinięcia albo kotwice sekcji (z JS — pole „Find a dish”). Zdanie „pasuje do n z m, słabiej do …” zastępuje „Say: …”. Jeden kod polecenia na wynik (butelka pokazana jako pierwsza); alternatywa dostaje kod dopiero po „Choose this one”. Zdarzenie `staff_table_lookup` w sesji kelnera. Ilość (F4): kelner dotyka liczby osób pod butelką (2–8) albo wybiera ją w formularzu — dopiero wtedy „For 6 people: 3 bottles · 960 zł”; bez wyboru ilości nie ma.
 
+**Zamówienie z kodu (G9, spec `2026-10-16-recommendation-code` F2):** gość pokazuje G8 z kodem (np. `W7K`); kelner wpisuje go w „Order from a code” na `/r/{slug}/staff`, widzi wino, porcję i danie, a po przyjęciu zamówienia dotyka „Ordered” (drugie dotknięcie nic nie zmienia, „Undo” cofa). Działa bez JS i bez logowania; tylko kody bieżącego dnia serwisu (do 04:00) tej restauracji — każdy inny kod daje to samo „There is no code … today”.
+
+```mermaid
+flowchart LR
+  G8[G8: Code for your waiter W7K] --> C[G9 Order from a code:<br>type W7K + Find]
+  C --> K[card: wine, serving, dish, shown at 19:30]
+  K -->|Ordered| M[Marked at 19:42 + Undo]
+  M -->|Undo| K
+  C -->|unknown / yesterday's code| N([There is no code W7K today])
+```
+
 ---
 
 ## 6. Flow importu (szczegół kroków 2–3 onboardingu)

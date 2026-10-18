@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from '../src/errors';
 import { buildRows, revalidate } from '../src/import/validate';
-import { bulkDecisionSchema, confirmImportSchema, loginSchema, pairingCreateSchema, pairingUpdateSchema, parseWith, rowEditsSchema, tableRecommendationSchema, wineAvailabilitySchema } from '../src/validators';
+import { bulkDecisionSchema, codeActionSchema, confirmImportSchema, loginSchema, pairingCreateSchema, pairingUpdateSchema, parseWith, rowEditsSchema, tableRecommendationSchema, wineAvailabilitySchema } from '../src/validators';
 
 const GUID = '0050b6dd-3e72-8012-bbc9-7f4f99f579d4';
 const GUID2 = '00000000-0000-4000-8000-000000000002';
@@ -126,5 +126,18 @@ describe('import row corrections', () => {
     const edited = revalidate('menu', rows, [{ rowNumber: 1, fields: { price: '45', evil: 'x', __proto__: 'y' } as Record<string, string> }], existing);
     expect(Object.keys(edited[0].fields).sort()).toEqual(['category', 'description', 'name', 'price']);
     expect(edited[0].fields.price).toBe('45');
+  });
+});
+
+describe('codeActionSchema (spec 2026-10-16-recommendation-code, R7)', () => {
+  it('accepts the form of "Ordered" / "Undo" and refuses anything else', () => {
+    expect(parseWith(codeActionSchema, { slug: 'halka', code: 'w7k', intent: 'confirm', sid: GUID2, lang: 'pl' })).toEqual({ slug: 'halka', code: 'w7k', intent: 'confirm', sid: GUID2, lang: 'pl' });
+    expect(parseWith(codeActionSchema, { slug: 'halka', code: 'W7K', intent: 'undo' }).intent).toBe('undo');
+    expect(fieldsOf(codeActionSchema, { slug: 'halka', code: 'W7K', intent: 'delete' })).toEqual({ intent: 'invalid' });
+    expect(fieldsOf(codeActionSchema, { slug: 'halka', code: 'x'.repeat(17), intent: 'confirm' })).toEqual({ code: 'too_long' });
+    expect(fieldsOf(codeActionSchema, { slug: 'halka', code: '', intent: 'confirm' })).toEqual({ code: 'required' });
+    // a slug that would leave the site in a redirect (`//evil.example`, `../`) is not a slug
+    for (const slug of ['//evil.example', '../admin', 'Halka', 'a', 'halka?x=1']) expect(fieldsOf(codeActionSchema, { slug, code: 'W7K', intent: 'confirm' })).toHaveProperty('slug');
+    expect(fieldsOf(codeActionSchema, { slug: 'halka', code: 'W7K', intent: 'confirm', confirmedAt: '2020-01-01' })).toEqual({ confirmedAt: 'unknown_field' });
   });
 });
