@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ENGINE_FACTS, type EngineFacts } from '@wine-match/core';
 import { describe, expect, it } from 'vitest';
-import { en, type ExplainContext } from '@/i18n/en';
+import { en, type ExplainContext, type RestaurantExplainContext } from '@/i18n/en';
 import { pl } from '@/i18n/pl';
 
 /**
@@ -19,7 +19,7 @@ const SETTINGS: Array<Pick<ExplainContext, 'showScores' | 'showUnreviewed'>> = [
   { showScores: false, showUnreviewed: false }
 ];
 const DIRECTORS = ['Marta Wierzbicka', ''];
-const contexts = (): ExplainContext[] => SETTINGS.flatMap((s) => DIRECTORS.map((director) => ({ ...s, director })));
+const contexts = (): RestaurantExplainContext[] => SETTINGS.flatMap((s) => DIRECTORS.map((director) => ({ ...s, director, restaurant: 'Halka' })));
 const wineContexts = (showScores: boolean) => [
   { score: 84, dish: 'Duck breast with sour cherry jus and a very long name', showScores },
   { score: null, dish: 'Duck breast', showScores },

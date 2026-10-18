@@ -1,7 +1,7 @@
 import { ENGINE_FACTS, MAX_TABLE_DISHES, parseDishIds } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Button, DishScores, EmptyState, Explain, LanguageSwitch, Notice, Price, Score, Seal, TableFitLine, TopBar } from '../../../../_components/guest-ui';
+import { Button, DishScores, EmptyState, Explain, LanguageSwitch, Notice, Price, Score, TableFitLine, TopBar } from '../../../../_components/guest-ui';
 import { isDomainError } from '@/server/domain-errors';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
@@ -18,6 +18,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
  * G6 — best wine for the table (spec 2026-10-16-whole-table-waiter-path, phase 3, R9): under each bottle the line
  * "works with n of m dishes" (`table.fit`) instead of the old reason, per-dish bars of the raw engine score, no numbers
  * when the restaurant hides percentages, and a budget that rules out every bottle is relaxed with a notice.
+ * One explanation, "How is the overall match worked out?", above the card and outside its link: E08's paragraph and
+ * E07's points in one key (spec 2026-10-16-how-it-works-explanations, phase 2, Q15). The card's header has no seal.
  */
 export default async function TableResultPage({ params, searchParams }: Props) {
   const { slug } = await params;
@@ -71,7 +73,8 @@ export default async function TableResultPage({ params, searchParams }: Props) {
         ) : (
           <>
             <Link href={wineHref(best.wine.id)} className="mt-6 block rounded-[18px] border border-line bg-surface p-5 focus-visible:outline-2 focus-visible:outline-wine">
-              <p className="flex items-center gap-2 text-sm font-semibold text-wine"><Seal />{l.recommended}</p>
+              {/* no seal in the header: the seal marks only a sommelier's pairing, next to its dish (E07 R7, AC11) */}
+              <p className="text-sm font-semibold text-wine">{l.recommended}</p>
               <div className="mt-3 grid grid-cols-[1fr_auto] items-start gap-3.5">
                 <div>
                   <h2 className="font-serif text-[25px] leading-[1.15]">{best.wine.name}</h2>

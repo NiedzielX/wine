@@ -5,6 +5,7 @@ import { prerender } from 'react-dom/static';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import LandingPage from '@/app/(guest)/r/[slug]/page';
 import WinesPage from '@/app/(guest)/r/[slug]/dish/[dishId]/wines/page';
+import HowItWorksPage from '@/app/(guest)/r/[slug]/how-it-works/page';
 import MenuPage from '@/app/(guest)/r/[slug]/menu/page';
 import SelectedPage from '@/app/(guest)/r/[slug]/selected/[wineId]/page';
 import StaffPage from '@/app/(guest)/r/[slug]/staff/page';
@@ -152,7 +153,8 @@ describe('every guest link and form carries the session (R3, AC4, AC5)', () => {
     ['G6 needs two dishes', TableResultPage, {}, { dishes: duck }],
     ['G7 wine', WinePage, { wineId: wine }, { dish: duck }],
     ['G8 selected', SelectedPage, { wineId: wine }, { dish: duck, serving: 'bottle' }],
-    ['G9 staff', StaffPage, {}, { dish: duck }]
+    ['G9 staff', StaffPage, {}, { dish: duck }],
+    ['G12 how it works', HowItWorksPage, {}, { serving: 'glass' }]
   ];
 
   it('continues the session of a valid sid: every /r/ link and form carries it, only "For staff" on G0 does not', async () => {
@@ -226,6 +228,20 @@ describe('page views of phase 1 (R1, R4, AC1, AC4, AC6a, AC6b)', () => {
     const staff = newSid(await render(StaffPage, {}, {}));
     await render(MenuPage, {}, { sid: staff });
     expect(names(await events(staff))).toEqual(['menu_viewed']);
+  });
+
+  it('"How we pick your wine" (G12) records one view, in the session of the link (spec how-it-works-explanations, Q9)', async () => {
+    const sid = newSid(await render(LandingPage, {}));
+    await render(HowItWorksPage, {}, { sid });
+    const list = await events(sid);
+    expect(names(list)).toEqual(['guest_session_started', 'menu_viewed', 'explainer_viewed']);
+    expect(list[2]).toMatchObject({ dishId: null, wineId: null, props: { menuVersion: publishedAt } });
+    // a shared link straight to the page starts a `link` session
+    const shared = newSid(await render(HowItWorksPage, {}, {}));
+    expect(names(await events(shared))).toEqual(['guest_session_started', 'explainer_viewed']);
+    expect((await events(shared))[0].props).toMatchObject({ source: 'link' });
+    await expect(render(HowItWorksPage, { slug: 'no-such-place' }, { sid: UNUSED_SID })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(await events(UNUSED_SID)).toEqual([]);
   });
 
   it('a page that ends in 404 records nothing (AC6a)', async () => {

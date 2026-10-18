@@ -23,7 +23,9 @@ export type UsageEvent =
   | { name: 'table_recommendation_viewed'; props: { dishIds: string[]; wineIds: string[]; /** the budget ruled out every bottle and was lifted (`table.budget_relaxed`, spec whole-table-waiter-path R13) */ budgetRelaxed: boolean } }
   | { name: 'wine_viewed'; dishId?: string; wineId: string; props: { context: UsageContext } }
   | { name: 'wine_selected'; dishId?: string; wineId: string; props: { serving: 'glass' | 'bottle'; context: UsageContext; dishIds?: string[] } }
-  | { name: 'staff_lookup'; dishId: string; props: { source: 'staff'; prefs: UsagePrefs; wineIds: string[] } };
+  | { name: 'staff_lookup'; dishId: string; props: { source: 'staff'; prefs: UsagePrefs; wineIds: string[] } }
+  /** the "How we pick your wine" page (G12) was viewed: one cheap signal of interest in the long explanation (E07 Q9) */
+  | { name: 'explainer_viewed' };
 
 /** The engine tier of a recommendation in the words of the API and the events. */
 export const usageTier = (item: Pick<RecommendationItem, 'tier'>): UsageTier =>

@@ -1,5 +1,6 @@
+import { DEFAULT_RESTAURANT_SETTINGS } from '@wine-match/core';
 import type { Metadata } from 'next';
-import { DishList, GuestColumns, LanguageSwitch, ModeSwitch, TopBar } from '../../../_components/guest-ui';
+import { DishList, Explain, GuestColumns, LanguageSwitch, ModeSwitch, TopBar } from '../../../_components/guest-ui';
 import { RestaurantHero } from '../../../_components/restaurant-hero';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { getI18n } from '@/server/i18n';
@@ -13,7 +14,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 
-/** G1 — dish list. A dish opens its wines directly; the guest's preferences travel in the links. */
+/**
+ * G1 — dish list. A dish opens its wines directly; the guest's preferences travel in the links. "What does the seal
+ * next to a dish mean?" sits under the lead (spec 2026-10-16-how-it-works-explanations, phase 2), true to the live
+ * "Fill empty places" setting.
+ */
 export default async function MenuPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { prefs, services, t, locale, session, href, langHrefs } = await guestContext(searchParams);
@@ -21,6 +26,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
   const menu = await catalogService.publishedMenu(slug, locale);
   if (!menu) notFound();
   const coverage = await catalogService.pairingCoverage(menu.restaurant.id);
+  const { showUnreviewed } = menu.restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS;
 
   const main = (
     <main className="flex-1 px-5 pt-5 pb-8">
@@ -33,6 +39,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
       ) : (
         <>
           <p className="text-ink-2">{t.guest.menu.pickLead}</p>
+          <Explain id="menu" className="mt-1" summary={t.guest.explain.menu.summary} points={t.guest.explain.menu.points({ showUnreviewed })} />
           <DishList dishes={menu.dishes} coverage={coverage} t={t} locale={locale} hrefFor={(d) => href(`/r/${slug}/dish/${d.id}/wines`, prefs)} />
         </>
       )}

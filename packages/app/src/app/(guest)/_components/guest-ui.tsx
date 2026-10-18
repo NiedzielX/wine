@@ -174,14 +174,18 @@ export function WineRow({ item, href, serving, showScores, t, locale }: { item: 
 }
 
 /**
- * The trust note under the wines, true to the `showUnreviewed` setting (Q5). `ink-2`, not `ink-3`: small text needs
- * 4.5:1 on paper (R2). The link to the "How we pick your wine" page arrives with that page (spec E07 phase 2).
+ * The trust note under the wines, true to the `showUnreviewed` setting (Q5), with the link to the "How we pick your
+ * wine" page (G12). `ink-2`, not `ink-3`: small text needs 4.5:1 on paper (R2). `howHref` comes ready from the page
+ * (`href` of `guestContext`, so it carries `lang` and `sid`): shared components never build `/r/…` addresses.
  */
-export function RecoFooter({ director, restaurant, showUnreviewed, t }: { director: string; restaurant: string; showUnreviewed: boolean; t: Dictionary }) {
+export function RecoFooter({ director, restaurant, showUnreviewed, howHref, t }: { director: string; restaurant: string; showUnreviewed: boolean; howHref: string; t: Dictionary }) {
   return (
     <p className="mt-7 flex items-start gap-2 text-[13.5px] text-ink-2">
       <Seal className="mt-0.5 size-4 shrink-0" />
-      <span>{t.guest.wines.footer(restaurant, director, showUnreviewed)}</span>
+      <span>
+        {t.guest.wines.footer(restaurant, director, showUnreviewed)}{' '}
+        <Link href={howHref} className="font-medium text-ink-2 underline underline-offset-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-wine">{t.guest.hero.howLink}</Link>
+      </span>
     </p>
   );
 }
