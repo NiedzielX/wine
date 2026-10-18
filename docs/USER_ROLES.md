@@ -20,7 +20,7 @@
 
 **Stan implementacji (Faza 4):** uprawnienia z tej macierzy są w kodzie (`core/src/auth/permissions.ts`) i egzekwowane przez layout panelu, akcje serwerowe i API. Dochodzą uprawnienia `import.manage` (Sommelier, GM, Owner) i `restaurant.edit` (tylko GM i Owner: dane restauracji i slug). Owner i General Manager mają te same uprawnienia; „Zatwierdzanie / odrzucanie pairingów” i „Role, kolejność i notatki” ma tylko Sommelier. Rola System Administrator, zarządzanie użytkownikami w UI i ustawienia restauracji / QR (Faza 5) nie są jeszcze zaimplementowane; konta tworzy polecenie `npm run user:create`.
 
-W MVP kelner korzysta z publicznego widoku `/r/{slug}/staff`, bez logowania (te same dane, które widzi gość). Później: tryb kelnera po zalogowaniu PIN-em, z historią podpowiedzi.
+W MVP kelner korzysta z publicznych widoków `/r/{slug}/staff` (jedno danie, G9) i `/r/{slug}/staff/table` (cały stolik, G11), bez logowania (te same dane, które widzi gość). Później: tryb kelnera po zalogowaniu PIN-em, z historią podpowiedzi.
 
 Zasada podziału: **Owner / GM odpowiada za biznes, Sommelier za treść programu winnego.** GM widzi pairingi, ale ich nie zatwierdza — dzięki temu etykieta „Sommelier’s pairing” / „Para sommeliera” zawsze oznacza decyzję sommeliera.
 
@@ -78,7 +78,8 @@ Zasada podziału: **Owner / GM odpowiada za biznes, Sommelier za treść program
 - wybrać danie i od razu zobaczyć 3–4 wina w kolejności sommeliera,
 - filtrować po tym, co powiedział gość (kieliszek, kolor, budżet),
 - numer pozycji z karty (list no.) — żeby szybko znaleźć butelkę,
-- gotowe zdanie do powiedzenia gościowi.
+- gotowe zdanie do powiedzenia gościowi,
+- przy stoliku na kilka osób: jedna butelka do wszystkich dań i uczciwe „pasuje do n z m, słabiej do …” (G11, zakładka w telefonie; 5 dotknięć dla 4 dań).
 
 **Czego nie robimy:** nie przedstawiamy kelnera jako sommeliera i nie budujemy modułu szkoleniowego. Odznaki mówią „Sommelier’s pairing · first choice”, a nie „moja rekomendacja”.
 

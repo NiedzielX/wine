@@ -62,6 +62,22 @@ describe('server i18n helpers', () => {
     expect(pl.guest.wines.show(5)).toBe('Pokaż 5 win');
     expect(pl.guest.wines.show(12)).toBe('Pokaż 12 win');
   });
+
+  it('the waiter’s whole table (G11, spec whole-table-waiter-path R6, R12, AC10): the sentence to say and the fit line, in both languages', () => {
+    for (const [t, line] of [[en, 'This bottle: No. 109 Radikon Slatnik.'], [pl, 'Ta butelka: nr 109 Radikon Slatnik.']] as const) {
+      expect(t.guest.staffTable.thisBottle(109, 'Radikon Slatnik')).toBe(line);
+      expect(t.guest.staffTable.thisBottle(undefined, 'Radikon Slatnik')).not.toMatch(/No\.|nr /);
+    }
+    // every shape of R12: all (3+), both, n of m (names after a colon, undeclined), none, one dish (both variants), compromise
+    const f = (fits: number, of: number, weaker: string[] = [], compromise = false) => ({ fits, of, weaker, compromise });
+    expect([f(3, 3), f(2, 2), f(5, 6, ['Comber z jelenia']), f(0, 4), f(1, 1), f(0, 1, ['Comber z jelenia']), f(4, 4, [], true), f(2, 6, ['A', 'B', 'C', 'D'])].map(pl.guest.tableFit.line)).toEqual([
+      'Pasuje do wszystkich 3 dań.', 'Pasuje do obu dań.', 'Pasuje do 5 z 6 dań, słabiej do: Comber z jelenia.', 'Nie pasuje dobrze do żadnego z 4 dań.',
+      'Pasuje do tego dania.', 'Słabiej pasuje do: Comber z jelenia.', 'Pasuje do wszystkich 4 dań, choć to kompromis.', 'Pasuje do 2 z 6 dań, słabiej do: A, B, C i 1 innego.'
+    ]);
+    expect(en.guest.tableFit.line(f(5, 6, ['Venison loin']))).toBe('Works with 5 of 6 dishes, less so with: Venison loin.');
+    expect(pl.guest.staffTable.truncated(12)).toBe('Policzyliśmy pierwsze 12 dań.');
+    expect(en.guest.staffTable.truncated(12)).toBe('We worked out the first 12 dishes.');
+  });
 });
 
 describe('guest links carry an explicit language only', () => {

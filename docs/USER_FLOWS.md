@@ -136,6 +136,19 @@ flowchart LR
 
 1–2 interakcje: wybór dania z listy, ewentualnie jeden filtr. Kolejność zawsze według sommeliera.
 
+**Cały stolik (G11, `/r/{slug}/staff/table`, spec `2026-10-16-whole-table-waiter-path` F2):** stolik zamawia kilka dań, kelner przełącza „One dish / Whole table” (albo otwiera zakładkę `/staff/table`).
+
+```mermaid
+flowchart LR
+  G9[G9 Staff lookup] <-->|One dish / Whole table| F[G11 form: dish tiles,<br>budget, colour]
+  F -->|tick 4 dishes + Show the bottle| R[G11 answer above the form:<br>This bottle: No. 109 …<br>Works with 5 of 6 …<br>code for the order]
+  R -->|Choose this one| R2[G11: the alternative is the bottle<br>+ its own code]
+  R -->|Change the table / New table| F
+  R --> T([Read the line to the table,<br>code in the order comment])
+```
+
+5 dotknięć do wyniku dla stołu 4 dań (4 kafle + „Show the bottle”), bez JS; przy karcie 30+ dań dochodzą przewinięcia albo kotwice sekcji (z JS — pole „Find a dish”). Zdanie „pasuje do n z m, słabiej do …” zastępuje „Say: …”. Jeden kod polecenia na wynik (butelka pokazana jako pierwsza); alternatywa dostaje kod dopiero po „Choose this one”. Zdarzenie `staff_table_lookup` w sesji kelnera.
+
 ---
 
 ## 6. Flow importu (szczegół kroków 2–3 onboardingu)

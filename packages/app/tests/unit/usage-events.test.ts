@@ -9,6 +9,7 @@ import HowItWorksPage from '@/app/(guest)/r/[slug]/how-it-works/page';
 import MenuPage from '@/app/(guest)/r/[slug]/menu/page';
 import SelectedPage from '@/app/(guest)/r/[slug]/selected/[wineId]/page';
 import StaffPage from '@/app/(guest)/r/[slug]/staff/page';
+import StaffTablePage from '@/app/(guest)/r/[slug]/staff/table/page';
 import TablePage from '@/app/(guest)/r/[slug]/table/page';
 import TableResultPage from '@/app/(guest)/r/[slug]/table/result/page';
 import WinePage from '@/app/(guest)/r/[slug]/wine/[wineId]/page';
@@ -154,6 +155,8 @@ describe('every guest link and form carries the session (R3, AC4, AC5)', () => {
     ['G7 wine', WinePage, { wineId: wine }, { dish: duck }],
     ['G8 selected', SelectedPage, { wineId: wine }, { dish: duck, serving: 'bottle' }],
     ['G9 staff', StaffPage, {}, { dish: duck }],
+    ['G11 staff table', StaffTablePage, {}, { dishes: `${duck},${tartare}` }],
+    ['G11 staff table, empty', StaffTablePage, {}, {}],
     ['G12 how it works', HowItWorksPage, {}, { serving: 'glass' }]
   ];
 

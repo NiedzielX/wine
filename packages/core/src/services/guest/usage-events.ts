@@ -24,6 +24,15 @@ export type UsageEvent =
   | { name: 'wine_viewed'; dishId?: string; wineId: string; props: { context: UsageContext } }
   | { name: 'wine_selected'; dishId?: string; wineId: string; props: { serving: 'glass' | 'bottle'; context: UsageContext; dishIds?: string[] } }
   | { name: 'staff_lookup'; dishId: string; props: { source: 'staff'; prefs: UsagePrefs; wineIds: string[] } }
+  /**
+   * the waiter's whole-table lookup on G11 (spec 2026-10-16-whole-table-waiter-path, R13): `wineId` is the bottle shown
+   * first (none for an empty result), `dishIds` the dishes the bottle was chosen for, `wineIds` the wines in display
+   * order, `pickedWineId` the alternative the waiter chose ("Choose this one"), only when it is in the result
+   */
+  | {
+    name: 'staff_table_lookup'; wineId?: string;
+    props: { source: 'staff'; dishIds: string[]; wineIds: string[]; pickedWineId?: string; prefs: UsagePrefs; splitSuggested: boolean; budgetRelaxed: boolean };
+  }
   /** the "How we pick your wine" page (G12) was viewed: one cheap signal of interest in the long explanation (E07 Q9) */
   | { name: 'explainer_viewed' };
 
@@ -67,7 +76,7 @@ export class UsageEventService {
       rows.push({
         ...base, name: e.name, props: { ...props, menuVersion },
         ...('dishId' in e && e.dishId ? { dishId: e.dishId } : {}),
-        ...('wineId' in e ? { wineId: e.wineId } : {})
+        ...('wineId' in e && e.wineId ? { wineId: e.wineId } : {})
       });
     }
     if (rows.length) await this.deps.guestInteractionRepository.record(restaurant.id, rows);
