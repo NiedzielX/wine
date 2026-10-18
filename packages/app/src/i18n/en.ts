@@ -261,6 +261,17 @@ export const en = {
           'Filters work as for the guest.'
         ]
       },
+      /**
+       * G8, under the choice and the code: what happens next (the choice is not an order). When a code is shown, the page
+       * adds `guest.selected.code.explain` as the last point (spec 2026-10-16-recommendation-code, G8) — one "i" (Q15).
+       */
+      selected: {
+        summary: 'What happens next?',
+        points: [
+          'Choosing a wine is not an order, and you pay nothing in the app.',
+          'Show this screen to your waiter, who will take your order.'
+        ]
+      },
       wine: {
         summary: 'What does this score mean?',
         points: (c: WineExplainContext) => [
@@ -318,8 +329,8 @@ export const en = {
         spoken: (code: string) => code.split('').join(', '),
         unavailable: 'Code unavailable — name the wine to your waiter.',
         /**
-         * The paragraph about the code for the screen's one explanation (`guest.explain.selected`, E07 Q15), only when a
-         * code is shown. G8 has no explanation yet (E07 F2): until then the block stands without an "i".
+         * The last point of the screen's one explanation (`guest.explain.selected`, E07 Q15), only when a code is shown;
+         * the code block has no "i" of its own.
          */
         explain: 'The code links this wine to the recommendation, so the restaurant knows what guests enjoy. It holds no information about you.'
       }

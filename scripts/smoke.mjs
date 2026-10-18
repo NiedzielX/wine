@@ -85,7 +85,7 @@ await check('G4 filters sheet', `${R}/dish/${duck}/wines?sheet=filters`, { has: 
 await check('G7 wine details', `${R}/wine/${wine}?dish=${duck}`, { has: ['Choose this wine', 'Region', 'Marta Wierzbicka, Wine Director', 'data-explain="wine"', 'What does this score mean?', 'role="img" aria-label="Match '] });
 await check('G7 from the table result: no match glass', `${R}/wine/${wine}?table=${tartare},${duck}`, { has: ['data-explain="wine"', 'There is no rating here'], hasNot: ['aria-label="Match '] });
 await check('G7 unknown wine', `${R}/wine/00000000-0000-4000-8000-000000000000`, { status: 404 });
-await check('G8 confirmation (glass)', `${R}/selected/${wine}?serving=glass&dish=${duck}`, { has: ['Show this to your waiter', 'List no. 112', '1 glass, 150 ml, 64 zł', 'With the duck breast'], hasNot: ['aria-label="Match '] });
+await check('G8 confirmation (glass)', `${R}/selected/${wine}?serving=glass&dish=${duck}`, { has: ['Show this to your waiter', 'List no. 112', '1 glass, 150 ml, 64 zł', 'With the duck breast', 'data-explain="selected"', 'What happens next?', 'Choosing a wine is not an order'], hasNot: ['aria-label="Match ', 'The code links this wine'] });
 await check('G8 confirmation falls back to bottle', `${R}/selected/${dishes.length && recs.items.find((i) => i.wine.glassPrice === null)?.wine.id}?serving=glass`, { has: ['1 bottle, 750 ml'] });
 await check('G5 table selection', `${R}/table`, { has: ['Tick everything your table is ordering', 'Find a bottle for the table', 'Colour and budget', 'data-explain="table"', 'How do we pick one bottle for the table?'] });
 await check('G6 table result', `${R}/table/result?dish=${tartare}&dish=${risotto}&dish=${duck}`, { has: ['Recommended for your table', 'Overall match', 'Savigny', '85%', 'Works with all 3 dishes', 'data-explain="tableResult"', 'How is the overall match worked out?', 'we also suggest a glass for each dish'] });
@@ -125,7 +125,7 @@ await check('G3 in Polish, a dish without a sommelier’s pairing', `${R}/dish/$
 await check('G3 budget notice in Polish', `${R}/dish/${dish('Dry-aged ribeye, 300 g')}/wines?serving=glass&maxPrice=45`, { headers: PL, has: ['Nic nie mieści się w budżecie do 45\u00a0zł'] });
 await check('G5 in Polish keeps an explicit language in the form', `${R}/table?lang=pl`, { has: ['Dania główne', 'Znajdź butelkę dla stolika', 'name="lang" value="pl"'] });
 await check('G7 in Polish keeps an explicit language in the form', `${R}/wine/${wine}?dish=${duck}&lang=pl`, { has: ['Wybierz to wino', 'name="lang" value="pl"', 'Marta Wierzbicka, Wine Director'] });
-await check('G8 in Polish', `${R}/selected/${wine}?serving=glass&dish=${duck}`, { headers: PL, has: ['Pokaż to kelnerowi.', '1 kieliszek, 150 ml, 64\u00a0zł'] });
+await check('G8 in Polish', `${R}/selected/${wine}?serving=glass&dish=${duck}`, { headers: PL, has: ['Pokaż to kelnerowi.', '1 kieliszek, 150 ml, 64\u00a0zł', 'Co dalej?', 'Wybór wina nie jest zamówieniem'] });
 await check('unknown restaurant in Polish', '/r/nope', { status: 404, headers: PL, has: ['To menu jest niedostępne'] });
 // --- bilingual content (spec 2026-10-15-bilingual-content): Polish content, English with ?lang=en, the API keeps the base
 await check('AC1 G0 in Polish: Polish dish names and descriptions, Warszawa', `${R}?lang=pl`, { has: ['Pierś z kaczki', 'Tatar wołowy', 'Śledź bałtycki', 'Sernik pieczony', 'Siekana ręcznie polędwica', 'Warszawa'], hasNot: ['Duck breast', 'Baltic herring', 'Warsaw<'] });
