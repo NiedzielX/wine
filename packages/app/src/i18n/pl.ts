@@ -190,6 +190,13 @@ export const pl = {
           'Filtry działają jak u gościa.'
         ]
       },
+      selected: {
+        summary: 'Co dalej?',
+        points: [
+          'Wybór wina nie jest zamówieniem i niczego nie płacisz w aplikacji.',
+          'Pokaż ten ekran kelnerowi — przyjmie zamówienie.'
+        ]
+      },
       wine: {
         summary: 'Co znaczy ta ocena?',
         points: (c: WineExplainContext) => [
