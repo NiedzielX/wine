@@ -26,6 +26,26 @@ export interface WineExplainContext {
   showScores: boolean;
 }
 
+/**
+ * The "works with n of m dishes" line of a table bottle (spec 2026-10-16-whole-table-waiter-path, R12): the engine's
+ * `table.fit` with the weaker dishes already named, weakest first. The dictionary picks the sentence; screens only show it.
+ */
+export interface TableFitText {
+  fits: number;
+  of: number;
+  /** names of the dishes it suits less, weakest first */
+  weaker: string[];
+  /** one bottle is a compromise for this table (the test behind "Or by the glass") */
+  compromise: boolean;
+}
+
+/** Up to three weaker dishes by name, then how many more (R12). */
+const weakerNamesEn = (names: string[]) =>
+  names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} ${names.length - 3 === 1 ? 'other' : 'others'}`;
+
+/** A share of the table score as a whole percentage (0.6 → 60). */
+const pct = (weight: number) => Math.round(weight * 100);
+
 const directorEn = (name: string) => name.trim() || 'the restaurant’s sommelier';
 
 /** G3 point 5 and the G4 sheet: hard filters leave wines out, soft ones reorder, the budget fallback. */
@@ -68,6 +88,9 @@ export const en = {
       restaurant: 'Restaurant'
     },
     landing: {
+      tableCardTitle: 'Several dishes on the table?',
+      tableCardText: 'We’ll find one bottle for all of them and tell you honestly where it’s weaker.',
+      tableCardAction: 'Find a bottle for the table',
       pickDish: 'Pick your dish',
       pickDishLead: 'We’ll show the wines from our list that go with it.',
       menuUpdating: 'Tonight’s menu is being updated. Your waiter can suggest a wine in the meantime.'
@@ -154,6 +177,24 @@ export const en = {
         summary: 'How do the filters work?',
         points: (f: EngineFacts) => filterPointsEn(f)
       },
+      /**
+       * G6: E08's paragraph about the table bottle (spec whole-table-waiter-path, R11). E07 phase 2 adds its own points
+       * to this key, not a second explanation (E07 Q15). No "%" when the restaurant hides percentages.
+       */
+      tableResult: {
+        summary: 'How is the overall match worked out?',
+        points: (f: EngineFacts, c: Pick<ExplainContext, 'showScores'>) => c.showScores
+          ? [
+              `Each dish gets its own match score. The table score combines the average (${pct(f.tableMeanWeight)}%, mains count ×${f.tableMainsWeight}) with the weakest dish (${pct(f.tableMinWeight)}%), so the bottle isn’t great with one dish and poor with another.`,
+              `“Works with” means at least ${f.tableFitThreshold}%; a pairing the sommelier rejected never counts. Desserts are paired separately.`,
+              `A pairing the sommelier approved has the seal and adds ${f.tableSommelierBonus} points to the table score (not to the percentage by the dish); a rejected one pulls it down hard (to ${f.tableRejectedCap}% at most).`
+            ]
+          : [
+              'Each dish gets its own match rating. The bottle is chosen on the average across the dishes (mains count more) together with the weakest dish, so it isn’t great with one dish and poor with another.',
+              '“Works with” means a good fit for that dish on its own; a pairing the sommelier rejected never counts. Desserts are paired separately.',
+              'A pairing the sommelier approved has the seal and lifts the bottle a little in the choice (not the dish’s own glass); a rejected one pulls it down hard.'
+            ]
+      },
       wine: {
         summary: 'What does this score mean?',
         points: (c: WineExplainContext) => [
@@ -231,6 +272,16 @@ export const en = {
       others: 'Other bottles that work',
       splitTitle: 'Or by the glass, dish by dish',
       splitText: 'These dishes pull in different directions, so a glass each may suit you better.'
+    },
+    /** "Works with n of m dishes" (spec whole-table-waiter-path, R12): G6 now, G11 with phase 2. */
+    tableFit: {
+      line: (f: TableFitText) => {
+        if (f.of === 1) return f.fits === 1 ? 'Works with this dish.' : `Less of a match for: ${f.weaker[0] ?? ''}.`;
+        if (f.fits === 0) return `Not a strong match for any of the ${f.of} dishes.`;
+        if (f.fits < f.of) return `Works with ${f.fits} of ${f.of} dishes, less so with: ${weakerNamesEn(f.weaker)}.`;
+        const all = f.of === 2 ? 'Works with both dishes' : `Works with all ${f.of} dishes`;
+        return f.compromise ? `${all}, though it’s a compromise.` : `${all}.`;
+      }
     },
     staff: {
       title: 'Pairing lookup',
@@ -787,7 +838,7 @@ export const en = {
         points: (f: EngineFacts) => [
           `Fill empty places with engine picks: when on, guests also see engine suggestions from ${f.minModelScore}%; when off, a dish’s wine list shows only your pairings.`,
           'The “Whole table” bottle is always chosen from the whole active wine list, whatever this setting.',
-          'Show match percentages: when off, guests see a glass filled to the level of the match, without a number. On “Whole table” the bars per dish still show percentages; the waiter’s screen always does.',
+          'Show match percentages: when off, guests see a glass filled to the level of the match, without a number — on “Whole table” too (bars without numbers); the waiter’s screen always shows them.',
           'Both settings apply at once, without publishing.'
         ]
       },

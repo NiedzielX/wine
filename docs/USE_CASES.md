@@ -36,7 +36,7 @@ Lista: UC-01 – UC-14. Odwołania do ekranów według [SCREEN_MAP.md](SCREEN_MA
 4. Gość wybiera wino (przechodzi do UC-04).
 
 **Alternative flows**
-- A1: Gość od razu przechodzi do „Pair a bottle for the table” → UC-03.
+- A1: Gość od razu przechodzi do karty „Several dishes on the table?” (przycisk „Find a bottle for the table”) → UC-03.
 - A2: Gość otwiera filtry z ekranu rekomendacji → UC-02.
 - A3: Restauracja wyłączyła „Fill empty places with engine picks” → widoczne są tylko pary zatwierdzone przez sommeliera.
 
@@ -84,7 +84,7 @@ Lista: UC-01 – UC-14. Odwołania do ekranów według [SCREEN_MAP.md](SCREEN_MA
 | | |
 |---|---|
 | **Aktor** | Gość (jeden telefon dla stolika) |
-| **Trigger** | „Pair a bottle for the table” na stronie startowej albo przełącznik „Whole table” w menu |
+| **Trigger** | karta „Several dishes on the table?” na stronie startowej (przycisk „Pair a bottle for the table” w nagłówku tylko bez karty) albo przełącznik „Whole table” w menu |
 | **Preconditions** | Jak w UC-01 |
 
 **Main flow**

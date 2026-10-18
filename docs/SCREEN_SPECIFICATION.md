@@ -40,7 +40,7 @@ Wspólne zasady:
     | inna strona gościa (G1, G3, G5–G8) bez `sid` | `guest_session_started` | – | `source: 'link'` | F1 |
     | G0 z menu, G1 | `menu_viewed` | – | – | F1 |
     | G3 (bez `sheet`; arkusz filtrów nie zapisuje) | `recommendations_viewed` | dish | `wineIds` (kolejność wyświetlenia), `items: [{ wineId, tier }]` (`sommelier_primary` \| `sommelier` \| `engine`), `prefs` (tylko niedomyślne) | F1 |
-    | G6 (wynik; nie ekran „Add at least two dishes”) | `table_recommendation_viewed` | – | `dishIds` (opublikowane dania z `dishes=`, najwyżej 12, w tej kolejności), `wineIds` (kolejność wyświetlenia; pusty wynik → `[]`) | F2 |
+    | G6 (wynik; nie ekran „Add at least two dishes”) | `table_recommendation_viewed` | – | `dishIds` (opublikowane dania z `dishes=`, najwyżej 12, w tej kolejności), `wineIds` (kolejność wyświetlenia; pusty wynik → `[]`), `budgetRelaxed` (budżet zdjęty, bo wykluczył wszystkie butelki — E08 R13) | F2 |
     | G7 | `wine_viewed` | dish (tylko `context: 'dish'`), wine | `context`: `table` (`table=` z G6), `dish` (`dish=` opublikowanego dania), inaczej `direct` | F2 |
     | G8 (wino aktywne) | `wine_selected` | dish (tylko `context: 'dish'`), wine | `serving` (`glass` tylko dla wina z ceną kieliszka, inaczej `bottle` — jak na ekranie), `context` (jak G7), `dishIds` (tylko `table`: opublikowane dania z `table=`, nieznane pominięte) | F2 |
     | G9 (`dish=` jawnie, danie z opublikowanego menu) | `staff_lookup` | dish | `source: 'staff'`, `prefs` (tylko niedomyślne), `wineIds` (kolejność wyświetlenia; pusty wynik → `[]`) | F3 |
@@ -57,8 +57,8 @@ Wspólne zasady:
 |---|---|
 | Cel | Przywitać gościa, wyjaśnić w jednym zdaniu, do czego służy, i zbudować zaufanie (karta ułożona przez sommeliera) |
 | Użytkownik | Gość (po skanie QR) |
-| Funkcje | menu (jak G1) od razu pod nagłówkiem: wybór dania → G3 (z preferencjami z URL); „Pair a bottle for the table” → G5; link „For staff” → G9 (pod menu na telefonie) |
-| Komponenty UI | Hero w kolorze bordo z nazwą restauracji (Bodoni Moda), adres, lead, przycisk „Pair a bottle for the table”; nagłówek „Pick your dish” i lista dań; karta kuratora (inicjały, Wine Director) — na telefonie pod menu, na desktopie w lewej kolumnie |
+| Funkcje | menu (jak G1) od razu pod nagłówkiem: wybór dania → G3 (z preferencjami z URL); karta „Cały stół” nad menu → G5; link „For staff” → G9 (pod menu na telefonie) |
+| Komponenty UI | Hero w kolorze bordo z nazwą restauracji (Bodoni Moda), adres, lead; **karta „Cały stół”** (spec `2026-10-16-whole-table-waiter-path`, R8) nad nagłówkiem „Pick your dish”, gdy `canPairTable` (≥ 2 opublikowane dania poza deserami): tytuł „Several dishes on the table?” / „Kilka dań na stole?”, zdanie „We’ll find one bottle for all of them and tell you honestly where it’s weaker.” / „Dobierzemy jedną butelkę do wszystkich i powiemy uczciwie, do czego pasuje słabiej.”, przycisk główny „Find a bottle for the table” / „Dobierz butelkę do stołu” → G5 (z preferencjami, `lang` i `sid`); przycisk „Pair a bottle for the table” w hero **tylko bez karty** (np. menu z samych deserów) — jedno wejście, nie dwa; nagłówek „Pick your dish” i lista dań; karta kuratora (inicjały, Wine Director) — na telefonie pod menu, na desktopie w lewej kolumnie |
 | Dane wejściowe | `slug` z URL |
 | Dane wyjściowe | sesja gościa (`sid` w linkach; nowa, gdy adres jej nie ma) |
 | Loading | tło hero od razu (kolor marki), nazwa i przyciski po pobraniu danych restauracji |
@@ -158,18 +158,18 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 |---|---|
 | Cel | Pokazać najlepszą butelkę dla wszystkich dań i uczciwie pokazać kompromis |
 | Użytkownik | Gość |
-| Funkcje | karta „Recommended for your table” z wynikami per danie, Overall match, ceną; 2 alternatywy; sekcja „Or by the glass, dish by dish” przy dużej rozbieżności; wybór wina → G7 |
-| Komponenty UI | paski wyniku per danie (z pieczęcią przy parach sommeliera); Overall match (serif); notka o odłożonych deserach |
+| Funkcje | karta „Recommended for your table” z linią dopasowania, wynikami per danie, Overall match, ceną; 2 alternatywy (każda z linią dopasowania); sekcja „Or by the glass, dish by dish” przy dużej rozbieżności; wybór wina → G7 |
+| Komponenty UI | (spec `2026-10-16-whole-table-waiter-path`, F3, R9) **linia dopasowania** `table.fit` zamiast jednozdaniowego `why` na karcie i przy alternatywach: „Works with 5 of 6 dishes, less so with: Venison loin.” / „Pasuje do 5 z 6 dań, słabiej do: Comber z jelenia.”, „Works with all 4 dishes.”, „Works with both dishes.”, wariant „…, though it’s a compromise.” / „…, choć to kompromis.”, „Not a strong match for any of the 4 dishes.”, dla jednego dania „Works with this dish.” / „Less of a match for: X.”; powyżej 3 słabszych dań trzy najsłabsze i „and n others” / „i n innych”; paski per danie z **surowym wynikiem silnika** (`engineScore`, bez premii +3 za parę sommeliera i bez limitu 50 — AGENTS §7) i pieczęcią przy parach sommeliera (nazwa w tekście `sr-only`); Overall match (serif); przy `showScores = false` bez liczb — bez procentu przy daniu i bez wiersza „Overall match” (paski i kieliszek zostają); notka o odłożonych deserach; jedno wyjaśnienie „How is the overall match worked out?” / „Jak liczymy dopasowanie ogółem?” (`data-explain="tableResult"`, nad kartą, poza linkiem): ocena per danie, wagi wyniku stołu, „pasuje” od `tableFitThreshold` (70%), odrzucona para nigdy nie pasuje, desery osobno, premia sommeliera tylko w wyniku stołu — liczby z `ENGINE_FACTS`, bez „%” przy `showScores = false`; komunikat budżetu nad kartą, gdy budżet wykluczył wszystkie butelki |
 | Dane wejściowe | `dishIds[]`, preferencje |
 | Dane wyjściowe | `TableResult` |
 | Loading | skeleton karty z 3 paskami |
-| Empty | mniej niż 2 dania → „Add at least two dishes” + Choose dishes; brak butelki w filtrach → „No bottle fits these filters” |
+| Empty | mniej niż 2 dania → „Add at least two dishes” + Choose dishes; budżet wykluczył wszystkie butelki → luzowanie (`table.budget_relaxed`): „Nothing matches under 200 zł. These are the closest options.” / „Nic nie mieści się w budżecie do 200 zł. Oto najbliższe propozycje.” i 2 najbliższe butelki; brak butelki po filtrach koloru / porcji → „No bottle fits these filters” |
 | Error | jak G3 |
 | Success | wynik |
 | Walidacje | desery poza obliczeniem butelki (chyba że stolik ma same desery) |
 | Permissions | publiczny |
 | API | `POST /recommendations/table` |
-| Analytics | `table_recommendation_viewed {dishIds, wineIds}` (zapis serwera, E02 F2) |
+| Analytics | `table_recommendation_viewed {dishIds, wineIds, budgetRelaxed}` (zapis serwera, E02 F2; `budgetRelaxed` — E08 F3) |
 
 ## G7 Wine details — `/r/{slug}/wine/{wineId}?dish=|table=1`
 
@@ -451,7 +451,7 @@ Jak A8, z różnicami:
 | Użytkownik | Sommelier, GM |
 | Funkcje | checklista „Before you publish” z przyciskami Fix / Review / Check; ustawienia gościa (Fill empty places with engine picks, Show match percentages); Preview guest app; Publish changes |
 | Komponenty UI | checklista z ikonami ok / uwaga; przełączniki; pasek publikacji z liczbą zmian |
-| Wyjaśnienie | „What do these settings change?” / „Co zmieniają te ustawienia?” (`data-explain="publish"`) w nagłówku karty „Guest settings”: „Fill empty places…” (od `minModelScore`%; wyłączone — przy winach do dania tylko pary sommeliera), butelka dla „Whole table” zawsze z całej aktywnej karty, „Show match percentages” (kieliszek bez liczby; na „Whole table” paski przy daniach nadal z procentem, ekran kelnera zawsze z procentem), działają od razu. Opis przełącznika „Fill empty places…” mówi, że stół nadal bierze całą kartę (Q4) |
+| Wyjaśnienie | „What do these settings change?” / „Co zmieniają te ustawienia?” (`data-explain="publish"`) w nagłówku karty „Guest settings”: „Fill empty places…” (od `minModelScore`%; wyłączone — przy winach do dania tylko pary sommeliera), butelka dla „Whole table” zawsze z całej aktywnej karty, „Show match percentages” (kieliszek bez liczby; na „Whole table” paski bez liczb — od E08 F3; ekran kelnera zawsze z procentem), działają od razu. Opis przełącznika „Fill empty places…” mówi, że stół nadal bierze całą kartę (Q4) |
 | Dane wejściowe | liczniki zmian, stan danych |
 | Dane wyjściowe | PublishedVersion; ustawienia |
 | Loading | przycisk „Publishing…” (produkcja) |
