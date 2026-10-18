@@ -98,6 +98,17 @@ await check('G6 red up to 200 zł: the budget notice, not an empty screen', `${R
 await check('G6 up to 150 zł: the budget notice', `${R}/table/result?dishes=${FOUR}&maxPrice=150`, { has: ['Nothing matches under 150 zł.'], hasNot: ['No bottle fits these filters'] });
 await check('G6 table with one dish', `${R}/table/result?dish=${duck}`, { has: ['Add at least two dishes'] });
 await check('G9 staff lookup', `${R}/staff?dish=${duck}`, { has: ['Say:', 'Sommelier’s pairing · first choice', 'no. 112', 'data-explain="staff"', 'Why this order?'], hasNot: OLD_LABELS });
+// spec 2026-10-16-whole-table-waiter-path, phase 2: the waiter's whole table, G11 (R5–R7, R11, AC7–AC11). The smoke test is
+// synthetic traffic, so no recommendation code is issued: the code slot says so instead
+await check('G11 waiter whole table: the form without an answer', `${R}/staff/table`, { has: ['Whole table', 'Show the bottle', `action="${R}/staff/table" method="get"`, 'href="#table-cat-mains"', 'min-h-12', '(paired separately)', 'data-explain="staffTable"', 'How is the table bottle chosen?', 'at least 70%'], hasNot: ['data-staff-table-result', ' AI ', ' open=""'] });
+await check('G11 six dishes: the bottle to say, n of m, alternatives', `${R}/staff/table?dishes=${SIX}`, { has: ['This bottle: No. 109 Radikon Slatnik.', 'Works with 5 of 6 dishes, less so with: Venison loin.', 'Choose this one', ' of 6 · ', 'data-recommendation-code="none"', 'Change the table', 'New table'], hasNot: ['Say:'] });
+await check('G11 two dishes by repeated dish=: works with', `${R}/staff/table?dish=${tartare}&dish=${duck}`, { has: ['This bottle:', 'Works with'] });
+await check('G11 in Polish', `${R}/staff/table?dishes=${SIX}&lang=pl`, { has: ['Ta butelka: nr 109 Radikon Slatnik.', 'Pasuje do 5 z 6 dań, słabiej do: Comber z jelenia.', 'Wybierz tę', 'name="lang" value="pl"'] });
+await check('G11 one dish: tick at least two', `${R}/staff/table?dish=${duck}`, { has: ['Tick at least two dishes.'], hasNot: ['data-staff-table-result'] });
+await check('G11 red up to 200 zł: the budget notice and an answer', `${R}/staff/table?dishes=${FOUR}&styles=red&maxPrice=200`, { has: ['Nothing matches under 200 zł', 'This bottle:'] });
+await check('G11 links and form carry the staff session', `${R}/staff/table?dishes=${FOUR}&sid=${SID}`, { has: [`name="sid" value="${SID}"`, `${R}/staff?sid=${SID}`, `&amp;sid=${SID}`] });
+await check('G9 switches to the whole table', `${R}/staff?dish=${duck}&sid=${SID}`, { has: [`href="${R}/staff/table?sid=${SID}"`, 'Whole table', 'One dish'] });
+await check('G11 unknown restaurant', '/r/no-such-place/staff/table', { status: 404 });
 // spec 2026-10-16-how-it-works-explanations, phase 2 (R9, AC12): the "How we pick your wine" page (G12)
 await check('G12 how we pick your wine', `${R}/how-it-works?sid=${SID}`, { has: ['<h1', 'How we pick your wine</h1>', 'The sommelier has the last word', 'Pairing rules', 'shown from 62%', 'pinot noir with duck', 'No producer pays to be listed.', `href="${R}?sid=${SID}"`, 'Back to the menu'], hasNot: [' AI ', 'engine', 'algorithm', ...OLD_LABELS] });
 await check('G12 in Polish keeps the language in the way back', `${R}/how-it-works?lang=pl`, { has: ['<html lang="pl"', 'Jak dobieramy wino</h1>', 'Sommelier ma ostatnie słowo', 'Zasady łączenia wina z jedzeniem', `href="${R}?lang=pl&amp;sid=`, 'Wróć do menu'], hasNot: ['silnik', 'algorytm', 'How we pick your wine</h1>'] });
@@ -315,6 +326,7 @@ await check('the general manager sees the QR code', `/admin/${slug}/qr`, { cooki
 const waiter = await apiLogin('kelner@halka.pl', PASSWORD);
 expect('a waiter has no dashboard access: right password, 403, no cookie', waiter.res.status === 403 && waiter.body.error?.code === 'no_panel_access' && waiter.setCookie.length === 0, `${waiter.res.status} ${waiter.text}`);
 await check('the waiter pairing lookup stays public', `/r/${slug}/staff?dish=${duck}`, { cookie: '', has: ['Say:'] });
+await check('the waiter whole table stays public', `/r/${slug}/staff/table?dish=${tartare}&dish=${duck}`, { cookie: '', has: ['This bottle:'] });
 
 // --- dashboard (read-only screens of Phase 2)
 await check('admin root redirects to the dashboard', '/admin', { has: ['Dashboard', 'Sommelier-led dishes'] });

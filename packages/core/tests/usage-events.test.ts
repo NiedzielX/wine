@@ -121,6 +121,21 @@ describe('UsageEventService', () => {
     expect(await repo.countGuestSessions(ds.restaurant.id, { from: new Date(0), to: new Date('2100-01-01') })).toBe(1);
   });
 
+  it('stores the waiter\'s whole-table lookup with the bottle in its column, an empty one without, no guest session (E08 R13)', async () => {
+    const { repo, service } = setup();
+    const [d1, d2] = ds.dishes;
+    const [w1, w2] = ds.wines.map((w) => w.id);
+    const staff = service.session({}, 'staff');
+    const props = { source: 'staff' as const, dishIds: [d1.id, d2.id], prefs: {}, splitSuggested: false, budgetRelaxed: false };
+    await service.record(restaurant, staff, [{ name: 'staff_table_lookup', wineId: w2, props: { ...props, wineIds: [w2, w1], pickedWineId: w2 } }]);
+    await service.record(restaurant, { ...staff, isNew: false }, [{ name: 'staff_table_lookup', props: { ...props, wineIds: [] } }]);
+    expect(await repo.listBySession(ds.restaurant.id, staff.id)).toMatchObject([
+      { name: 'staff_table_lookup', dishId: null, wineId: w2, props: { source: 'staff', dishIds: [d1.id, d2.id], wineIds: [w2, w1], pickedWineId: w2, menuVersion: restaurant.publishedAt } },
+      { name: 'staff_table_lookup', dishId: null, wineId: null, props: { wineIds: [] } }
+    ]);
+    expect(await repo.countGuestSessions(ds.restaurant.id, { from: new Date(0), to: new Date('2100-01-01') })).toBe(0);
+  });
+
   it('a restaurant without a published menu still starts the session, with menuVersion null', async () => {
     const { repo, service } = setup();
     const session = service.session({}, 'link');

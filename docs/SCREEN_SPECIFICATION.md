@@ -45,8 +45,9 @@ Wspólne zasady:
     | G8 (wino aktywne) | `wine_selected` | dish (tylko `context: 'dish'`), wine | `serving` (`glass` tylko dla wina z ceną kieliszka, inaczej `bottle` — jak na ekranie), `context` (jak G7), `dishIds` (tylko `table`: opublikowane dania z `table=`, nieznane pominięte) | F2 |
     | G9 (`dish=` jawnie, danie z opublikowanego menu) | `staff_lookup` | dish | `source: 'staff'`, `prefs` (tylko niedomyślne), `wineIds` (kolejność wyświetlenia; pusty wynik → `[]`) | F3 |
     | G12 „How we pick your wine” (spec `2026-10-16-how-it-works-explanations`, Q9) | `explainer_viewed` | – | – | E07 F2 |
+    | G11 (≥ 2 opublikowane dania; nie komunikat „Tick at least two dishes”) | `staff_table_lookup` | – / butelka pokazana jako pierwsza (pusty wynik → `null`) | `source: 'staff'`, `dishIds` (opublikowane dania w kolejności karty, najwyżej 12), `wineIds` (kolejność wyświetlenia; pusty wynik → `[]`), `pickedWineId` (tylko gdy `wine=` wskazuje wino z wyniku — „Choose this one”), `prefs` (tylko niedomyślne, bez `serving`), `splitSuggested`, `budgetRelaxed` | E08 F2 |
 
-    `guest_session_started` jest w tym samym zapisie co pierwsze zdarzenie strony. G9 nigdy nie rozpoczyna sesji gościa: kelner ma własny `sid` (link „For staff” nie niesie `sid` gościa), więc jego lookupy nie wchodzą do liczby sesji gości. Konwersję i skuteczność par (E04, E10) liczy się z `wine_selected` z `context: 'dish'` po kolumnach `dish_id`/`wine_id`, a źródło pary z `items[].tier` ostatniego `recommendations_viewed` tej sesji dla dania. Nazwy z tabel „Analytics” niżej, których nie ma w katalogu (np. `recommendation_clicked`, `filters_opened`), wymagają JS i `POST /public/events` — planowane, nie zapisywane.
+    `guest_session_started` jest w tym samym zapisie co pierwsze zdarzenie strony. G9 i G11 nigdy nie rozpoczynają sesji gościa: kelner ma własny `sid` (link „For staff” nie niesie `sid` gościa), więc jego lookupy nie wchodzą do liczby sesji gości. `source` jest tylko w `guest_session_started`, `staff_lookup` i `staff_table_lookup`. Konwersję i skuteczność par (E04, E10) liczy się z `wine_selected` z `context: 'dish'` po kolumnach `dish_id`/`wine_id`, a źródło pary z `items[].tier` ostatniego `recommendations_viewed` tej sesji dla dania. Nazwy z tabel „Analytics” niżej, których nie ma w katalogu (np. `recommendation_clicked`, `filters_opened`), wymagają JS i `POST /public/events` — planowane, nie zapisywane.
 
 ---
 
@@ -221,7 +222,7 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 |---|---|
 | Cel | Szybka podpowiedź dla kelnera przy stoliku |
 | Użytkownik | Kelner |
-| Funkcje | wybór dania (select); filtry kieliszek / styl / budżet; lista 2–4 win |
+| Funkcje | przełącznik „One dish / Whole table” (link do G11 z preferencjami i `lang`, E08 R7); wybór dania (select); filtry kieliszek / styl / budżet; lista 2–4 win |
 | Komponenty UI | wiersze: numer i nazwa, „List no.”, odznaki („Sommelier’s pairing · first choice”, „Sommelier’s pairing”, „Best value”, „{n}% match”), „Say: …”, cena |
 | Dane wejściowe | menu, preferencje |
 | Dane wyjściowe | brak |
@@ -234,6 +235,29 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 | API | `GET /dishes/{id}/recommendations` |
 | Analytics | `staff_lookup {dishId, source: 'staff', prefs, wineIds}` przy jawnym `dish=` (zapis serwera, E02 F3; sesja kelnera bez `guest_session_started`); `staff_filter_changed` — planowane (JS) |
 | Wyjaśnienie | „Why this order?” / „Skąd ta kolejność?” (`data-explain="staff"`) pod leadem, nad wyborem dania: kolejność jak u gościa (pierwszy wybór sommeliera, pozostałe jego pary, potem wina według zasad od `minModelScore`% — tylko przy „Fill empty places…”), najwyżej `dishLimit` win; procent to ocena dopasowania, para sommeliera nie dostaje wyższego, kelner widzi go zawsze; „Say:” to notatka sommeliera albo uzasadnienie z zasad; filtry jak u gościa |
+
+## G11 Whole table (waiter) — `/r/{slug}/staff/table`
+
+Spec `2026-10-16-whole-table-waiter-path` (E08 faza 2, R5–R7, R11, R13). Telefon kelnera przy stoliku na kilka osób: zaznacza dania, jeden przycisk, odpowiedź w jednym zdaniu z numerem z karty win. Publiczny jak G9 (D03), działa bez JavaScriptu.
+
+| Pole | Opis |
+|---|---|
+| Cel | Jedna butelka dla całego stolika, ze zdaniem do powiedzenia gościom („pasuje do n z m, słabiej do …”) |
+| Użytkownik | Kelner (zakładka `/staff/table` w telefonie; G0 nie wybiera trybu za niego — link „For staff” prowadzi na G9) |
+| Funkcje | przełącznik „One dish / Whole table” / „Jedno danie / Cały stolik” (linki do G9 i G11, `aria-current`, preferencje i `lang` zachowane; ten sam `ModeSwitch` co G1/G5); formularz GET na G11: kafle dań (`TableDishPicker`, wspólny z G5 — tu wariant `tiles`: siatka 2 kolumn `minmax(0,1fr)`, kafel = cały `<label>` z checkboxem `dish`, ≥ 48 px, sama nazwa, stan przez `has-[input:checked]`), wiersz kotwic sekcji karty (linki `#table-cat-…`, przyklejony pod paskiem, sekcje `scroll-mt-32`), desery na końcu z dopiskiem „paired separately” / „liczone osobno”, „Budget per bottle” (radio: dowolny + 200/300/400 zł), „Colour” w zwiniętym `<details>`, przyklejony przycisk „Show the bottle” / „Pokaż butelkę” z licznikiem `SelectionCount` (JS); pole „Find a dish” / „Szukaj dania” tylko z JS (filtruje kafle po nazwie bez znaków diakrytycznych, zaznaczenie zostaje, bez JS go nie ma). Zaznaczenie 4 dań i „Show the bottle” = 5 dotknięć do wyniku (bez przewijania karty) |
+| Wynik (≥ 2 opublikowane dania, nad formularzem) | (0) komunikat „We worked out the first 12 dishes.” / „Policzyliśmy pierwsze 12 dań.” przy ponad 12 daniach (kolejność karty) i komunikat budżetu, gdy budżet wykluczył wszystkie butelki (`relaxBudget`); (1) „This bottle: No. 109 Radikon Slatnik.” / „Ta butelka: nr 109 Radikon Slatnik.” (bez „No.”, gdy wino nie ma numeru), cena butelki, obok kod polecenia (E09, wariant kompaktowy); (2) linia dopasowania (`TableFitLine`, R12) pogrubiona — zdanie dla stolika, bez „Say: …”; (3) dania z paskiem i procentem surowego wyniku silnika (`engineScore`), pieczęć tylko przy parze sommeliera; (4) do 2 alternatyw w jednym wierszu: numer, nazwa, „{fits} of {of}” / „{fits} z {of}”, cena, link „Choose this one” / „Wybierz tę” (`prefetch={false}`) na G11 z tym samym stołem i `wine={id}` — wybrana staje się butelką z (1)–(3), pozostałe zostają alternatywami w kolejności silnika (`pickTableItem`); `wine` spoza wyniku jest ignorowany; (5) „Or by the glass, dish by dish” przy `splitSuggested` silnika (tekst, bez linków na ekrany gościa); (6) desery liczone osobno. Pod spodem „Change the table” (formularz z zachowanym wyborem) i „New table” (czyści) |
+| Dane wejściowe | `dish` (powtarzany) / `dishes`, `wine`, `styles`, `maxPrice`, `lang`, `sid`; `weight`, `mood` przechodzą dalej; `serving` jest ignorowany (zawsze butelka) |
+| Dane wyjściowe | kod polecenia (E09): jeden na wynik, dla butelki z (1), `source: 'staff'`, kontekst `table`, przy renderze; alternatywa dostaje kod dopiero po „Choose this one”; limit `MAX_STAFF_CODES_PER_SESSION_DAY` (300); bez kodu (limit, błąd, ruch własny) — „No code for this one — order as usual.” / „Bez kodu — zamów jak zwykle.” |
+| Loading | brak (render serwera) |
+| Empty | menu bez dań — „No dishes on the menu” (jak G9); kolor bez butelki — „Nothing fits” / „Nic nie pasuje” w miejscu wyniku |
+| Error | jedno danie albo identyfikatory spoza opublikowanego menu (`table_needs_two_dishes` przez `isDomainError`) — „Tick at least two dishes.” / „Zaznacz co najmniej dwa dania.” nad formularzem, bez zdarzenia; nieznana restauracja — 404 |
+| Success | n/d |
+| Walidacje | jak G5/G6 (`parseDishIds`, najwyżej 12 dań w obliczeniu) |
+| Permissions | publiczny w MVP (D03), jak G9 |
+| API | `RecommendationService.forTable(…, { relaxBudget: true })`; `/api/v1` bez zmian |
+| Analytics | `staff_table_lookup` (katalog wyżej): przy ≥ 2 opublikowanych daniach, także przy pustym wyniku; kolejne „Choose this one” to kolejne zdarzenie z `pickedWineId`; sesja kelnera bez `guest_session_started` |
+| Wyjaśnienie | „How is the table bottle chosen?” / „Jak wybieramy butelkę do stolika?” (`data-explain="staffTable"`), jedno na ekranie, pod wynikiem i nad formularzem: ocena per danie, wynik stołu = średnia (`tableMeanWeight`, dania główne ×`tableMainsWeight`) i najsłabsze danie (`tableMinWeight`); „pasuje” = co najmniej `tableFitThreshold`%, odrzucona para nigdy; desery osobno; pieczęć i +`tableSommelierBonus` pkt do wyniku stołu (nie do procentu przy daniu), odrzucona najwyżej `tableRejectedCap`%; kieliszki poniżej `compromiseThreshold`/`weakDishThreshold`. Liczby z `ENGINE_FACTS`, bez „AI” i bez obietnicy pierwszeństwa w kolejności |
+| Układ | 390 px: jedna kolumna, kafle w 2 kolumnach, bez poziomego przewijania; ≥ 1024 px: kolumna do 720 px, przycisk pod formularzem (nie przyklejony) |
 
 ## G12 How we pick your wine — `/r/{slug}/how-it-works`
 

@@ -1,4 +1,4 @@
-import { styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RecommendationItem, type TableDishScore, type TableFit, type Wine, type WineStyle } from '@wine-match/core';
+import { WINE_STYLES, styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RecommendationItem, type TableDishScore, type TableFit, type Wine, type WineStyle } from '@wine-match/core';
 import { InfoDisclosure } from '@wine-match/ui/brand/info-disclosure';
 import { MatchGlass } from '@wine-match/ui/brand/match-glass';
 import Link from 'next/link';
@@ -243,7 +243,10 @@ export function DishScores({ perDish, showScores, t }: { perDish: TableDishScore
   );
 }
 
-/** One dish / whole table switch above the menu and the table selection. Links carry the guest's preferences. */
+/**
+ * One dish / whole table switch: above the menu and the table selection (G1, G5), and on the staff screens (G9, G11,
+ * spec 2026-10-16-whole-table-waiter-path R7). The page gives both targets, with its preferences, `lang` and `sid`.
+ */
 export function ModeSwitch({ dishHref, tableHref, mode, t }: { dishHref: string; tableHref: string; mode: 'dish' | 'table'; t: Dictionary }) {
   const base = 'rounded-full py-2.5 text-center text-[14.5px] font-semibold text-ink-2 aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-sm';
   return (
@@ -255,6 +258,92 @@ export function ModeSwitch({ dishHref, tableHref, mode, t }: { dishHref: string;
 }
 
 const MENU_CATEGORIES = ['Starters', 'Mains', 'Desserts'] as const;
+
+/**
+ * The dishes of a table form, one checkbox `dish` each, grouped by menu section (spec 2026-10-16-whole-table-waiter-path,
+ * R5: one picker for the guest's G5 and the waiter's G11, not two). `rows`: the guest's list with description and price.
+ * `tiles`: the waiter's two-column grid of names only, every tile a whole `<label>` at least 48 px high, with a row of
+ * section anchors (plain links, no script) and `data-dish-name` / `data-dish-section` for the optional search box.
+ */
+export function TableDishPicker({ dishes, selected, variant, dessertsNote, t, locale }: {
+  dishes: Dish[];
+  selected: Set<string>;
+  variant: 'rows' | 'tiles';
+  /** tiles: said next to the desserts heading ("paired separately") */
+  dessertsNote?: string;
+  t: Dictionary;
+  locale: Locale;
+}) {
+  const present = MENU_CATEGORIES.filter((c) => dishes.some((d) => d.category === c));
+  if (variant === 'rows') {
+    return present.map((c) => (
+      <section key={c}>
+        <h2 className="mt-7 mb-1 font-serif text-[26px]">{t.guest.categories[c]}</h2>
+        {dishes.filter((d) => d.category === c).map((d) => (
+          <label key={d.id} className="grid cursor-pointer grid-cols-[28px_1fr_auto] items-start gap-3.5 border-b border-line py-4">
+            <input type="checkbox" name="dish" value={d.id} defaultChecked={selected.has(d.id)} className="mt-0.5 size-6 cursor-pointer rounded-[7px] accent-wine" />
+            <span><span className="font-serif text-[19px]">{d.name}</span><br /><span className="text-sm text-ink-2">{d.description}</span></span>
+            <span className="text-ink-3 tabular-nums">{formatPrice(d.price, locale)}</span>
+          </label>
+        ))}
+      </section>
+    ));
+  }
+  const anchor = (c: string) => `table-cat-${c.toLowerCase()}`;
+  return (
+    <div>
+      <nav aria-label={t.guest.menu.sections} className="sticky top-[57px] z-10 -mx-5 flex gap-1.5 overflow-x-auto bg-paper px-5 py-2.5 [scrollbar-width:none]">
+        {present.map((c) => <a key={c} href={`#${anchor(c)}`} className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-wine">{t.guest.categories[c]}</a>)}
+      </nav>
+      {present.map((c) => (
+        <section key={c} id={anchor(c)} data-dish-section="" className="scroll-mt-32">
+          <h2 className="mt-4 mb-2 font-serif text-[22px]">
+            {t.guest.categories[c]}
+            {c === 'Desserts' && dessertsNote && <span className="ml-2 font-sans text-sm text-ink-2">({dessertsNote})</span>}
+          </h2>
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            {dishes.filter((d) => d.category === c).map((d) => (
+              <label key={d.id} data-dish-name={d.name.toLowerCase()}
+                className="flex min-h-12 min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-[#d4ccd0] bg-surface px-3 py-2 text-[15px] leading-tight has-[input:checked]:border-wine has-[input:checked]:bg-[#f6eef1] has-[input:checked]:shadow-[inset_0_0_0_1px_var(--color-wine)] has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-wine">
+                <input type="checkbox" name="dish" value={d.id} defaultChecked={selected.has(d.id)} className="size-5 shrink-0 cursor-pointer accent-wine" />
+                <span className="min-w-0 [overflow-wrap:anywhere]">{d.name}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+const pill = 'inline-flex min-h-9 cursor-pointer items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-sm font-medium has-[input:checked]:border-ink has-[input:checked]:bg-ink has-[input:checked]:text-paper has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine';
+
+/** Colour checkboxes (`styles`) of a table form (G5, G11): pills that are native checkboxes, no script. */
+export function StyleChoice({ prefs, legend, className = 'mt-4', locale }: { prefs: GuestPreferences; legend: string; className?: string; locale: Locale }) {
+  return (
+    <fieldset className={`${className} border-0 p-0`}>
+      <legend className="mb-2.5 text-[15px] font-semibold">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {WINE_STYLES.map((s) => (
+          <label key={s} className={pill}><input type="checkbox" name="styles" value={s} defaultChecked={prefs.styles.includes(s)} className="sr-only" />{styleLabel(s, locale)}</label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+/** Budget per bottle (`maxPrice`) of a table form (G5, G11): "any" and the page's options, as native radios. */
+export function BudgetChoice({ prefs, budgets, legend, className = 'mt-5', t, locale }: { prefs: GuestPreferences; budgets: number[]; legend: string; className?: string; t: Dictionary; locale: Locale }) {
+  return (
+    <fieldset className={`${className} border-0 p-0`}>
+      <legend className="mb-2.5 text-[15px] font-semibold">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        <label className={pill}><input type="radio" name="maxPrice" value="" defaultChecked={prefs.maxPrice === null} className="sr-only" />{t.guest.prefs.any}</label>
+        {budgets.map((b) => <label key={b} className={pill}><input type="radio" name="maxPrice" value={b} defaultChecked={prefs.maxPrice === b} className="sr-only" />{t.guest.prefs.upTo(formatPrice(b, locale))}</label>)}
+      </div>
+    </fieldset>
+  );
+}
 
 /**
  * The published dishes grouped by category. Every row links straight to the dish's wines (`hrefFor`),
