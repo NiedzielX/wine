@@ -282,7 +282,9 @@ export const en = {
             : `Same order as the guest sees: the sommelier’s first choice, then the sommelier’s other pairings in their set order; the restaurant shows no other wines. Up to ${f.dishLimit} wines.`,
           'The percentage rates the fit with the dish; a sommelier’s pairing gets no higher percentage. You always see it, even when guests don’t.',
           '“Say:” is the sommelier’s note, or the reason from the pairing rules.',
-          'Filters work as for the guest.'
+          'Filters work as for the guest.',
+          // spec 2026-10-16-recommendation-code, G9: the one "i" of the screen also explains marking a code
+          '“Order from a code” marks the guest’s wine as ordered (undo is possible). Only today’s codes work.'
         ]
       },
       /**
@@ -438,7 +440,26 @@ export const en = {
       listNo: (n: number) => `no. ${n}`,
       say: (why: string) => `Say: “${why}”`,
       noDishesTitle: 'No dishes on the menu',
-      noDishesText: 'The menu is being updated.'
+      noDishesText: 'The menu is being updated.',
+      /** "Order from a code" (spec 2026-10-16-recommendation-code, phase 2, R6, R7): find the guest's code, mark it ordered */
+      code: {
+        title: 'Order from a code',
+        label: 'Code from the guest’s screen',
+        find: 'Find',
+        /** one answer for an unknown, foreign, yesterday's or malformed code (R6: no hint that it existed) */
+        notFound: (code: string) => `There is no code ${code} today in this restaurant. Check the characters on the guest’s screen.`,
+        forDish: (dish: string) => `Dish: ${dish}`,
+        forTable: (dishes: string) => `For the table: ${dishes}`,
+        noDish: 'Chosen without a dish',
+        dishOffMenu: 'Dish not on the current menu',
+        wineGone: 'Wine no longer on the list',
+        issuedAt: (code: string, time: string) => `Code ${code}, shown at ${time}`,
+        confirm: 'Ordered',
+        markedAt: (time: string) => `Marked at ${time}`,
+        undo: 'Undo',
+        confirmed: 'Marked as ordered.',
+        undone: 'Mark removed.'
+      }
     },
     /** G11, the waiter's whole table (spec 2026-10-16-whole-table-waiter-path, R5–R7). */
     staffTable: {

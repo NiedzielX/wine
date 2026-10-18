@@ -20,7 +20,7 @@
 
 **Stan implementacji (Faza 4):** uprawnienia z tej macierzy są w kodzie (`core/src/auth/permissions.ts`) i egzekwowane przez layout panelu, akcje serwerowe i API. Dochodzą uprawnienia `import.manage` (Sommelier, GM, Owner) i `restaurant.edit` (tylko GM i Owner: dane restauracji i slug). Owner i General Manager mają te same uprawnienia; „Zatwierdzanie / odrzucanie pairingów” i „Role, kolejność i notatki” ma tylko Sommelier. Rola System Administrator, zarządzanie użytkownikami w UI i ustawienia restauracji / QR (Faza 5) nie są jeszcze zaimplementowane; konta tworzy polecenie `npm run user:create`.
 
-W MVP kelner korzysta z publicznych widoków `/r/{slug}/staff` (jedno danie, G9) i `/r/{slug}/staff/table` (cały stolik, G11), bez logowania (te same dane, które widzi gość). Później: tryb kelnera po zalogowaniu PIN-em, z historią podpowiedzi.
+W MVP kelner korzysta z publicznych widoków `/r/{slug}/staff` (jedno danie, G9) i `/r/{slug}/staff/table` (cały stolik, G11), bez logowania (te same dane, które widzi gość). Na G9 kelner może też oznaczyć kod polecenia gościa jako „Zamówione” i cofnąć to (spec `2026-10-16-recommendation-code` F2, Q8: publicznie, tylko dzisiejsze kody tej restauracji, autor zapisany jako `staff_view`). Później: tryb kelnera po zalogowaniu PIN-em, z historią podpowiedzi.
 
 Zasada podziału: **Owner / GM odpowiada za biznes, Sommelier za treść programu winnego.** GM widzi pairingi, ale ich nie zatwierdza — dzięki temu etykieta „Sommelier’s pairing” / „Para sommeliera” zawsze oznacza decyzję sommeliera.
 

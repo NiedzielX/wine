@@ -222,19 +222,19 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 |---|---|
 | Cel | Szybka podpowiedź dla kelnera przy stoliku |
 | Użytkownik | Kelner |
-| Funkcje | przełącznik „One dish / Whole table” (link do G11 z preferencjami i `lang`, E08 R7); wybór dania (select); filtry kieliszek / styl / budżet; lista 2–4 win |
-| Komponenty UI | wiersze: numer i nazwa, „List no.”, odznaki („Sommelier’s pairing · first choice”, „Sommelier’s pairing”, „Best value”, „{n}% match”), „Say: …”, cena |
-| Dane wejściowe | menu, preferencje |
-| Dane wyjściowe | brak |
+| Funkcje | przełącznik „One dish / Whole table” (link do G11 z preferencjami i `lang`, E08 R7); **„Order from a code” / „Zamówienie z kodu”** (E09 F2, spec `2026-10-16-recommendation-code` R6, R7): wpisanie kodu z ekranu gościa (G8) lub z G11, podgląd polecenia, „Ordered” / „Zamówione” i „Undo” / „Cofnij”; wybór dania (select); filtry kieliszek / styl / budżet; lista 2–4 win |
+| Komponenty UI | sekcja „Order from a code” pod wyjaśnieniem, nad wyborem dania: formularz GET (pole `code` z etykietą „Code from the guest’s screen” / „Kod z ekranu gościa”, max 16 znaków, ukryte `sid` i jawne `lang`, przycisk „Find” / „Znajdź”); po znalezieniu karta polecenia: producent i wino (serif), „no. {n}”, porcja i cena („1 bottle, 750 ml, 390 zł”), „Dish: …” / „For the table: a, b, c” (dania w kolejności menu) / „Chosen without a dish”, danie spoza bieżącej karty — „Dish not on the current menu” / „Danie spoza obecnej karty”, wino usunięte — „Wine no longer on the list”, „Code W7K, shown at 19:30” (czas `Europe/Warsaw`, `formatServiceTime`); jeden formularz POST: „Ordered” (przycisk główny) albo „Marked at 19:42” / „Oznaczone o 19:42” + „Undo”. Komunikat `role="status"` po przekierowaniu („Marked as ordered.” / „Mark removed.”) albo jedno zdanie „There is no code W7K today in this restaurant. Check the characters on the guest’s screen.” / „Nie ma dziś kodu W7K w tej restauracji. Sprawdź znaki z ekranu gościa.”. Wiersze win: numer i nazwa, „List no.”, odznaki („Sommelier’s pairing · first choice”, „Sommelier’s pairing”, „Best value”, „{n}% match”), „Say: …”, cena |
+| Dane wejściowe | menu, preferencje; `code` (dowolna pisownia: małe litery, spacje, `-`, `#`, prefiks `kod`/`code`); po akcji `marked=confirmed|undone` albo `codeError=not_found` (inne wartości ignorowane) |
+| Dane wyjściowe | akcja serwerowa `markCode` (`staff/actions.ts`, pola `slug`, `code`, `intent=confirm|undo`, `sid`, `lang`): komenda `RecommendationCodeService.confirm` / `undo` z `actor: 'staff_view'` (`confirmed_by`); „Ordered” idempotentne (`COALESCE(confirmed_at, …)` — drugie kliknięcie nie zmienia czasu), „Undo” zeruje `confirmed_at`; tylko kod bieżącego dnia serwisu tej restauracji; przekierowanie 303 na `/r/{slug}/staff?code=…&marked=…|codeError=not_found&lang=…&sid=…` (adres z zaufanych części), `revalidatePath(…, 'layout')` |
 | Loading | skeleton 3 wierszy |
 | Empty | „Nothing fits. Relax the budget or colour.” |
-| Error | jak G3 |
-| Success | n/d |
-| Walidacje | jak G3 |
-| Permissions | publiczny w MVP; produkcja: PIN zespołu |
-| API | `GET /dishes/{id}/recommendations` |
-| Analytics | `staff_lookup {dishId, source: 'staff', prefs, wineIds}` przy jawnym `dish=` (zapis serwera, E02 F3; sesja kelnera bez `guest_session_started`); `staff_filter_changed` — planowane (JS) |
-| Wyjaśnienie | „Why this order?” / „Skąd ta kolejność?” (`data-explain="staff"`) pod leadem, nad wyborem dania: kolejność jak u gościa (pierwszy wybór sommeliera, pozostałe jego pary, potem wina według zasad od `minModelScore`% — tylko przy „Fill empty places…”), najwyżej `dishLimit` win; procent to ocena dopasowania, para sommeliera nie dostaje wyższego, kelner widzi go zawsze; „Say:” to notatka sommeliera albo uzasadnienie z zasad; filtry jak u gościa |
+| Error | jak G3; kod nieznany, innej restauracji, z innego dnia serwisu (po 04:00) i w złym formacie — to samo zdanie i ten sam status 200, bez śladu, że kod istniał (R6, bez wyroczni); POST z takim kodem → `codeError=not_found`, stan bez zmian |
+| Success | n/d; po „Ordered” karta pokazuje „Marked at …” i „Undo” |
+| Walidacje | jak G3; `code` przez `normalizeCode` (zły format nie pyta bazy); formularz akcji przez `codeActionSchema` (`strictObject`; slug wzorca sluga, inaczej przekierowanie na `/`) |
+| Permissions | publiczny w MVP (D03); oznaczanie kodu też publiczne (E09 Q8, zatwierdzone): sprawdzeniem jest ważność kodu w restauracji ze sluga, nie sesja; akcja odrzuca `Sec-Fetch-Site: cross-site` (bez zmiany stanu, przekierowanie bez wyniku), a Next.js — obcy `Origin`. Produkcja: PIN zespołu (osobna spec) |
+| API | `GET /dishes/{id}/recommendations`; oznaczenie kodu to akcja serwerowa, nie `/api/v1` |
+| Analytics | `staff_lookup {dishId, source: 'staff', prefs, wineIds}` przy jawnym `dish=` (zapis serwera, E02 F3; sesja kelnera bez `guest_session_started`); `staff_filter_changed` — planowane (JS); oznaczenie kodu nie jest zdarzeniem (stan w `recommendation_code.confirmed_at`) |
+| Wyjaśnienie | „Why this order?” / „Skąd ta kolejność?” (`data-explain="staff"`) pod leadem, nad sekcją kodu i wyborem dania: kolejność jak u gościa (pierwszy wybór sommeliera, pozostałe jego pary, potem wina według zasad od `minModelScore`% — tylko przy „Fill empty places…”), najwyżej `dishLimit` win; procent to ocena dopasowania, para sommeliera nie dostaje wyższego, kelner widzi go zawsze; „Say:” to notatka sommeliera albo uzasadnienie z zasad; filtry jak u gościa; ostatni punkt (E09 F2): „Order from a code” oznacza wino gościa jako zamówione (z cofnięciem), działają tylko dzisiejsze kody |
 
 ## G11 Whole table (waiter) — `/r/{slug}/staff/table`
 

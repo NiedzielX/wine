@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildDemoDataset } from '../src/demo/dataset';
 import { ENGINE_VERSION } from '../src/engine/scoring';
 import { memorySink, createLogger } from '../src/logging/logger';
@@ -246,7 +246,8 @@ describe('RecommendationCodeService.issue (R3–R5, R13, Q4, Q18)', () => {
     expect(await repo.findByCode(ds.restaurant.id, dayOf(4), 'C4U')).toBeNull();
     expect(await repo.findByCode(ds.restaurant.id, dayOf(5), 'C4U')).not.toBeNull();
     expect((await repo.totals(ds.restaurant.id, { from: dayOf(0), to: dayOf(total) })).issued).toBe(MAX_MEMORY_RECOMMENDATION_CODES);
-  });
+    // 10 005 inserts, each scanning the store: ~5 s on a CI runner with coverage, over the default 5 s timeout
+  }, 30_000);
 });
 
 describe('windows in service days (E10 F4)', () => {
@@ -303,5 +304,76 @@ describe('RecommendationCodeService.pairStats (R12, Q12)', () => {
     expect(MAX_PERIOD_DAYS).toBe(366);
     await expect(service.pairStats('halka', { from: '2025-10-16', to: '2026-10-16' })).resolves.toEqual([]);
     await expect(service.pairStats('nowhere', { from: '2026-10-15', to: '2026-10-15' })).rejects.toMatchObject({ name: 'NotFoundError' });
+  });
+});
+
+/** Spec 2026-10-16-recommendation-code, phase 2: the waiter finds a code on G9 and marks it "Ordered" (R6, R7, Q7, AC8). */
+describe('RecommendationCodeService.lookup / confirm / undo (R6, R7, AC8)', () => {
+  const OTHER_RESTAURANT = '00000000-0000-4000-8000-00000000beef';
+  /** a mutable clock: the test moves the time on */
+  const at = (iso: string) => ({ now: new Date(iso) });
+  const notFound = { name: 'NotFoundError', code: 'code_not_found' };
+
+  it('finds today\'s code by any spelling the waiter types, with the wine', async () => {
+    const { service } = setup();
+    const issued = (await service.issue('halka', choice()))!;
+    const spelled = ` ${issued.code.toLowerCase().split('').join('-')} `;
+    const found = await service.lookup('halka', spelled);
+    expect(found?.record).toMatchObject({ code: issued.code, serviceDay: '2026-10-16', wineId: glassWine.id, dishIds: [published[0].id], serving: 'glass', confirmedAt: null });
+    expect(found?.wine?.id).toBe(glassWine.id);
+    expect(await service.lookup('halka', `kod: #${issued.code}`)).toEqual(found);
+  });
+
+  it('gives the same null for an unknown, malformed, foreign or yesterday\'s code and an unknown slug — no oracle (R6, Q15)', async () => {
+    const opts = at('2026-10-16T18:00:00.000Z');
+    const { service, repo } = setup(opts);
+    const issued = (await service.issue('halka', choice()))!;
+    // a code of another restaurant on the same day
+    await repo.tryIssue(OTHER_RESTAURANT, {
+      id: uuid(900), code: 'K3M', serviceDay: '2026-10-16', sessionId: SID, source: 'guest', context: 'direct', wineId: glassWine.id, dishIds: [],
+      serving: 'bottle', menuVersion: null, tier: null, engineVersion: 'wm-test', issuedAt: opts.now.toISOString()
+    });
+    const findByCode = vi.spyOn(repo, 'findByCode');
+    for (const raw of ['W7O', 'W1K', 'BEZ', 'W7KK', '', 'x'.repeat(40)]) expect(await service.lookup('halka', raw)).toBeNull();
+    expect(findByCode).not.toHaveBeenCalled();
+    expect(await service.lookup('halka', 'K3M')).toBeNull();
+    expect(await service.lookup('nowhere', issued.code)).toBeNull();
+    // 03:59 the next night is still the same service day; 04:00 is the next one
+    opts.now = new Date('2026-10-17T01:59:00.000Z');
+    expect(await service.lookup('halka', issued.code)).not.toBeNull();
+    opts.now = new Date('2026-10-17T02:00:00.000Z');
+    expect(await service.lookup('halka', issued.code)).toBeNull();
+  });
+
+  it('"Ordered" is idempotent: a second confirmation keeps the first time; "Undo" clears it (R7)', async () => {
+    const opts = at('2026-10-16T17:42:00.000Z');
+    const { service } = setup(opts);
+    const { code } = (await service.issue('halka', choice()))!;
+    const first = await service.confirm('halka', code, 'staff_view');
+    expect(first.record.confirmedAt).toBe('2026-10-16T17:42:00.000Z');
+    expect(first.wine?.id).toBe(glassWine.id);
+    opts.now = new Date('2026-10-16T18:10:00.000Z');
+    expect((await service.confirm('halka', code.toLowerCase(), 'staff_view')).record.confirmedAt).toBe('2026-10-16T17:42:00.000Z');
+    expect((await service.undo('halka', code, 'staff_view')).record.confirmedAt).toBeNull();
+    expect((await service.undo('halka', code, 'staff_view')).record.confirmedAt).toBeNull();
+    expect((await service.confirm('halka', code, 'staff_view')).record.confirmedAt).toBe('2026-10-16T18:10:00.000Z');
+    expect((await service.lookup('halka', code))?.record.confirmedAt).toBe('2026-10-16T18:10:00.000Z');
+  });
+
+  it('confirm and undo refuse anything but today\'s code of this restaurant with code_not_found and change nothing (AC8)', async () => {
+    const opts = at('2026-10-16T18:00:00.000Z');
+    const { service, repo } = setup(opts);
+    const { code } = (await service.issue('halka', choice()))!;
+    await service.confirm('halka', code, 'staff_view');
+    for (const raw of ['W7O', 'A2A', '']) {
+      await expect(service.confirm('halka', raw, 'staff_view')).rejects.toMatchObject(notFound);
+      await expect(service.undo('halka', raw, 'staff_view')).rejects.toMatchObject(notFound);
+    }
+    await expect(service.undo('nowhere', code, 'staff_view')).rejects.toMatchObject(notFound);
+    // the form was opened before 04:00 and sent after it: yesterday's code is not found, its state stays
+    opts.now = new Date('2026-10-17T02:30:00.000Z');
+    await expect(service.undo('halka', code, 'staff_view')).rejects.toMatchObject(notFound);
+    await expect(service.confirm('halka', code, 'staff_view')).rejects.toMatchObject(notFound);
+    expect((await repo.findByCode(ds.restaurant.id, '2026-10-16', code))?.confirmedAt).toBe('2026-10-16T18:00:00.000Z');
   });
 });
