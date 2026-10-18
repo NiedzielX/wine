@@ -25,7 +25,8 @@ G0  Restaurant landing + menu ................. /r/{slug}
  │   └─ G6  Best wine for your table ........... /r/{slug}/table/result
  │       └─ G7  Wine details ................... /r/{slug}/wine/{wineId}?table=1
  │           └─ G8  Selection confirmation
- └─ G9  Staff lookup (waiter) ................. /r/{slug}/staff?dish={dishId}
+ ├─ G9  Staff lookup (waiter) ................. /r/{slug}/staff?dish={dishId}
+ └─ G12 How we pick your wine ................. /r/{slug}/how-it-works   (także ze stopki G3)
 
 Stany systemowe: unknown restaurant (dowolny błędny slug), ?demo=loading|empty|error
 ```
@@ -42,6 +43,9 @@ flowchart TD
   G3 --> G7[G7 Wine details] --> G8[G8 Confirmation]
   G5 --> G6[G6 Best wine for table] --> G7
   G8 --> G1
+  G0 --> G12[G12 How we pick your wine]
+  G3 --> G12
+  G12 --> G0
 ```
 
 **Zasady nawigacji gościa**

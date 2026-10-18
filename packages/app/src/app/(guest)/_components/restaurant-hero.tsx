@@ -3,16 +3,24 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { Dictionary } from '@/i18n/en';
 
-/** The Wine Director line and the staff link, under the menu on the phone landing page. */
-export function WineDirectorNote({ restaurant: r, staffHref, t }: { restaurant: Restaurant; staffHref: string; t: Dictionary }) {
+/**
+ * The Wine Director line, the link to "How we pick your wine" (G12) and the staff link, under the menu on the phone
+ * landing page. Both links come ready from the page (`howHref` with the guest's `lang` and `sid`, `staffHref` without
+ * the guest's session): this component builds no address.
+ */
+export function WineDirectorNote({ restaurant: r, howHref, staffHref, t }: { restaurant: Restaurant; howHref: string; staffHref: string; t: Dictionary }) {
   const initials = r.wineDirector.split(' ').map((x) => x[0]).join('');
+  const link = 'inline-flex min-h-11 items-center text-sm text-ink-2 underline focus-visible:outline-2 focus-visible:outline-wine';
   return (
     <div className="grid gap-4 border-t border-line pt-6">
       <div className="flex items-center gap-3">
         <span className="grid size-[42px] shrink-0 place-items-center rounded-full bg-brass-soft font-serif text-[17px] text-brass" aria-hidden="true">{initials}</span>
         <p><b>{t.guest.hero.wineListBy(r.wineDirector)}</b><br /><small className="text-[13px] text-ink-3">{t.guest.hero.directorLine}</small></p>
       </div>
-      <Link className="text-sm text-ink-2 underline" href={staffHref}>{t.guest.hero.staffLink}</Link>
+      <div className="grid justify-items-start">
+        <Link className={link} href={howHref}>{t.guest.hero.howLink}</Link>
+        <Link className={link} href={staffHref}>{t.guest.hero.staffLink}</Link>
+      </div>
     </div>
   );
 }
@@ -22,7 +30,7 @@ export function WineDirectorNote({ restaurant: r, staffHref, t }: { restaurant: 
  * On the landing page it opens the screen; on desktop it fills the left column. `compact` is the
  * smaller variant beside the menu. `langSwitch` sits top right (the landing page has no top bar).
  */
-export function RestaurantHero({ restaurant: r, actions, compact = false, short = false, t, staffHref, langSwitch }: {
+export function RestaurantHero({ restaurant: r, actions, compact = false, short = false, t, staffHref, howHref, langSwitch }: {
   restaurant: Restaurant;
   actions?: ReactNode;
   compact?: boolean;
@@ -31,6 +39,8 @@ export function RestaurantHero({ restaurant: r, actions, compact = false, short 
   t: Dictionary;
   /** the staff lookup link; shown on the full hero only */
   staffHref?: string;
+  /** the link to "How we pick your wine" (G12), ready from the page; shown on the full hero only, beside the staff link */
+  howHref?: string;
   langSwitch?: ReactNode;
 }) {
   const initials = r.wineDirector.split(' ').map((x) => x[0]).join('');
@@ -49,7 +59,13 @@ export function RestaurantHero({ restaurant: r, actions, compact = false, short 
         <span className="grid size-[42px] shrink-0 place-items-center rounded-full bg-on-wine/15 font-serif text-[17px]" aria-hidden="true">{initials}</span>
         <p><b>{t.guest.hero.wineListBy(r.wineDirector)}</b><br /><small className="text-[13px] opacity-75">{t.guest.hero.directorLine}</small></p>
       </div>}
-      {!compact && !short && staffHref && <Link className="mt-4 text-sm underline opacity-80" href={staffHref}>{t.guest.hero.staffLink}</Link>}
+      {!compact && !short && (howHref || staffHref) && (
+        <div className="mt-4 flex flex-wrap gap-x-5">
+          {/* full on-wine colour on wine-deep (no opacity): small text needs 4.5:1 (R2) */}
+          {howHref && <Link className="inline-flex min-h-11 items-center text-sm text-on-wine underline focus-visible:outline-2 focus-visible:outline-on-wine" href={howHref}>{t.guest.hero.howLink}</Link>}
+          {staffHref && <Link className="inline-flex min-h-11 items-center text-sm underline opacity-80" href={staffHref}>{t.guest.hero.staffLink}</Link>}
+        </div>
+      )}
     </section>
   );
 }
