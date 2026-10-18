@@ -70,7 +70,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
               {rest.map((i) => <WineRow key={i.wine.id} item={i} href={wineHref(i.wine.id)} serving={prefs.serving} showScores={showScores} t={t} locale={locale} />)}
             </section>
           )}
-          <RecoFooter director={restaurant.wineDirector} restaurant={restaurant.name} showUnreviewed={showUnreviewed} t={t} />
+          <RecoFooter director={restaurant.wineDirector} restaurant={restaurant.name} showUnreviewed={showUnreviewed} howHref={href(`/r/${slug}/how-it-works`, prefs)} t={t} />
         </>
       )}
     </main>

@@ -1,6 +1,6 @@
-import { prefsToQuery } from '@wine-match/core';
+import { DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, prefsToQuery } from '@wine-match/core';
 import type { Metadata } from 'next';
-import { Button, EmptyState, LanguageSwitch, Price, Seal, TopBar } from '../../../_components/guest-ui';
+import { Button, EmptyState, Explain, LanguageSwitch, Price, Seal, TopBar } from '../../../_components/guest-ui';
 import { PrefChips } from '../../../_components/pref-chips';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { getI18n } from '@/server/i18n';
@@ -13,7 +13,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 
-/** G9 — quick pairing lookup for the floor team. Same engine and order as the guest sees. */
+/**
+ * G9 — quick pairing lookup for the floor team. Same engine and order as the guest sees. "Why this order?" sits under
+ * the lead (spec 2026-10-16-how-it-works-explanations, phase 2), true to the live "Fill empty places" setting.
+ */
 export default async function StaffPage({ params, searchParams }: Props) {
   const { slug } = await params;
   // the staff lookup has its own session (never a guest session: no `guest_session_started`); its links and form carry it
@@ -27,6 +30,7 @@ export default async function StaffPage({ params, searchParams }: Props) {
   const items = data?.result.items ?? [];
   const path = `/r/${slug}/staff`;
   const l = t.guest.staff;
+  const { showUnreviewed } = menu.restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS;
 
   await trackUsage(services, menu.restaurant, session, chosen ? [{
     name: 'staff_lookup', dishId: chosen.id, props: { source: 'staff', prefs: prefsToQuery(prefs), wineIds: items.map((i) => i.wine.id) }
@@ -35,7 +39,8 @@ export default async function StaffPage({ params, searchParams }: Props) {
     <>
       <TopBar back={href(`/r/${slug}`)} title={l.title} t={t} langSwitch={<LanguageSwitch locale={locale} hrefs={langHrefs(path)} t={t} />} />
       <main className="flex-1 px-5 pt-5 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">
-        <p className="mb-3 text-ink-2">{l.lead}</p>
+        <p className="text-ink-2">{l.lead}</p>
+        <Explain id="staff" className="mt-1 mb-3" summary={t.guest.explain.staff.summary} points={t.guest.explain.staff.points(ENGINE_FACTS, { showUnreviewed })} />
         {dish ? (
           <>
             <form action={path} method="get" className="grid gap-1.5">

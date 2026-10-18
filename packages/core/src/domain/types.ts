@@ -182,7 +182,9 @@ export const DEFAULT_PREFS: GuestPreferences = {
  * docs/SCREEN_SPECIFICATION.md (Analytics).
  */
 export const GUEST_EVENT_NAMES = [
-  'guest_session_started', 'menu_viewed', 'recommendations_viewed', 'table_recommendation_viewed', 'wine_viewed', 'wine_selected', 'staff_lookup'
+  'guest_session_started', 'menu_viewed', 'recommendations_viewed', 'table_recommendation_viewed', 'wine_viewed', 'wine_selected', 'staff_lookup',
+  /** a view of "How we pick your wine" (G12, spec 2026-10-16-how-it-works-explanations, Q9) */
+  'explainer_viewed'
 ] as const;
 export type GuestEventName = (typeof GUEST_EVENT_NAMES)[number];
 

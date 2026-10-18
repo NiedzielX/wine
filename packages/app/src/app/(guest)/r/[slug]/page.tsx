@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { Button, DishList, GuestColumns, LanguageSwitch } from '../../_components/guest-ui';
+import { Button, DishList, Explain, GuestColumns, LanguageSwitch } from '../../_components/guest-ui';
 import { RestaurantHero, WineDirectorNote } from '../../_components/restaurant-hero';
-import { canPairTable, DEFAULT_PREFS } from '@wine-match/core';
+import { canPairTable, DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS } from '@wine-match/core';
 import { guestContext, hrefWith, notFound, type SearchParams } from '@/server/guest-page';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
@@ -20,7 +20,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /**
  * G0 — what the QR code opens: the restaurant's header with the menu right under it, so a guest is
  * one tap from the wines for their dish; above the menu the "Whole table" card (spec whole-table-waiter-path, R8). On desktop the header is the left column. The language switch
- * sits top right in the header (there is no top bar here).
+ * sits top right in the header (there is no top bar here). "How do we pick your wine?" sits under "Pick your dish"
+ * (spec 2026-10-16-how-it-works-explanations, phase 2; none without a published menu), and the link to the "How we pick
+ * your wine" page (G12) sits beside the staff link — under the menu on the phone, in the header on desktop.
  */
 export default async function LandingPage({ params, searchParams }: Props) {
   const { slug } = await params;
@@ -38,6 +40,10 @@ export default async function LandingPage({ params, searchParams }: Props) {
   const tableAction = hasMenu && !tableCard ? <Button href={tableHref} variant="ghost" className="mt-8 w-full lg:w-auto">{t.guest.hero.tableAction}</Button> : undefined;
   // "For staff" is the one guest link without the guest's `sid`: the staff lookup keeps its own session (Q9)
   const staffHref = hrefWith(`/r/${r.slug}/staff`, DEFAULT_PREFS, {}, { lang });
+  // "How we pick your wine" (G12), with the guest's `lang` and `sid` like every other guest link
+  const howHref = href(`/r/${r.slug}/how-it-works`, prefs);
+  // live settings, like G3 (not from the published snapshot)
+  const { showScores, showUnreviewed } = r.settings ?? DEFAULT_RESTAURANT_SETTINGS;
   const langSwitch = <LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${r.slug}`)} t={t} tone="light" />;
 
   const main = (
@@ -55,12 +61,13 @@ export default async function LandingPage({ params, searchParams }: Props) {
             )}
             <h2 className="font-serif text-[28px] leading-tight">{t.guest.landing.pickDish}</h2>
             <p className="mt-1 text-ink-2">{t.guest.landing.pickDishLead}</p>
+            <Explain id="landing" className="mt-1" summary={t.guest.explain.landing.summary} points={t.guest.explain.landing.points(ENGINE_FACTS, { showScores, showUnreviewed, director: r.wineDirector, restaurant: r.name })} />
             <DishList dishes={menu.dishes} coverage={coverage} stickyTop="top-0" t={t} locale={locale} hrefFor={(d) => href(`/r/${r.slug}/dish/${d.id}/wines`, prefs)} />
           </>
         ) : (
           <p className="rounded-xl bg-brass-soft px-4 py-3 text-[15px] text-[#5d4720]">{t.guest.landing.menuUpdating}</p>
         )}
-        <div className="mt-10 lg:hidden"><WineDirectorNote restaurant={r} staffHref={staffHref} t={t} /></div>
+        <div className="mt-10 lg:hidden"><WineDirectorNote restaurant={r} howHref={howHref} staffHref={staffHref} t={t} /></div>
       </div>
     </main>
   );
@@ -72,7 +79,7 @@ export default async function LandingPage({ params, searchParams }: Props) {
       main={main}
       asideLabel={t.guest.hero.restaurant}
       underTopBar={false}
-      aside={<RestaurantHero restaurant={r} actions={tableAction} t={t} staffHref={staffHref} langSwitch={langSwitch} />}
+      aside={<RestaurantHero restaurant={r} actions={tableAction} t={t} staffHref={staffHref} howHref={howHref} langSwitch={langSwitch} />}
     />
   );
 }

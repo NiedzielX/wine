@@ -71,12 +71,12 @@ const OLD_LABELS = ['Sommelier recommendation', 'sommelier recommendation', 'Rek
 const plain = dish('Burrata & roasted pumpkin');
 
 await check('root redirects to the restaurant', '/', { has: ['Pick your dish'] });
-await check('G0 landing with the menu and the "Whole table" card', R, { has: ['Pick your dish', 'Duck breast', 'Several dishes on the table?', 'Find a bottle for the table', `href="${R}/table?`, 'Wine Director', `${R}/dish/${duck}/wines`], hasNot: ['Pair a bottle for the table'] });
+await check('G0 landing with the menu and the "Whole table" card', R, { has: ['Pick your dish', 'Duck breast', 'Several dishes on the table?', 'Find a bottle for the table', `href="${R}/table?`, 'Wine Director', `${R}/dish/${duck}/wines`, '<details data-explain="landing"', 'How do we pick your wine?', 'No producer pays to be listed.', `href="${R}/how-it-works?`, 'More on how we pick wines'], hasNot: ['Pair a bottle for the table', ' open=""'] });
 await check('G0 keeps preferences in dish links', `${R}?serving=glass`, { has: [`${R}/dish/${duck}/wines?serving=glass`] });
-await check('G1 dish list', `${R}/menu`, { has: ['Beef tartare', 'Duck breast', 'Sommelier’s pairing', 'One dish', 'Whole table'], hasNot: OLD_LABELS });
+await check('G1 dish list', `${R}/menu`, { has: ['Beef tartare', 'Duck breast', 'Sommelier’s pairing', 'One dish', 'Whole table', 'data-explain="menu"', 'What does the seal next to a dish mean?'], hasNot: OLD_LABELS });
 await check('G2 redirects to the wines with the whole query', `${R}/dish/${duck}?serving=glass&sheet=filters`, { status: 308, redirect: 'manual', location: `${R}/dish/${duck}/wines?serving=glass&sheet=filters` });
 await check('G3 unknown dish', `${R}/dish/00000000-0000-4000-8000-000000000000/wines`, { status: 404 });
-await check('G3 recommendations', `${R}/dish/${duck}/wines`, { has: ['Sommelier’s pairing', 'Pinot and sour cherry jus', 'Also good with this dish', 'Savigny', 'Roasted duck breast', 'Quick preferences', 'aria-current="page"', '<details data-explain="wines"', 'Why these wines?', 'shown from 62%', 'Every wine comes from Halka’s list', 'aria-label="Match '], hasNot: ['AI recommendation', 'Powered by AI', ...OLD_LABELS, ' open=""'] });
+await check('G3 recommendations', `${R}/dish/${duck}/wines`, { has: ['Sommelier’s pairing', 'Pinot and sour cherry jus', 'Also good with this dish', 'Savigny', 'Roasted duck breast', 'Quick preferences', 'aria-current="page"', '<details data-explain="wines"', 'Why these wines?', 'shown from 62%', 'Every wine comes from Halka’s list', 'aria-label="Match ', `href="${R}/how-it-works?`, 'More on how we pick wines'], hasNot: ['AI recommendation', 'Powered by AI', ...OLD_LABELS, ' open=""'] });
 await check('G3 a dish without a sommelier’s pairing: the engine’s top pick', `${R}/dish/${plain}/wines`, { has: ['Recommended for your dish', 'data-explain="wines"'], hasNot: OLD_LABELS });
 await check('G3 quick chip toggles off', `${R}/dish/${duck}/wines?serving=glass&sid=${SID}`, { has: [`href="${R}/dish/${duck}/wines?sid=${SID}"`, `${R}/menu?serving=glass&amp;sid=${SID}`] });
 await check('G3 filter: glass', `${R}/dish/${duck}/wines?serving=glass`, { has: ['By the glass', 'Glass 64 zł'], hasNot: ['Bottle 380 zł'] });
@@ -87,8 +87,8 @@ await check('G7 from the table result: no match glass', `${R}/wine/${wine}?table
 await check('G7 unknown wine', `${R}/wine/00000000-0000-4000-8000-000000000000`, { status: 404 });
 await check('G8 confirmation (glass)', `${R}/selected/${wine}?serving=glass&dish=${duck}`, { has: ['Show this to your waiter', 'List no. 112', '1 glass, 150 ml, 64 zł', 'With the duck breast'], hasNot: ['aria-label="Match '] });
 await check('G8 confirmation falls back to bottle', `${R}/selected/${dishes.length && recs.items.find((i) => i.wine.glassPrice === null)?.wine.id}?serving=glass`, { has: ['1 bottle, 750 ml'] });
-await check('G5 table selection', `${R}/table`, { has: ['Tick everything your table is ordering', 'Find a bottle for the table', 'Colour and budget'] });
-await check('G6 table result', `${R}/table/result?dish=${tartare}&dish=${risotto}&dish=${duck}`, { has: ['Recommended for your table', 'Overall match', 'Savigny', '85%', 'Works with all 3 dishes', 'data-explain="tableResult"', 'How is the overall match worked out?'] });
+await check('G5 table selection', `${R}/table`, { has: ['Tick everything your table is ordering', 'Find a bottle for the table', 'Colour and budget', 'data-explain="table"', 'How do we pick one bottle for the table?'] });
+await check('G6 table result', `${R}/table/result?dish=${tartare}&dish=${risotto}&dish=${duck}`, { has: ['Recommended for your table', 'Overall match', 'Savigny', '85%', 'Works with all 3 dishes', 'data-explain="tableResult"', 'How is the overall match worked out?', 'we also suggest a glass for each dish'] });
 // spec 2026-10-16-whole-table-waiter-path, phase 3: "n of m" on G6 and a relaxed budget instead of an empty screen (AC3, AC15)
 const SIX = ['Baltic herring', 'Seared scallops', 'Pike-perch', 'Salt-baked celeriac', 'Dry-aged ribeye, 300 g', 'Venison loin'].map(dish).join(',');
 const FOUR = [tartare, risotto, duck, dish('Pike-perch')].join(',');
@@ -97,7 +97,12 @@ await check('G6 six dishes in Polish', `${R}/table/result?dishes=${SIX}&lang=pl`
 await check('G6 red up to 200 zł: the budget notice, not an empty screen', `${R}/table/result?dishes=${FOUR}&styles=red&maxPrice=200`, { has: ['Nothing matches under 200 zł. These are the closest options.', 'Works with'], hasNot: ['No bottle fits these filters'] });
 await check('G6 up to 150 zł: the budget notice', `${R}/table/result?dishes=${FOUR}&maxPrice=150`, { has: ['Nothing matches under 150 zł.'], hasNot: ['No bottle fits these filters'] });
 await check('G6 table with one dish', `${R}/table/result?dish=${duck}`, { has: ['Add at least two dishes'] });
-await check('G9 staff lookup', `${R}/staff?dish=${duck}`, { has: ['Say:', 'Sommelier’s pairing · first choice', 'no. 112'], hasNot: OLD_LABELS });
+await check('G9 staff lookup', `${R}/staff?dish=${duck}`, { has: ['Say:', 'Sommelier’s pairing · first choice', 'no. 112', 'data-explain="staff"', 'Why this order?'], hasNot: OLD_LABELS });
+// spec 2026-10-16-how-it-works-explanations, phase 2 (R9, AC12): the "How we pick your wine" page (G12)
+await check('G12 how we pick your wine', `${R}/how-it-works?sid=${SID}`, { has: ['<h1', 'How we pick your wine</h1>', 'The sommelier has the last word', 'Pairing rules', 'shown from 62%', 'pinot noir with duck', 'No producer pays to be listed.', `href="${R}?sid=${SID}"`, 'Back to the menu'], hasNot: [' AI ', 'engine', 'algorithm', ...OLD_LABELS] });
+await check('G12 in Polish keeps the language in the way back', `${R}/how-it-works?lang=pl`, { has: ['<html lang="pl"', 'Jak dobieramy wino</h1>', 'Sommelier ma ostatnie słowo', 'Zasady łączenia wina z jedzeniem', `href="${R}?lang=pl&amp;sid=`, 'Wróć do menu'], hasNot: ['silnik', 'algorytm', 'How we pick your wine</h1>'] });
+await check('G12 unknown restaurant', '/r/no-such-place/how-it-works', { status: 404 });
+await check('G12 in Polish from G3: the footer links to it', `${R}/dish/${duck}/wines?lang=pl`, { has: ['Więcej o doborze win', `href="${R}/how-it-works?lang=pl&amp;sid=`] });
 // --- Polish interface (spec 2026-10-15-polish-language): language from the browser, `?lang` wins, the API stays English
 const PL = { 'accept-language': 'pl-PL,pl;q=0.9' };
 await check('G0 in Polish from Accept-Language', R, { headers: PL, has: ['<html lang="pl"', 'Wybierz danie', 'Pokażemy wina z naszej karty, które do niego pasują.', 'Kilka dań na stole?', 'Dobierz butelkę do stołu', `${R}?lang=en`], hasNot: ['Pick your dish', 'Dobierz butelkę do stolika'] });

@@ -1,6 +1,6 @@
-import { WINE_STYLES, budgetOptions, parseDishIds, styleLabel } from '@wine-match/core';
+import { ENGINE_FACTS, WINE_STYLES, budgetOptions, parseDishIds, styleLabel } from '@wine-match/core';
 import type { Metadata } from 'next';
-import { LanguageSwitch, ModeSwitch, TopBar } from '../../../_components/guest-ui';
+import { Explain, LanguageSwitch, ModeSwitch, TopBar } from '../../../_components/guest-ui';
 import { SelectionCount } from '../../../_components/selection-count';
 import { CATEGORIES, guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
@@ -13,7 +13,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type Props = { params: Promise<{ slug: string }>; searchParams: SearchParams };
 
-/** G5 — whole table selection. A plain GET form: works without JavaScript. */
+/**
+ * G5 — whole table selection. A plain GET form: works without JavaScript. "How do we pick one bottle for the table?"
+ * sits under the lead (spec 2026-10-16-how-it-works-explanations, phase 2); inside the form, but a `<details>` is no
+ * form control, so nothing is submitted with it.
+ */
 export default async function TablePage({ params, searchParams }: Props) {
   const { slug } = await params;
   const { q, prefs, services, t, locale, lang, session, href, langHrefs } = await guestContext(searchParams);
@@ -41,6 +45,7 @@ export default async function TablePage({ params, searchParams }: Props) {
           <input type="hidden" name="sid" value={session.id} />
           <ModeSwitch dishHref={href(`/r/${slug}/menu`, prefs)} tableHref={href(`/r/${slug}/table`, prefs)} mode="table" t={t} />
           <p className="text-ink-2">{l.lead}</p>
+          <Explain id="table" className="mt-1" summary={t.guest.explain.table.summary} points={t.guest.explain.table.points(ENGINE_FACTS)} />
           {CATEGORIES.map((c) => {
             const list = menu.dishes.filter((d) => d.category === c);
             if (!list.length) return null;

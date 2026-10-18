@@ -1,5 +1,5 @@
 import type { EngineFacts } from '@wine-match/core';
-import type { Dictionary, ExplainContext, IssueParams, TableFitText, WineExplainContext } from './en';
+import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, WineExplainContext } from './en';
 
 /** Polish plural: 1 wino, 2–4 wina (but 12–14 win), 5+ win. */
 const plural = (n: number, one: string, few: string, many: string) =>
@@ -43,7 +43,8 @@ export const pl = {
       selected: 'Twoje wino',
       table: 'Wino dla stolika',
       tableResult: 'Najlepsze wino dla stolika',
-      staff: 'Podgląd par'
+      staff: 'Podgląd par',
+      howItWorks: 'Jak dobieramy wino'
     },
     categories: { Starters: 'Przystawki', Mains: 'Dania główne', Desserts: 'Desery' },
     hero: {
@@ -51,6 +52,7 @@ export const pl = {
       wineListBy: (name: string) => `Kartę win układa ${name}`,
       directorLine: 'Pary Wine Directora zawsze otwierają listę dania.',
       staffLink: 'Dla obsługi: szybki podgląd par',
+      howLink: 'Więcej o doborze win',
       tableAction: 'Dobierz butelkę do stolika',
       restaurant: 'Restauracja'
     },
@@ -136,19 +138,57 @@ export const pl = {
         summary: 'Jak działają filtry?',
         points: (f: EngineFacts) => filterPointsPl(f)
       },
+      landing: {
+        summary: 'Jak dobieramy wino?',
+        points: (f: EngineFacts, c: RestaurantExplainContext) => [
+          `Wybierasz danie, a my pokazujemy do ${f.dishLimit} ${f.dishLimit === 1 ? 'wina' : 'win'} z karty win restauracji ${c.restaurant}, które do niego pasują.`,
+          `Wina z pieczęcią to pary sommeliera — poleca je ${directorPl(c.director)}.`,
+          ...(c.showUnreviewed ? ['Pozostałe dobieramy według zasad łączenia wina z jedzeniem.'] : []),
+          'Producenci nie płacą za miejsce na liście.'
+        ]
+      },
+      menu: {
+        summary: 'Co znaczy pieczęć przy daniu?',
+        points: (c: Pick<ExplainContext, 'showUnreviewed'>) => [
+          'Do tego dania sommelier wybrał już wino — zobaczysz je jako pierwsze (chyba że wykluczą je Twoje filtry, np. „Na kieliszki”).',
+          c.showUnreviewed
+            ? 'Do pozostałych dań dobieramy wina z karty według zasad łączenia wina z jedzeniem.'
+            : 'Przy pozostałych daniach pokazujemy tylko wina, które sommelier już zatwierdził; gdy ich jeszcze nie ma, kelner chętnie pomoże.'
+        ]
+      },
+      table: {
+        summary: 'Jak wybieramy butelkę dla stolika?',
+        points: (f: EngineFacts) => [
+          `Każde wino z karty oceniamy do każdego zaznaczonego dania; dania główne liczą się mocniej (×${decimalPl(f.tableMainsWeight)}).`,
+          'Liczy się średnia, ale też najsłabsze danie — wolimy butelkę dobrą do wszystkiego niż świetną do jednego dania i słabą do reszty.',
+          'Desery wybierasz osobno, po daniach głównych (chyba że stół zamawia tylko desery).',
+          `Bierzemy tylko wina w wybranym kolorze i budżecie; gdy żadna butelka nie mieści się w budżecie, piszemy o tym i pokazujemy ${f.budgetFallbackCount} ${plural(f.budgetFallbackCount, 'najlepiej pasującą butelkę', 'najlepiej pasujące butelki', 'najlepiej pasujących butelek')} spoza niego.`
+        ]
+      },
       tableResult: {
         summary: 'Jak liczymy dopasowanie ogółem?',
         points: (f: EngineFacts, c: Pick<ExplainContext, 'showScores'>) => c.showScores
           ? [
-              `Każde danie dostaje własną ocenę dopasowania. Wynik stołu łączy średnią (${pctPl(f.tableMeanWeight)}%, dania główne ×${decimalPl(f.tableMainsWeight)}) z najsłabszym daniem (${pctPl(f.tableMinWeight)}%), żeby butelka nie była świetna do jednego dania i słaba do drugiego.`,
+              `Paski pokazują dopasowanie do każdego dania. Dopasowanie ogółem to ${pctPl(f.tableMeanWeight)}% średniej (dania główne ×${decimalPl(f.tableMainsWeight)}) i ${pctPl(f.tableMinWeight)}% wyniku najsłabszego dania, więc jedno danie nie wystarczy.`,
               `„Pasuje” znaczy co najmniej ${f.tableFitThreshold}%, a para odrzucona przez sommeliera nigdy nie pasuje. Desery liczymy osobno.`,
-              `Para zatwierdzona przez sommeliera ma pieczęć i podnosi wynik stołu o ${f.tableSommelierBonus} pkt (nie procent przy daniu); odrzucona obniża go mocno (najwyżej ${f.tableRejectedCap}%).`
+              `Para sommeliera ma pieczęć i dodaje ${f.tableSommelierBonus} pkt do dopasowania ogółem, nie do procentu przy daniu; odrzucona liczy się najwyżej jako ${f.tableRejectedCap}%.`,
+              `Gdy ogółem wychodzi poniżej ${f.compromiseThreshold}% albo najsłabsze danie poniżej ${f.weakDishThreshold}%, proponujemy też kieliszki osobno do każdego dania.`
             ]
           : [
-              'Każde danie dostaje własną ocenę dopasowania. Butelkę wybieramy według średniej z dań (dania główne liczą się bardziej) razem z najsłabszym daniem, żeby nie była świetna do jednego dania i słaba do drugiego.',
+              'Paski pokazują dopasowanie do każdego dania. Butelkę wybieramy według średniej z dań (dania główne liczą się bardziej) i najsłabszego dania.',
               '„Pasuje” znaczy, że wino dobrze pasuje do tego dania samo w sobie; para odrzucona przez sommeliera nigdy nie pasuje. Desery liczymy osobno.',
-              'Para zatwierdzona przez sommeliera ma pieczęć i trochę podnosi butelkę w wyborze (nie kieliszek przy daniu); odrzucona mocno ją obniża.'
+              'Para sommeliera ma pieczęć i trochę podnosi butelkę w wyborze (nie pasek przy daniu); odrzucona mocno ją obniża.',
+              'Gdy jedna butelka jest kompromisem, proponujemy też kieliszki osobno do każdego dania.'
             ]
+      },
+      staff: {
+        summary: 'Skąd ta kolejność?',
+        points: (f: EngineFacts, c: Pick<ExplainContext, 'showUnreviewed'>) => [
+          `Kolejność jak u gościa: najpierw pierwszy wybór sommeliera, potem pozostałe pary sommeliera w ustalonej kolejności${c.showUnreviewed ? `, potem wina dobrane według zasad (od ${f.minModelScore}%)` : '; innych win restauracja nie pokazuje'}. Najwyżej ${f.dishLimit} ${plural(f.dishLimit, 'wino', 'wina', 'win')}.`,
+          'Procent to ocena dopasowania do dania — para sommeliera nie dostaje wyższego procentu. Widzisz go zawsze, także gdy gość go nie widzi.',
+          '„Powiedz:” to notatka sommeliera albo uzasadnienie z zasad łączenia wina z jedzeniem.',
+          'Filtry działają jak u gościa.'
+        ]
       },
       wine: {
         summary: 'Co znaczy ta ocena?',
@@ -263,6 +303,59 @@ export const pl = {
       title: 'To menu jest niedostępne',
       text: 'Link nie prowadzi do restauracji ani do dania z dzisiejszego menu. Zeskanuj ponownie kod QR na stoliku albo zapytaj kelnera.',
       action: 'Otwórz menu'
+    },
+    howItWorks: {
+      title: 'Jak dobieramy wino',
+      lead: (restaurant: string) => `Prostymi słowami: jak dobieramy wino do Twojego dania w restauracji ${restaurant}.`,
+      back: 'Wróć do menu',
+      sections: (f: EngineFacts, c: RestaurantExplainContext): HowItWorksSection[] => [
+        {
+          id: 'list',
+          title: `Tylko z karty restauracji ${c.restaurant}`,
+          text: [`Każde wino, które proponujemy, jest w karcie win restauracji ${c.restaurant} i jest dziś dostępne. Do jednego dania pokazujemy najwyżej ${f.dishLimit} ${plural(f.dishLimit, 'wino', 'wina', 'win')}.`]
+        },
+        {
+          id: 'sommelier',
+          title: 'Sommelier ma ostatnie słowo',
+          text: [`Wino z pieczęcią to para sommeliera: do tego dania poleca je ${directorPl(c.director)} i zawsze stoi pierwsze na liście dania. Wino odrzucone przez sommeliera nie pojawi się przy tym daniu; przy doborze dla całego stołu odrzucenie tylko mocno obniża wynik butelki.`]
+        },
+        ...(c.showUnreviewed
+          ? [{
+              id: 'rules' as const,
+              title: 'Zasady łączenia wina z jedzeniem',
+              text: [c.showScores
+                ? `Tam, gdzie sommelier jeszcze nie wybrał, dobieramy wina według zasad łączenia wina z jedzeniem i pokazujemy je od ${f.minModelScore}%. Najważniejsze zasady:`
+                : 'Tam, gdzie sommelier jeszcze nie wybrał, dobieramy wina według zasad łączenia wina z jedzeniem i pokazujemy tylko dostatecznie dobrze pasujące. Najważniejsze zasady:'],
+              points: [
+                'budowa wina pasuje do siły dania;',
+                'świeża kwasowość do tłustych dań;',
+                'do deseru wino co najmniej tak słodkie jak deser, do dań wytrawnych — wytrawne;',
+                'delikatne taniny do ryb i owoców morza;',
+                'do ostrych dań mniej alkoholu, a lekka słodycz pomaga;',
+                'klasyczne połączenia, np. pinot noir do kaczki.'
+              ],
+              after: 'To samo danie i to samo wino zawsze dają ten sam wynik.'
+            }]
+          : []),
+        c.showScores
+          ? { id: 'score', title: 'Co znaczy procent', text: [`Procent (0–${f.maxScore}%) mówi, jak dobrze wino pasuje do dania. Wybór sommeliera zmienia kolejność, nie liczbę.`] }
+          : { id: 'score', title: 'Co znaczy kieliszek', text: ['Im pełniejszy kieliszek, tym lepiej wino pasuje do dania. Wybór sommeliera zmienia kolejność, nie ocenę.'] },
+        {
+          id: 'table',
+          title: 'Cały stolik',
+          text: [`Do kilku dań szukamy jednej butelki, która pasuje do wszystkich: liczy się średnia (dania główne ×${decimalPl(f.tableMainsWeight)}) i najsłabsze danie. Butelkę wybieramy z całej karty; desery osobno (chyba że stół zamawia tylko desery). Gdy jedna butelka to kompromis, proponujemy też kieliszki osobno do każdego dania.`]
+        },
+        {
+          id: 'choices',
+          title: 'Twoje wybory',
+          text: ['„Na kieliszki”, kolor i budżet wykluczają wina; budowa i nastrój zmieniają kolejność. Gdy nic nie mieści się w budżecie, piszemy o tym i pokazujemy najlepiej pasujące wina spoza niego.']
+        },
+        {
+          id: 'fair',
+          title: 'Uczciwie',
+          text: ['Cena nigdy nie podnosi oceny wina. Producenci nie płacą za miejsce na liście. Nie zakładasz konta.']
+        }
+      ]
     }
   },
   admin: {

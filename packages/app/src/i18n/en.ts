@@ -17,6 +17,24 @@ export interface ExplainContext {
   director: string;
 }
 
+/** G0 and the "How we pick your wine" page (G12) also name the restaurant. */
+export interface RestaurantExplainContext extends ExplainContext {
+  /** `restaurant.name` */
+  restaurant: string;
+}
+
+/**
+ * One section of the "How we pick your wine" page (G12): a heading, its paragraphs, an optional list and a closing
+ * sentence after the list. `id` names the section for tests (`data-section`).
+ */
+export interface HowItWorksSection {
+  id: 'list' | 'sommelier' | 'rules' | 'score' | 'table' | 'choices' | 'fair';
+  title: string;
+  text: string[];
+  points?: string[];
+  after?: string;
+}
+
 /** The G7 explanation: the score shown for this wine, if any, and the dish it belongs to. */
 export interface WineExplainContext {
   /** the Match Score on screen, or null when the screen shows none (no dish, from the table, not suggested) */
@@ -76,7 +94,8 @@ export const en = {
       selected: 'Your wine',
       table: 'Pair for the table',
       tableResult: 'Best wine for your table',
-      staff: 'Pairing lookup'
+      staff: 'Pairing lookup',
+      howItWorks: 'How we pick your wine'
     },
     categories: { Starters: 'Starters', Mains: 'Mains', Desserts: 'Desserts' },
     hero: {
@@ -84,6 +103,8 @@ export const en = {
       wineListBy: (name: string) => `Wine list by ${name}`,
       directorLine: 'The Wine Director’s pairings always lead a dish’s list.',
       staffLink: 'For staff: quick pairing lookup',
+      /** the link to G12 (not the same words as the G0 explanation's question) */
+      howLink: 'More on how we pick wines',
       tableAction: 'Pair a bottle for the table',
       restaurant: 'Restaurant'
     },
@@ -177,23 +198,68 @@ export const en = {
         summary: 'How do the filters work?',
         points: (f: EngineFacts) => filterPointsEn(f)
       },
+      /** G0, under "Pick your dish" (no explanation without a published menu; the link to G12 stays). */
+      landing: {
+        summary: 'How do we pick your wine?',
+        points: (f: EngineFacts, c: RestaurantExplainContext) => [
+          `Pick a dish and we show up to ${f.dishLimit} wines from ${c.restaurant}’s list that go with it.`,
+          `Wines with the seal are sommelier’s pairings, recommended by ${directorEn(c.director)}.`,
+          ...(c.showUnreviewed ? ['The others are matched by our pairing rules.'] : []),
+          'No producer pays to be listed.'
+        ]
+      },
+      /** G1, under "Pick the dish you’re ordering": the seal next to a dish. */
+      menu: {
+        summary: 'What does the seal next to a dish mean?',
+        points: (c: Pick<ExplainContext, 'showUnreviewed'>) => [
+          'The sommelier has already chosen a wine for this dish: you’ll see it first (unless your filters, such as “By the glass”, leave it out).',
+          c.showUnreviewed
+            ? 'For the other dishes we match wines from the list by our pairing rules.'
+            : 'For the other dishes we show only wines the sommelier has already approved; if there are none yet, your waiter will gladly help.'
+        ]
+      },
+      /** G5, under the lead: how one bottle is chosen for several dishes. */
+      table: {
+        summary: 'How do we pick one bottle for the table?',
+        points: (f: EngineFacts) => [
+          `We rate every wine on the list with each dish you tick; mains count more (×${f.tableMainsWeight}).`,
+          'The average counts, and so does the weakest dish: we’d rather pick a bottle good with everything than great with one dish and poor with the rest.',
+          'Desserts are paired separately, after the mains (unless the table orders only desserts).',
+          `Only wines in your colour and budget count; if no bottle fits the budget, we say so and show the ${f.budgetFallbackCount} best-matching ones above it.`
+        ]
+      },
       /**
-       * G6: E08's paragraph about the table bottle (spec whole-table-waiter-path, R11). E07 phase 2 adds its own points
-       * to this key, not a second explanation (E07 Q15). No "%" when the restaurant hides percentages.
+       * G6: E08's paragraph about the table bottle (spec whole-table-waiter-path, R11) and E07's points (phase 2) in one
+       * explanation (E07 Q15): bars are each dish's raw score, the sommelier's bonus is in the overall match only, and
+       * when a glass per dish is suggested. No "%" when the restaurant hides percentages.
        */
       tableResult: {
         summary: 'How is the overall match worked out?',
         points: (f: EngineFacts, c: Pick<ExplainContext, 'showScores'>) => c.showScores
           ? [
-              `Each dish gets its own match score. The table score combines the average (${pct(f.tableMeanWeight)}%, mains count ×${f.tableMainsWeight}) with the weakest dish (${pct(f.tableMinWeight)}%), so the bottle isn’t great with one dish and poor with another.`,
+              `Bars show each dish’s own match. The overall match is ${pct(f.tableMeanWeight)}% the average (mains ×${f.tableMainsWeight}) plus ${pct(f.tableMinWeight)}% the weakest dish, so one dish can’t carry the bottle.`,
               `“Works with” means at least ${f.tableFitThreshold}%; a pairing the sommelier rejected never counts. Desserts are paired separately.`,
-              `A pairing the sommelier approved has the seal and adds ${f.tableSommelierBonus} points to the table score (not to the percentage by the dish); a rejected one pulls it down hard (to ${f.tableRejectedCap}% at most).`
+              `A sommelier’s pairing has the seal and adds ${f.tableSommelierBonus} points to the overall match, not to the dish’s percentage; a rejected one counts as ${f.tableRejectedCap}% at most.`,
+              `Below ${f.compromiseThreshold}% overall, or ${f.weakDishThreshold}% for the weakest dish, we also suggest a glass for each dish.`
             ]
           : [
-              'Each dish gets its own match rating. The bottle is chosen on the average across the dishes (mains count more) together with the weakest dish, so it isn’t great with one dish and poor with another.',
-              '“Works with” means a good fit for that dish on its own; a pairing the sommelier rejected never counts. Desserts are paired separately.',
-              'A pairing the sommelier approved has the seal and lifts the bottle a little in the choice (not the dish’s own glass); a rejected one pulls it down hard.'
+              'Bars show each dish’s own match. The bottle is chosen on the average across the dishes (mains count more) and the weakest dish.',
+              '“Works with” means a good fit for that dish alone; a pairing the sommelier rejected never counts. Desserts are paired separately.',
+              'A sommelier’s pairing has the seal and lifts the bottle a little, not the dish’s bar; a rejected one pulls it down hard.',
+              'When one bottle is a compromise, we also suggest a glass for each dish.'
             ]
+      },
+      /** G9, under the lead. The waiter always sees the percentage, also when guests do not. */
+      staff: {
+        summary: 'Why this order?',
+        points: (f: EngineFacts, c: Pick<ExplainContext, 'showUnreviewed'>) => [
+          c.showUnreviewed
+            ? `Same order as the guest sees: the sommelier’s first choice, then the sommelier’s other pairings in their set order, then wines matched by pairing rules (from ${f.minModelScore}%). Up to ${f.dishLimit} wines.`
+            : `Same order as the guest sees: the sommelier’s first choice, then the sommelier’s other pairings in their set order; the restaurant shows no other wines. Up to ${f.dishLimit} wines.`,
+          'The percentage rates the fit with the dish; a sommelier’s pairing gets no higher percentage. You always see it, even when guests don’t.',
+          '“Say:” is the sommelier’s note, or the reason from the pairing rules.',
+          'Filters work as for the guest.'
+        ]
       },
       wine: {
         summary: 'What does this score mean?',
@@ -315,6 +381,63 @@ export const en = {
       title: 'This menu isn’t available',
       text: 'The link doesn’t match a restaurant or a dish on tonight’s menu. Scan the QR code on your table again or ask your waiter.',
       action: 'Open the menu'
+    },
+    /**
+     * G12 "How we pick your wine" (spec 2026-10-16-how-it-works-explanations, R9): the long, calm version. Numbers from
+     * `facts` (ENGINE_FACTS), variants from the live settings, at most 350 words in every variant.
+     */
+    howItWorks: {
+      title: 'How we pick your wine',
+      lead: (restaurant: string) => `In plain words: how ${restaurant} suggests a wine for your dish.`,
+      back: 'Back to the menu',
+      sections: (f: EngineFacts, c: RestaurantExplainContext): HowItWorksSection[] => [
+        {
+          id: 'list',
+          title: `Only from ${c.restaurant}’s list`,
+          text: [`Every wine we suggest is on ${c.restaurant}’s own wine list and available tonight. We show up to ${f.dishLimit} wines for a dish.`]
+        },
+        {
+          id: 'sommelier',
+          title: 'The sommelier has the last word',
+          text: [`A wine with the seal is a sommelier’s pairing: recommended for that dish by ${directorEn(c.director)} and always first on the dish’s list. A wine the sommelier rejected for a dish is never suggested with it; for the whole table, a rejection only pulls the bottle down hard.`]
+        },
+        ...(c.showUnreviewed
+          ? [{
+              id: 'rules' as const,
+              title: 'Pairing rules',
+              text: [c.showScores
+                ? `Where the sommelier hasn’t chosen yet, wines are matched by pairing rules and shown from ${f.minModelScore}%. The main rules:`
+                : 'Where the sommelier hasn’t chosen yet, wines are matched by pairing rules, and only good fits are shown. The main rules:'],
+              points: [
+                'the wine’s body suits the strength of the dish;',
+                'fresh acidity with rich, fatty dishes;',
+                'with dessert, a wine at least as sweet as the dessert; with savoury dishes, a dry one;',
+                'gentle tannins with fish and seafood;',
+                'with spicy dishes, less alcohol, and a touch of sweetness helps;',
+                'classic pairings, such as pinot noir with duck.'
+              ],
+              after: 'The same dish and wine always get the same result.'
+            }]
+          : []),
+        c.showScores
+          ? { id: 'score', title: 'What the percentage means', text: [`The percentage (0–${f.maxScore}%) rates how well a wine suits the dish. A sommelier’s choice changes the order, not the number.`] }
+          : { id: 'score', title: 'What the glass means', text: ['The fuller the glass, the better the wine suits the dish. A sommelier’s choice changes the order, not the rating.'] },
+        {
+          id: 'table',
+          title: 'The whole table',
+          text: [`For several dishes we look for one bottle that works with all of them: the average counts (mains ×${f.tableMainsWeight}), and so does the weakest dish. The bottle comes from the whole list; desserts are paired separately (unless the table orders only desserts). When one bottle is a compromise, we also suggest a glass for each dish.`]
+        },
+        {
+          id: 'choices',
+          title: 'Your choices',
+          text: ['“By the glass”, colour and budget leave wines out; body and mood change the order. If nothing fits your budget, we say so and show the best-matching wines above it.']
+        },
+        {
+          id: 'fair',
+          title: 'Fair to you',
+          text: ['Price never raises a wine’s rating. No producer pays to be listed. You don’t need an account.']
+        }
+      ]
     }
   },
   admin: {
