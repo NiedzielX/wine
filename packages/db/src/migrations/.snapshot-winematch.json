@@ -1970,13 +1970,15 @@
           "unique": true
         },
         {
-          "columnNames": [],
+          "columnNames": [
+            "dish_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "pairing_one_primary_per_dish",
           "primary": false,
-          "unique": false,
-          "expression": "create unique index pairing_one_primary_per_dish on pairing (dish_id) where role = 'primary' and status in ('approved', 'modified')"
+          "unique": true,
+          "where": "(role = 'primary'::text) AND (status = ANY (ARRAY['approved'::text, 'modified'::text]))"
         },
         {
           "columnNames": [
@@ -2218,6 +2220,400 @@
             "id"
           ],
           "referencedTableName": "public.restaurant"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "recommendation_code",
+      "schema": "public",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "varchar(4)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 4,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "confirmed_by": {
+          "name": "confirmed_by",
+          "type": "varchar(20)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 20,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "context": {
+          "name": "context",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "dish",
+            "table",
+            "direct"
+          ],
+          "mappedType": "enum"
+        },
+        "dish_ids": {
+          "name": "dish_ids",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "json"
+        },
+        "engine_version": {
+          "name": "engine_version",
+          "type": "varchar(40)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 40,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "menu_version": {
+          "name": "menu_version",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "restaurant_id": {
+          "name": "restaurant_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "service_day": {
+          "name": "service_day",
+          "type": "date",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "date"
+        },
+        "serving": {
+          "name": "serving",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "glass",
+            "bottle"
+          ],
+          "mappedType": "enum"
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "guest",
+            "staff"
+          ],
+          "mappedType": "enum"
+        },
+        "tier": {
+          "name": "tier",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "sommelier_primary",
+            "sommelier",
+            "engine"
+          ],
+          "mappedType": "enum"
+        },
+        "wine_id": {
+          "name": "wine_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "restaurant_id",
+            "service_day",
+            "session_id",
+            "wine_id",
+            "serving",
+            "dish_ids"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "recommendation_code_choice_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "recommendation_code_pkey",
+          "primary": true,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "restaurant_id",
+            "issued_at"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "recommendation_code_restaurant_id_issued_at_index",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columnNames": [
+            "restaurant_id",
+            "service_day",
+            "code"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "recommendation_code_restaurant_id_service_day_code_unique",
+          "primary": false,
+          "unique": true
+        }
+      ],
+      "checks": [
+        {
+          "name": "recommendation_code_context_check",
+          "expression": "\"context\" in ('dish', 'table', 'direct')",
+          "definition": "check (\"context\" in ('dish', 'table', 'direct'))",
+          "columnName": "context"
+        },
+        {
+          "name": "recommendation_code_serving_check",
+          "expression": "\"serving\" in ('glass', 'bottle')",
+          "definition": "check (\"serving\" in ('glass', 'bottle'))",
+          "columnName": "serving"
+        },
+        {
+          "name": "recommendation_code_source_check",
+          "expression": "\"source\" in ('guest', 'staff')",
+          "definition": "check (\"source\" in ('guest', 'staff'))",
+          "columnName": "source"
+        },
+        {
+          "name": "recommendation_code_tier_check",
+          "expression": "\"tier\" in ('sommelier_primary', 'sommelier', 'engine')",
+          "definition": "check (\"tier\" in ('sommelier_primary', 'sommelier', 'engine'))",
+          "columnName": "tier"
+        }
+      ],
+      "triggers": [],
+      "foreignKeys": {
+        "recommendation_code_restaurant_id_foreign": {
+          "columnNames": [
+            "restaurant_id"
+          ],
+          "constraintName": "recommendation_code_restaurant_id_foreign",
+          "localTableName": "public.recommendation_code",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.restaurant"
+        },
+        "recommendation_code_wine_id_foreign": {
+          "columnNames": [
+            "wine_id"
+          ],
+          "constraintName": "recommendation_code_wine_id_foreign",
+          "localTableName": "public.recommendation_code",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.wine"
         }
       },
       "comment": null

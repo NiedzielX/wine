@@ -20,6 +20,7 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | ImportJob | tak | `rows` (jsonb) to sprawdzony podgląd wierszy, `notes` — jak odczytano plik, `result` — wynik zatwierdzenia; **plik nie jest przechowywany** (`storage_key` puste); status `preview_ready` → `confirmed` / `cancelled`; zatwierdzenie atomowe z blokadą wiersza. Rodzaj `sales` w Fazie 6 |
 | Tłumaczenia treści (od 2026-10-15) | tak | `dish.translations`, `wine.translations`, `restaurant.translations` (jsonb, domyślnie `'{}'`), `pairing.comment_translations` (jsonb), `restaurant.content_locale` (text, domyślnie `'en'`). Kształt: `{ "pl": { "name": …, "description": … }, "en": { … } }`; pola bazowe zostają w języku `content_locale`. Migawka publikacji niesie tłumaczenia (`snapshot.content`, `snapshot.pairings[].commentTranslations`); starsze migawki bez nich czytane jako `{}`. Spec `2026-10-15-bilingual-content` |
 | OpportunityDismissal (`opportunity_dismissal`, od 2026-10-16) | tak | zignorowane okazje sommeliera (spec `2026-10-16-sommelier-opportunities`, F1): jeden wiersz na (`restaurant_id`, `opportunity_key`), aktywny do `expires_at`; `dish_id` / `wine_id` **bez kluczy obcych**; `rule` z `CHECK` na pięć nazw sygnałów. Para z „Dodaj do propozycji” to zwykły wiersz `pairing` (`suggested`, bez wpisu w `sommelier_decision`) |
+| RecommendationCode (`recommendation_code`, od 2026-10-18) | tak | kody polecenia (spec `2026-10-16-recommendation-code`, F1): jeden wiersz na wybór wina na G8 (sesja `sid`, wino, porcja, dania, dzień serwisu); kod unikalny w (`restaurant_id`, `service_day`); `dish_ids` jsonb **bez FK**; bez danych osobowych |
 | Recommendation, GuestSession, ImportRow (osobna tabela), SalesRecord, EngineVersion, CatalogWine | nie | wejdą razem z funkcjami, które ich potrzebują (osobne specyfikacje) |
 
 Poniżej model docelowy.
@@ -50,6 +51,8 @@ erDiagram
   ImportJob ||--o{ ImportRow : ""
   Restaurant ||--o{ SalesRecord : "optional CSV"
   Restaurant ||--o{ OpportunityDismissal : "ignored opportunities"
+  Restaurant ||--o{ RecommendationCode : "recommendation codes"
+  Wine ||--o{ RecommendationCode : "chosen wine"
   EngineVersion ||--o{ Pairing : "scored by"
   EngineVersion ||--o{ Recommendation : "scored by"
 ```
@@ -225,6 +228,31 @@ Zignorowane okazje w panelu sommeliera (spec `2026-10-16-sommelier-opportunities
 | dismissed_at, expires_at | timestamptz not null | `expires_at = dismissed_at + 30 dni` (`DISMISS_DAYS`); aktywna, gdy `expires_at > now` |
 
 Zapis: `insert … on conflict (restaurant_id, opportunity_key) do update` (przedłuża termin, zmienia autora). „Przywróć” usuwa wiersz. Migracja `Migration20261016152214_opportunity_dismissal` jest addytywna; `down` usuwa tabelę bez strat dla biznesu (okazje po prostu wrócą).
+
+### RecommendationCode (`recommendation_code`)
+
+Kod polecenia wydany na G8 (spec `2026-10-16-recommendation-code`, F1; R1–R5, R11, R13). Jeden wiersz = jeden wybór (Q5, Q19), nie odsłona. Wydanie jest jak telemetria (AGENTS §1.3, wyjątek Q7); potwierdzenie przez kelnera (F2) i dopasowanie w POS (F3) dojdą w kolejnych fazach.
+
+| Pole | Typ | Uwagi |
+|---|---|---|
+| id | uuid PK | z `IdGenerator`; kandydat kodu jest czytany z tego samego UUID |
+| restaurant_id | uuid FK → `restaurant`, not null | zakres tenanta |
+| service_day | date not null | dzień serwisu `Europe/Warsaw`, kończy się o 04:00 czasu lokalnego (`serviceDay`, liczone na lokalnych składnikach, R2) |
+| code | varchar(4) not null | `L D L` z alfabetu `ACDEFGHJKLMNPRTUVWXY` i cyfr `2–9`, awaryjnie `L D L D`; **unique (`restaurant_id`, `service_day`, `code`)** |
+| session_id | uuid not null | anonimowy `sid` (E02) |
+| source | text not null | `CHECK`: `guest` (G8) \| `staff` (ścieżka kelnera E08) |
+| context | text not null | `CHECK`: `dish` (1 danie) \| `table` (2–12 dań) \| `direct` (bez dania) |
+| wine_id | uuid FK → `wine`, not null | wino aktywne w chwili wydania |
+| dish_ids | jsonb not null | posortowane, bez duplikatów, tylko opublikowane dania restauracji; `[]` dla `direct`; **bez FK** |
+| serving | text not null | `CHECK`: `glass` \| `bottle` (kieliszek tylko dla wina z ceną kieliszka) |
+| menu_version | timestamptz null | `restaurant.published_at` w chwili wydania |
+| tier | text null | `CHECK`: `sommelier_primary` \| `sommelier` \| `engine`; tylko wybór gościa do jednego dania (Q18), inaczej null |
+| engine_version | varchar(40) not null | `ENGINE_VERSION` |
+| issued_at | timestamptz not null | `clock.now()` |
+| confirmed_at | timestamptz null | „Zamówione” w G9 (F2); `coalesce` — drugie potwierdzenie nie zmienia czasu |
+| confirmed_by | varchar(20) null | `actor` potwierdzenia (`staff_view`) |
+
+Indeksy: unikalny `recommendation_code_choice_unique` (`restaurant_id`, `service_day`, `session_id`, `wine_id`, `serving`, `dish_ids`) — ten sam wybór w tym samym dniu ma jeden kod (R3), a prefiks indeksu liczy polecenia sesji (limit 30 gość / 300 kelner, R13); (`restaurant_id`, `issued_at`). Zapis: `insert … on conflict do nothing returning`, po konflikcie odczyt po kluczu wyboru (`existing`) albo `code_taken` (do 6 prób 3-znakowych i 6 prób 4-znakowych, Q4). Pamięć (`DATA_SOURCE=memory`) trzyma najwyżej 10 000 poleceń. Migracja `Migration20261018125821_recommendation_code` jest addytywna; `down` usuwa tabelę (tylko dev/test — w produkcji wycofanie to poprzedni obraz aplikacji, schemat zostaje). Retencja: brak w MVP (Q14). Kolumna `sales_record.recommendation_code` dojdzie w F3.
 
 ### Recommendation (precomputed cache)
 

@@ -1,4 +1,5 @@
 import type { OnceRunner } from './contract-types';
+import { recommendationCodeContract } from './recommendation-code-contract';
 import type { DemoDataset } from '../demo/dataset';
 import type { OpportunityDismissal } from '../domain/types';
 import type { GuestInteractionInput, Repositories } from '../ports/repositories';
@@ -178,5 +179,8 @@ export function repositoryContract(
       t.expect(await repo.countGuestSessions(OTHER, range)).toBe(0);
       t.expect(await repo.countGuestSessions(ds.restaurant.id, { from: at('2031-02-28T00:00:00.000Z'), to: at('2031-03-01T00:00:00.001Z') })).toBe(1);
     });
+
+    /* ---------- recommendation codes (spec 2026-10-16-recommendation-code) ---------- */
+    recommendationCodeContract(t, () => ({ repos, ds }));
   });
 }

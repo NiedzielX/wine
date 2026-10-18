@@ -1,7 +1,7 @@
 import { Migrator } from '@mikro-orm/migrations';
 import { MikroORM } from '@mikro-orm/postgresql';
 import {
-  AdminService, AuthService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset,
+  AdminService, AuthService, RecommendationCodeService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset,
   createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, type Repositories
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ormConfig } from '../src/config';
 import { Migration20261015140000_bilingual_content } from '../src/migrations/Migration20261015140000_bilingual_content';
+import { Migration20261018125821_recommendation_code } from '../src/migrations/Migration20261018125821_recommendation_code';
 import { Migration20261016152214_opportunity_dismissal } from '../src/migrations/Migration20261016152214_opportunity_dismissal';
 import { PairingEntity } from '../src/entities';
 import { PgAuthRepository } from '../src/repositories/auth';
@@ -20,7 +21,7 @@ import { NodeSessionTokens, ScryptPasswordHasher, hashPassword, verifyPassword }
 import { RestaurantEntity } from '../src/entities';
 import { readFileSync } from 'node:fs';
 import {
-  PgContentWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
+  PgContentWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
   PgRestaurantWriteRepository, PgWineRepository, PgWineWriteRepository
 } from '../src/repositories';
 import { DemoSeeder } from '../src/seeders/DemoSeeder';
@@ -46,7 +47,7 @@ async function freshDatabase(): Promise<MikroORM> {
 
 /** Empties every table and loads the demo data again: each write test starts from the same state. */
 async function resetData(orm: MikroORM): Promise<void> {
-  await orm.em.getConnection().execute('truncate table session, membership, app_user, opportunity_dismissal, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await orm.em.getConnection().execute('truncate table session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
   await new DemoSeeder().run(orm.em.fork());
 }
 
@@ -65,7 +66,8 @@ function pgRepos(orm: MikroORM): Repositories {
     contentWriteRepository: new PgContentWriteRepository({ em }),
     importRepository: new PgImportRepository({ em }),
     opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em }),
-    guestInteractionRepository: new PgGuestInteractionRepository({ em })
+    guestInteractionRepository: new PgGuestInteractionRepository({ em }),
+    recommendationCodeRepository: new PgRecommendationCodeRepository({ em })
   };
 }
 
@@ -419,6 +421,67 @@ run('PostgreSQL', () => {
       expect(await exists()).toBe(false);
       await run('up');
       expect(await exists()).toBe(true);
+    });
+  });
+  describe('recommendation codes on PostgreSQL (spec 2026-10-16-recommendation-code, phase 1)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const NOW = new Date('2026-10-16T18:00:00.000Z');
+    const SID = '3f2b8c1a-9d4e-4a5b-8c6d-7e8f9a0b1c2d';
+    const codes = (repos: Repositories, uuid: () => string = () => randomUUID()) =>
+      new RecommendationCodeService({ ...repos, clock: { now: () => NOW }, idGenerator: { uuid }, logger: { warn: () => {} } });
+    const dish = () => ds.dishes.find((d) => d.status === 'published')!;
+    const wine = () => ds.wines.find((w) => w.active && w.glassPrice !== null)!;
+    const choice = (over: Record<string, unknown> = {}) =>
+      ({ session: { id: SID, isNew: false, source: 'link' as const }, source: 'guest' as const, wineId: wine().id, serving: 'glass' as const, dishIds: [dish().id], tier: 'engine' as const, ...over });
+    const count = async () => Number((await orm.em.getConnection().execute<Array<{ n: string }>>('select count(*)::text as n from recommendation_code'))[0].n);
+
+    it('issues one code per choice, also for concurrent requests, and stores the record (AC3, AC5)', async () => {
+      const first = await codes(pgRepos(orm)).issue('halka', choice());
+      expect(first?.code).toMatch(/^[ACDEFGHJKLMNPRTUVWXY][2-9][ACDEFGHJKLMNPRTUVWXY]$/);
+      expect(await codes(pgRepos(orm)).issue('halka', choice())).toEqual(first);
+      const [a, b] = await Promise.all([codes(pgRepos(orm)).issue('halka', choice({ serving: 'bottle' })), codes(pgRepos(orm)).issue('halka', choice({ serving: 'bottle' }))]);
+      expect(a).toEqual(b);
+      expect(await count()).toBe(2);
+      const stored = await pgRepos(orm).recommendationCodeRepository.findByCode(ds.restaurant.id, '2026-10-16', first!.code);
+      expect(stored).toMatchObject({ sessionId: SID, context: 'dish', dishIds: [dish().id], serving: 'glass', tier: 'engine', menuVersion: expect.any(String), confirmedAt: null });
+    });
+
+    it('falls back to four characters when the short code of the day is taken (Q4)', async () => {
+      let n = 0;
+      const colliding = () => `a1b2c3d4-0000-4000-8000-${(++n).toString(16).padStart(12, '0')}`;
+      expect((await codes(pgRepos(orm), colliding).issue('halka', choice()))?.code).toBe('C4U');
+      expect((await codes(pgRepos(orm), colliding).issue('halka', choice({ serving: 'bottle' })))?.code).toBe('C4U6');
+      expect(await codes(pgRepos(orm), colliding).issue('halka', choice({ dishIds: [] }))).toBeNull();
+      expect(await count()).toBe(2);
+    });
+
+    it('the database checks the enums and keeps one code per restaurant and day', async () => {
+      const conn = orm.em.getConnection();
+      const insert = (id: string, code: string, session: string, source = 'guest') => conn.execute(
+        `insert into recommendation_code (id, restaurant_id, service_day, code, session_id, source, context, wine_id, dish_ids, serving, engine_version, issued_at)
+         values (?, ?, '2026-10-16', ?, ?, ?, 'direct', ?, '[]'::jsonb, 'bottle', 'wm-test', now())`,
+        [id, ds.restaurant.id, code, session, source, wine().id]
+      );
+      await expect(insert(randomUUID(), 'W7K', SID, 'waiter')).rejects.toThrow(/recommendation_code_source_check/);
+      await insert(randomUUID(), 'W7K', SID);
+      await expect(insert(randomUUID(), 'W7K', randomUUID())).rejects.toThrow(/recommendation_code_restaurant_id_service_day_code_unique/);
+      await expect(insert(randomUUID(), 'A3C', SID)).rejects.toThrow(/recommendation_code_choice_unique/);
+    });
+
+    it('the migration creates the table, and down drops it again (up/down)', async () => {
+      const exists = async () => (await orm.em.getConnection().execute<Array<{ n: string }>>("select count(*)::text as n from information_schema.tables where table_name = 'recommendation_code'"))[0].n === '1';
+      expect(await exists()).toBe(true);
+      const migration = new Migration20261018125821_recommendation_code(orm.em.getDriver(), orm.config);
+      const run = async (fn: 'up' | 'down') => {
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      await run('down');
+      expect(await exists()).toBe(false);
+      await run('up');
+      expect(await exists()).toBe(true);
+      expect((await codes(pgRepos(orm)).issue('halka', choice()))?.code).toBeTruthy();
     });
   });
 });

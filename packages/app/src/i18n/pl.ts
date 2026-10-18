@@ -238,7 +238,14 @@ export const pl = {
       withDish: (dish: string) => `Do dania „${dish}”`,
       forTable: 'Dla stolika',
       pairAnother: 'Dobierz wino do innego dania',
-      done: 'Gotowe'
+      done: 'Gotowe',
+      code: {
+        title: 'Kod dla kelnera',
+        hint: 'Pokaż go kelnerowi razem z winem.',
+        spoken: (code: string) => code.split('').join(', '),
+        unavailable: 'Kod niedostępny — poleć wino słownie.',
+        explain: 'Kod łączy to wino z poleceniem, żeby restauracja wiedziała, co gościom smakuje. Nie zawiera żadnych danych o Tobie.'
+      }
     },
     table: {
       lead: 'Zaznacz wszystko, co zamawia Twój stolik. Znajdziemy jedną butelkę, która pasuje do całości.',

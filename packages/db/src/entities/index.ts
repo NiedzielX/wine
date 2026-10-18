@@ -2,6 +2,7 @@ import { DishEntity, DishProfileEmbeddable } from './catalog/dish';
 import { GuestInteractionEntity } from './guests/guest-interaction';
 import { ImportJobEntity } from './imports/import-job';
 import { OpportunityDismissalEntity } from './opportunities/opportunity-dismissal';
+import { RecommendationCodeEntity } from './recommendations/recommendation-code';
 import { PairingEntity } from './pairings/pairing';
 import { PublishedVersionEntity } from './publishing/published-version';
 import { RestaurantEntity } from './restaurants/restaurant';
@@ -19,10 +20,11 @@ export * from './guests/guest-interaction';
 export * from './imports/import-job';
 export * from './auth/user';
 export * from './opportunities/opportunity-dismissal';
+export * from './recommendations/recommendation-code';
 
 /** Every entity and embeddable known to the ORM. Register new entities here. */
 export const ENTITIES = [
   RestaurantEntity, DishEntity, DishProfileEmbeddable, WineEntity, WineProfileEmbeddable,
   PairingEntity, PublishedVersionEntity, SommelierDecisionEntity, GuestInteractionEntity, ImportJobEntity,
-  UserEntity, MembershipEntity, SessionEntity, OpportunityDismissalEntity
+  UserEntity, MembershipEntity, SessionEntity, OpportunityDismissalEntity, RecommendationCodeEntity
 ];

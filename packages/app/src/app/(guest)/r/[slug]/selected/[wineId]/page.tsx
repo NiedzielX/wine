@@ -1,8 +1,10 @@
-import { parseDishIds, wineUsageScope } from '@wine-match/core';
+import { parseDishIds, usageTier, wineUsageScope } from '@wine-match/core';
 import type { Metadata } from 'next';
 import { Button, EmptyState, LanguageSwitch, TopBar } from '../../../../_components/guest-ui';
+import { CodeForWaiter } from '../../../../_components/recommendation-code';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
+import { issueCodeForPage } from '@/server/recommendation-code';
 import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +16,9 @@ type Props = { params: Promise<{ slug: string; wineId: string }>; searchParams: 
 
 /**
  * G8 — selection confirmation: the screen the guest shows to the waiter. No match glass: this screen confirms a choice,
- * it does not rate it (spec 2026-10-16-how-it-works-explanations, Q13).
+ * it does not rate it (spec 2026-10-16-how-it-works-explanations, Q13). An active wine gets a recommendation code for
+ * the waiter (spec 2026-10-16-recommendation-code, phase 1): issued while the page renders, never for an inactive wine
+ * or a 404, and the response is not cacheable (`Cache-Control: no-store`, as every dynamic page).
  */
 export default async function SelectedPage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
@@ -41,6 +45,12 @@ export default async function SelectedPage({ params, searchParams }: Props) {
   const serving = q.serving === 'glass' && wine.glassPrice !== null ? 'glass' : 'bottle';
   const price = formatPrice((serving === 'glass' ? wine.glassPrice : null) ?? wine.bottlePrice, locale);
 
+  // R5: the dish wins over the table, as on this screen; the service keeps published dishes of this restaurant only.
+  // G8 is always the guest's choice (Q5); the tier is the wine's place for the dish (Q18).
+  const issued = await issueCodeForPage(services, restaurant, {
+    session, source: 'guest', wineId: wine.id, serving, dishIds: dish ? [dish.id] : tableIds, tier: data.match ? usageTier(data.match) : null
+  });
+
   // the guest shows the wine to the waiter: `wine_selected` with the path and the dish ids of the published menu only
   // (R8). An inactive wine (above) records nothing, not even a new session (R6, Q6).
   const { context, dishId: selectedDish, dishIds } = wineUsageScope(q, { dishes: tableIds.length ? (await services.catalogService.publishedMenu(slug))?.dishes ?? [] : dish ? [dish] : [] });
@@ -61,6 +71,7 @@ export default async function SelectedPage({ params, searchParams }: Props) {
             <span className="font-semibold tabular-nums">{serving === 'glass' ? l.oneGlass(wine.glassPour, price) : l.oneBottle(wine.bottleSize, price)}</span>
             {dish ? <span className="text-ink-3">{l.withDish(dish.name)}</span> : tableIds.length > 0 ? <span className="text-ink-3">{l.forTable}</span> : null}
           </div>
+          <CodeForWaiter code={issued?.code ?? null} t={t} />
           <div className="mt-2 grid w-full gap-2">
             <Button href={href(`/r/${slug}/menu`, prefs)} variant="secondary">{l.pairAnother}</Button>
             <Button href={href(`/r/${slug}`)} variant="quiet">{l.done}</Button>

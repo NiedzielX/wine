@@ -201,10 +201,10 @@ Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.
 |---|---|
 | Cel | Ekran do pokazania kelnerowi zamiast wymawiania nazwy |
 | Użytkownik | Gość, kelner |
-| Funkcje | „Pair another dish” → G1; „Done” → G0 |
-| Komponenty UI | „Show this to your waiter.” (bez kieliszka dopasowania — to potwierdzenie wyboru, nie ocena); karta: numer z karty (List no.), producent i wino (duży serif), rocznik, porcja + cena, danie / „For the table” |
+| Funkcje | „Pair another dish” → G1; „Done” → G0; kod polecenia dla kelnera (E09 F1) |
+| Komponenty UI | „Show this to your waiter.” (bez kieliszka dopasowania — to potwierdzenie wyboru, nie ocena); karta: numer z karty (List no.), producent i wino (duży serif), rocznik, porcja + cena, danie / „For the table”; pod kartą blok „Code for your waiter” / „Kod dla kelnera” z dużym kodem (serif, `tabular-nums`, odstępy; widoczne znaki `aria-hidden`, obok `sr-only` „W, 7, K”) i zdaniem „Show it to your waiter with the wine.” / „Pokaż go kelnerowi razem z winem.”. Bez kodu (limit sesji R13, błąd lub przekroczony czas zapisu, ruch nie-gościa) jedna linia „Code unavailable — name the wine to your waiter.” / „Kod niedostępny — poleć wino słownie.”, reszta ekranu bez zmian. Osobnego „i” nie ma: akapit o kodzie (`guest.selected.code.explain`) trafi do jedynego wyjaśnienia ekranu (`guest.explain.selected`), gdy doda je E07 F2 |
 | Dane wejściowe | `wineId`, `serving`, `dishId` / `table` |
-| Dane wyjściowe | brak (MVP nie tworzy zamówienia) |
+| Dane wyjściowe | rekord polecenia `recommendation_code` (spec `2026-10-16-recommendation-code`, F1): przy renderze, przed odpowiedzią, dla wina aktywnego i ruchu gościa (`shouldRecord`); kontekst `dish` (gdy `dish=` to opublikowane danie — pierwszeństwo), `table` (2–12 opublikowanych dań z `table=`), inaczej `direct`; > 12 dań → brak kodu. Odświeżenie z tym samym `sid` = ten sam kod i bez nowego wiersza; G8 bez `sid` = nowa sesja i nowy kod przy każdym renderze. Zapis czeka najwyżej `ISSUE_TIMEOUT_MS = 1500` ms; błąd → strona 200 bez kodu i `logger.warn`. Odpowiedź ma `Cache-Control: no-store` (strona dynamiczna). MVP nadal nie tworzy zamówienia |
 | Loading | n/d (dane z G7) |
 | Empty | n/d |
 | Error | nieznane wino → komunikat + Back to menu |
