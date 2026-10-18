@@ -1,4 +1,5 @@
 import { OPPORTUNITY_RULES, type Dish, type OpportunityRule, type Pairing, type Wine } from '../../domain/types';
+import { MIN_MODEL_SCORE } from '../../engine/recommend';
 import { isReviewed } from '../pairings/pairing-rules';
 
 /**
@@ -10,14 +11,18 @@ import { isReviewed } from '../pairings/pairing-rules';
  * (`OpportunityService`), so the rules never call the engine themselves. Not engine rules: they never change a score or
  * the order of a recommendation (R02).
  *
- * Phase 1 has S1–S3; S4 (`shown_rarely_chosen`, guests' choices) and S5 (`ordered_not_reviewed`, orders with a
- * recommendation code) arrive in phases 3 and 4 with their own thresholds.
+ * S1–S3 come from the menu and the scores (phase 1), S5 (`ordered_not_reviewed`, orders with a recommendation code)
+ * from E09 (phase 4); S4 (`shown_rarely_chosen`, guests' choices) arrives in phase 3 with its own thresholds.
  */
 
 /** A wine that is "one of the 2–3 best for the dish" (Halka, `npm run engine:matrix`); recalibrate when ENGINE_VERSION changes. */
 export const STRONG_MATCH = 85;
 /** An ignored opportunity comes back after this many days at the earliest. */
 export const DISMISS_DAYS = 30;
+/** S5: orders with a recommendation code in the window — more than once a week, more than one table of regulars. */
+export const MIN_ORDERS = 5;
+/** The window of S4/S5: the last 28 full days (for E09: service days, `lastFullServiceDays`). */
+export const WINDOW_DAYS = 28;
 
 export type S1Reason = 'none' | 'no_primary' | 'primary_hidden';
 export type OpportunityAction = 'add_suggestion' | 'open_dish' | 'approve';
@@ -26,7 +31,8 @@ export type OpportunityAction = 'add_suggestion' | 'open_dish' | 'approve';
 export type OpportunityEvidence =
   | { rule: 'dish_no_primary'; reason: S1Reason }
   | { rule: 'glass_match_unpaired'; score: number; glassPrice: number }
-  | { rule: 'wine_unpaired'; score: number };
+  | { rule: 'wine_unpaired'; score: number }
+  | { rule: 'ordered_not_reviewed'; orders: number };
 
 export interface Opportunity {
   key: string;
@@ -36,7 +42,7 @@ export interface Opportunity {
   /** the wine to add (S2, S3), the hidden primary wine (S1 `primary_hidden`, evidence only), otherwise null */
   wineId: string | null;
   action: OpportunityAction;
-  /** S5 "Approve" (phase 4): the suggested pairing and the version the sommelier saw */
+  /** S5 "Approve": the suggested pairing and the version the sommelier saw (`expectedVersion`) */
   pairingId?: string;
   pairingVersion?: number;
   evidence: OpportunityEvidence;
@@ -46,6 +52,14 @@ export interface Opportunity {
 export type ScoreMatrix = ReadonlyMap<string, number>;
 export const scoreKey = (dishId: string, wineId: string) => `${dishId}:${wineId}`;
 
+/** Orders with a recommendation code for one (dish, wine) in the window: E09 `pairStats`, rows of context `dish` only. */
+export interface OrderedPair {
+  dishId: string;
+  wineId: string;
+  /** E09 `ordered` (staff-confirmed, later also POS-matched) */
+  orders: number;
+}
+
 export interface OpportunityInput {
   dishes: Dish[];
   wines: Wine[];
@@ -53,6 +67,8 @@ export interface OpportunityInput {
   scores: ScoreMatrix;
   /** keys ignored and not yet expired */
   dismissedKeys?: ReadonlySet<string>;
+  /** S5; absent (scope `dish`, or the read failed) means no S5 */
+  orders?: OrderedPair[];
 }
 
 export type OpportunitySubject =
@@ -130,6 +146,31 @@ export function opportunityCandidates(input: OpportunityInput): Opportunity[] {
         });
       }
     }
+  }
+
+  // S5 ordered_not_reviewed — guests order the wine with a code for the dish, and the sommelier has not approved the pair
+  const activeIds = new Set(active.map((w) => w.id));
+  const orders = new Map<string, OrderedPair>();
+  for (const o of input.orders ?? []) {
+    const k = pairKey(o.dishId, o.wineId);
+    const prev = orders.get(k);
+    orders.set(k, { dishId: o.dishId, wineId: o.wineId, orders: (prev?.orders ?? 0) + o.orders });
+  }
+  const pairingOf = new Map(input.pairings.map((p) => [pairKey(p.dishId, p.wineId), p]));
+  for (const o of orders.values()) {
+    if (o.orders < MIN_ORDERS || !publishedIds.has(o.dishId) || !activeIds.has(o.wineId)) continue;
+    const existing = pairingOf.get(pairKey(o.dishId, o.wineId));
+    // an approved pair is done; a rejected one is the sommelier's decision and never comes back as a proposal (R4)
+    if (existing && existing.status !== 'suggested') continue;
+    const s = score(o.dishId, o.wineId);
+    // without a pairing: "Add to suggestions" only where the command accepts it (MIN_MODEL_SCORE), otherwise the dish's page
+    const action: OpportunityAction = existing ? 'approve' : s !== undefined && s >= MIN_MODEL_SCORE ? 'add_suggestion' : 'open_dish';
+    out.push({
+      key: opportunityKey({ rule: 'ordered_not_reviewed', dishId: o.dishId, wineId: o.wineId }), rule: 'ordered_not_reviewed',
+      dishId: o.dishId, wineId: o.wineId, action,
+      ...(existing ? { pairingId: existing.id, pairingVersion: existing.version } : {}),
+      evidence: { rule: 'ordered_not_reviewed', orders: o.orders }
+    });
   }
 
   // S3 wine_unpaired — an active wine with no approved pairing with any published dish, strong with its best undecided dish

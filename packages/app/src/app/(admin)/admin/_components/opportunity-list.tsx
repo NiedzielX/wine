@@ -1,7 +1,7 @@
-import type { Dish, Locale, OpportunityItem, Wine } from '@wine-match/core';
+import { WINDOW_DAYS, type Dish, type Locale, type OpportunityItem, type Wine } from '@wine-match/core';
 import { Badge } from '@wine-match/ui';
 import type { Dictionary } from '@/i18n/en';
-import { addOpportunitySuggestion, dismissOpportunity } from '../[slug]/actions';
+import { addOpportunitySuggestion, approvePairing, dismissOpportunity } from '../[slug]/actions';
 import { ActionButton } from './action-form';
 import { zl } from './format';
 
@@ -18,12 +18,15 @@ export function opportunitySentence(item: OpportunityItem, dish: Dish, t: Dictio
       return s.glass_match_unpaired(wineName(item.wine), e.score, zl(e.glassPrice, locale));
     case 'wine_unpaired':
       return s.wine_unpaired(wineName(item.wine), dish.name, e.score);
+    case 'ordered_not_reviewed':
+      return s.ordered_not_reviewed(wineName(item.wine), e.orders, WINDOW_DAYS);
   }
 }
 
 /**
  * The opportunities of one dish (spec 2026-10-16-sommelier-opportunities, F2): a row with the "Opportunity" badge, one
  * sentence with numbers and the actions, as plain form posts (no JavaScript). Used on A6 (the dish's card) and in A14.
+ * S5 "Approve" posts the existing `approvePairing` with the pairing's version (`expectedVersion`), as on A6 and A7.
  * Roles without `pairings.decide` see the rows without buttons; every action checks the permission again.
  */
 export function OpportunityList({ items, dish, slug, back, decide, t, locale }: {
@@ -40,6 +43,9 @@ export function OpportunityList({ items, dish, slug, back, decide, t, locale }: 
           </div>
           {decide && (
             <div className="flex flex-wrap gap-1.5">
+              {o.action === 'approve' && o.pairingId && (
+                <ActionButton action={approvePairing} fields={{ slug, back, pairingId: o.pairingId, version: o.pairingVersion }}>{m.approve}</ActionButton>
+              )}
               {o.action === 'add_suggestion' && o.wineId && (
                 <ActionButton action={addOpportunitySuggestion} fields={{ slug, back, dishId: o.dishId, wineId: o.wineId }}>{m.add}</ActionButton>
               )}

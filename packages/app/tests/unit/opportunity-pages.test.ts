@@ -1,4 +1,4 @@
-import { OpportunityService } from '@wine-match/core';
+import { MIN_ORDERS, OpportunityService, WINDOW_DAYS, lastFullServiceDays } from '@wine-match/core';
 import { createElement, type FunctionComponent } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -152,5 +152,47 @@ describe('A6 card and A1 line', () => {
     expect(html).toContain('href="/admin/halka/opportunities">Open opportunities</a>');
     expect(explainIds(html)).toEqual(['dashboard']);
     expect(await render(DashboardPage, {}, 'pl')).toContain('Okazje: 6');
+  });
+});
+
+// Last in the file: the codes it stores stay in the shared in-memory store (A1 and A6 never read them, scope "dish").
+describe('A14 S5: ordered with a recommendation code, not approved (phase 4)', () => {
+  it('a suggested pairing gets "Approve" with its version; the sentence names the orders and the 28 days; read-only without buttons', async () => {
+    const scope = await createRequestScope();
+    const restaurant = (await scope.cradle.restaurantRepository.findBySlug('halka'))!;
+    const pairings = await scope.cradle.pairingRepository.listByRestaurant(restaurant.id);
+    const herring = dishes.get('Baltic herring')!;
+    const suggested = pairings.find((p) => p.dishId === herring && p.status === 'suggested')
+      ?? pairings.find((p) => p.status === 'suggested' && [...dishes.values()].includes(p.dishId))!;
+    const day = lastFullServiceDays(new Date(), WINDOW_DAYS).to;
+    const codes = scope.cradle.recommendationCodeRepository;
+    for (let i = 0; i < MIN_ORDERS; i++) {
+      const id = `00000000-0000-4000-a000-${String(i + 1).padStart(12, '0')}`;
+      const code = `X${i + 2}Y`;
+      await codes.tryIssue(restaurant.id, {
+        id, code, serviceDay: day, sessionId: id, source: 'guest', context: 'dish', wineId: suggested.wineId, dishIds: [suggested.dishId],
+        serving: 'bottle', menuVersion: null, tier: null, engineVersion: 'wm-test', issuedAt: new Date().toISOString()
+      });
+      await codes.setConfirmed(restaurant.id, day, code, new Date(), 'staff_view');
+    }
+    await scope.dispose();
+
+    as(sommelier);
+    const html = await render(OpportunitiesPage);
+    expect(count(html, 'data-opportunity="ordered_not_reviewed"')).toBe(1);
+    expect(html).toMatch(/was ordered with a recommendation code for this dish 5 times in the last 28 days, and this pairing isn’t approved\./);
+    expect(count(html, '>Approve</button>')).toBe(1);
+    expect(html).toContain(`<input type="hidden" name="pairingId" value="${suggested.id}"/>`);
+    expect(html).toMatch(/<input type="hidden" name="version" value="\d+"\/>/);
+    expect(html).not.toMatch(/\bAI\b/);
+    expect(await render(OpportunitiesPage, {}, 'pl')).toContain('zamówiono z kodem polecenia do tego dania 5 razy w ostatnich 28 dniach, a to parowanie nie jest zatwierdzone.');
+    // A6 (scope "dish") does not read the codes
+    expect(count(await render(PairingsPage, { dishId: suggested.dishId }), 'data-opportunity="ordered_not_reviewed"')).toBe(0);
+
+    as(manager);
+    const readOnly = await render(OpportunitiesPage);
+    expect(count(readOnly, 'data-opportunity="ordered_not_reviewed"')).toBe(1);
+    expect(readOnly).not.toContain('>Approve</button>');
+    as(sommelier);
   });
 });

@@ -802,6 +802,7 @@ export const pl = {
       current: 'Obecne parowania',
       noCurrent: 'brak',
       add: 'Dodaj do propozycji',
+      approve: 'Zatwierdź',
       ignore: 'Ignoruj',
       restore: 'Przywróć',
       emptyTitle: 'Nic do sprawdzenia.',

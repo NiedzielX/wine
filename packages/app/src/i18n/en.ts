@@ -895,6 +895,7 @@ export const en = {
       current: 'Current pairings',
       noCurrent: 'none',
       add: 'Add to suggestions',
+      approve: 'Approve',
       ignore: 'Ignore',
       restore: 'Restore',
       emptyTitle: 'Nothing to check.',

@@ -34,3 +34,19 @@ export function serviceDay(at: Date): string {
 export function formatServiceTime(at: Date, locale: Locale): string {
   return new Intl.DateTimeFormat(locale === 'pl' ? 'pl-PL' : 'en-GB', { timeZone: SERVICE_TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at);
 }
+
+/** `day` (`YYYY-MM-DD`) moved by `n` calendar days: date arithmetic only, no time zone. */
+export function shiftServiceDay(day: string, n: number): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const at = new Date(Date.UTC(y, m - 1, d + n));
+  return `${pad(at.getUTCFullYear(), 4)}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}`;
+}
+
+/**
+ * The last `days` full service days before the one `at` falls in, both ends inclusive: the window "last 28 days" of
+ * E04/E10 in E09's unit (spec 2026-10-16-recommendation-code, Contracts). The current, unfinished service day is out.
+ */
+export function lastFullServiceDays(at: Date, days: number): { from: string; to: string } {
+  const to = shiftServiceDay(serviceDay(at), -1);
+  return { from: shiftServiceDay(to, -(days - 1)), to };
+}
