@@ -1,4 +1,4 @@
-import { MIN_ORDERS, OpportunityService, WINDOW_DAYS, lastFullServiceDays } from '@wine-match/core';
+import { MIN_ORDERS, OpportunityService, WINDOW_DAYS, kpiWindow, lastFullServiceDays, seedUsageEvents, type GuestInteractionInput } from '@wine-match/core';
 import { createElement, type FunctionComponent } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -194,6 +194,64 @@ describe('A14 S5: ordered with a recommendation code, not approved (phase 4)', (
     const readOnly = await render(OpportunitiesPage);
     expect(count(readOnly, 'data-opportunity="ordered_not_reviewed"')).toBe(1);
     expect(readOnly).not.toContain('>Approve</button>');
+    as(sommelier);
+  });
+});
+
+// After S5: the usage events it stores stay in the shared in-memory store (A1 and A6 never read them, scope "dish").
+describe('A14 S4: the primary pairing guests see often and choose rarely (phase 3)', () => {
+  it('silent below the thresholds; then one row with the numbers, the 28 days and "Open pairings" to the row on A6, for every role', async () => {
+    const scope = await createRequestScope();
+    const restaurant = (await scope.cradle.restaurantRepository.findBySlug('halka'))!;
+    const pairings = await scope.cradle.pairingRepository.listByRestaurant(restaurant.id);
+    const wines = await scope.cradle.wineRepository.listByRestaurant(restaurant.id);
+    const active = new Set(wines.filter((w) => w.active).map((w) => w.id));
+    const primary = pairings.find((p) => (p.status === 'approved' || p.status === 'modified') && p.role === 'primary'
+      && [...dishes.values()].includes(p.dishId) && active.has(p.wineId))!;
+    const other = wines.find((w) => w.active && w.id !== primary.wineId)!;
+    const at = new Date(kpiWindow(new Date()).currentRange.from.getTime() + 3 * 86_400_000);
+    let n = 0;
+    /** `k` guest sessions that saw `wineId` for the dish with `tier`; the first `chosen` chose it */
+    const sessions = (k: number, chosen: number, wineId: string, tier: string): GuestInteractionInput[] => Array.from({ length: k }, (_, i) => {
+      const s = `e1030000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
+      const ev = (name: GuestInteractionInput['name'], extra: Partial<GuestInteractionInput>): GuestInteractionInput =>
+        ({ sessionId: s, name, props: { menuVersion: null }, engineVersion: 'wm-test', createdAt: at, ...extra });
+      return [
+        ev('guest_session_started', { props: { source: 'qr', menuVersion: null } }),
+        ev('recommendations_viewed', { dishId: primary.dishId, props: { wineIds: [wineId], items: [{ wineId, tier }], menuVersion: null } }),
+        ...(i < chosen ? [ev('wine_selected', { dishId: primary.dishId, wineId, props: { serving: 'glass', context: 'dish', menuVersion: null } })] : [])
+      ];
+    }).flat();
+    const repo = scope.cradle.guestInteractionRepository;
+    // 29 views of the primary (2 chosen), 20 of another wine (5 chosen): one view short of MIN_SHOWN
+    await seedUsageEvents(repo, restaurant.id, [...sessions(29, 2, primary.wineId, 'sommelier_primary'), ...sessions(20, 5, other.id, 'engine')]);
+    as(sommelier);
+    expect(count(await render(OpportunitiesPage), 'data-opportunity="shown_rarely_chosen"')).toBe(0);
+
+    await seedUsageEvents(repo, restaurant.id, sessions(1, 0, primary.wineId, 'sommelier_primary'));
+    await scope.dispose();
+    const html = await render(OpportunitiesPage);
+    expect(count(html, 'data-opportunity="shown_rarely_chosen"')).toBe(1);
+    expect(html).toMatch(/When guests saw .+ with this dish \(30 times in the last 28 days\), they chose it 2 times \(7%\); they chose the other wines for this dish 25% of the time\./);
+    const href = `href="/admin/halka/pairings/${primary.dishId}#pairing-${primary.id}"`;
+    expect(html).toContain(`${href}>Open pairings</a>`);
+    expect(html).toContain(`name="key" value="shown_rarely_chosen:${primary.dishId}:${primary.wineId}"`);
+    expect(html).not.toMatch(/\bAI\b/);
+    const pl = await render(OpportunitiesPage, {}, 'pl');
+    expect(pl).toMatch(/Gdy goście widzieli .+ przy tym daniu \(30 razy w ostatnich 28 dniach\), wybrali je 2 razy \(7%\); pozostałe wina do tego dania wybierali w 25% przypadków\./);
+    expect(pl).toContain(`${href}>Otwórz parowania</a>`);
+    expect(pl).not.toMatch(/\bAI\b|sztuczn/i);
+    // A6 (scope "dish") has no S4, and its approved row carries the anchor the link lands on
+    const a6 = await render(PairingsPage, { dishId: primary.dishId });
+    expect(count(a6, 'data-opportunity="shown_rarely_chosen"')).toBe(0);
+    expect(a6).toContain(`id="pairing-${primary.id}"`);
+
+    // the general manager: the sentence and the link (reading is allowed), no Ignore
+    as(manager);
+    const readOnly = await render(OpportunitiesPage);
+    expect(count(readOnly, 'data-opportunity="shown_rarely_chosen"')).toBe(1);
+    expect(readOnly).toContain(`${href}>Open pairings</a>`);
+    expect(readOnly).not.toContain('>Ignore</button>');
     as(sommelier);
   });
 });

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { MIN_ORDERS, WINDOW_DAYS, lastFullServiceDays } from '@wine-match/core';
+import { MIN_ORDERS, WINDOW_DAYS, kpiWindow, lastFullServiceDays, seedUsageEvents, type GuestInteractionInput } from '@wine-match/core';
+import { closeOrm, getOrm, PgGuestInteractionRepository } from '@wine-match/db';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { AgentBrowser, queryDatabase } from '@wine-match/testkit';
 import { e2eSuite } from './support';
@@ -10,6 +11,8 @@ import { e2eSuite } from './support';
  * `loading.tsx` (streams, needs JavaScript), so the new suggestion is checked there in a second session with scripts on.
  * Every change is undone at the end, so the other suites see the restaurant as seeded. Phase 4 (AC12): S5 from
  * recommendation codes stored straight in the database (confirming a code on G9 is E09 phase 2), then "Approve".
+ * Phase 3 (AC11): S4 from usage events written through `seedUsageEvents` and `PgGuestInteractionRepository` in E04's
+ * window, below and at the threshold, then "Open pairings" to the primary's row on A6.
  */
 
 type ApiPairing = { id: string; dishId: string; wineId: string; status: string; role: string | null; version: number };
@@ -251,5 +254,77 @@ describe('S5 without JavaScript: ordered with a recommendation code, then "Appro
     await browser.waitForPageText('What are opportunities?');
     expect(await browser.count(row)).toBe(0);
     expect((await pairingsOf(dishId)).find((p) => p.id === pairingId)!.status).toBe('approved');
+  });
+});
+
+describe('S4 without JavaScript: the primary guests see often and choose rarely (phase 3, AC11)', () => {
+  const { browser, baseUrl } = e2eSuite('opportunities-s4');
+  const ENGINE = 'wm-e2e-e10-f3';
+  const db = () => inject('e2e').databaseUrl;
+  let n = 0;
+
+  beforeAll(async () => {
+    await browser.open('about:blank');
+    await browser.run('network', 'route', '**/*.js', '--abort');
+    await signIn(browser, baseUrl(), 'marta@halka.pl');
+  });
+
+  afterAll(async () => {
+    await queryDatabase(db(), 'delete from guest_interaction where engine_version = $1', [ENGINE]);
+    await closeOrm();
+    await browser.close();
+  });
+
+  it('29 views of the primary are silent; the 30th gives S4 with its numbers, and "Open pairings" lands on the pairing row of A6', async () => {
+    const [{ id: restaurant }] = await queryDatabase<{ id: string }>(db(), "select id::text from restaurant where slug = 'halka'");
+    // the approved primary pairing of a published dish with an active wine, and another active wine for "the others"
+    const [pair] = await queryDatabase<{ id: string; dish: string; wine: string; dishName: string }>(db(),
+      `select p.id::text as id, p.dish_id::text as dish, p.wine_id::text as wine, d.name as "dishName"
+         from pairing p join dish d on d.id = p.dish_id join wine w on w.id = p.wine_id
+        where p.restaurant_id = $1 and p.status in ('approved', 'modified') and p.role = 'primary' and d.status = 'published' and w.active
+          and d.deleted_at is null and w.deleted_at is null
+        order by d.name limit 1`, [restaurant]);
+    const [{ id: other }] = await queryDatabase<{ id: string }>(db(),
+      'select id::text from wine where restaurant_id = $1 and active and deleted_at is null and id <> $2 order by name limit 1', [restaurant, pair.wine]);
+
+    // inside E04's window (the app itself records only "now", and today is outside it)
+    const at = new Date(kpiWindow(new Date()).currentRange.from.getTime() + 3 * 86_400_000);
+    const ev = (sessionId: string, name: GuestInteractionInput['name'], extra: Partial<GuestInteractionInput> = {}): GuestInteractionInput =>
+      ({ sessionId, name, props: { menuVersion: null }, engineVersion: ENGINE, createdAt: at, ...extra });
+    const sessions = (k: number, chosen: number, wineId: string, tier: string) => Array.from({ length: k }, (_, i) => {
+      const s = `e1030000-0000-4000-9000-${String(++n).padStart(12, '0')}`;
+      return [
+        ev(s, 'guest_session_started', { props: { source: 'qr', menuVersion: null } }),
+        ev(s, 'recommendations_viewed', { dishId: pair.dish, props: { wineIds: [wineId], items: [{ wineId, tier }], menuVersion: null } }),
+        ...(i < chosen ? [ev(s, 'wine_selected', { dishId: pair.dish, wineId, props: { serving: 'glass', context: 'dish', menuVersion: null } })] : [])
+      ];
+    }).flat();
+    const orm = await getOrm({ clientUrl: db(), pool: { min: 0, max: 2 } });
+    const repo = new PgGuestInteractionRepository({ em: orm.em.fork() });
+    const row = `[data-opportunity="shown_rarely_chosen"]:has(input[name="key"][value="shown_rarely_chosen:${pair.dish}:${pair.wine}"])`;
+
+    // below the threshold: 29 views of the primary (2 chosen), 20 of another wine (5 chosen)
+    await seedUsageEvents(repo, restaurant, [...sessions(29, 2, pair.wine, 'sommelier_primary'), ...sessions(20, 5, other, 'engine')]);
+    await browser.open(`${baseUrl()}/admin/halka/opportunities`);
+    await browser.waitForPageText('What are opportunities?');
+    expect((await browser.run('eval', 'typeof window.next === "object" && !!window.next?.router')).trim()).toBe('false');
+    expect(await browser.count('[data-opportunity="shown_rarely_chosen"]')).toBe(0);
+
+    // the 30th view: 2 of 30 (7%) against 5 of 20 (25%)
+    await seedUsageEvents(new PgGuestInteractionRepository({ em: orm.em.fork() }), restaurant, sessions(1, 0, pair.wine, 'sommelier'));
+    await browser.open(`${baseUrl()}/admin/halka/opportunities`);
+    await browser.waitForPageText('What are opportunities?');
+    expect(await browser.count(row)).toBe(1);
+    expect(await browser.text(row)).toMatch(/When guests saw .+ with this dish \(30 times in the last 28 days\), they chose it 2 times \(7%\); they chose the other wines for this dish 25% of the time\./);
+    const href = `/admin/halka/pairings/${pair.dish}#pairing-${pair.id}`;
+    expect(await browser.count(`${row} a[href="${href}"]`)).toBe(1);
+
+    // a plain link: it works without JavaScript and lands on the primary's row of A6
+    await browser.run('eval', `document.querySelector(${JSON.stringify(`${row} a[href="${href}"]`)}).click()`);
+    expect(await browser.waitForUrl(`#pairing-${pair.id}`)).toContain(`/admin/halka/pairings/${pair.dish}`);
+    await browser.waitForPageText('Approved for guests');
+    expect(await browser.count(`#pairing-${pair.id}`)).toBe(1);
+    // A6 never shows S4 (scope "dish": no queries on the events)
+    expect(await browser.count('[data-opportunity="shown_rarely_chosen"]')).toBe(0);
   });
 });

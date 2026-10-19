@@ -1,11 +1,17 @@
 import { WINDOW_DAYS, type Dish, type Locale, type OpportunityItem, type Wine } from '@wine-match/core';
-import { Badge } from '@wine-match/ui';
+import { Badge, Button } from '@wine-match/ui';
+import Link from 'next/link';
 import type { Dictionary } from '@/i18n/en';
 import { addOpportunitySuggestion, approvePairing, dismissOpportunity } from '../[slug]/actions';
 import { ActionButton } from './action-form';
 import { zl } from './format';
 
 const wineName = (w: Wine | null) => (w ? `${w.producer} ${w.name}` : '');
+/** A share in whole percent (spec: percentages rounded to integers). */
+const percent = (part: number, whole: number) => (whole > 0 ? Math.round((100 * part) / whole) : 0);
+
+/** The A6 anchor of a pairing row (S4 "Open pairings" lands on the primary pairing). */
+export const pairingAnchor = (pairingId: string) => `pairing-${pairingId}`;
 
 /** The sentence of one opportunity, built from its evidence in the dashboard's language (spec R2, R9). */
 export function opportunitySentence(item: OpportunityItem, dish: Dish, t: Dictionary, locale: Locale): string {
@@ -18,6 +24,8 @@ export function opportunitySentence(item: OpportunityItem, dish: Dish, t: Dictio
       return s.glass_match_unpaired(wineName(item.wine), e.score, zl(e.glassPrice, locale));
     case 'wine_unpaired':
       return s.wine_unpaired(wineName(item.wine), dish.name, e.score);
+    case 'shown_rarely_chosen':
+      return s.shown_rarely_chosen(wineName(item.wine), e.shown, WINDOW_DAYS, e.chosen, percent(e.chosen, e.shown), percent(e.otherChosen, e.otherShown));
     case 'ordered_not_reviewed':
       return s.ordered_not_reviewed(wineName(item.wine), e.orders, WINDOW_DAYS);
   }
@@ -27,6 +35,7 @@ export function opportunitySentence(item: OpportunityItem, dish: Dish, t: Dictio
  * The opportunities of one dish (spec 2026-10-16-sommelier-opportunities, F2): a row with the "Opportunity" badge, one
  * sentence with numbers and the actions, as plain form posts (no JavaScript). Used on A6 (the dish's card) and in A14.
  * S5 "Approve" posts the existing `approvePairing` with the pairing's version (`expectedVersion`), as on A6 and A7.
+ * S4 "Open pairings" is a link to the primary pairing's row on A6 (a link, not an action: everyone may follow it).
  * Roles without `pairings.decide` see the rows without buttons; every action checks the permission again.
  */
 export function OpportunityList({ items, dish, slug, back, decide, t, locale }: {
@@ -35,25 +44,30 @@ export function OpportunityList({ items, dish, slug, back, decide, t, locale }: 
   const m = t.admin.opportunities;
   return (
     <ul className="grid">
-      {items.map((o) => (
-        <li key={o.key} data-opportunity={o.rule} className="grid gap-3 border-b px-6 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-          <div className="min-w-0">
-            <Badge className="mb-1.5 border-transparent bg-brass-soft text-brass">{m.badge}</Badge>
-            <p className="text-sm">{opportunitySentence(o, dish, t, locale)}</p>
-          </div>
-          {decide && (
-            <div className="flex flex-wrap gap-1.5">
-              {o.action === 'approve' && o.pairingId && (
-                <ActionButton action={approvePairing} fields={{ slug, back, pairingId: o.pairingId, version: o.pairingVersion }}>{m.approve}</ActionButton>
-              )}
-              {o.action === 'add_suggestion' && o.wineId && (
-                <ActionButton action={addOpportunitySuggestion} fields={{ slug, back, dishId: o.dishId, wineId: o.wineId }}>{m.add}</ActionButton>
-              )}
-              <ActionButton action={dismissOpportunity} fields={{ slug, back, key: o.key }} variant="ghost">{m.ignore}</ActionButton>
+      {items.map((o) => {
+        // S4: a link to the primary pairing's row on A6 — a link, not an action, so roles without `pairings.decide` get it too
+        const anchor = o.rule === 'shown_rarely_chosen' && o.pairingId ? pairingAnchor(o.pairingId) : null;
+        return (
+          <li key={o.key} data-opportunity={o.rule} className="grid gap-3 border-b px-6 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div className="min-w-0">
+              <Badge className="mb-1.5 border-transparent bg-brass-soft text-brass">{m.badge}</Badge>
+              <p className="text-sm">{opportunitySentence(o, dish, t, locale)}</p>
             </div>
-          )}
-        </li>
-      ))}
+            {(decide || anchor) && (
+              <div className="flex flex-wrap gap-1.5">
+                {anchor && <Button asChild size="sm" variant="outline"><Link href={`/admin/${slug}/pairings/${o.dishId}#${anchor}`}>{m.openPairings}</Link></Button>}
+                {decide && o.action === 'approve' && o.pairingId && (
+                  <ActionButton action={approvePairing} fields={{ slug, back, pairingId: o.pairingId, version: o.pairingVersion }}>{m.approve}</ActionButton>
+                )}
+                {decide && o.action === 'add_suggestion' && o.wineId && (
+                  <ActionButton action={addOpportunitySuggestion} fields={{ slug, back, dishId: o.dishId, wineId: o.wineId }}>{m.add}</ActionButton>
+                )}
+                {decide && <ActionButton action={dismissOpportunity} fields={{ slug, back, key: o.key }} variant="ghost">{m.ignore}</ActionButton>}
+              </div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

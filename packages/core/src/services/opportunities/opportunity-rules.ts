@@ -1,5 +1,7 @@
 import { OPPORTUNITY_RULES, type Dish, type OpportunityRule, type Pairing, type Wine } from '../../domain/types';
 import { MIN_MODEL_SCORE } from '../../engine/recommend';
+import type { PairingStat } from '../../ports/repositories';
+import { MIN_RATE_SAMPLE } from '../analytics/compare-metric';
 import { isReviewed } from '../pairings/pairing-rules';
 
 /**
@@ -11,8 +13,8 @@ import { isReviewed } from '../pairings/pairing-rules';
  * (`OpportunityService`), so the rules never call the engine themselves. Not engine rules: they never change a score or
  * the order of a recommendation (R02).
  *
- * S1–S3 come from the menu and the scores (phase 1), S5 (`ordered_not_reviewed`, orders with a recommendation code)
- * from E09 (phase 4); S4 (`shown_rarely_chosen`, guests' choices) arrives in phase 3 with its own thresholds.
+ * S1–S3 come from the menu and the scores (phase 1), S4 (`shown_rarely_chosen`, guests' choices) from E04's
+ * `pairingStats` (phase 3), S5 (`ordered_not_reviewed`, orders with a recommendation code) from E09 (phase 4).
  */
 
 /** A wine that is "one of the 2–3 best for the dish" (Halka, `npm run engine:matrix`); recalibrate when ENGINE_VERSION changes. */
@@ -21,8 +23,14 @@ export const STRONG_MATCH = 85;
 export const DISMISS_DAYS = 30;
 /** S5: orders with a recommendation code in the window — more than once a week, more than one table of regulars. */
 export const MIN_ORDERS = 5;
-/** The window of S4/S5: the last 28 full days (for E09: service days, `lastFullServiceDays`). */
+/** The window of S4/S5: the last 28 full days (S4: E04's KPI window in Warsaw; S5: service days, `lastFullServiceDays`). */
 export const WINDOW_DAYS = 28;
+/** S4: the primary pairing was shown at least this often — E04's small-sample threshold (`MIN_RATE_SAMPLE`). */
+export const MIN_SHOWN = MIN_RATE_SAMPLE;
+/** S4: guests chose the dish's other wines at least this often; without that there is nothing to compare with. */
+export const MIN_OTHER_CHOSEN = 5;
+/** S4: the primary is chosen at most this fraction of the other wines' rate — at least twice as rarely. */
+export const LOW_RATE_FACTOR = 0.5;
 
 export type S1Reason = 'none' | 'no_primary' | 'primary_hidden';
 export type OpportunityAction = 'add_suggestion' | 'open_dish' | 'approve';
@@ -32,6 +40,7 @@ export type OpportunityEvidence =
   | { rule: 'dish_no_primary'; reason: S1Reason }
   | { rule: 'glass_match_unpaired'; score: number; glassPrice: number }
   | { rule: 'wine_unpaired'; score: number }
+  | { rule: 'shown_rarely_chosen'; shown: number; chosen: number; otherShown: number; otherChosen: number }
   | { rule: 'ordered_not_reviewed'; orders: number };
 
 export interface Opportunity {
@@ -42,7 +51,7 @@ export interface Opportunity {
   /** the wine to add (S2, S3), the hidden primary wine (S1 `primary_hidden`, evidence only), otherwise null */
   wineId: string | null;
   action: OpportunityAction;
-  /** S5 "Approve": the suggested pairing and the version the sommelier saw (`expectedVersion`) */
+  /** S5 "Approve": the suggested pairing and the version the sommelier saw (`expectedVersion`); S4: the primary pairing (A6 anchor) */
   pairingId?: string;
   pairingVersion?: number;
   evidence: OpportunityEvidence;
@@ -69,6 +78,8 @@ export interface OpportunityInput {
   dismissedKeys?: ReadonlySet<string>;
   /** S5; absent (scope `dish`, or the read failed) means no S5 */
   orders?: OrderedPair[];
+  /** S4: E04 `pairingStats` of the window; absent (scope `dish`, or the read failed) means no S4 */
+  pairingStats?: PairingStat[];
 }
 
 export type OpportunitySubject =
@@ -171,6 +182,35 @@ export function opportunityCandidates(input: OpportunityInput): Opportunity[] {
       ...(existing ? { pairingId: existing.id, pairingVersion: existing.version } : {}),
       evidence: { rule: 'ordered_not_reviewed', orders: o.orders }
     });
+  }
+
+  // S4 shown_rarely_chosen — the approved primary pairing, shown often under the sommelier's label, chosen rarely compared
+  // with the dish's other wines. Primary only: lower slots lose to the rest by position, which pairingStats cannot correct.
+  const stats = input.pairingStats;
+  if (stats) {
+    for (const p of input.pairings) {
+      if (!isReviewed(p) || p.role !== 'primary' || !publishedIds.has(p.dishId) || !activeIds.has(p.wineId)) continue;
+      let shown = 0, chosen = 0, otherShown = 0, otherChosen = 0;
+      for (const s of stats) {
+        if (s.dishId !== p.dishId) continue;
+        if (s.wineId === p.wineId) {
+          // the pair's own figures come from the sommelier's rows; an engine row of the same wine (before it was approved)
+          // is neither the primary's nor "another wine", so it counts nowhere
+          if (s.source === 'sommelier') { shown += s.shown; chosen += s.chosen; }
+        } else {
+          otherShown += s.shown;
+          otherChosen += s.chosen;
+        }
+      }
+      if (shown < MIN_SHOWN || otherChosen < MIN_OTHER_CHOSEN) continue;
+      // chosen / shown ≤ LOW_RATE_FACTOR × otherChosen / otherShown, without dividing (otherShown ≥ otherChosen ≥ 5)
+      if (chosen * otherShown > LOW_RATE_FACTOR * otherChosen * shown) continue;
+      out.push({
+        key: opportunityKey({ rule: 'shown_rarely_chosen', dishId: p.dishId, wineId: p.wineId }), rule: 'shown_rarely_chosen',
+        dishId: p.dishId, wineId: p.wineId, action: 'open_dish', pairingId: p.id,
+        evidence: { rule: 'shown_rarely_chosen', shown, chosen, otherShown, otherChosen }
+      });
+    }
   }
 
   // S3 wine_unpaired — an active wine with no approved pairing with any published dish, strong with its best undecided dish
