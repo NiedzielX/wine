@@ -14,8 +14,8 @@ import { formatPrice } from '@/server/i18n';
 export function Seal({ className = 'size-4' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M5.2 8.2 7.2 10l3.6-4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M5.2 8.2 7.2 10l3.6-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -29,7 +29,7 @@ export function TopBar({ back, title, right, t, langSwitch }: { back?: string; t
           <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" /></svg>
         </Link>
       ) : <span />}
-      <div className="truncate text-center font-serif text-[19px]">{title}</div>
+      <div className="truncate text-center font-serif text-lead">{title}</div>
       <div className="flex min-w-11 items-center justify-end">{right}{langSwitch}</div>
     </header>
   );
@@ -43,7 +43,7 @@ export function TopBar({ back, title, right, t, langSwitch }: { back?: string; t
  */
 export function LanguageSwitch({ locale, hrefs, t, tone = 'ink' }: { locale: Locale; hrefs: Record<Locale, string>; t: Dictionary; tone?: 'ink' | 'light' }) {
   const colour = tone === 'light' ? 'text-on-wine/70 aria-[current=true]:text-on-wine' : 'text-ink-3 aria-[current=true]:text-ink';
-  const link = `grid min-h-11 min-w-11 place-items-center rounded-full px-1.5 text-[13.5px] font-semibold tracking-wide aria-[current=true]:underline aria-[current=true]:underline-offset-4 focus-visible:outline-2 focus-visible:outline-wine ${colour}`;
+  const link = `grid min-h-11 min-w-11 place-items-center rounded-full px-1.5 text-small font-semibold tracking-wide aria-[current=true]:underline aria-[current=true]:underline-offset-4 focus-visible:outline-2 focus-visible:outline-wine ${colour}`;
   const one = (l: Locale) => (
     <a href={hrefs[l]} lang={l} hrefLang={l} aria-label={t.common.languageNames[l]} aria-current={locale === l ? 'true' : undefined} className={link}>
       <span aria-hidden="true" className="sm:hidden">{t.common.languageShort[l]}</span>
@@ -59,7 +59,7 @@ export function LanguageSwitch({ locale, hrefs, t, tone = 'ink' }: { locale: Loc
   );
 }
 
-const chipBase = 'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-sm font-medium whitespace-nowrap focus-visible:outline-2 focus-visible:outline-wine';
+const chipBase = 'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-small font-medium whitespace-nowrap focus-visible:outline-2 focus-visible:outline-wine';
 const chipOn = 'aria-[current=true]:border-ink aria-[current=true]:bg-ink aria-[current=true]:text-paper';
 
 /** A toggle chip that is a plain link: the state is in the URL. */
@@ -78,7 +78,7 @@ const BUTTON_STYLES = {
 
 export function Button({ href, children, variant = 'primary', className = '' }: { href: string; children: ReactNode; variant?: keyof typeof BUTTON_STYLES; className?: string }) {
   const style = BUTTON_STYLES[variant];
-  return <Link href={href} className={`inline-flex min-h-11 items-center justify-center rounded-full border px-5 text-[15px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine ${style} ${className}`}>{children}</Link>;
+  return <Link href={href} className={`inline-flex min-h-11 items-center justify-center rounded-full border px-5 text-body font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine ${style} ${className}`}>{children}</Link>;
 }
 
 /** Sticky bottom bar for the main action (thumb reach). */
@@ -91,7 +91,7 @@ export function BottomBar({ children }: { children: ReactNode }) {
 export function EmptyState({ title, text, action }: { title: string; text: string; action?: ReactNode }) {
   return (
     <div className="grid justify-items-center gap-3.5 px-3 py-12 text-center">
-      <h2 className="font-serif text-2xl">{title}</h2>
+      <h2 className="font-serif text-h2">{title}</h2>
       <p className="max-w-[30ch] text-ink-2">{text}</p>
       {action}
     </div>
@@ -99,12 +99,12 @@ export function EmptyState({ title, text, action }: { title: string; text: strin
 }
 
 export function Notice({ children }: { children: ReactNode }) {
-  return <p role="status" className="my-4 rounded-[10px] bg-brass-soft px-3.5 py-3 text-[14.5px] text-[#5d4720]">{children}</p>;
+  return <p role="status" className="my-4 rounded-xl bg-brass-soft px-3.5 py-3 text-body text-[#5d4720]">{children}</p>;
 }
 
 export function Price({ wine, serving, t, locale }: { wine: Wine; serving: GuestPreferences['serving']; t: Dictionary; locale: Locale }) {
   return (
-    <p className="flex gap-3 text-[14.5px] tabular-nums">
+    <p className="flex gap-3 text-body tabular-nums">
       {wine.glassPrice !== null && serving !== 'bottle' && <span>{t.guest.wines.glassPrice(formatPrice(wine.glassPrice, locale))}</span>}
       {serving !== 'glass' && <span>{t.guest.wines.bottlePrice(formatPrice(wine.bottlePrice, locale))}</span>}
     </p>
@@ -120,8 +120,8 @@ export function Score({ score, colour, showScores, size, t }: { score: number; c
   return (
     <div className="grid justify-items-center gap-0.5 text-ink-2">
       <MatchGlass score={score} colour={colour} size={size} label={showScores ? w.matchLabel : () => w.glassLabel} />
-      {showScores && <b className="text-[15px] font-semibold text-ink tabular-nums">{score}%</b>}
-      {showScores && <small className="text-[11.5px] text-ink-3">{t.guest.wines.match}</small>}
+      {showScores && <b className="text-body font-semibold text-ink tabular-nums">{score}%</b>}
+      {showScores && <small className="text-caption text-ink-3">{t.guest.wines.match}</small>}
     </div>
   );
 }
@@ -130,8 +130,8 @@ export function Badges({ item, t }: { item: RecommendationItem; t: Dictionary })
   if (!item.sommelier && !item.bestValue) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
-      {item.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-[12.5px] leading-5 font-semibold text-brass"><Seal className="size-3.5" />{t.guest.wines.sommelierPairing}</span>}
-      {item.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-[12.5px] leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
+      {item.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass"><Seal className="size-3.5" />{t.guest.wines.sommelierPairing}</span>}
+      {item.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-small leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
     </div>
   );
 }
@@ -139,19 +139,19 @@ export function Badges({ item, t }: { item: RecommendationItem; t: Dictionary })
 export function BestCard({ item, href, serving, showScores, t, locale }: { item: RecommendationItem; href: string; serving: GuestPreferences['serving']; showScores: boolean; t: Dictionary; locale: Locale }) {
   const w = item.wine;
   return (
-    <Link href={href} className="mt-6 block rounded-[18px] border border-line bg-surface p-5 focus-visible:outline-2 focus-visible:outline-wine">
-      <p className="flex items-center gap-2 text-sm font-semibold text-wine">{item.sommelier && <Seal />}{item.sommelier ? t.guest.wines.sommelierPairing : t.guest.wines.recommended}</p>
+    <Link href={href} className="mt-6 block rounded-2xl border border-line bg-surface p-5 focus-visible:outline-2 focus-visible:outline-wine">
+      <p className="flex items-center gap-2 text-small font-semibold text-wine">{item.sommelier && <Seal />}{item.sommelier ? t.guest.wines.sommelierPairing : t.guest.wines.recommended}</p>
       <div className="mt-3 grid grid-cols-[1fr_auto] items-start gap-4">
         <div>
-          <h2 className="font-serif text-[25px] leading-tight">{w.name}</h2>
-          <p className="mt-1 text-[15px] text-ink-2">{w.producer}<br />{w.region}, {w.vintage === 'NV' ? t.guest.wines.nonVintage : w.vintage}</p>
+          <h2 className="font-serif text-h2 leading-tight">{w.name}</h2>
+          <p className="mt-1 text-body text-ink-2">{w.producer}<br />{w.region}, {w.vintage === 'NV' ? t.guest.wines.nonVintage : w.vintage}</p>
         </div>
         <Score score={item.matchScore} colour={w.colour} showScores={showScores} size={48} t={t} />
       </div>
-      <p className="mt-4 border-t border-line pt-4 text-[15.5px] leading-normal">{item.why}</p>
+      <p className="mt-4 border-t border-line pt-4 text-body leading-normal">{item.why}</p>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <Price wine={w} serving={serving} t={t} locale={locale} />
-        {item.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-[12.5px] leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
+        {item.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-small leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
       </div>
     </Link>
   );
@@ -162,9 +162,9 @@ export function WineRow({ item, href, serving, showScores, t, locale }: { item: 
   return (
     <Link href={href} className="grid grid-cols-[1fr_auto] items-start gap-3 border-b border-line py-4 last:border-b-0 focus-visible:outline-2 focus-visible:outline-wine">
       <div>
-        <h3 className="font-serif text-[19px] leading-tight">{w.name}</h3>
-        <p className="text-sm text-ink-2">{w.producer}, {w.region} {w.vintage === 'NV' ? '' : w.vintage}</p>
-        <p className="mt-1.5 text-sm leading-snug text-ink-2">{item.why}</p>
+        <h3 className="font-serif text-lead leading-tight">{w.name}</h3>
+        <p className="text-small text-ink-2">{w.producer}, {w.region} {w.vintage === 'NV' ? '' : w.vintage}</p>
+        <p className="mt-1.5 text-small leading-snug text-ink-2">{item.why}</p>
         <Badges item={item} t={t} />
         <div className="mt-2.5"><Price wine={w} serving={serving} t={t} locale={locale} /></div>
       </div>
@@ -180,7 +180,7 @@ export function WineRow({ item, href, serving, showScores, t, locale }: { item: 
  */
 export function RecoFooter({ director, restaurant, showUnreviewed, howHref, t }: { director: string; restaurant: string; showUnreviewed: boolean; howHref: string; t: Dictionary }) {
   return (
-    <p className="mt-7 flex items-start gap-2 text-[13.5px] text-ink-2">
+    <p className="mt-7 flex items-start gap-2 text-small text-ink-2">
       <Seal className="mt-0.5 size-4 shrink-0" />
       <span>
         {t.guest.wines.footer(restaurant, director, showUnreviewed)}{' '}
@@ -202,9 +202,9 @@ export function Explain({ id, summary, points, tone = 'page', className = '' }: 
       explainId={id}
       summary={summary}
       className={className}
-      summaryClassName="min-h-11 w-fit rounded-lg text-[14.5px] font-medium text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine"
+      summaryClassName="min-h-11 w-fit rounded-lg text-body font-medium text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine"
       iconClassName="text-wine"
-      bodyClassName={`rounded-[10px] px-4 py-3 text-[14.5px] leading-snug text-ink-2 ${tone === 'sheet' ? 'bg-paper' : 'bg-surface'}`}
+      bodyClassName={`rounded-xl px-4 py-3 text-body leading-snug text-ink-2 ${tone === 'sheet' ? 'bg-paper' : 'bg-surface'}`}
     >
       <ul className="grid list-disc gap-2 pl-4 marker:text-ink-2">
         {points.map((p) => <li key={p}>{p}</li>)}
@@ -217,7 +217,7 @@ export function Explain({ id, summary, points, tone = 'page', className = '' }: 
  * "Works with n of m dishes, less so with: …" under a table bottle (spec 2026-10-16-whole-table-waiter-path, R12):
  * the engine's `table.fit`, worded by the dictionary. Replaces the old one-line `why` on the table screens.
  */
-export function TableFitLine({ fit, t, className = 'mt-1.5 text-sm text-ink-2' }: { fit: TableFit; t: Dictionary; className?: string }) {
+export function TableFitLine({ fit, t, className = 'mt-1.5 text-small text-ink-2' }: { fit: TableFit; t: Dictionary; className?: string }) {
   return <p className={className}>{t.guest.tableFit.line({ fits: fit.fits, of: fit.of, weaker: fit.weaker.map((d) => d.dish.name), compromise: fit.compromise })}</p>;
 }
 
@@ -230,12 +230,12 @@ export function DishScores({ perDish, showScores, t }: { perDish: TableDishScore
   return (
     <ul className="grid gap-2.5">
       {perDish.map((x) => (
-        <li key={x.dish.id} className={`grid ${showScores ? 'grid-cols-[minmax(0,1fr)_minmax(0,120px)_36px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,120px)]'} items-center gap-2.5 text-[14.5px]`}>
+        <li key={x.dish.id} className={`grid ${showScores ? 'grid-cols-[minmax(0,1fr)_minmax(0,120px)_36px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,120px)]'} items-center gap-2.5 text-body`}>
           <span className="min-w-0">
             {x.dish.name}
             {x.sommelierPick && <span className="ml-1.5 inline-block align-[-3px] text-brass"><Seal className="size-4" /><span className="sr-only">{t.guest.tableResult.sommelierPairing}</span></span>}
           </span>
-          <span className="h-1.5 overflow-hidden rounded bg-line" aria-hidden="true"><i className="block h-full rounded bg-wine" style={{ width: `${x.engineScore}%` }} /></span>
+          <span className="h-1.5 overflow-hidden rounded-lg bg-line" aria-hidden="true"><i className="block h-full rounded-lg bg-wine" style={{ width: `${x.engineScore}%` }} /></span>
           {showScores && <b className="text-right font-semibold tabular-nums">{x.engineScore}%</b>}
         </li>
       ))}
@@ -248,7 +248,7 @@ export function DishScores({ perDish, showScores, t }: { perDish: TableDishScore
  * spec 2026-10-16-whole-table-waiter-path R7). The page gives both targets, with its preferences, `lang` and `sid`.
  */
 export function ModeSwitch({ dishHref, tableHref, mode, t }: { dishHref: string; tableHref: string; mode: 'dish' | 'table'; t: Dictionary }) {
-  const base = 'rounded-full py-2.5 text-center text-[14.5px] font-semibold text-ink-2 aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-sm';
+  const base = 'rounded-full py-2.5 text-center text-body font-semibold text-ink-2 aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-sm';
   return (
     <nav aria-label={t.guest.menu.mode} className="mb-5 grid grid-cols-2 rounded-full bg-[#ebe7e9] p-1">
       <Link href={dishHref} aria-current={mode === 'dish' ? 'page' : undefined} className={base}>{t.guest.menu.oneDish}</Link>
@@ -261,7 +261,7 @@ export function ModeSwitch({ dishHref, tableHref, mode, t }: { dishHref: string;
  * "For 6 people: 3 bottles · 960 zł" (spec 2026-10-16-whole-table-waiter-path, F4, R16): the engine's `table.quantity`
  * for the number of people someone chose, worded by the dictionary. Never rendered without a choice (Q4).
  */
-export function TableQuantityLine({ quantity, t, locale, className = 'mt-3 text-[15.5px] font-semibold tabular-nums' }: { quantity: TableQuantity; t: Dictionary; locale: Locale; className?: string }) {
+export function TableQuantityLine({ quantity, t, locale, className = 'mt-3 text-body font-semibold tabular-nums' }: { quantity: TableQuantity; t: Dictionary; locale: Locale; className?: string }) {
   return <p data-table-quantity="" className={className}>{t.guest.tableQuantity.line({ ...quantity, total: formatPrice(quantity.total, locale) })}</p>;
 }
 
@@ -274,8 +274,8 @@ export function PeopleLinks({ people, hrefFor, prefetch, t }: { people: number |
   const l = t.guest.tableQuantity;
   return (
     <nav aria-label={l.question} data-people-links="" className="mt-3">
-      <p className="text-[14.5px] font-semibold">{l.question}</p>
-      {people === null && <p className="mt-0.5 text-sm text-ink-2">{l.hint}</p>}
+      <p className="text-body font-semibold">{l.question}</p>
+      {people === null && <p className="mt-0.5 text-small text-ink-2">{l.hint}</p>}
       <div className="mt-2 flex flex-wrap gap-1.5">
         {TABLE_PEOPLE_CHOICES.map((n) => (
           <Link key={n} href={hrefFor(n)} scroll={false} prefetch={prefetch} aria-label={l.peopleLabel(n)} aria-current={people === n ? 'true' : undefined}
@@ -294,7 +294,7 @@ export function PeopleChoice({ people, className = 'mt-6', t }: { people: number
   const l = t.guest.tableQuantity;
   return (
     <fieldset className={`${className} border-0 p-0`}>
-      <legend className="mb-2.5 text-[15px] font-semibold">{l.question}</legend>
+      <legend className="mb-2.5 text-body font-semibold">{l.question}</legend>
       <div className="flex flex-wrap gap-2">
         <label className={pill}><input type="radio" name="people" value="" defaultChecked={people === null} className="sr-only" />{l.skip}</label>
         {[...TABLE_PEOPLE_CHOICES, TABLE_PEOPLE_MORE].map((n) => (
@@ -329,11 +329,11 @@ export function TableDishPicker({ dishes, selected, variant, dessertsNote, t, lo
   if (variant === 'rows') {
     return present.map((c) => (
       <section key={c}>
-        <h2 className="mt-7 mb-1 font-serif text-[26px]">{t.guest.categories[c]}</h2>
+        <h2 className="mt-7 mb-1 font-serif text-h1">{t.guest.categories[c]}</h2>
         {dishes.filter((d) => d.category === c).map((d) => (
           <label key={d.id} className="grid cursor-pointer grid-cols-[28px_1fr_auto] items-start gap-3.5 border-b border-line py-4">
-            <input type="checkbox" name="dish" value={d.id} defaultChecked={selected.has(d.id)} className="mt-0.5 size-6 cursor-pointer rounded-[7px] accent-wine" />
-            <span><span className="font-serif text-[19px]">{d.name}</span><br /><span className="text-sm text-ink-2">{d.description}</span></span>
+            <input type="checkbox" name="dish" value={d.id} defaultChecked={selected.has(d.id)} className="mt-0.5 size-6 cursor-pointer rounded-lg accent-wine" />
+            <span><span className="font-serif text-lead">{d.name}</span><br /><span className="text-small text-ink-2">{d.description}</span></span>
             <span className="text-ink-3 tabular-nums">{formatPrice(d.price, locale)}</span>
           </label>
         ))}
@@ -344,18 +344,18 @@ export function TableDishPicker({ dishes, selected, variant, dessertsNote, t, lo
   return (
     <div>
       <nav aria-label={t.guest.menu.sections} className="sticky top-[57px] z-10 -mx-5 flex gap-1.5 overflow-x-auto bg-paper px-5 py-2.5 [scrollbar-width:none]">
-        {present.map((c) => <a key={c} href={`#${anchor(c)}`} className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-wine">{t.guest.categories[c]}</a>)}
+        {present.map((c) => <a key={c} href={`#${anchor(c)}`} className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-small font-medium focus-visible:outline-2 focus-visible:outline-wine">{t.guest.categories[c]}</a>)}
       </nav>
       {present.map((c) => (
         <section key={c} id={anchor(c)} data-dish-section="" className="scroll-mt-32">
-          <h2 className="mt-4 mb-2 font-serif text-[22px]">
+          <h2 className="mt-4 mb-2 font-serif text-h2">
             {t.guest.categories[c]}
-            {c === 'Desserts' && dessertsNote && <span className="ml-2 font-sans text-sm text-ink-2">({dessertsNote})</span>}
+            {c === 'Desserts' && dessertsNote && <span className="ml-2 font-sans text-small text-ink-2">({dessertsNote})</span>}
           </h2>
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
             {dishes.filter((d) => d.category === c).map((d) => (
               <label key={d.id} data-dish-name={d.name.toLowerCase()}
-                className="flex min-h-12 min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-[#d4ccd0] bg-surface px-3 py-2 text-[15px] leading-tight has-[input:checked]:border-wine has-[input:checked]:bg-[#f6eef1] has-[input:checked]:shadow-[inset_0_0_0_1px_var(--color-wine)] has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-wine">
+                className="flex min-h-12 min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-[#d4ccd0] bg-surface px-3 py-2 text-body leading-tight has-[input:checked]:border-wine has-[input:checked]:bg-[#f6eef1] has-[input:checked]:shadow-[inset_0_0_0_1px_var(--color-wine)] has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-wine">
                 <input type="checkbox" name="dish" value={d.id} defaultChecked={selected.has(d.id)} className="size-5 shrink-0 cursor-pointer accent-wine" />
                 <span className="min-w-0 [overflow-wrap:anywhere]">{d.name}</span>
               </label>
@@ -367,13 +367,13 @@ export function TableDishPicker({ dishes, selected, variant, dessertsNote, t, lo
   );
 }
 
-const pill = 'inline-flex min-h-9 cursor-pointer items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-sm font-medium has-[input:checked]:border-ink has-[input:checked]:bg-ink has-[input:checked]:text-paper has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine';
+const pill = 'inline-flex min-h-9 cursor-pointer items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-small font-medium has-[input:checked]:border-ink has-[input:checked]:bg-ink has-[input:checked]:text-paper has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine';
 
 /** Colour checkboxes (`styles`) of a table form (G5, G11): pills that are native checkboxes, no script. */
 export function StyleChoice({ prefs, legend, className = 'mt-4', locale }: { prefs: GuestPreferences; legend: string; className?: string; locale: Locale }) {
   return (
     <fieldset className={`${className} border-0 p-0`}>
-      <legend className="mb-2.5 text-[15px] font-semibold">{legend}</legend>
+      <legend className="mb-2.5 text-body font-semibold">{legend}</legend>
       <div className="flex flex-wrap gap-2">
         {WINE_STYLES.map((s) => (
           <label key={s} className={pill}><input type="checkbox" name="styles" value={s} defaultChecked={prefs.styles.includes(s)} className="sr-only" />{styleLabel(s, locale)}</label>
@@ -387,7 +387,7 @@ export function StyleChoice({ prefs, legend, className = 'mt-4', locale }: { pre
 export function BudgetChoice({ prefs, budgets, legend, className = 'mt-5', t, locale }: { prefs: GuestPreferences; budgets: number[]; legend: string; className?: string; t: Dictionary; locale: Locale }) {
   return (
     <fieldset className={`${className} border-0 p-0`}>
-      <legend className="mb-2.5 text-[15px] font-semibold">{legend}</legend>
+      <legend className="mb-2.5 text-body font-semibold">{legend}</legend>
       <div className="flex flex-wrap gap-2">
         <label className={pill}><input type="radio" name="maxPrice" value="" defaultChecked={prefs.maxPrice === null} className="sr-only" />{t.guest.prefs.any}</label>
         {budgets.map((b) => <label key={b} className={pill}><input type="radio" name="maxPrice" value={b} defaultChecked={prefs.maxPrice === b} className="sr-only" />{t.guest.prefs.upTo(formatPrice(b, locale))}</label>)}
@@ -416,20 +416,20 @@ export function DishList({ dishes, coverage, hrefFor, currentId, stickyTop = 'to
   return (
     <div>
       <nav aria-label={t.guest.menu.sections} className={`sticky ${stickyTop} z-10 -mx-5 flex gap-1.5 overflow-x-auto bg-paper px-5 py-2.5`}>
-        {present.map((c) => <a key={c} href={`#cat-${c.toLowerCase()}`} className="inline-flex min-h-9 items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-sm font-medium">{t.guest.categories[c]}</a>)}
+        {present.map((c) => <a key={c} href={`#cat-${c.toLowerCase()}`} className="inline-flex min-h-9 items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-small font-medium">{t.guest.categories[c]}</a>)}
       </nav>
       {present.map((c) => (
         <section key={c} id={`cat-${c.toLowerCase()}`} className="scroll-mt-28">
-          <h2 className={`mb-1 font-serif ${compact ? 'mt-5 text-[22px]' : 'mt-7 text-[26px]'}`}>{t.guest.categories[c]}</h2>
+          <h2 className={`mb-1 font-serif ${compact ? 'mt-5 text-h2' : 'mt-7 text-h1'}`}>{t.guest.categories[c]}</h2>
           {dishes.filter((d) => d.category === c).map((d) => {
             const current = d.id === currentId;
             return (
               <Link key={d.id} href={hrefFor(d)} aria-current={current ? 'page' : undefined}
                 className="-mx-3 grid scroll-mt-28 grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-1 rounded-xl border-b border-line px-3 py-4 last:border-b-0 hover:bg-ink/[0.03] focus-visible:outline-2 focus-visible:outline-wine aria-[current=page]:bg-surface aria-[current=page]:shadow-[inset_3px_0_0_var(--color-wine)]">
-                <span className={`font-serif leading-tight ${compact ? 'text-lg' : 'text-xl'}`}>{d.name}</span>
-                <span className="text-[15px] text-ink-2 tabular-nums">{formatPrice(d.price, locale)}</span>
-                {!compact && <span className="col-span-2 text-[14.5px] leading-snug text-ink-2">{d.description}</span>}
-                {coverage.get(d.id)?.hasPrimary && <span className="col-span-2 mt-1 flex items-center gap-1.5 text-[13.5px] text-brass"><Seal className="size-3.5" />{t.guest.menu.sommelierAvailable}</span>}
+                <span className={`font-serif leading-tight ${compact ? 'text-lead' : 'text-lead'}`}>{d.name}</span>
+                <span className="text-body text-ink-2 tabular-nums">{formatPrice(d.price, locale)}</span>
+                {!compact && <span className="col-span-2 text-body leading-snug text-ink-2">{d.description}</span>}
+                {coverage.get(d.id)?.hasPrimary && <span className="col-span-2 mt-1 flex items-center gap-1.5 text-small text-brass"><Seal className="size-3.5" />{t.guest.menu.sommelierAvailable}</span>}
               </Link>
             );
           })}

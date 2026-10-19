@@ -19,26 +19,26 @@ export interface CodeLabels {
  */
 export function CodeForWaiter({ code, t, labels = t.guest.selected.code, compact = false }: { code: string | null; t: Dictionary; labels?: CodeLabels; compact?: boolean }) {
   const l = labels;
-  if (!code) return <p data-recommendation-code="none" className={compact ? 'text-[13.5px] text-ink-2' : 'text-[14.5px] text-ink-2'}>{l.unavailable}</p>;
+  if (!code) return <p data-recommendation-code="none" className={compact ? 'text-small text-ink-2' : 'text-body text-ink-2'}>{l.unavailable}</p>;
   if (compact) {
     return (
-      <section data-recommendation-code={code} aria-labelledby="recommendation-code-title" className="grid justify-items-center gap-0.5 rounded-[14px] border border-dashed border-[#d4ccd0] px-3 py-2">
-        <h2 id="recommendation-code-title" className="text-[12.5px] font-semibold text-ink-2">{l.title}</h2>
+      <section data-recommendation-code={code} aria-labelledby="recommendation-code-title" className="grid justify-items-center gap-0.5 rounded-xl border border-dashed border-[#d4ccd0] px-3 py-2">
+        <h2 id="recommendation-code-title" className="text-small font-semibold text-ink-2">{l.title}</h2>
         <p className="m-0">
-          <span aria-hidden="true" className="font-serif text-[26px] leading-none tracking-[0.14em] tabular-nums">{code}</span>
+          <span aria-hidden="true" className="font-serif text-h1 leading-none tracking-[0.14em] tabular-nums">{code}</span>
           <span className="sr-only">{l.spoken(code)}</span>
         </p>
       </section>
     );
   }
   return (
-    <section data-recommendation-code={code} aria-labelledby="recommendation-code-title" className="grid w-full justify-items-center gap-1.5 rounded-[18px] border border-dashed border-[#d4ccd0] px-5 py-4">
-      <h2 id="recommendation-code-title" className="text-sm font-semibold text-ink-2">{l.title}</h2>
+    <section data-recommendation-code={code} aria-labelledby="recommendation-code-title" className="grid w-full justify-items-center gap-1.5 rounded-2xl border border-dashed border-[#d4ccd0] px-5 py-4">
+      <h2 id="recommendation-code-title" className="text-small font-semibold text-ink-2">{l.title}</h2>
       <p className="m-0">
-        <span aria-hidden="true" className="font-serif text-[40px] leading-none tracking-[0.18em] tabular-nums">{code}</span>
+        <span aria-hidden="true" className="font-serif text-display leading-none tracking-[0.18em] tabular-nums">{code}</span>
         <span className="sr-only">{l.spoken(code)}</span>
       </p>
-      <p className="text-[14.5px] text-ink-2">{l.hint}</p>
+      <p className="text-body text-ink-2">{l.hint}</p>
     </section>
   );
 }

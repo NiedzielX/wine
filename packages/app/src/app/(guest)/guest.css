@@ -12,6 +12,14 @@
 @theme {
   --font-sans: "Hanken Grotesk Variable", "Helvetica Neue", Arial, system-ui, sans-serif;
   --font-serif: "Bodoni Moda Variable", "Bodoni 72", Didot, "Times New Roman", serif;
+  /* Seven text styles (docs/DESIGN_SYSTEM.md §3). Use these names, never px values. */
+  --text-caption: 12px;
+  --text-small: 13px;
+  --text-body: 15px;
+  --text-lead: 17px;
+  --text-h2: 24px;
+  --text-h1: 30px;
+  --text-display: 40px;
   --color-ink: #22181d;
   --color-ink-2: #5e5258;
   /* AA for text on paper and surface (4.5:1). Was #857a80 at 3.73:1; scripts/check-design.mjs keeps it there. */

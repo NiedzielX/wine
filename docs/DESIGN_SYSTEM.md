@@ -42,8 +42,8 @@ Zmiana w tej iteracji: `ink-3` z `#857a80` (3,73:1, poniżej AA) na `#6f646a`. S
 ## 3. Skale
 
 - **Odstępy:** 4 / 8 / 16 / 24 / 32 / 48 px. Zamiast dowolnych wartości. Odstęp między powiązanym tekstem to 8, między akapitami 16, wewnątrz paneli 24, między komponentami 32, między sekcjami 48.
-- **Promienie:** 8 (małe kontrolki), 12 (przyciski, karty), 16 (panele), pełne (pigułki). Dziś na stronach gościa jest 9 różnych wartości; cel to cztery.
-- **Typografia:** dziś 24 rozmiary tekstu, cel to około sześć stylów: display, nagłówek 1, nagłówek 2, treść, drobny tekst, podpis. Hierarchia przez grubość i kolor, nie tylko rozmiar. Linia tekstu 45–75 znaków. Rodziny: `serif` (Bodoni Moda, nagłówki i nazwy) i `sans` (Hanken Grotesk, reszta).
+- **Promienie:** 8 (`rounded-lg`, małe kontrolki), 12 (`rounded-xl`, przyciski, karty), 16 (`rounded-2xl`, panele), pełne (`rounded-full`, pigułki).
+- **Typografia:** siedem stylów zdefiniowanych w `guest.css` (`--text-*`): caption 12, small 13, body 15, lead 17, h2 24, h1 30, display 40. Nowe wartości px nie wchodzą do kodu. Hierarchia przez grubość i kolor, nie tylko rozmiar. Linia tekstu 45–75 znaków. Rodziny: `serif` (Bodoni Moda, nagłówki i nazwy) i `sans` (Hanken Grotesk, reszta).
 - **Ruch:** bez animacji sukcesu przed potwierdzeniem z serwera. Przy ograniczeniu ruchu w systemie animacje znikają.
 - **Ikony:** jeden zestaw na produkt, grubość linii dopasowana do fontu. Emoji nie są ikonami.
 
@@ -72,9 +72,9 @@ Pełny kontrakt każdego komponentu (API, stany, dostępność) dopisujemy przy 
 - [x] Krok 2: tokeny w trzech warstwach (sekcja 2).
 - [x] Krok 3: kontrast tekstu (`ink-3`).
 - [x] Krok 7: automatyczna kontrola (`check:design`, ratchet na liczbę wartości).
-- [ ] Krok 4: konsolidacja typografii do sześciu stylów.
-- [ ] Krok 5: konsolidacja promieni do czterech wartości i jednego zestawu ikon.
+- [x] Krok 4: typografia w siedmiu stylach (`text-caption`, `text-small`, `text-body`, `text-lead`, `text-h2`, `text-h1`, `text-display`); siedem zamiast sześciu, bo nagłówek 2 i treść wiodąca różnią się realnie.
+- [x] Krok 5: promienie 8 / 12 / 16 / pełne (`rounded-lg`, `rounded-xl`, `rounded-2xl`, `rounded-full`); ikony jednej grubości linii (1,5).
 - [ ] Krok 6: kontrakty komponentów gościa w tym dokumencie.
 - [ ] Krok 8: test z agentem: ekran zbudowany tylko z tego dokumentu, z listą miejsc, w których agent zgadywał.
 
-Ratchet w `scripts/check-design.mjs`: obecne wartości (8 kolorów hex poza tokenami, 24 rozmiary tekstu, 9 promieni) są limitem. Po każdym kroku 4–5 obniżamy limit, nigdy nie podnosimy.
+Ratchet w `scripts/check-design.mjs`: limit to 8 kolorów hex poza tokenami, 7 stylów tekstu i 4 promienie. Po każdym kroku 4–5 obniżamy limit, nigdy nie podnosimy.

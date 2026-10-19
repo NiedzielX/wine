@@ -9,7 +9,7 @@ import { Chip } from './guest-ui';
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-5">
-      <h2 className="mb-2.5 text-[15px] font-semibold">{title}</h2>
+      <h2 className="mb-2.5 text-body font-semibold">{title}</h2>
       <div className="flex flex-wrap gap-2">{children}</div>
     </section>
   );

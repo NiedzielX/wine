@@ -72,14 +72,14 @@ export default async function SelectedPage({ params, searchParams }: Props) {
       <TopBar back={back} title={restaurant.name} t={t} langSwitch={langSwitch} />
       <main className="flex-1 px-5 pt-6 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">
         <div className="grid justify-items-center gap-3.5 text-center">
-          <p className="max-w-[30ch] text-[15.5px] text-ink-2">{l.showWaiter}</p>
-          <div className="grid w-full justify-items-center gap-2.5 rounded-[18px] border border-[#d4ccd0] bg-surface px-5 py-6">
-            {wine.listNumber !== undefined && <span className="text-sm text-ink-2">{l.listNo(wine.listNumber)}</span>}
-            <h2 className="font-serif text-[28px] leading-[1.12]">{wine.producer}<br />{wine.name}</h2>
+          <p className="max-w-[30ch] text-body text-ink-2">{l.showWaiter}</p>
+          <div className="grid w-full justify-items-center gap-2.5 rounded-2xl border border-[#d4ccd0] bg-surface px-5 py-6">
+            {wine.listNumber !== undefined && <span className="text-small text-ink-2">{l.listNo(wine.listNumber)}</span>}
+            <h2 className="font-serif text-h1 leading-[1.12]">{wine.producer}<br />{wine.name}</h2>
             <span className="text-ink-2">{wine.vintage === 'NV' ? t.guest.wine.nonVintage : wine.vintage}</span>
             <span className="font-semibold tabular-nums">{serving === 'glass' ? l.oneGlass(wine.glassPour, price) : l.oneBottle(wine.bottleSize, price)}</span>
             {dish ? <span className="text-ink-3">{l.withDish(dish.name)}</span> : tableIds.length > 0 ? <span className="text-ink-3">{l.forTable}</span> : null}
-            {quantity && <TableQuantityLine quantity={quantity} t={t} locale={locale} className="text-[15.5px] font-semibold tabular-nums" />}
+            {quantity && <TableQuantityLine quantity={quantity} t={t} locale={locale} className="text-body font-semibold tabular-nums" />}
           </div>
           <CodeForWaiter code={code} t={t} />
           <Explain id="selected" className="w-full text-left" summary={explain.summary} points={[...explain.points, ...(code ? [l.code.explain] : [])]} />

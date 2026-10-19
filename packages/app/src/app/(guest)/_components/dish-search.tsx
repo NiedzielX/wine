@@ -34,7 +34,7 @@ export function DishSearch({ containerId, label }: { containerId: string; label:
         type="search" value={query} placeholder={label} autoComplete="off" enterKeyHint="done"
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
-        className="min-h-11 w-full rounded-full border border-[#d4ccd0] bg-surface px-4 text-[15px] focus-visible:outline-2 focus-visible:outline-wine"
+        className="min-h-11 w-full rounded-full border border-[#d4ccd0] bg-surface px-4 text-body focus-visible:outline-2 focus-visible:outline-wine"
       />
     </label>
   );
