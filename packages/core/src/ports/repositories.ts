@@ -1,4 +1,5 @@
 import type { ImportRepository } from './import';
+import type { SalesRepository } from './sales';
 import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
 import type { Locale } from '../i18n/locale';
 import type {
@@ -259,4 +260,5 @@ export interface Repositories {
   opportunityDismissalRepository: OpportunityDismissalRepository;
   guestInteractionRepository: GuestInteractionRepository;
   recommendationCodeRepository: RecommendationCodeRepository;
+  salesRepository: SalesRepository;
 }

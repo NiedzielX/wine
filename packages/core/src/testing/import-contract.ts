@@ -3,7 +3,8 @@ import type { DemoDataset } from '../demo/dataset';
 import type { Dish, Pairing, Wine } from '../domain/types';
 import { InvariantError, NotFoundError } from '../errors';
 import type { ImportJob, ImportRow } from '../import/types';
-import type { ImportPlan } from '../ports/import';
+import type { CatalogImportPlan, SalesImportPlan } from '../ports/import';
+import type { SalesRecord } from '../services/sales/types';
 import type { Repositories } from '../ports/repositories';
 
 /**
@@ -36,7 +37,14 @@ export function importContract(name: string, setup: () => Promise<{ repos: Repos
     const pairing = (dishId: string, wineId: string): Pairing => ({
       id: uuid(), dishId, wineId, status: 'suggested', role: null, rank: null, comment: null, commentTranslations: {}, modelScore: 81, source: 'engine', updatedBy: 'Wine Match engine', updatedAt: AT, dirty: false
     });
-    const plan = (over: Partial<ImportPlan> = {}): ImportPlan => ({ newDishes: [], dishUpdates: [], newWines: [], wineUpdates: [], newPairings: [], result: { created: 0, updated: 0, skipped: 0, suggestions: 0 }, ...over });
+    const plan = (over: Partial<CatalogImportPlan> = {}): CatalogImportPlan => ({ kind: 'catalog', newDishes: [], dishUpdates: [], newWines: [], wineUpdates: [], newPairings: [], result: { created: 0, updated: 0, skipped: 0, suggestions: 0 }, ...over });
+    const salesLine = (businessDate: string, checkId: string, over: Partial<SalesRecord> = {}): SalesRecord =>
+      ({ id: uuid(), businessDate, checkId, covers: 2, itemType: 'food', quantity: 1, netAmount: 50, ...over });
+    const salesPlan = (records: SalesRecord[]): SalesImportPlan => ({
+      kind: 'sales', records, checks: [...new Map(records.map((r) => [`${r.businessDate}|${r.checkId}`, { businessDate: r.businessDate, checkId: r.checkId }])).values()],
+      result: { created: records.length, updated: 0, skipped: 0, suggestions: 0 }
+    });
+    const salesJob = () => job({ kind: 'sales', fileName: 'sales.csv', fileType: 'csv', parser: 'csv', rows: [] });
 
     t.it('stores a job and reads it back whole, only for its own restaurant', async () => {
       const j = job();
@@ -149,6 +157,53 @@ export function importContract(name: string, setup: () => Promise<{ repos: Repos
       // an update of something that does not exist is refused too
       await t.expect(repos.importRepository.confirm(rid(), j.id, plan({ newDishes: [dish()], dishUpdates: [{ id: uuid(), description: '', category: 'Mains', price: 1 }] }), AT)).rejects.toBeInstanceOf(NotFoundError);
       t.expect((await repos.dishRepository.listByRestaurant(rid())).length).toBe(ds.dishes.length);
+    });
+
+    /* ---- sales (spec 2026-10-15-pos-sales-import-attach-rate, R7, AC3, AC13) ---- */
+
+    t.it('a sales confirm saves the lines, closes the job and replaces nothing the first time', async () => {
+      const j = salesJob();
+      await repos.importRepository.create(j);
+      const p = salesPlan([salesLine('2026-10-01', '101'), salesLine('2026-10-01', '101', { itemType: 'wine_bottle', netAmount: 180, covers: null }), salesLine('2026-10-02', '7')]);
+      t.expect(await repos.importRepository.confirm(rid(), j.id, p, AT)).toEqual({ replacedChecks: 0 });
+      t.expect(await repos.importRepository.find(rid(), j.id)).toMatchObject({ status: 'confirmed', confirmedAt: AT, result: { ...p.result, replaced: 0 } });
+      const totals = await repos.salesRepository.checkTotals(rid(), { from: '2026-10-01', to: '2026-10-02' });
+      t.expect(totals.map((c) => [c.businessDate, c.checkId, c.foodQuantity, c.bottleAmount, c.covers])).toEqual([['2026-10-01', '101', 1, 180, 2], ['2026-10-02', '7', 1, 0, 2]]);
+    });
+
+    t.it('the same file confirmed twice: the second replaces its checks, the active lines do not double (AC3)', async () => {
+      const lines = () => [salesLine('2026-10-03', '1'), salesLine('2026-10-03', '1', { itemType: 'wine_glass', quantity: 2, netAmount: 64 }), salesLine('2026-10-03', '2')];
+      const a = salesJob();
+      await repos.importRepository.create(a);
+      await repos.importRepository.confirm(rid(), a.id, salesPlan(lines()), AT);
+      const before = await repos.salesRepository.checkTotals(rid(), { from: '2026-10-03', to: '2026-10-03' });
+      const b = salesJob();
+      await repos.importRepository.create(b);
+      t.expect(await repos.importRepository.confirm(rid(), b.id, salesPlan(lines()), AT)).toEqual({ replacedChecks: 2 });
+      t.expect(await repos.salesRepository.checkTotals(rid(), { from: '2026-10-03', to: '2026-10-03' })).toEqual(before);
+      t.expect((await repos.importRepository.find(rid(), b.id))!.result).toMatchObject({ created: 3, replaced: 2 });
+    });
+
+    t.it('a sales confirm is refused for a closed job, an unknown job and another restaurant’s job, and changes nothing', async () => {
+      const j = salesJob();
+      await repos.importRepository.create(j);
+      await repos.importRepository.cancel(rid(), j.id);
+      await t.expect(repos.importRepository.confirm(rid(), j.id, salesPlan([salesLine('2026-10-04', '9')]), AT)).rejects.toBeInstanceOf(InvariantError);
+      const k = salesJob();
+      await repos.importRepository.create(k);
+      await t.expect(repos.importRepository.confirm(OTHER, k.id, salesPlan([salesLine('2026-10-04', '9')]), AT)).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.importRepository.confirm(rid(), uuid(), salesPlan([salesLine('2026-10-04', '9')]), AT)).rejects.toBeInstanceOf(NotFoundError);
+      t.expect(await repos.salesRepository.checkTotals(rid(), { from: '2026-10-04', to: '2026-10-04' })).toEqual([]);
+      t.expect(await repos.salesRepository.checkTotals(OTHER, { from: '2026-10-04', to: '2026-10-04' })).toEqual([]);
+      t.expect((await repos.importRepository.find(rid(), k.id))!.status).toBe('preview_ready');
+    });
+
+    t.it('a sales confirm of one restaurant never replaces another restaurant’s checks', async () => {
+      const j = salesJob();
+      await repos.importRepository.create(j);
+      await repos.importRepository.confirm(rid(), j.id, salesPlan([salesLine('2026-10-05', '1')]), AT);
+      t.expect(await repos.salesRepository.countChecks(OTHER, [{ businessDate: '2026-10-05', checkId: '1' }])).toBe(0);
+      t.expect(await repos.salesRepository.countChecks(rid(), [{ businessDate: '2026-10-05', checkId: '1' }])).toBe(1);
     });
 
     t.it('confirm refuses an unknown job or another restaurant’s job', async () => {

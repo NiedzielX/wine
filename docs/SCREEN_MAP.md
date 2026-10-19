@@ -72,7 +72,8 @@ Wine program
  └─ A14 Opportunities (Okazje) ................... /admin/opportunities
 Data
  ├─ A8  Import menu .............................. /admin/import/menu?step=preview|done
- └─ A9  Import wine list ......................... /admin/import/wines?step=preview|done
+ ├─ A9  Import wine list ......................... /admin/import/wines?step=preview|done
+ └─ A13 Import sales (POS) ....................... /admin/import/sales?job=
 Go live
  ├─ A10 Setup checklist (onboarding) ............. /admin/setup
  ├─ A11 Publish .................................. /admin/publish

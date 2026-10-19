@@ -1,7 +1,7 @@
 import { Alert, AlertDescription, AlertTitle } from '@wine-match/ui';
 import type { ReactNode } from 'react';
 import { getI18n } from '@/server/i18n';
-import { errorText, savedText } from './messages';
+import { errorText, missingColumnsText, savedText } from './messages';
 
 /**
  * Result of the last change, carried in the URL (`?saved=…` or `?error=…`) so it works without
@@ -10,12 +10,13 @@ import { errorText, savedText } from './messages';
  * an unknown saved code says nothing.
  */
 export async function Flash({ saved, error, n }: { saved?: string; error?: string; n?: string }) {
-  const f = (await getI18n()).t.admin.flash;
+  const { t } = await getI18n();
+  const f = t.admin.flash;
   if (error) {
     return (
       <Alert variant="destructive" className="mb-5" role="alert">
         <AlertTitle>{f.notSaved}</AlertTitle>
-        <AlertDescription>{errorText(f, error)}</AlertDescription>
+        <AlertDescription>{(error === 'no_header' && missingColumnsText(t, n)) || errorText(f, error)}</AlertDescription>
       </Alert>
     );
   }

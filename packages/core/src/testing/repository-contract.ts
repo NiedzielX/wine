@@ -1,6 +1,7 @@
 import type { OnceRunner } from './contract-types';
 import { recommendationCodeContract } from './recommendation-code-contract';
 import { seedUsageEvents } from './usage-events';
+import { salesContract } from './sales-contract';
 import type { DemoDataset } from '../demo/dataset';
 import type { OpportunityDismissal } from '../domain/types';
 import type { GuestInteractionInput, Repositories } from '../ports/repositories';
@@ -232,5 +233,8 @@ export function repositoryContract(
 
     /* ---------- recommendation codes (spec 2026-10-16-recommendation-code) ---------- */
     recommendationCodeContract(t, () => ({ repos, ds }));
+
+    /* ---------- sales lines (spec 2026-10-15-pos-sales-import-attach-rate) ---------- */
+    salesContract(t, () => ({ repos, ds }));
   });
 }

@@ -108,3 +108,47 @@ with open('wines-translations.csv', 'w', newline='', encoding='utf-8') as f:
     w = csv.writer(f, delimiter=';')
     w.writerow(['Producent', 'Wino', 'Rocznik', 'Region', 'Kraj', 'Szczep', 'Kolor', 'Butelka', 'tasting_note_pl', 'Tasting note (EN)', 'Region PL', 'kraj_pl'])
     w.writerow(['Weingut Keller', 'Riesling trocken', '2022', 'Rheinhessen', 'Germany', 'Riesling', 'Białe', '240', 'Brzoskwinia, łupek, rześka kwasowość.', 'Peach, slate, crisp acidity.', 'Hesja Reńska', 'Niemcy'])
+
+# ---------- POS sales (spec 2026-10-15-pos-sales-import-attach-rate, AC11): one row = one line of a check
+# sales-pos.csv: UTF-8, Polish headers, ';' and decimal commas, guest / waiter / payment columns that must be ignored,
+# a return, a bar check without food, a bare "Wino" and a line without a check number.
+SALES_HEADER = ['Data', 'Nr rachunku', 'Goście', 'Kategoria', 'Pozycja', 'Ilość', 'Kwota netto', 'Kelner', 'Nazwa klienta', 'Typ płatności']
+SALES_ROWS = [
+    ['14.10.2026', '101', '2', 'Kuchnia', 'Pierś z kaczki', '2', '207,41', 'Ola', 'Jan Kowalski', 'Karta'],
+    ['14.10.2026', '101', '2', 'Wino butelka', 'Morgon 2021', '1', '166,67', 'Ola', 'Jan Kowalski', 'Karta'],
+    ['14.10.2026', '101', '2', 'Napoje', 'Woda', '1', '11,11', 'Ola', '', 'Karta'],
+    ['14.10.2026', '102', '1', 'Kuchnia', 'Carpaccio z buraka', '1', '35,19', 'Piotr', '', 'Gotówka'],
+    ['14.10.2026', '102', '1', 'Wino kieliszek', 'Riesling trocken', '2', '96,30', 'Piotr', '', 'Gotówka'],
+    ['14.10.2026', '103', '4', 'Kuchnia', 'Kurczak dla dwojga', '2', '292,59', 'Ola', '', 'Karta'],
+    ['14.10.2026', '104', '', 'Wino kieliszek', 'Chianti Classico', '1', '42,59', 'Bar', '', 'Karta'],
+    ['15.10.2026', '201', '3', 'Kuchnia', 'Sandacz', '3', '273,15', 'Piotr', '', 'Karta'],
+    ['15.10.2026', '201', '3', 'Wino butelka', 'Riesling trocken', '1', '222,22', 'Piotr', '', 'Karta'],
+    ['15.10.2026', '201', '3', 'Wino butelka', 'Riesling trocken', '-1', '-222,22', 'Piotr', '', 'Karta'],
+    ['15.10.2026', '202', '2', 'Desery', 'Tarta śliwkowa', '2', '66,67', 'Ola', 'Anna Nowak', 'Karta'],
+    ['15.10.2026', '202', '2', 'Wino', 'Tokaji', '1', '180,00', 'Ola', 'Anna Nowak', 'Karta'],
+    ['15.10.2026', '', '2', 'Kuchnia', 'Zupa dnia', '1', '20,00', 'Ola', '', 'Karta'],
+]
+with open('sales-pos.csv', 'w', newline='', encoding='utf-8') as f:
+    w = csv.writer(f, delimiter=';')
+    w.writerow(SALES_HEADER)
+    w.writerows(SALES_ROWS)
+# sales-pos-1250.csv: the same export as Polish Excel saves it (Windows-1250)
+with open('sales-pos-1250.csv', 'w', newline='', encoding='cp1250') as f:
+    w = csv.writer(f, delimiter=';')
+    w.writerow(SALES_HEADER)
+    w.writerows(SALES_ROWS)
+
+# sales-pos.xlsx: English and Polish headers, real date cells (serial day numbers), a gross column that must not be
+# read as net, and 40 lines of the category "Wina białe" the import does not know (one decision maps them all).
+import datetime
+wb = Workbook(); ws = wb.active; ws.title = 'Sprzedaż'
+ws.append(['Business date', 'Receipt', 'Pax', 'Product group', 'Item', 'Qty', 'Net', 'Brutto', 'Kelner', 'Nazwa klienta'])
+for i in range(20):
+    day = datetime.date(2026, 10, 12 + i % 3)
+    receipt = f'R-{i + 1:03d}'
+    ws.append([day, receipt, 2 + i % 3, 'Kuchnia', 'Danie dnia', 2, 120.5, 130.14, 'Ola', 'Gość VIP'])
+    ws.append([day, receipt, 2 + i % 3, 'Wina białe', 'Riesling trocken', 1, 222.22, 240.0, 'Ola', 'Gość VIP'])
+    ws.append([day, receipt, 2 + i % 3, 'Wina białe', 'Grüner Veltliner', 1, 185.19, 200.0, 'Ola', ''])
+ws.append([datetime.date(2026, 10, 14), 'R-900', None, 'Wino kieliszek', 'Prosecco', 3, 83.33, 90.0, 'Bar', ''])
+wb.save('sales-pos.xlsx')
+print('sales fixtures written')

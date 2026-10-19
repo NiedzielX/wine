@@ -8,7 +8,10 @@ import {
 } from '../i18n/content';
 import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
-import type { ImportPlan, ImportRepository } from '../ports/import';
+import type { CatalogImportPlan, ImportPlan, ImportRepository, SalesImportPlan } from '../ports/import';
+import type { SalesRepository } from '../ports/sales';
+import { aggregateChecks } from '../services/sales/sales-kpis';
+import type { CheckKey, SalesPeriod, SalesRecord } from '../services/sales/types';
 import type {
   ContentWriteRepository, DecisionRecord, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
   PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, UsageTotals, WineRepository, WineWriteRepository
@@ -23,6 +26,14 @@ const publishable = (p: Pairing) => isReviewed(p) || p.status === 'rejected';
 const copy = <T>(x: T): T => structuredClone(x);
 
 interface StoredCode { restaurantId: string; id: string; record: RecommendationCodeRecord; confirmedBy: string | null }
+
+/** A sales line as `sales_record` keeps it: the line plus its restaurant, its import and when it was replaced. */
+interface StoredSalesLine extends SalesRecord {
+  restaurantId: string;
+  importJobId: string;
+  replacedAt: string | null;
+  replacedByJobId: string | null;
+}
 
 /** In-memory data store. Tenant-scoped like the database: every record belongs to one restaurant. */
 export class MemoryStore {
@@ -42,6 +53,8 @@ export class MemoryStore {
   readonly guestInteractions: Array<GuestInteractionInput & { restaurantId: string }> = [];
   /** recommendation codes, oldest first; capped at `MAX_MEMORY_RECOMMENDATION_CODES` (the oldest go first) */
   readonly recommendationCodes: StoredCode[] = [];
+  /** imported sales lines (the demo data has none); replaced lines stay, marked with `replacedAt` */
+  readonly salesLines: StoredSalesLine[] = [];
 
   static from(...datasets: DemoDataset[]): MemoryStore {
     const s = new MemoryStore();
@@ -375,6 +388,29 @@ export class MemoryImportRepository implements ImportRepository {
     const j = this.job(restaurantId, jobId);
     if (!j) throw new NotFoundError('Import');
     if (j.status !== 'preview_ready') throw new InvariantError('job_closed', 'This import is already finished.');
+    if (plan.kind === 'sales') return this.confirmSales(restaurantId, j, plan, at);
+    this.confirmCatalog(restaurantId, plan);
+    Object.assign(j, { status: 'confirmed', confirmedAt: at, result: copy(plan.result) });
+    return { replacedChecks: 0 };
+  }
+
+  /** Q4: the active lines of the same checks are marked replaced by this job, then the new lines are added. */
+  private confirmSales(restaurantId: string, j: ImportJob, plan: SalesImportPlan, at: string) {
+    const keys = new Set(plan.checks.map((k: CheckKey) => `${k.businessDate}|${k.checkId}`));
+    const replaced = new Set<string>();
+    for (const l of this.store.salesLines) {
+      const key = `${l.businessDate}|${l.checkId}`;
+      if (l.restaurantId !== restaurantId || l.replacedAt !== null || !keys.has(key)) continue;
+      l.replacedAt = at;
+      l.replacedByJobId = j.id;
+      replaced.add(key);
+    }
+    this.store.salesLines.push(...plan.records.map((r) => ({ ...copy(r), restaurantId, importJobId: j.id, replacedAt: null, replacedByJobId: null })));
+    Object.assign(j, { status: 'confirmed', confirmedAt: at, result: { ...copy(plan.result), replaced: replaced.size } });
+    return { replacedChecks: replaced.size };
+  }
+
+  private confirmCatalog(restaurantId: string, plan: CatalogImportPlan) {
     // all or nothing: work on copies, replace the store's lists only when everything applied
     const dishes = copy(this.store.dishes.get(restaurantId) ?? []);
     const wines = copy(this.store.wines.get(restaurantId) ?? []);
@@ -398,7 +434,32 @@ export class MemoryImportRepository implements ImportRepository {
     this.store.dishes.set(restaurantId, dishes);
     this.store.wines.set(restaurantId, wines);
     this.store.pairings.set(restaurantId, pairings);
-    Object.assign(j, { status: 'confirmed', confirmedAt: at, result: copy(plan.result) });
+  }
+}
+
+/** Sales lines in memory (spec 2026-10-15-pos-sales-import-attach-rate): the same sums as the SQL `GROUP BY`. */
+export class MemorySalesRepository implements SalesRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  private active(restaurantId: string) {
+    return this.store.salesLines.filter((l) => l.restaurantId === restaurantId && l.replacedAt === null);
+  }
+
+  async checkTotals(restaurantId: string, period: SalesPeriod) {
+    const lines = this.active(restaurantId).filter((l) => l.businessDate >= period.from && l.businessDate <= period.to);
+    // byte order, as PostgreSQL's `collate "C"`
+    const cmp = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
+    return aggregateChecks(lines).sort((a, b) => cmp(a.businessDate, b.businessDate) || cmp(a.checkId, b.checkId));
+  }
+
+  async dataRange(restaurantId: string): Promise<SalesPeriod | null> {
+    const days = this.active(restaurantId).map((l) => l.businessDate).sort();
+    return days.length ? { from: days[0], to: days[days.length - 1] } : null;
+  }
+
+  async countChecks(restaurantId: string, keys: CheckKey[]) {
+    const wanted = new Set(keys.map((k) => `${k.businessDate}|${k.checkId}`));
+    return new Set(this.active(restaurantId).map((l) => `${l.businessDate}|${l.checkId}`).filter((k) => wanted.has(k))).size;
   }
 }
 
@@ -590,6 +651,7 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     importRepository: new MemoryImportRepository(store),
     opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
     guestInteractionRepository: new MemoryGuestInteractionRepository(store),
-    recommendationCodeRepository: new MemoryRecommendationCodeRepository(store)
+    recommendationCodeRepository: new MemoryRecommendationCodeRepository(store),
+    salesRepository: new MemorySalesRepository(store)
   };
 }

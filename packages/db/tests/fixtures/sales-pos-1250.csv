@@ -1,0 +1,14 @@
+Data;Nr rachunku;Goœcie;Kategoria;Pozycja;Iloœæ;Kwota netto;Kelner;Nazwa klienta;Typ p³atnoœci
+14.10.2026;101;2;Kuchnia;Pierœ z kaczki;2;207,41;Ola;Jan Kowalski;Karta
+14.10.2026;101;2;Wino butelka;Morgon 2021;1;166,67;Ola;Jan Kowalski;Karta
+14.10.2026;101;2;Napoje;Woda;1;11,11;Ola;;Karta
+14.10.2026;102;1;Kuchnia;Carpaccio z buraka;1;35,19;Piotr;;Gotówka
+14.10.2026;102;1;Wino kieliszek;Riesling trocken;2;96,30;Piotr;;Gotówka
+14.10.2026;103;4;Kuchnia;Kurczak dla dwojga;2;292,59;Ola;;Karta
+14.10.2026;104;;Wino kieliszek;Chianti Classico;1;42,59;Bar;;Karta
+15.10.2026;201;3;Kuchnia;Sandacz;3;273,15;Piotr;;Karta
+15.10.2026;201;3;Wino butelka;Riesling trocken;1;222,22;Piotr;;Karta
+15.10.2026;201;3;Wino butelka;Riesling trocken;-1;-222,22;Piotr;;Karta
+15.10.2026;202;2;Desery;Tarta œliwkowa;2;66,67;Ola;Anna Nowak;Karta
+15.10.2026;202;2;Wino;Tokaji;1;180,00;Ola;Anna Nowak;Karta
+15.10.2026;;2;Kuchnia;Zupa dnia;1;20,00;Ola;;Karta

@@ -477,6 +477,23 @@ Jak A8, z różnicami:
 | Walidacje | producent i cena butelki wymagane; brak szczepu → ostrzeżenie (nie blokuje); rocznik 4 cyfry lub NV |
 | API | `POST /imports/wines`, pozostałe jak A8 |
 
+## A13 Import sales — `/admin/{slug}/import/sales?job=`
+
+Spec `2026-10-15-pos-sales-import-attach-rate` (E03), faza 1. Nawigacja: „Import sales” / „Import sprzedaży” pod „Import wines”. Uprawnienie `import.manage` (Owner, GM, Sommelier); bez niego „View only” bez formularzy. Działa bez JavaScriptu (strona poza `(lists)/`, `force-dynamic`), 390 px i 1440 px bez poziomego przewijania.
+
+| Pole | Opis |
+|---|---|
+| Cel | GM wgrywa eksport pozycji rachunków z POS i sprawdza go, zanim cokolwiek zostanie zapisane |
+| Wyjaśnienie | jedno `PanelExplain` „How is the file counted?” / „Jak liczony jest plik?” pod nagłówkiem (`admin.explain.sales`; to nie silnik, więc bez `ENGINE_FACTS` — jedyna liczba to limit wierszy z `IMPORT_LIMITS`) |
+| Upload | CSV albo XLSX (bez PDF), do 10 MB i 2000 wierszy; podpowiedź „Export item lines from your POS… Use the business day column, not a time stamp. Split large files by whole days. Guest names and card data are not needed — such columns are ignored.”; link do `/api/v1/import-samples/sales` |
+| Dane wejściowe | kolumny (nagłówki PL/EN, tylko dokładnie): data (dzień biznesowy), numer rachunku, typ/kategoria, ilość, kwota netto — wymagane; goście, pozycja — opcjonalne. Brak wymaganej → komunikat „Could not find the columns: net amount.” |
+| Podgląd | karta „What this file will save”: zakres dat, liczba pełnych rachunków, linie per typ, rachunki niepełne (pominięte), „N checks already saved for these dates will be replaced”, Wine Attach Rate pliku („75,0%”, „3 of 4 checks with food had wine”); sekcja „Unrecognised categories” — jedna wartość = jeden select z 4 typami (`typemap_<i>_from/_to`, `valueMap`); tabela: Date, Check, Guests, Type (select; nierozpoznana wartość zostaje wybrana jako „… (choose a type)”), Item, Qty, Net (zł); notatki (niewykorzystane kolumny, brak gości, kolejność dzień/miesiąc, powtarzające się numery) |
+| Walidacje | brak daty/rachunku/typu/ilości/kwoty → błąd; data z godziną → „Use the business day column, not a time stamp.”; data > jutro → błąd; `13/04` i `04/13` w jednym pliku → błędy dat; ilość 0, \|kwota\| > 100 000 → błąd; nierozpoznana kategoria → błąd `unmapped_category`; „Wino” → butelka + ostrzeżenie; zwrot → ostrzeżenie; linia rachunku z błędem lub odznaczona → pozostałe linie „Check incomplete…” (bez zmiany zaznaczenia) |
+| Wynik | „Saved N lines, replaced M checks, skipped K”; karta z liczbami i „Import another file” |
+| Dane wyjściowe | `sales_record` (tylko pełne rachunki; ten sam rachunek z nowszego pliku zastępuje stary) |
+| API | `POST /imports/sales`, `PATCH /imports/{id}/rows` i `POST /imports/{id}/confirm` z opcjonalnym `valueMap`, `GET /import-samples/sales` |
+| Faza 2 | karta „Wine Attach Rate” z wyborem okresu (`SalesKpiService.getSalesKpis`) |
+
 ## A10 Setup checklist — `/admin/setup`
 
 | Pole | Opis |

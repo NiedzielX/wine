@@ -1970,15 +1970,13 @@
           "unique": true
         },
         {
-          "columnNames": [
-            "dish_id"
-          ],
+          "columnNames": [],
           "composite": false,
           "constraint": false,
           "keyName": "pairing_one_primary_per_dish",
           "primary": false,
-          "unique": true,
-          "where": "(role = 'primary'::text) AND (status = ANY (ARRAY['approved'::text, 'modified'::text]))"
+          "unique": false,
+          "expression": "create unique index pairing_one_primary_per_dish on pairing (dish_id) where role = 'primary' and status in ('approved', 'modified')"
         },
         {
           "columnNames": [
@@ -2517,19 +2515,13 @@
       },
       "indexes": [
         {
-          "columnNames": [
-            "restaurant_id",
-            "service_day",
-            "session_id",
-            "wine_id",
-            "serving",
-            "dish_ids"
-          ],
-          "composite": true,
+          "columnNames": [],
+          "composite": false,
           "constraint": false,
           "keyName": "recommendation_code_choice_unique",
           "primary": false,
-          "unique": true
+          "unique": false,
+          "expression": "create unique index recommendation_code_choice_unique on recommendation_code (restaurant_id, service_day, session_id, wine_id, serving, dish_ids)"
         },
         {
           "columnNames": [
@@ -2932,6 +2924,303 @@
       ],
       "triggers": [],
       "foreignKeys": {},
+      "comment": null
+    },
+    {
+      "name": "sales_record",
+      "schema": "public",
+      "columns": {
+        "business_date": {
+          "name": "business_date",
+          "type": "date",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "date"
+        },
+        "check_id": {
+          "name": "check_id",
+          "type": "varchar(64)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 64,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "covers": {
+          "name": "covers",
+          "type": "smallint",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "smallint"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "import_job_id": {
+          "name": "import_job_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "item_type": {
+          "name": "item_type",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "food",
+            "wine_glass",
+            "wine_bottle",
+            "other"
+          ],
+          "mappedType": "enum"
+        },
+        "net_amount": {
+          "name": "net_amount",
+          "type": "numeric(12,2)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 12,
+          "scale": 2,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "decimal"
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "numeric(10,3)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 10,
+          "scale": 3,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "decimal"
+        },
+        "replaced_at": {
+          "name": "replaced_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "replaced_by_job_id": {
+          "name": "replaced_by_job_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "restaurant_id": {
+          "name": "restaurant_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "sales_record_pkey",
+          "primary": true,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "restaurant_id",
+            "business_date",
+            "check_id"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "sales_record_restaurant_id_business_date_check_id_index",
+          "primary": false,
+          "unique": false
+        }
+      ],
+      "checks": [
+        {
+          "name": "sales_record_covers_check",
+          "expression": "covers between 0 and 999",
+          "definition": "check (covers between 0 and 999)",
+          "columnName": "covers"
+        },
+        {
+          "name": "sales_record_item_type_check",
+          "expression": "\"item_type\" in ('food', 'wine_glass', 'wine_bottle', 'other')",
+          "definition": "check (\"item_type\" in ('food', 'wine_glass', 'wine_bottle', 'other'))",
+          "columnName": "item_type"
+        },
+        {
+          "name": "sales_record_quantity_check",
+          "expression": "quantity <> 0",
+          "definition": "check (quantity <> 0)",
+          "columnName": "quantity"
+        }
+      ],
+      "triggers": [],
+      "foreignKeys": {
+        "sales_record_import_job_id_foreign": {
+          "columnNames": [
+            "import_job_id"
+          ],
+          "constraintName": "sales_record_import_job_id_foreign",
+          "localTableName": "public.sales_record",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.import_job"
+        },
+        "sales_record_replaced_by_job_id_foreign": {
+          "columnNames": [
+            "replaced_by_job_id"
+          ],
+          "constraintName": "sales_record_replaced_by_job_id_foreign",
+          "localTableName": "public.sales_record",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.import_job",
+          "deleteRule": "set null"
+        },
+        "sales_record_restaurant_id_foreign": {
+          "columnNames": [
+            "restaurant_id"
+          ],
+          "constraintName": "sales_record_restaurant_id_foreign",
+          "localTableName": "public.sales_record",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.restaurant"
+        }
+      },
       "comment": null
     },
     {

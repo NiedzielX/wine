@@ -41,7 +41,7 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 | Element | Co jest zmianą łamiącą |
 |---|---|
 | Zastosowane migracje | **każda edycja**: migracje są tylko dopisywane (AGENTS.md §1.3) |
-| Tabele `restaurant`, `dish`, `wine`, `pairing`, `sommelier_decision`, `published_version`, `guest_interaction`, `import_job`, `app_user`, `membership`, `session`, `opportunity_dismissal`, `recommendation_code` | usunięcie lub zmiana nazwy tabeli albo kolumny, zmiana typu, dodanie `NOT NULL` bez wartości domyślnej |
+| Tabele `restaurant`, `dish`, `wine`, `pairing`, `sommelier_decision`, `published_version`, `guest_interaction`, `import_job`, `app_user`, `membership`, `session`, `opportunity_dismissal`, `recommendation_code`, `sales_record` | usunięcie lub zmiana nazwy tabeli albo kolumny, zmiana typu, dodanie `NOT NULL` bez wartości domyślnej |
 | `sommelier_decision` | edycja lub usuwanie wierszy: to dziennik tylko do dopisywania |
 | `session` przechowuje tylko skrót tokenu | zapis tokenu jawnym tekstem |
 | Identyfikatory UUID, daty `timestamptz`, miękkie usuwanie `deletedAt` | zmiana typu klucza lub rezygnacja z miękkiego usuwania |
@@ -51,6 +51,8 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 **Tabela addytywna z 2026-10-16** (spec `2026-10-16-sommelier-opportunities`, F1, migracja `Migration20261016152214_opportunity_dismissal`): `opportunity_dismissal` (zignorowane okazje sommeliera); istniejące tabele bez zmian. Kontraktem są nazwy kolumn, unikalność (`restaurant_id`, `opportunity_key`), format klucza (`opportunityKeySchema`) i pięć nazw w `CHECK` na `rule` — dodanie nazwy to nowa migracja, usunięcie lub zmiana nazwy jest łamiące. `down` usuwa tabelę: zignorowania nie są danymi biznesowymi, po wycofaniu okazje wracają.
 
 **Tabela addytywna z 2026-10-18** (spec `2026-10-16-recommendation-code`, F1, migracja `Migration20261018125821_recommendation_code`): `recommendation_code` (kody polecenia z G8); istniejące tabele bez zmian. Kontraktem są nazwy kolumn, unikalność (`restaurant_id`, `service_day`, `code`) i wyboru (`restaurant_id`, `service_day`, `session_id`, `wine_id`, `serving`, `dish_ids`), wartości w `CHECK` (`source`, `context`, `serving`, `tier`) oraz **format kodu** (`L D L` / `L D L D`, alfabet bez B, I, O, Q, S, Z, cyfry 2–9) i granica dnia serwisu (04:00 `Europe/Warsaw`) — kody trafiają do komentarzy w kasie i eksportów POS, więc ich zmiana jest łamiąca. `down` usuwa tabelę tylko w dev i test; w produkcji z danymi wycofanie to poprzedni obraz aplikacji, schemat zostaje (jak E03 Q19).
+
+**Tabela addytywna z 2026-10-19** (spec `2026-10-15-pos-sales-import-attach-rate`, F1, migracja `Migration20261019064652_sales_record`): `sales_record` (pozycje rachunków z POS); istniejące tabele bez zmian (`import_job.kind` dopuszczał już `sales`). Kontraktem są nazwy kolumn, wartości `item_type` w `CHECK`, tożsamość rachunku (`business_date`, `check_id`) i miękkie zastępowanie (`replaced_at`, `replaced_by_job_id`; odczyty tylko `replaced_at IS NULL`). **`down` usuwa dane sprzedaży: w produkcji po pierwszym imporcie nie wolno go uruchamiać** (Q19) — wycofanie to poprzedni obraz aplikacji, schemat zostaje; wycofanie pojedynczego importu: SQL w `docs/DATA_MODEL.md` (SalesRecord).
 
 **Ścieżka:** expand → migrate → contract w osobnych PR-ach: najpierw dodaj nową kolumnę lub tabelę i pisz do obu, potem przenieś dane migracją, dopiero w kolejnym PR-ze usuń stare. PR z migracją zawiera test `up` i `down` (`npm run test:db`) i plan wycofania w opisie. `npm run schema:check -w @wine-match/db` musi pokazywać zgodność. Zmiana modelu aktualizuje [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
 
@@ -88,7 +90,8 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 | Obsługiwane formaty: CSV (UTF-8, Windows-1250, BOM), XLSX, PDF tekstowy | wycofanie formatu lub kodowania |
 | Kolumny tłumaczeń (od 2026-10-15): menu `name_pl`, `name_en`, `description_pl`, `description_en`; wina `tasting_note_pl`, `tasting_note_en`, `region_pl`, `region_en`, `country_pl`, `country_en`, z synonimami nagłówków (słowo pola + `pl`/`polski`/`polish`/`po polsku` albo `en`/`english`/`angielski`/`po angielsku`, np. „Nazwa (PL)”, „opis EN”). Kolumna obecna i pusta = bez zmiany (ostrzeżenie `translation_empty`); kolumny nie ma = tłumaczenia bez zmian | usunięcie nazwy lub synonimu; zmiana znaczenia pustej komórki (np. kasowanie tłumaczenia) |
 | `IMPORT_LIMITS` (10 MB, 2000 wierszy) | obniżenie limitu |
-| Przykładowe pliki `/api/v1/import-samples/{menu\|wines}` | zmiana nagłówka bez zmiany parsera |
+| Import sprzedaży (od 2026-10-19, spec `2026-10-15-pos-sales-import-attach-rate`): pola `businessDate, checkId, covers, itemType, itemName, quantity, netAmount`, synonimy nagłówków `SALES_SYNONYMS` (tylko dokładne), słownik typów pozycji (`normaliseItemType`), `valueMap` | usunięcie pola, synonimu albo słowa ze słownika; dopasowanie po prefiksie lub domyślna kolejność kolumn (zgadywanie danych finansowych) |
+| Przykładowe pliki `/api/v1/import-samples/{menu\|wines\|sales}` | zmiana nagłówka bez zmiany parsera |
 
 **Ścieżka:** nowe synonimy i formaty dodawaj swobodnie. Każda zmiana parsera przechodzi testy na prawdziwych plikach z `packages/db/tests/fixtures/`; plik, który wcześniej się wczytywał, musi wczytywać się nadal.
 

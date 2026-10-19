@@ -1,8 +1,10 @@
 import type { DishCategory } from '../domain/types';
+import type { SalesItemType } from '../services/sales/types';
 
 /** Types of the import feature: what the user uploads, previews, corrects and confirms. */
 
-export type ImportKind = 'menu' | 'wines';
+/** `sales`: lines of checks exported from the POS (spec 2026-10-15-pos-sales-import-attach-rate). */
+export type ImportKind = 'menu' | 'wines' | 'sales';
 export type ImportStatus = 'uploaded' | 'parsing' | 'preview_ready' | 'confirmed' | 'failed' | 'cancelled';
 
 export interface ImportIssue {
@@ -28,7 +30,13 @@ export type ImportIssueCode =
   | 'producer_missing' | 'wine_name_from_grape' | 'wine_name_missing' | 'wine_name_too_long'
   | 'vintage_missing' | 'vintage_invalid' | 'grape_missing' | 'style_unknown' | 'style_missing' | 'style_missing_from_grape'
   | 'bottle_price_missing' | 'bottle_price_invalid' | 'glass_price_invalid' | 'glass_price_not_lower'
-  | 'translation_empty' | 'translation_too_long';
+  | 'translation_empty' | 'translation_too_long'
+  // sales (spec 2026-10-15-pos-sales-import-attach-rate)
+  | 'date_missing' | 'date_invalid' | 'date_timestamp' | 'date_future' | 'date_order_conflict'
+  | 'check_missing' | 'check_too_long' | 'covers_invalid' | 'covers_missing' | 'covers_differ'
+  | 'item_type_missing' | 'unmapped_category' | 'generic_wine'
+  | 'quantity_missing' | 'quantity_invalid' | 'quantity_zero' | 'amount_missing' | 'amount_invalid' | 'amount_too_high'
+  | 'return_line' | 'check_incomplete';
 
 /** One row of the preview. All values are text, exactly as the user can edit them. */
 export interface ImportRow {
@@ -36,7 +44,7 @@ export interface ImportRow {
   rowNumber: number;
   fields: Record<string, string>;
   include: boolean;
-  /** `update` when the dish / wine already exists in the restaurant */
+  /** `update` when the dish / wine already exists in the restaurant; always `create` for sales lines */
   action: 'create' | 'update';
   matchId: string | null;
   issues: ImportIssue[];
@@ -48,6 +56,8 @@ export interface ImportResult {
   skipped: number;
   /** engine suggestions prepared for the new items */
   suggestions: number;
+  /** sales only: checks already saved that this import replaced (Q4); `created` counts lines, `skipped` lines left out */
+  replaced?: number;
 }
 
 export interface ImportJob {
@@ -86,7 +96,27 @@ export const WINE_FIELDS = ['producer', 'name', 'vintage', 'region', 'country', 
  */
 export const MENU_TRANSLATION_FIELDS = ['name_pl', 'name_en', 'description_pl', 'description_en'] as const;
 export const WINE_TRANSLATION_FIELDS = ['tasting_note_pl', 'tasting_note_en', 'region_pl', 'region_en', 'country_pl', 'country_en'] as const;
-export const TRANSLATION_FIELDS = { menu: MENU_TRANSLATION_FIELDS, wines: WINE_TRANSLATION_FIELDS } as const;
+export const TRANSLATION_FIELDS = { menu: MENU_TRANSLATION_FIELDS, wines: WINE_TRANSLATION_FIELDS, sales: [] } as const;
+
+/**
+ * Columns of a sales import. `covers` and `itemName` are optional: a record has them only when the file has the column.
+ * `itemName` is shown in the preview to recognise a line but is never saved (Q18). Nothing outside this list is copied
+ * from the file into a record (R9).
+ */
+export const SALES_FIELDS = ['businessDate', 'checkId', 'covers', 'itemType', 'itemName', 'quantity', 'netAmount'] as const;
+export type SalesField = (typeof SALES_FIELDS)[number];
+export const SALES_REQUIRED_FIELDS: readonly SalesField[] = ['businessDate', 'checkId', 'itemType', 'quantity', 'netAmount'];
+export const SALES_OPTIONAL_FIELDS: readonly SalesField[] = ['covers', 'itemName'];
+
+/**
+ * One decision for every line with the same unrecognised category (Q3, R4): „Wina białe” → `wine_bottle`. Values are
+ * compared by `normKey`, so case, Polish letters and punctuation do not matter.
+ */
+export interface ValueMapEntry {
+  field: 'itemType';
+  from: string;
+  to: SalesItemType;
+}
 
 export const DISH_CATEGORIES: DishCategory[] = ['Starters', 'Mains', 'Desserts'];
 

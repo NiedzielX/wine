@@ -575,6 +575,7 @@ export const en = {
       setup: 'Setup',
       importMenu: 'Import menu',
       importWines: 'Import wine list',
+      importSales: 'Import sales',
       opportunities: 'Opportunities'
     },
     language: {
@@ -616,6 +617,7 @@ export const en = {
       restaurant: 'Restaurant',
       importMenu: 'Import menu',
       importWines: 'Import wines',
+      importSales: 'Import sales',
       setup: 'Setup',
       qr: 'QR code',
       signOut: 'Sign out'
@@ -672,6 +674,7 @@ export const en = {
         import_checked: () => 'Rows checked again.',
         imported: (created: number, updated: number, suggestions: number) => `Imported: ${created} new, ${updated} updated. ${suggestions} engine suggestions are ready for review.`,
         import_cancelled: () => 'Import cancelled. Nothing was changed.',
+        imported_sales: (created: number, replaced: number, skipped: number) => `Saved ${created} lines, replaced ${replaced} checks, skipped ${skipped}.`,
         details: () => 'Details saved.',
         details_slug: () => 'Details saved. The address of your guest app changed: print new QR codes, the old ones no longer work.',
         suggestions: (n: number) => `${n} engine suggestions added.`,
@@ -711,7 +714,9 @@ export const en = {
         job_closed: 'This import is already finished. Start a new one.',
         no_rows_selected: 'Tick at least one row to import.',
         unknown_row: 'That row does not exist in this import.',
-        invalid_kind: 'Import either the menu or the wine list.',
+        invalid_kind: 'Import the menu, the wine list or sales.',
+        no_header: 'The file is missing columns the sales import needs: date, check number, item type, quantity and net amount.',
+        no_complete_checks: 'No check can be saved: each ticked line belongs to a check with an unticked line or an error.',
         slug_taken: 'Another restaurant already uses this address name. Choose another.',
         validation_failed: 'Check the details. The address name can use only lowercase letters, digits and hyphens (2 to 40 characters) and must not be a reserved word.',
         translation_invalid: 'Check the translations: one of them is too long.',
@@ -1139,6 +1144,17 @@ export const en = {
           'Opportunities point to places worth a look. We find them in your wine list and match scores and, once there is data, in guests’ choices and orders with a recommendation code — from this restaurant only.',
           `Nothing changes without your decision; an ignored opportunity comes back after ${days} days at the earliest.`
         ]
+      },
+      /** A13 (spec 2026-10-15-pos-sales-import-attach-rate): not the engine, so no ENGINE_FACTS; the numbers are the import's own rules */
+      sales: {
+        summary: 'How is the file counted?',
+        points: (maxRows: number) => [
+          'One row is one line of a check. A check is its business day and its number, so the same number on another day is another check.',
+          'Only whole checks are saved: a check with an unticked line or an error is skipped and keeps its saved version.',
+          'Importing the same checks again replaces their saved lines instead of adding them, so a corrected export is safe to import.',
+          'Wine Attach Rate: checks with food that also had wine, out of all checks with food. Bar checks with wine only count for wine revenue. A returned bottle cancels the sale.',
+          `Guest names, payments and item names are not saved. Up to ${maxRows} lines per file: split larger exports by whole days.`
+        ]
       }
     },
     qr: {
@@ -1226,13 +1242,19 @@ export const en = {
       readOnly: 'Your role cannot import files.',
       kinds: {
         menu: { noun: (n: number): string => (n === 1 ? 'dish' : 'dishes'), columns: 'Category, Name, Description, Price', hint: 'New dishes arrive as drafts with a draft taste profile. They go live when you publish.', updates: 'description, category and price' },
-        wines: { noun: (n: number): string => (n === 1 ? 'wine' : 'wines'), columns: 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price', hint: 'New wines are on your list at once and get engine pairing suggestions for your review.', updates: 'prices' }
+        wines: { noun: (n: number): string => (n === 1 ? 'wine' : 'wines'), columns: 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price', hint: 'New wines are on your list at once and get engine pairing suggestions for your review.', updates: 'prices' },
+        sales: {
+          noun: (n: number): string => (n === 1 ? 'line' : 'lines'), columns: 'Date (business day), Check number, Guests (optional), Category, Item (optional), Quantity, Net amount',
+          hint: 'Export item lines from your POS as CSV or Excel. Use the business day column, not a time stamp. Split large files by whole days. Guest names and card data are not needed — such columns are ignored.',
+          updates: ''
+        }
       },
       columns: {
         name_pl: 'Name (PL)', name_en: 'Name (EN)', description_pl: 'Description (PL)', description_en: 'Description (EN)',
         tasting_note_pl: 'Tasting note (PL)', tasting_note_en: 'Tasting note (EN)', region_pl: 'Region (PL)', region_en: 'Region (EN)', country_pl: 'Country (PL)', country_en: 'Country (EN)',
         category: 'Category', name: 'Name', description: 'Description', price: 'Price (zł)',
-        producer: 'Producer', wineName: 'Wine', vintage: 'Vintage', region: 'Region', country: 'Country', grape: 'Grape', style: 'Style', glassPrice: 'Glass', bottlePrice: 'Bottle'
+        producer: 'Producer', wineName: 'Wine', vintage: 'Vintage', region: 'Region', country: 'Country', grape: 'Grape', style: 'Style', glassPrice: 'Glass', bottlePrice: 'Bottle',
+        businessDate: 'Date', checkId: 'Check', covers: 'Guests', itemType: 'Type', itemName: 'Item', quantity: 'Qty', netAmount: 'Net (zł)'
       },
       uploadTitle: '1. Upload a file',
       uploadText: 'CSV, Excel (.xlsx) or PDF, up to 10 MB. Nothing is saved until you confirm.',
@@ -1283,11 +1305,44 @@ export const en = {
       openMenu: 'Open the menu',
       openWines: 'Open the wine list',
       another: 'Import another file',
+      sales: {
+        title: 'Import sales',
+        description: 'Bring in item lines exported from your POS to measure how often guests who eat also order wine. You check every line before anything is saved.',
+        uploadText: 'CSV or Excel (.xlsx), up to 10 MB and 2000 lines. Nothing is saved until you confirm.',
+        pricesText: 'Net amounts like 58,50 or 58.50 zł. Returns and voids are negative lines.',
+        missingColumns: (columns: string) => `Could not find the columns: ${columns}.`,
+        fieldWords: { businessDate: 'date', checkId: 'check number', covers: 'guests', itemType: 'item type', itemName: 'item', quantity: 'quantity', netAmount: 'net amount' } as Record<string, string>,
+        types: { food: 'Food', wine_glass: 'Wine by the glass', wine_bottle: 'Wine by the bottle', other: 'Other' } as Record<string, string>,
+        keepValue: (value: string) => `${value} (choose a type)`,
+        summaryTitle: 'What this file will save',
+        summaryEmpty: 'No complete check is ticked yet.',
+        period: (from: string, to: string) => (from === to ? from : `${from} – ${to}`),
+        checks: (n: number) => `${n} ${n === 1 ? 'check' : 'checks'}`,
+        lines: (food: number, glass: number, bottle: number, other: number) => `Lines: ${food} food, ${glass} wine by the glass, ${bottle} wine by the bottle, ${other} other.`,
+        incomplete: (n: number) => `${n} ${n === 1 ? 'check is' : 'checks are'} incomplete and will be skipped: a line is unticked or has an error.`,
+        replaced: (n: number) => `${n} ${n === 1 ? 'check' : 'checks'} already saved for these dates will be replaced.`,
+        checkText: 'Fix anything marked in red and untick lines you do not want, then import. A check is saved only when all its lines are ticked and correct.',
+        rateLabel: 'Wine Attach Rate of this file',
+        rateText: (withWine: number, food: number) => `${withWine} of ${food} checks with food had wine`,
+        noRate: 'No checks with food in this file.',
+        unmappedTitle: 'Unrecognised categories',
+        unmappedText: 'Choose a type once for each category: it applies to all its lines when you check again or import.',
+        unmappedLines: (n: number) => `${n} ${n === 1 ? 'line' : 'lines'}`,
+        unmappedChoose: (value: string) => `Type for ${value}`,
+        notChosen: 'Choose…',
+        resultLines: 'Saved lines',
+        resultReplaced: 'Replaced checks',
+        doneText: 'The lines are saved. A newer export of the same checks replaces them, so importing a corrected file again is safe.'
+      },
       notes: {
         pdf: 'This PDF was read as text. A PDF has no real columns, so check every row before importing.',
         noCategory: 'No category column: dishes without a category are set to Mains. Check them in the preview.',
         unused: (columns: string) => `Columns not used: ${columns}.`,
-        noHeader: (order: string) => `No header row was found, so the columns were read in this order: ${order}.`
+        noHeader: (order: string) => `No header row was found, so the columns were read in this order: ${order}.`,
+        noCovers: 'No guests column: wine revenue per guest cannot be calculated from this file.',
+        dayMonth: 'Dates like 03/04/2026 were read as day/month (3 April 2026).',
+        monthDay: 'Dates like 04/13/2026 were read as month/day (13 April 2026).',
+        repeatedChecks: 'Check numbers repeat across days. That is fine if your POS numbers receipts per day.'
       },
       issues: {
         exists_menu: () => 'Already on the menu: importing will update its description, category and price.',
@@ -1317,7 +1372,28 @@ export const en = {
         glass_price_invalid: (p: IssueParams) => `“${p.value}” is not a price.`,
         glass_price_not_lower: () => 'The glass price must be lower than the bottle price.',
         translation_empty: () => 'Empty translation: the current one is kept.',
-        translation_too_long: () => 'The translation is too long.'
+        translation_too_long: () => 'The translation is too long.',
+        date_missing: () => 'Date is missing.',
+        date_invalid: (p: IssueParams) => `“${p.value}” is not a date.`,
+        date_timestamp: () => 'Use the business day column, not a time stamp.',
+        date_future: () => 'The date is in the future.',
+        date_order_conflict: () => 'This file mixes day/month and month/day dates. Write the date as 2026-10-14.',
+        check_missing: () => 'Check number is missing.',
+        check_too_long: () => 'The check number is too long (64 characters at most).',
+        covers_invalid: (p: IssueParams) => `“${p.value}” is not a number of guests (0–999).`,
+        covers_missing: () => 'No guests on this check: it is left out of wine revenue per guest.',
+        covers_differ: () => 'The lines of this check have different numbers of guests: the largest is used.',
+        item_type_missing: () => 'Item type is missing.',
+        unmapped_category: (p: IssueParams) => `Unrecognised category “${p.value}”: choose its type under “Unrecognised categories”.`,
+        generic_wine: (p: IssueParams) => `“${p.value}” was read as a bottle of wine.`,
+        quantity_missing: () => 'Quantity is missing.',
+        quantity_invalid: (p: IssueParams) => `“${p.value}” is not a quantity.`,
+        quantity_zero: () => 'Quantity cannot be zero.',
+        amount_missing: () => 'Net amount is missing.',
+        amount_invalid: (p: IssueParams) => `“${p.value}” is not an amount.`,
+        amount_too_high: () => 'The amount looks too high (100 000 at most).',
+        return_line: () => 'Return or void: it is subtracted from the check.',
+        check_incomplete: () => 'Check incomplete: the whole check will be skipped.'
       } as Record<ImportIssueCode | 'exists_menu', (p: IssueParams) => string>
     }
   }

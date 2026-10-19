@@ -22,6 +22,10 @@ export function savedText(f: Flash, saved: string | undefined, n: string | undef
       const [created = 0, updated = 0, suggestions = 0] = (n ?? '0-0-0').split('-').map(num);
       return s.imported(created, updated, suggestions);
     }
+    case 'imported_sales': {
+      const [created = 0, replaced = 0, skipped = 0] = (n ?? '0-0-0').split('-').map(num);
+      return s.imported_sales(created, replaced, skipped);
+    }
     case 'approved': case 'rejected': case 'restored': case 'role': case 'note': case 'moved': case 'added': case 'deleted':
     case 'wine_shown': case 'wine_hidden': case 'settings': case 'import_uploaded': case 'import_checked': case 'import_cancelled':
     case 'details': case 'details_slug': case 'translations': case 'content': case 'suggestion_added': case 'opportunity_restored':
@@ -32,6 +36,16 @@ export function savedText(f: Flash, saved: string | undefined, n: string | undef
 
 export function errorText(f: Flash, error: string): string {
   return Object.hasOwn(f.errors, error) ? f.errors[error as keyof Flash['errors']] : f.errors.unexpected;
+}
+
+/**
+ * `no_header` of a sales file names the missing columns (`n` = field names from the action); an unknown name is
+ * dropped, so the URL cannot put text on the page.
+ */
+export function missingColumnsText(t: Dictionary, n: string | undefined): string | undefined {
+  const s = t.admin.import.sales;
+  const names = (n ?? '').split(',').filter((k) => Object.hasOwn(s.fieldWords, k)).map((k) => s.fieldWords[k]);
+  return names.length ? s.missingColumns(names.join(', ')) : undefined;
 }
 
 const isStyle = (v: string | undefined): v is WineStyle => WINE_STYLES.some((s) => s === v);
@@ -52,6 +66,10 @@ export function noteText(note: string, t: Dictionary): string {
   const english = en.admin.import.notes;
   if (note === english.pdf) return n.pdf;
   if (note === english.noCategory) return n.noCategory;
+  if (note === english.noCovers) return n.noCovers;
+  if (note === english.dayMonth) return n.dayMonth;
+  if (note === english.monthDay) return n.monthDay;
+  if (note === english.repeatedChecks) return n.repeatedChecks;
   const unused = /^Columns not used: (.*)\.$/.exec(note);
   if (unused) return n.unused(unused[1]);
   const order = /^No header row was found, so the columns were read in this order: (.*)\.$/.exec(note);

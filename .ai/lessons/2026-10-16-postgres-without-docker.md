@@ -1,6 +1,6 @@
 ---
 date: 2026-10-16
-updated: 2026-10-17
+updated: 2026-10-19
 area: tooling
 status: active
 source: .ai/runs/2026-10-16-e10-f1-opportunities-core.md
@@ -21,6 +21,7 @@ Na maszynie agenta nie ma Dockera ani `psql`, więc `npm run test:db` (testconta
 - Po nowej migracji zastosuj ją też na bazach `winematch_test` i `winematch_e2e` (`db:migrate` z ich `DATABASE_URL`) i uruchom `test:db`, żeby wszystkie cztery snapshoty miały tę samą zmianę (tak jak w PR #34).
 
 - (2026-10-17) Równoległe pod-agenty jednej sesji **dzielą katalog scratchpad**: każdy agent zakłada własny podkatalog (np. `scratchpad/<gałąź>/`) z własnym `databaseDir` i **własnym portem** (nie 54329). Wspólny `databaseDir` kończy się błędem `initdb … exists but is not empty` albo `postmaster.pid already exists`, a wspólny serwer — kolizją baz o stałych nazwach (`winematch_db_test`, `winematch_e2e`) przy równoległym `test:db`. Cudzego serwera nie zatrzymuj.
+- (2026-10-19) Wspólny scratchpad bywa czyszczony przez inne agenty w trakcie przebiegu (zniknął katalog z danymi i działający serwer). Gdy `test:db` nagle daje `ECONNREFUSED`, sprawdź katalog: odtwórz go (kopia `node_modules` z `embedded-postgres`, `start.mjs` z własnym portem), uruchom ponownie, potem `db:migrate` na `winematch`, `winematch_test`, `winematch_e2e` i `db:seed`.
 - E2E bez przeglądarki (żądania bez JS) da się uruchomić lokalnie: `TEST_DATABASE_URL=… npx vitest run --config vitest.e2e.config.ts tests/e2e/<plik> -t "<opis bloku>"` w `packages/app` po `npm run build` — bloki z `agent-browser` zostają pominięte.
 
 ## Jak sprawdzić

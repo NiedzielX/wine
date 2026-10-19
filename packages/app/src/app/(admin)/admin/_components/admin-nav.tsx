@@ -8,7 +8,7 @@ import { Fragment } from 'react';
 /** Ready-made texts from the dictionary (a client component gets texts, not dictionary functions). */
 export interface NavLabels {
   label: string; dashboard: string; menu: string; wines: string; pairings: string; review: string; opportunities: string; publish: string;
-  restaurant: string; importMenu: string; importWines: string; setup: string; qr: string;
+  restaurant: string; importMenu: string; importWines: string; importSales: string; setup: string; qr: string;
 }
 interface Props { slug: string; reviewCount: number; publishCount: number; labels: NavLabels }
 
@@ -27,6 +27,7 @@ export function AdminNav({ slug, reviewCount, publishCount, labels: l }: Props) 
     { href: `${base}/publish`, label: l.publish, count: publishCount },
     { href: `${base}/import/menu`, label: l.importMenu, group: l.restaurant },
     { href: `${base}/import/wines`, label: l.importWines },
+    { href: `${base}/import/sales`, label: l.importSales },
     { href: `${base}/setup`, label: l.setup },
     { href: `${base}/qr`, label: l.qr }
   ];

@@ -8,13 +8,14 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/v1/imports/{id}/confirm?restaurant={slug}  [{rows: [...]}]
  * Saves the ticked rows in one transaction → 200 {created, updated, skipped, suggestions}. Works once per import.
+ * Sales: whole checks only, `valueMap` as on PATCH rows, and `replaced` (checks already saved that this import replaced).
  */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ ref: string }> }) {
   const { ref } = await ctx.params;
   const slug = req.nextUrl.searchParams.get('restaurant') ?? '';
   if (!slug) return apiError(422, 'validation_failed', 'Query parameter "restaurant" is required.', { restaurant: 'required' });
   return handle(req, { write: true, slug, permission: 'import.manage' }, async ({ c, actor }) => {
-    const { rows } = await parseBody(req, confirmImportSchema, { optional: true });
-    return NextResponse.json(await c.importService.confirm(slug, ref, actor, rows ?? []));
+    const { rows, valueMap } = await parseBody(req, confirmImportSchema, { optional: true });
+    return NextResponse.json(await c.importService.confirm(slug, ref, actor, rows ?? [], valueMap ?? []));
   });
 }

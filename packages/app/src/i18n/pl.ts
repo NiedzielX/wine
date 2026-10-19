@@ -454,6 +454,7 @@ export const pl = {
       setup: 'Ustawienia',
       importMenu: 'Import menu',
       importWines: 'Import karty win',
+      importSales: 'Import sprzedaży',
       opportunities: 'Okazje'
     },
     language: {
@@ -495,6 +496,7 @@ export const pl = {
       restaurant: 'Restauracja',
       importMenu: 'Import menu',
       importWines: 'Import win',
+      importSales: 'Import sprzedaży',
       setup: 'Ustawienia',
       qr: 'Kod QR',
       signOut: 'Wyloguj'
@@ -551,6 +553,7 @@ export const pl = {
         import_checked: () => 'Wiersze sprawdzone ponownie.',
         imported: (created: number, updated: number, suggestions: number) => `Zaimportowano: nowe ${created}, zaktualizowane ${updated}. Propozycje silnika do przeglądu: ${suggestions}.`,
         import_cancelled: () => 'Import anulowany. Nic nie zostało zmienione.',
+        imported_sales: (created: number, replaced: number, skipped: number) => `Zapisano pozycje: ${created}, zastąpione rachunki: ${replaced}, pominięte pozycje: ${skipped}.`,
         details: () => 'Dane zapisane.',
         details_slug: () => 'Dane zapisane. Adres aplikacji gościa się zmienił: wydrukuj nowe kody QR, stare już nie działają.',
         suggestions: (n: number) => `Dodano propozycje silnika: ${n}.`,
@@ -590,7 +593,9 @@ export const pl = {
         job_closed: 'Ten import jest już zakończony. Rozpocznij nowy.',
         no_rows_selected: 'Zaznacz co najmniej jeden wiersz do importu.',
         unknown_row: 'Tego wiersza nie ma w tym imporcie.',
-        invalid_kind: 'Importuj menu albo kartę win.',
+        invalid_kind: 'Importuj menu, kartę win albo sprzedaż.',
+        no_header: 'W pliku brakuje kolumn potrzebnych do importu sprzedaży: data, numer rachunku, typ pozycji, ilość i kwota netto.',
+        no_complete_checks: 'Żadnego rachunku nie da się zapisać: każda zaznaczona pozycja należy do rachunku z odznaczoną pozycją albo błędem.',
         slug_taken: 'Inna restauracja używa już tej nazwy w adresie. Wybierz inną.',
         validation_failed: 'Sprawdź dane. Nazwa w adresie może zawierać tylko małe litery, cyfry i myślniki (od 2 do 40 znaków) i nie może być słowem zastrzeżonym.',
         translation_invalid: 'Sprawdź tłumaczenia: któreś jest za długie.',
@@ -1009,6 +1014,16 @@ export const pl = {
           'Okazje to podpowiedzi, gdzie warto zajrzeć. Liczymy je z Twojej karty i ocen dopasowania, a gdy są dane — z wyborów gości i zamówień z kodem polecenia, tylko w tej restauracji.',
           `Nic się nie zmienia bez Twojej decyzji; zignorowana okazja wraca najwcześniej po ${days} dniach.`
         ]
+      },
+      sales: {
+        summary: 'Jak liczony jest plik?',
+        points: (maxRows: number) => [
+          'Jeden wiersz to jedna pozycja rachunku. Rachunek to jego dzień biznesowy i numer, więc ten sam numer innego dnia to inny rachunek.',
+          'Zapisujemy tylko całe rachunki: rachunek z odznaczoną pozycją albo błędem jest pomijany i zostaje jego zapisana wersja.',
+          'Ponowny import tych samych rachunków zastępuje ich zapisane pozycje zamiast je dodawać, więc poprawiony eksport można bezpiecznie wgrać jeszcze raz.',
+          'Wine Attach Rate: rachunki z jedzeniem, na których było też wino, wśród wszystkich rachunków z jedzeniem. Rachunki barowe z samym winem liczą się tylko do przychodu z wina. Zwrócona butelka znosi sprzedaż.',
+          `Nazwiska gości, płatności i nazwy pozycji nie są zapisywane. Do ${maxRows} pozycji w pliku: większe eksporty dziel po całych dniach.`
+        ]
       }
     },
     qr: {
@@ -1096,13 +1111,19 @@ export const pl = {
       readOnly: 'Twoja rola nie pozwala importować plików.',
       kinds: {
         menu: { noun: (n: number) => plural(n, 'danie', 'dania', 'dań'), columns: 'Kategoria, Nazwa, Opis, Cena', hint: 'Nowe dania trafiają jako szkice ze szkicem profilu smaku. Goście zobaczą je po publikacji.', updates: 'opis, kategoria i cena' },
-        wines: { noun: (n: number) => plural(n, 'wino', 'wina', 'win'), columns: 'Producent, Wino, Rocznik, Region, Szczep, Styl, Cena kieliszka, Cena butelki', hint: 'Nowe wina od razu trafiają do karty i dostają propozycje parowań do Twojego przeglądu.', updates: 'ceny' }
+        wines: { noun: (n: number) => plural(n, 'wino', 'wina', 'win'), columns: 'Producent, Wino, Rocznik, Region, Szczep, Styl, Cena kieliszka, Cena butelki', hint: 'Nowe wina od razu trafiają do karty i dostają propozycje parowań do Twojego przeglądu.', updates: 'ceny' },
+        sales: {
+          noun: (n: number) => plural(n, 'pozycję', 'pozycje', 'pozycji'), columns: 'Data (dzień biznesowy), Nr rachunku, Goście (opcjonalnie), Kategoria, Pozycja (opcjonalnie), Ilość, Kwota netto',
+          hint: 'Wyeksportuj z kasy pozycje rachunków jako CSV albo Excel. Użyj kolumny dnia biznesowego, nie znacznika czasu. Duże pliki dziel po całych dniach. Nazwiska gości i dane kart nie są potrzebne — takie kolumny są pomijane.',
+          updates: ''
+        }
       },
       columns: {
         name_pl: 'Nazwa (PL)', name_en: 'Nazwa (EN)', description_pl: 'Opis (PL)', description_en: 'Opis (EN)',
         tasting_note_pl: 'Notatka degustacyjna (PL)', tasting_note_en: 'Notatka degustacyjna (EN)', region_pl: 'Region (PL)', region_en: 'Region (EN)', country_pl: 'Kraj (PL)', country_en: 'Kraj (EN)',
         category: 'Kategoria', name: 'Nazwa', description: 'Opis', price: 'Cena (zł)',
-        producer: 'Producent', wineName: 'Wino', vintage: 'Rocznik', region: 'Region', country: 'Kraj', grape: 'Szczep', style: 'Styl', glassPrice: 'Kieliszek', bottlePrice: 'Butelka'
+        producer: 'Producent', wineName: 'Wino', vintage: 'Rocznik', region: 'Region', country: 'Kraj', grape: 'Szczep', style: 'Styl', glassPrice: 'Kieliszek', bottlePrice: 'Butelka',
+        businessDate: 'Data', checkId: 'Rachunek', covers: 'Goście', itemType: 'Typ', itemName: 'Pozycja', quantity: 'Ilość', netAmount: 'Netto (zł)'
       },
       uploadTitle: '1. Prześlij plik',
       uploadText: 'CSV, Excel (.xlsx) lub PDF, do 10 MB. Nic nie zostanie zapisane, dopóki nie potwierdzisz.',
@@ -1153,11 +1174,44 @@ export const pl = {
       openMenu: 'Otwórz menu',
       openWines: 'Otwórz kartę win',
       another: 'Importuj kolejny plik',
+      sales: {
+        title: 'Import sprzedaży',
+        description: 'Wczytaj pozycje rachunków z kasy, żeby zmierzyć, jak często goście, którzy jedzą, zamawiają też wino. Sprawdzasz każdą pozycję, zanim cokolwiek zostanie zapisane.',
+        uploadText: 'CSV albo Excel (.xlsx), do 10 MB i 2000 pozycji. Nic nie jest zapisywane przed zatwierdzeniem.',
+        pricesText: 'Kwoty netto w postaci 58,50 albo 58.50 zł. Zwroty i storna to pozycje ujemne.',
+        missingColumns: (columns: string) => `Nie znaleziono kolumn: ${columns}.`,
+        fieldWords: { businessDate: 'data', checkId: 'numer rachunku', covers: 'goście', itemType: 'typ pozycji', itemName: 'pozycja', quantity: 'ilość', netAmount: 'kwota netto' } as Record<string, string>,
+        types: { food: 'Jedzenie', wine_glass: 'Wino na kieliszki', wine_bottle: 'Wino w butelce', other: 'Inne' } as Record<string, string>,
+        keepValue: (value: string) => `${value} (wybierz typ)`,
+        summaryTitle: 'Co zapisze ten plik',
+        summaryEmpty: 'Nie zaznaczono jeszcze żadnego pełnego rachunku.',
+        period: (from: string, to: string) => (from === to ? from : `${from} – ${to}`),
+        checks: (n: number) => `${n} ${plural(n, 'rachunek', 'rachunki', 'rachunków')}`,
+        lines: (food: number, glass: number, bottle: number, other: number) => `Pozycje: jedzenie ${food}, wino na kieliszki ${glass}, wino w butelce ${bottle}, inne ${other}.`,
+        incomplete: (n: number) => `Niepełne rachunki (zostaną pominięte, bo pozycja jest odznaczona albo ma błąd): ${n}.`,
+        replaced: (n: number) => `Rachunki już zapisane dla tych dni, które zostaną zastąpione: ${n}.`,
+        checkText: 'Popraw to, co zaznaczono na czerwono, odznacz niepotrzebne pozycje i zaimportuj. Rachunek zapisuje się tylko wtedy, gdy wszystkie jego pozycje są zaznaczone i poprawne.',
+        rateLabel: 'Wine Attach Rate tego pliku',
+        rateText: (withWine: number, food: number) => `${withWine} z ${food} rachunków z jedzeniem miało wino`,
+        noRate: 'W tym pliku nie ma rachunków z jedzeniem.',
+        unmappedTitle: 'Nierozpoznane kategorie',
+        unmappedText: 'Wybierz typ raz dla każdej kategorii: obejmie wszystkie jej pozycje po „Sprawdź ponownie” albo przy imporcie.',
+        unmappedLines: (n: number) => `${n} ${plural(n, 'pozycja', 'pozycje', 'pozycji')}`,
+        unmappedChoose: (value: string) => `Typ dla ${value}`,
+        notChosen: 'Wybierz…',
+        resultLines: 'Zapisane pozycje',
+        resultReplaced: 'Zastąpione rachunki',
+        doneText: 'Pozycje są zapisane. Nowszy eksport tych samych rachunków je zastępuje, więc ponowny import poprawionego pliku jest bezpieczny.'
+      },
       notes: {
         pdf: 'Ten PDF został odczytany jako tekst. PDF nie ma prawdziwych kolumn, więc przed importem sprawdź każdy wiersz.',
         noCategory: 'Brak kolumny z kategorią: dania bez kategorii trafiają do dań głównych. Sprawdź je w podglądzie.',
         unused: (columns: string) => `Nieużyte kolumny: ${columns}.`,
-        noHeader: (order: string) => `Nie znaleziono wiersza nagłówka, więc kolumny odczytano w tej kolejności: ${order}.`
+        noHeader: (order: string) => `Nie znaleziono wiersza nagłówka, więc kolumny odczytano w tej kolejności: ${order}.`,
+        noCovers: 'Brak kolumny z liczbą gości: z tego pliku nie da się policzyć przychodu z wina na gościa.',
+        dayMonth: 'Daty typu 03/04/2026 odczytano jako dzień/miesiąc (3 kwietnia 2026).',
+        monthDay: 'Daty typu 04/13/2026 odczytano jako miesiąc/dzień (13 kwietnia 2026).',
+        repeatedChecks: 'Numery rachunków powtarzają się w różnych dniach. To w porządku, jeśli kasa numeruje paragony od nowa każdego dnia.'
       },
       issues: {
         exists_menu: () => 'Już jest w menu: import zaktualizuje opis, kategorię i cenę.',
@@ -1187,7 +1241,28 @@ export const pl = {
         glass_price_invalid: (p: IssueParams) => `„${p.value}” nie jest ceną.`,
         glass_price_not_lower: () => 'Cena kieliszka musi być niższa niż cena butelki.',
         translation_empty: () => 'Puste tłumaczenie: zostaje dotychczasowe.',
-        translation_too_long: () => 'Tłumaczenie jest za długie.'
+        translation_too_long: () => 'Tłumaczenie jest za długie.',
+        date_missing: () => 'Brak daty.',
+        date_invalid: (p: IssueParams) => `„${p.value}” to nie data.`,
+        date_timestamp: () => 'Użyj kolumny dnia biznesowego, nie znacznika czasu.',
+        date_future: () => 'Data jest w przyszłości.',
+        date_order_conflict: () => 'W pliku są daty dzień/miesiąc i miesiąc/dzień. Wpisz datę jako 2026-10-14.',
+        check_missing: () => 'Brak numeru rachunku.',
+        check_too_long: () => 'Numer rachunku jest za długi (najwyżej 64 znaki).',
+        covers_invalid: (p: IssueParams) => `„${p.value}” to nie liczba gości (0–999).`,
+        covers_missing: () => 'Rachunek bez liczby gości: nie liczy się do przychodu z wina na gościa.',
+        covers_differ: () => 'Pozycje tego rachunku mają różne liczby gości: liczy się największa.',
+        item_type_missing: () => 'Brak typu pozycji.',
+        unmapped_category: (p: IssueParams) => `Nierozpoznana kategoria „${p.value}”: wybierz jej typ w sekcji „Nierozpoznane kategorie”.`,
+        generic_wine: (p: IssueParams) => `„${p.value}” odczytano jako wino w butelce.`,
+        quantity_missing: () => 'Brak ilości.',
+        quantity_invalid: (p: IssueParams) => `„${p.value}” to nie ilość.`,
+        quantity_zero: () => 'Ilość nie może być zerem.',
+        amount_missing: () => 'Brak kwoty netto.',
+        amount_invalid: (p: IssueParams) => `„${p.value}” to nie kwota.`,
+        amount_too_high: () => 'Kwota wygląda na za wysoką (najwyżej 100 000).',
+        return_line: () => 'Zwrot albo storno: odejmowane od rachunku.',
+        check_incomplete: () => 'Niepełny rachunek: cały rachunek zostanie pominięty.'
       }
     }
   }

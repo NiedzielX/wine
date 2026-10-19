@@ -13,6 +13,7 @@ import { ormConfig } from '../src/config';
 import { Migration20261015140000_bilingual_content } from '../src/migrations/Migration20261015140000_bilingual_content';
 import { Migration20261018125821_recommendation_code } from '../src/migrations/Migration20261018125821_recommendation_code';
 import { Migration20261016152214_opportunity_dismissal } from '../src/migrations/Migration20261016152214_opportunity_dismissal';
+import { Migration20261019064652_sales_record } from '../src/migrations/Migration20261019064652_sales_record';
 import { PairingEntity } from '../src/entities';
 import { PgAuthRepository } from '../src/repositories/auth';
 import { PgImportRepository } from '../src/repositories/import';
@@ -22,7 +23,7 @@ import { RestaurantEntity } from '../src/entities';
 import { readFileSync } from 'node:fs';
 import {
   PgContentWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
-  PgRestaurantWriteRepository, PgWineRepository, PgWineWriteRepository
+  PgRestaurantWriteRepository, PgSalesRepository, PgWineRepository, PgWineWriteRepository
 } from '../src/repositories';
 import { DemoSeeder } from '../src/seeders/DemoSeeder';
 
@@ -47,7 +48,7 @@ async function freshDatabase(): Promise<MikroORM> {
 
 /** Empties every table and loads the demo data again: each write test starts from the same state. */
 async function resetData(orm: MikroORM): Promise<void> {
-  await orm.em.getConnection().execute('truncate table session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await orm.em.getConnection().execute('truncate table sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
   await new DemoSeeder().run(orm.em.fork());
 }
 
@@ -67,7 +68,8 @@ function pgRepos(orm: MikroORM): Repositories {
     importRepository: new PgImportRepository({ em }),
     opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em }),
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),
-    recommendationCodeRepository: new PgRecommendationCodeRepository({ em })
+    recommendationCodeRepository: new PgRecommendationCodeRepository({ em }),
+    salesRepository: new PgSalesRepository({ em })
   };
 }
 
@@ -482,6 +484,105 @@ run('PostgreSQL', () => {
       await run('up');
       expect(await exists()).toBe(true);
       expect((await codes(pgRepos(orm)).issue('halka', choice()))?.code).toBeTruthy();
+    });
+  });
+  describe('sales import on PostgreSQL (spec 2026-10-15-pos-sales-import-attach-rate, phase 1)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const fixture = (name: string) => ({ name, bytes: new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url))) });
+    const TL = actor('tomasz', 'Tomasz Lis');
+    const active = async () => Number((await orm.em.getConnection().execute<Array<{ n: string }>>('select count(*)::text as n from sales_record where replaced_at is null'))[0].n);
+    const period = { from: '2026-10-01', to: '2026-10-31' };
+
+    it('a real CSV is previewed, confirmed whole checks only, and the same file twice keeps the same active lines (AC1, AC2, AC3)', async () => {
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
+      expect(job.rows).toHaveLength(13);
+      expect(await active()).toBe(0);                                         // nothing before the confirm
+      const preview = await services(pgRepos(orm)).imp.salesPreview('halka', job.id);
+      expect(preview.summary).toMatchObject({ checks: 6, replacedChecks: 0, from: '2026-10-14', to: '2026-10-15' });
+      expect(preview.kpis).toMatchObject({ foodChecks: 5, foodChecksWithWine: 3, attachRate: 0.6 });
+      expect(await services(pgRepos(orm)).imp.confirm('halka', job.id, TL)).toEqual({ created: 12, updated: 0, skipped: 1, suggestions: 0, replaced: 0 });
+      const repos = pgRepos(orm);
+      const before = await repos.salesRepository.checkTotals(ds.restaurant.id, period);
+      expect(before).toHaveLength(6);
+      expect(await repos.salesRepository.dataRange(ds.restaurant.id)).toEqual({ from: '2026-10-14', to: '2026-10-15' });
+
+      const again = await services(pgRepos(orm)).imp.upload('halka', 'sales', fixture('sales-pos-1250.csv'), TL);
+      expect((await services(pgRepos(orm)).imp.salesPreview('halka', again.id)).summary.replacedChecks).toBe(6);
+      expect(await services(pgRepos(orm)).imp.confirm('halka', again.id, TL)).toMatchObject({ created: 12, replaced: 6 });
+      expect(await active()).toBe(12);
+      expect(await pgRepos(orm).salesRepository.checkTotals(ds.restaurant.id, period)).toEqual(before);
+      const replaced = await orm.em.getConnection().execute<Array<{ n: string }>>('select count(*)::text as n from sales_record where replaced_by_job_id = ?', [again.id]);
+      expect(Number(replaced[0].n)).toBe(12);
+    });
+
+    it('nothing from the guest, waiter, payment or item columns reaches the database (AC17, R9)', async () => {
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'sales', fixture('sales-pos.xlsx'), TL);
+      await s.imp.confirm('halka', job.id, TL, [], [{ field: 'itemType', from: 'Wina białe', to: 'wine_bottle' }]);
+      const dump = JSON.stringify(await orm.em.getConnection().execute('select * from sales_record'));
+      expect(dump).not.toMatch(/VIP|Ola|Riesling|Danie dnia|Veltliner|130\.14/);
+      const jobRows = JSON.stringify(await orm.em.getConnection().execute('select rows, notes from import_job where id = ?', [job.id]));
+      expect(jobRows).not.toMatch(/VIP|130\.14/);
+      expect(await active()).toBe(61);
+    });
+
+    it('two confirms of different jobs with the same checks leave exactly one active set of lines per check (AC12, R8)', async () => {
+      const a = services(pgRepos(orm));
+      const b = services(pgRepos(orm));
+      const ja = await a.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
+      const jb = await b.imp.upload('halka', 'sales', fixture('sales-pos.csv'), MARTA);
+      const results = await Promise.all([a.imp.confirm('halka', ja.id, TL), b.imp.confirm('halka', jb.id, MARTA)]);
+      expect(results.map((r) => r.replaced).sort()).toEqual([0, 6]);
+      expect(await active()).toBe(12);
+      const perCheck = await orm.em.getConnection().execute<Array<{ jobs: string }>>(
+        'select count(distinct import_job_id)::text as jobs from sales_record where replaced_at is null group by business_date, check_id');
+      expect(perCheck.every((r) => r.jobs === '1')).toBe(true);
+    });
+
+    it('a double click on one job imports once; another restaurant cannot confirm it and sees no sales', async () => {
+      const a = services(pgRepos(orm));
+      const b = services(pgRepos(orm));
+      const job = await a.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
+      const results = await Promise.allSettled([a.imp.confirm('halka', job.id, TL), b.imp.confirm('halka', job.id, MARTA)]);
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(await active()).toBe(12);
+      const other = '99999999-9999-4999-8999-999999999999';
+      expect(await pgRepos(orm).salesRepository.checkTotals(other, period)).toEqual([]);
+      await expect(pgRepos(orm).importRepository.confirm(other, job.id, { kind: 'sales', records: [], checks: [], result: { created: 0, updated: 0, skipped: 0, suggestions: 0 } }, '2026-10-19T10:00:00.000Z'))
+        .rejects.toMatchObject({ code: 'not_found' });
+    });
+
+    it('the database checks the item type, a zero quantity and the guests', async () => {
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
+      const conn = orm.em.getConnection();
+      const insert = (itemType: string, quantity: number, covers: number | null) => conn.execute(
+        `insert into sales_record (id, restaurant_id, import_job_id, business_date, check_id, covers, item_type, quantity, net_amount, created_at)
+         values (?, ?, ?, '2026-10-14', 'x', ?, ?, ?, 10, now())`, [randomUUID(), ds.restaurant.id, job.id, covers, itemType, quantity]);
+      await expect(insert('beer', 1, null)).rejects.toThrow(/sales_record_item_type_check/);
+      await expect(insert('food', 0, null)).rejects.toThrow(/sales_record_quantity_check/);
+      await expect(insert('food', 1, 1000)).rejects.toThrow(/sales_record_covers_check/);
+      await insert('food', -1, 0);
+    });
+
+    it('the migration creates the table with its index, and down drops it again (AC6, up/down)', async () => {
+      const exists = async () => (await orm.em.getConnection().execute<Array<{ n: string }>>("select count(*)::text as n from information_schema.tables where table_name = 'sales_record'"))[0].n === '1';
+      const index = await orm.em.getConnection().execute<Array<{ indexdef: string }>>("select indexdef from pg_indexes where tablename = 'sales_record' and indexname = 'sales_record_restaurant_id_business_date_check_id_index'");
+      expect(index[0].indexdef).toMatch(/\(restaurant_id, business_date, check_id\)/);
+      const migration = new Migration20261019064652_sales_record(orm.em.getDriver(), orm.config);
+      const run = async (fn: 'up' | 'down') => {
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      await run('down');
+      expect(await exists()).toBe(false);
+      await run('up');
+      expect(await exists()).toBe(true);
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
+      expect((await s.imp.confirm('halka', job.id, TL)).created).toBe(12);
     });
   });
 });

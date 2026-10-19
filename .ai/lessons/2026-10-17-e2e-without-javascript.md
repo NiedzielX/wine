@@ -1,6 +1,6 @@
 ---
 date: 2026-10-17
-updated:
+updated: 2026-10-19
 area: tooling
 status: active
 source: .ai/runs/2026-10-17-e10-f2-opportunity-screens.md
@@ -21,6 +21,8 @@ Skrypty Next.js wczytane przy pierwszej stronie trafiają do pamięci podręczne
 - Odczyt danych do testu: `eval` z `fetch('/api/v1/…').then((r) => r.text())` w zalogowanej stronie (to samo pochodzenie, ciasteczko sesji idzie samo).
 - Ekran z `loading.tsx` (grupa `(lists)`) sprawdzaj w drugiej sesji z JS.
 - Lokalnie: `AGENT_BROWSER_BIN` na kopię 0.39.1 poza repo, `AGENT_BROWSER_EXECUTABLE_PATH` na systemowy Chrome, `TEST_DATABASE_URL` na `embedded-postgres` (lekcja `postgres-without-docker`) — `npm run test:e2e` przechodzi bez Dockera.
+
+- (2026-10-19) Proxy usuwające `<script>` przed `next start` musi przekazywać metodę, ciało, ciasteczka i ustawiać `x-forwarded-host` na swój `Host` (Node `fetch` nie pozwala ustawić `host`): bez tego akcja serwerowa (logowanie, upload) kończy się „Invalid Server Actions request” (Origin ≠ forwarded host). Plik w przeglądarce bez skryptów strony: `DataTransfer` w `eval` + natywny klik przycisku.
 
 ## Jak sprawdzić
 `packages/app/tests/e2e/opportunities.e2e.test.ts`, test „the page has no script running” (`window.next?.router` → `false`).
