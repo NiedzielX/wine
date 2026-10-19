@@ -305,6 +305,8 @@ GET /v1/restaurants/7d1e…/analytics/summary?from=2026-09-16&to=2026-10-13
 
 Gdy brak importu sprzedaży, pola sprzedażowe mają `"value": null, "source": null`.
 
+Trasa jest planowana; dziś panel liczy te wartości w serwisach (`SalesKpiService.getSalesKpis(slug, {from, to})` i `dataRange(slug)`, spec `2026-10-15-pos-sales-import-attach-rate` F2 — kontrakt dla E04). `attachRate` = rachunki z jedzeniem i winem / rachunki z jedzeniem (per rachunek, `PRODUCT_CONCEPT.md` §6); okres: dni biznesowe `YYYY-MM-DD`, obie granice włącznie, `to − from ≤ 365`, inaczej `422 invalid_period` (`ValidationError`, `fields.from|to`: `invalid`, `before_from`, `too_long`).
+
 ---
 
 ## Integracje (poza MVP — kontrakt zarezerwowany)

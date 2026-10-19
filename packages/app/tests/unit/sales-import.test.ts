@@ -116,6 +116,9 @@ describe('A13 Import sales, server-rendered', () => {
     const result = await render({ job, saved: 'imported_sales', n: '61-0-0' });
     expect(result).toContain('Saved 61 lines, replaced 0 checks, skipped 0.');
     expect(result).toContain('Replaced checks');
+    // phase 2: the result links to the Wine Attach Rate card; the card itself is under the upload step only
+    expect(result).toContain('href="/admin/halka/import/sales#wine-attach-rate"');
+    expect(result).not.toContain('data-wine-attach-rate');
   });
 
   it('a file without the net amount column names the missing column; a file over 10 MB is refused (AC5, AC14)', async () => {

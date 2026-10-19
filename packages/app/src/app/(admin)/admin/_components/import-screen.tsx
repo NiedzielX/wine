@@ -308,6 +308,7 @@ export function DoneStep({ slug, job, locale, t }: { slug: string; job: ImportJo
           )}
           <p className="text-sm text-muted-foreground">{m.sales.doneText}</p>
           <div className="flex flex-wrap gap-2">
+            <Button asChild><Link href={`${base}/import/sales#wine-attach-rate`}>{m.sales.seeRate}</Link></Button>
             <Button asChild variant="outline"><Link href={`${base}/import/sales`}>{m.another}</Link></Button>
           </div>
         </CardContent>

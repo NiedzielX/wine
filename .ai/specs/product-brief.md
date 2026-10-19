@@ -51,7 +51,7 @@ Benchmark odłożony: żaden produkt nie został sprawdzony w źródle (Collecti
 
 ## Goals and success criteria
 
-- Business goal: więcej sprzedanego wina w restauracji klienta, mierzone jako Wine Attach Rate (zamówienia z winem / zamówienia z jedzeniem) przed i po wdrożeniu. `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §6, D01
+- Business goal: więcej sprzedanego wina w restauracji klienta, mierzone jako Wine Attach Rate (rachunki z jedzeniem i winem / rachunki z jedzeniem — doprecyzowanie Q7 E03) przed i po wdrożeniu. `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §6, D01
 - User outcome: gość w trzech dotknięciach od zeskanowania kodu widzi wina pasujące do dania, z ceną i uzasadnieniem. `[DOCUMENT]` docs/PRODUCT_CONCEPT.md §8 p.4
 - Primary metric, baseline today, threshold, date: Wine Attach Rate; baseline nieznany (brak danych POS); próg i termin niewybrane (Q02).
 - What must not get worse: zaufanie gościa — rekomendacje nie są sprzedawane (N01).
@@ -70,7 +70,7 @@ Benchmark odłożony: żaden produkt nie został sprawdzony w źródle (Collecti
 | Match Score | wynik silnika 0–99 dla pary, zawsze surowy | silnik (`ENGINE_VERSION`) | gość, panel |
 | Sommelier’s pairing / Para sommeliera | etykieta pary zatwierdzonej przez sommeliera (approved / modified); do 2026-10-16 „Sommelier recommendation” (R06, D13) | sommelier | gość, kelner, panel |
 | Recommended for your dish / Polecane do Twojego dania | nagłówek najlepszej propozycji silnika (bez pieczęci) | silnik | gość, panel |
-| Wine Attach Rate | zamówienia z co najmniej jednym winem / zamówienia z jedzeniem w okresie | właściciel / GM | panel (Later) |
+| Wine Attach Rate | rachunki z jedzeniem i winem / rachunki z jedzeniem w okresie (per rachunek, nie per gość; rachunki barowe poza wskaźnikiem; zwrot znosi sprzedaż — doprecyzowanie Q7 E03, 2026-10-15) | właściciel / GM | panel: A13 (okres, E03 F2), A1 (E04) |
 | Publikacja | migawka parowań i kart, którą widzą goście | sommelier, GM | gość |
 
 ## Key flows
