@@ -55,16 +55,23 @@ Zmiana w tej iteracji: `ink-3` z `#857a80` (3,73:1, poniżej AA) na `#6f646a`. S
 - Kolor nigdy nie jest jedynym sygnałem statusu: zawsze tekst albo ikona.
 - Każdy ekran działa bez JavaScriptu; komponent „i” (`<details>`) jest natywny.
 
-## 5. Komponenty: kiedy nie używać
+## 5. Komponenty gościa: kontrakty
 
-Każdy komponent gościa ma opis w tym dokumencie, zanim trafi do ekranu. Pierwsza wersja dotyczy komponentów istniejących już na stronach:
+Każdy komponent z `packages/app/src/app/(guest)/_components/guest-ui.tsx` ma tu: do czego służy, czego używać zamiast, stany i dostępność. Nowy komponent dopisujemy tu w tym samym PR.
 
-- **Explain (`<details>`):** jedno wyjaśnienie na ekran lub kartę. Nie w linku, nie w przycisku akcji.
-- **MatchGlass / wynik:** tylko z prawdziwym wynikiem silnika. Bez wyniku nie rysujemy szklanki.
-- **Pieczęć sommeliera (`brass`):** tylko przy parach zatwierdzonych przez sommeliera. Nigdy przy wynikach silnika.
-- **Przycisk główny (`wine`):** jeden na ekran. Drugi i kolejne to przycisk pomocniczy, nie główny.
+| Komponent | Służy do | Kiedy NIE używać (zamiast) | Stany i dostępność |
+|---|---|---|---|
+| `Button` (`primary` / `secondary` / `ghost`) | akcja przechodząca na inny ekran (link z `href`) | akcja zmieniająca dane (użyj formularza POST); drugi `primary` na ekranie (użyj `secondary`) | link, więc fokus i klawiatura natywne; min. 44 px wysokości |
+| `Explain` (`<details>`) | jedno wyjaśnienie na ekran lub kartę | w linku lub w przycisku akcji; drugie „i” na tym samym ekranie (dopisz akapit do istniejącego) | zamknięte domyślnie, działa bez JS, fokus widoczny |
+| `Seal` (pieczęć, `brass`) | para zatwierdzona przez sommeliera | wynik silnika bez zatwierdzenia; ozdoba | ikona z tekstem alternatywnym (`sr-only`), status nie tylko kolorem |
+| `Score` / szklanka dopasowania | prawdziwy wynik silnika (`showScores` włączone) | brak wyniku; wynik podbity premią (pokazujemy wynik surowy) | przy `showScores=false` bez liczby; etykieta czytnika ekranu w języku strony |
+| `BestCard` / `WineRow` | wino z listy wyników | wino bez wyniku (użyj `EmptyState`) | cały kafelek jest linkiem; cena i styl jako osobne elementy |
+| `EmptyState` | brak wyników lub brak menu | błąd techniczny (użyj komunikatu błędu) | nagłówek i jedno zdanie; zawsze z wyjaśnieniem, dlaczego pusto |
+| `Notice` | informacja o zmianie zachowania (np. luzowanie budżetu) | komunikat o błędzie; dekoracja | tekst, nie kolor |
+| `TableDishPicker` | wybór dań stołu (G5, G11) | wybór jednego dania (użyj listy `DishList`) | checkbox natywny; wiersz kotwic bez JS |
+| `PeopleChoice` / `PeopleLinks` | liczba osób, tylko po jawnym wyborze | ustawianie domyślnej liczby (decyzja Q4: bez domyślnej) | grupa z `legend`; linki 2–8 |
 
-Pełny kontrakt każdego komponentu (API, stany, dostępność) dopisujemy przy okazji kolejnych zmian w tym komponencie.
+Dla agentów: wybieraj komponent po tabeli, nie po wyglądzie. Jeśli żaden nie pasuje, zapytaj zamiast wymyślać nowy.
 
 ## 6. Stan prac (lekcja 06)
 
@@ -74,7 +81,7 @@ Pełny kontrakt każdego komponentu (API, stany, dostępność) dopisujemy przy 
 - [x] Krok 7: automatyczna kontrola (`check:design`, ratchet na liczbę wartości).
 - [x] Krok 4: typografia w siedmiu stylach (`text-caption`, `text-small`, `text-body`, `text-lead`, `text-h2`, `text-h1`, `text-display`); siedem zamiast sześciu, bo nagłówek 2 i treść wiodąca różnią się realnie.
 - [x] Krok 5: promienie 8 / 12 / 16 / pełne (`rounded-lg`, `rounded-xl`, `rounded-2xl`, `rounded-full`); ikony jednej grubości linii (1,5).
-- [ ] Krok 6: kontrakty komponentów gościa w tym dokumencie.
+- [x] Krok 6: kontrakty komponentów gościa (sekcja 5).
 - [ ] Krok 8: test z agentem: ekran zbudowany tylko z tego dokumentu, z listą miejsc, w których agent zgadywał.
 
 Ratchet w `scripts/check-design.mjs`: limit to 8 kolorów hex poza tokenami, 7 stylów tekstu i 4 promienie. Po każdym kroku 4–5 obniżamy limit, nigdy nie podnosimy.
