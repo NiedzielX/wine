@@ -5,7 +5,7 @@ import {
   type ContentWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
-  type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository, type UsageTotals,
+  type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository, type UsageTotals, type PairingStat,
   type RecommendationCodeInput, type RecommendationCodeRecord, type RecommendationCodeRepository, type ServiceDayPeriod,
   type CheckKey, type CheckTotals, type SalesPeriod, type SalesRepository
 } from '@wine-match/core';
@@ -452,6 +452,48 @@ export class PgGuestInteractionRepository implements GuestInteractionRepository 
       sessions: Number(r?.sessions ?? 0), recommendationViews: Number(r?.recommendationViews ?? 0), sessionsWithViews: Number(r?.sessionsWithViews ?? 0),
       sessionsWithSelection: Number(r?.sessionsWithSelection ?? 0), staffLookups: Number(r?.staffLookups ?? 0)
     };
+  }
+
+  /**
+   * One statement over the window's rows. Items come from `jsonb_array_elements` only for an array (anything else
+   * expands to nothing, never an error); "latest" = `row_number()` per (session, dish, wine) by createdAt, then id
+   * (the later write). Ids are ordered byte-wise (`collate "C"`), as the in-memory source orders them.
+   */
+  async pairingStats(restaurantId: string, range: { from: Date; to: Date }): Promise<PairingStat[]> {
+    const rows = await this.em.getConnection().execute<Array<{ dishId: string; wineId: string; source: PairingStat['source']; shown: number; chosen: number }>>(
+      `with ev as (
+         select id, session_id, name, dish_id, wine_id, props, created_at from guest_interaction
+          where restaurant_id = ? and created_at >= ? and created_at < ?
+       ),
+       guest as (select distinct session_id from ev where name = 'guest_session_started'),
+       seen as (
+         select ev.session_id, ev.dish_id::text as dish_id, item->>'wineId' as wine_id,
+                case when item->>'tier' = 'engine' then 'engine' else 'sommelier' end as source,
+                row_number() over (partition by ev.session_id, ev.dish_id, item->>'wineId' order by ev.created_at desc, ev.id desc) as rn
+           from ev
+           cross join lateral jsonb_array_elements(
+             case when jsonb_typeof(ev.props->'items') = 'array' then ev.props->'items' else '[]'::jsonb end
+           ) as item
+          where ev.name = 'recommendations_viewed' and ev.dish_id is not null
+            and ev.session_id in (select session_id from guest)
+            and jsonb_typeof(item) = 'object' and jsonb_typeof(item->'wineId') = 'string'
+            and item->>'tier' in ('sommelier_primary', 'sommelier', 'engine')
+       ),
+       selected as (
+         select distinct session_id, dish_id::text as dish_id, wine_id::text as wine_id from ev
+          where name = 'wine_selected' and props->>'context' = 'dish' and dish_id is not null and wine_id is not null
+            and session_id in (select session_id from guest)
+       )
+       select s.dish_id as "dishId", s.wine_id as "wineId", s.source,
+              count(*)::int as "shown", count(sel.session_id)::int as "chosen"
+         from seen s
+         left join selected sel on sel.session_id = s.session_id and sel.dish_id = s.dish_id and sel.wine_id = s.wine_id
+        where s.rn = 1
+        group by s.dish_id, s.wine_id, s.source
+        order by s.dish_id collate "C", s.wine_id collate "C", s.source collate "C"`,
+      [restaurantId, range.from, range.to]
+    );
+    return rows.map((r) => ({ dishId: r.dishId, wineId: r.wineId, source: r.source, shown: Number(r.shown), chosen: Number(r.chosen) }));
   }
 }
 

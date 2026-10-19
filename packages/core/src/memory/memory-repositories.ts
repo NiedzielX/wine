@@ -14,7 +14,7 @@ import { aggregateChecks } from '../services/sales/sales-kpis';
 import type { CheckKey, SalesPeriod, SalesRecord } from '../services/sales/types';
 import type {
   ContentWriteRepository, DecisionRecord, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
-  PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, UsageTotals, WineRepository, WineWriteRepository
+  PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, UsageTotals, PairingStat, PairingStatSource, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
 /** `content` is null for a version published before translations existed (read as `{}`). */
@@ -551,7 +551,49 @@ export class MemoryGuestInteractionRepository implements GuestInteractionReposit
       staffLookups: lookups.size
     };
   }
+
+  async pairingStats(restaurantId: string, range: { from: Date; to: Date }): Promise<PairingStat[]> {
+    const from = range.from.getTime();
+    const to = range.to.getTime();
+    const inWindow = this.store.guestInteractions.filter((e) => {
+      const at = e.createdAt.getTime();
+      return e.restaurantId === restaurantId && at >= from && at < to;
+    });
+    const guest = new Set(inWindow.filter((e) => e.name === 'guest_session_started').map((e) => e.sessionId));
+    const key = (...parts: string[]) => JSON.stringify(parts);
+    // (session, dish, wine) → source of the latest view; events are in write order, so a later one wins a tie
+    const latest = new Map<string, { at: number; source: PairingStatSource; sessionId: string; dishId: string; wineId: string }>();
+    const selected = new Set<string>();
+    for (const e of inWindow) {
+      if (!guest.has(e.sessionId) || !e.dishId) continue;
+      if (e.name === 'wine_selected' && e.wineId && e.props.context === 'dish') selected.add(key(e.sessionId, e.dishId, e.wineId));
+      if (e.name !== 'recommendations_viewed' || !Array.isArray(e.props.items)) continue;
+      const at = e.createdAt.getTime();
+      for (const item of e.props.items as unknown[]) {
+        const wineId = typeof item === 'object' && item !== null ? (item as { wineId?: unknown }).wineId : undefined;
+        const source = statSource(typeof item === 'object' && item !== null ? (item as { tier?: unknown }).tier : undefined);
+        if (typeof wineId !== 'string' || !source) continue;
+        const k = key(e.sessionId, e.dishId, wineId);
+        const prev = latest.get(k);
+        if (!prev || at >= prev.at) latest.set(k, { at, source, sessionId: e.sessionId, dishId: e.dishId, wineId });
+      }
+    }
+    const rows = new Map<string, PairingStat>();
+    for (const [k, v] of latest) {
+      const rowKey = key(v.dishId, v.wineId, v.source);
+      const row = rows.get(rowKey) ?? { dishId: v.dishId, wineId: v.wineId, source: v.source, shown: 0, chosen: 0 };
+      row.shown += 1;
+      if (selected.has(k)) row.chosen += 1;
+      rows.set(rowKey, row);
+    }
+    const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+    return [...rows.values()].sort((a, b) => cmp(a.dishId, b.dishId) || cmp(a.wineId, b.wineId) || cmp(a.source, b.source));
+  }
 }
+
+/** The tier written by E02 (`usageTier`) as the source of a pairing stat; anything else is not counted. */
+const statSource = (tier: unknown): PairingStatSource | null =>
+  tier === 'sommelier_primary' || tier === 'sommelier' ? 'sommelier' : tier === 'engine' ? 'engine' : null;
 
 /** The in-memory data source keeps this many recommendation codes at most (R11). */
 export const MAX_MEMORY_RECOMMENDATION_CODES = 10_000;

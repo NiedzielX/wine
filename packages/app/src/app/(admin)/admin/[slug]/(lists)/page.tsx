@@ -2,7 +2,7 @@ import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent, 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ENGINE_FACTS, type UsageSummary } from '@wine-match/core';
+import { ENGINE_FACTS, PAIRING_ROWS_LIMIT, type PairingPerformance, type UsageSummary } from '@wine-match/core';
 import { Page, PageHeader } from '../../_components/admin-shell';
 import { PanelExplain } from '../../_components/explain';
 import { Kpi } from '../../_components/kpi';
@@ -11,6 +11,7 @@ import { settleSection, type SettledSection } from '@/server/analytics-section';
 import { getRequestScope } from '@/server/request-scope';
 import { dataSource } from '@/server/container';
 import { getI18n } from '@/server/i18n';
+import { PairingPerformanceSection } from './pairing-performance';
 import { UsageKpis } from './usage-kpis';
 
 export const dynamic = 'force-dynamic';
@@ -18,22 +19,27 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getI18n()).t.admin.meta.dashboard };
 }
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 /**
  * A1 — dashboard: guest usage of the last 28 days (spec 2026-10-15-kpi-dashboard, phase 1), the state of the wine
- * program (catalog KPIs) and what needs attention. Each analytics section is settled on its own (R9).
+ * program (catalog KPIs), what needs attention and pairing performance (phase 3). Each analytics section is settled on
+ * its own (R9). `?pairs=all` shows every pairing row, any other value the top 10 (Q11).
  */
-export default async function DashboardPage({ params }: Props) {
+export default async function DashboardPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const showAll = (await searchParams)?.pairs === 'all';
   const { adminService, opportunityService, analyticsService } = (await getRequestScope()).cradle;
-  const [o, usage] = await Promise.all([
-    adminService.overview(slug, (await getI18n()).locale),
-    settleSection(slug, 'usage', analyticsService.usageSummary(slug))
+  const panelLocale = (await getI18n()).locale;
+  const [o, usage, performance] = await Promise.all([
+    adminService.overview(slug, panelLocale),
+    settleSection(slug, 'usage', analyticsService.usageSummary(slug)),
+    settleSection(slug, 'pairings', analyticsService.pairingPerformance(slug, { limit: showAll ? undefined : PAIRING_ROWS_LIMIT, locale: panelLocale }))
   ]);
   if (!o) notFound();
-  // the restaurant exists (overview found it), so the summary is null only if it was removed in between: show the section error
+  // the restaurant exists (overview found it), so a summary is null only if it was removed in between: show the section error
   const usageSection: SettledSection<UsageSummary> = usage.ok && usage.value ? { ok: true, value: usage.value } : { ok: false };
+  const pairingsSection: SettledSection<PairingPerformance> = performance.ok && performance.value ? { ok: true, value: performance.value } : { ok: false };
   // Q19: one line with the number of S1–S3 opportunities of the whole menu (no queries on guest events), no counter in the sidebar
   const opportunities = (await opportunityService.list(slug, { scope: 'dish' }))?.groups.reduce((n, g) => n + g.items.length, 0) ?? 0;
   const base = `/admin/${slug}`;
@@ -105,6 +111,8 @@ export default async function DashboardPage({ params }: Props) {
           )}
         </CardContent>
       </Card>
+
+      <PairingPerformanceSection result={pairingsSection} slug={slug} showAll={showAll} locale={locale} />
     </Page>
   );
 }
