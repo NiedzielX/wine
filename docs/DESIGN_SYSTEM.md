@@ -35,6 +35,28 @@ Warstwa 2 — role (nazwa mówi, kiedy użyć):
 | pieczęć sommeliera | `brass` | 4,5:1 (na granicy) |
 | status: dopasowane | `sage` | 5,6:1 |
 
+Pełna tabela tokenów (wartości z `guest.css`, kontrast liczony na tle `paper` `#f5f3f4` i `surface` `#ffffff`):
+
+| Token (warstwa 1) | Hex | Rola (warstwa 2) | Na `paper` | Na `surface` | Do czego |
+|---|---|---|---|---|---|
+| `ink` | `#22181d` | tekst główny | 15,6:1 | 17,3:1 | nagłówki, treść, ceny |
+| `ink-2` | `#5e5258` | tekst drugorzędny | 6,7:1 | 7,4:1 | wyjaśnienia, podpisy, opisy |
+| `ink-3` | `#6f646a` | tekst pomocniczy (AA) | 5,1:1 | 5,7:1 | drobne etykiety |
+| `line` | `#e4dee1` | obramowanie dekoracyjne | 1,2:1 | 1,3:1 | separatory, obrys karty (nie obrys pola) |
+| `paper` | `#f5f3f4` | tło strony | — | — | tło ekranu |
+| `surface` | `#ffffff` | powierzchnia karty | — | — | karty, panele, arkusz filtrów |
+| `wine` | `#5a1a2c` | akcja główna | 11,7:1 | 13,0:1 | przycisk główny, aktywny stan |
+| `wine-deep` | `#3b0f1c` | tło marki (hero) | 15,0:1 | 16,5:1 | nagłówek restauracji |
+| `on-wine` | `#f3e9eb` | tekst na marce i akcji | 1,1:1 (na `paper`, nie używać) | 1,2:1 | tekst na `wine` i `wine-deep` (tam 10,9:1 i 13,9:1) |
+| `brass` | `#8a6a30` | pieczęć sommeliera | 4,5:1 | 5,0:1 | tylko pieczęć i ikona, nie długi tekst |
+| `brass-soft` | `#f3ede1` | tło uwagi | — | — | `Notice` przy informacji o zmianie |
+| `sage` | `#3b6a52` | status „dopasowane” | 5,6:1 | 6,2:1 | tekst i ikona statusu pozytywnego |
+| `sage-soft` | `#e5efe9` | tło statusu pozytywnego | — | — | tło chipa statusu |
+
+Zasady granic: obramowanie pola formularza ma kontrast co najmniej 3:1 (`ink-3`, nie `line`). `line` to tylko dekoracja, nie granica elementu interaktywnego.
+
+Ciemnego motywu i widoku desktopowego nie ma w tej wersji dokumentu. Wyjaśnione w sekcji 8.
+
 Warstwa 3 — komponenty biorą kolor z roli, nigdy z surowej wartości (`text-ink-2`, nie `text-[#5e5258]`).
 
 Zmiana w tej iteracji: `ink-3` z `#857a80` (3,73:1, poniżej AA) na `#6f646a`. Skrypt sprawdza kontrast wszystkich tokenów tekstowych na tle `paper` i `surface`.
@@ -47,6 +69,20 @@ Zmiana w tej iteracji: `ink-3` z `#857a80` (3,73:1, poniżej AA) na `#6f646a`. S
 - **Ruch:** bez animacji sukcesu przed potwierdzeniem z serwera. Przy ograniczeniu ruchu w systemie animacje znikają.
 - **Ikony:** jeden zestaw na produkt, grubość linii dopasowana do fontu. Emoji nie są ikonami.
 
+Każdy styl ma rozmiar, wagę i wysokość linii:
+
+| Styl | Rozmiar | Waga | Wysokość linii | Krój |
+|---|---|---|---|---|
+| `text-display` | 40 px | 400 | 1,05 | serif |
+| `text-h1` | 30 px | 400 | 1,1 | serif |
+| `text-h2` | 24 px | 400 | 1,2 | serif |
+| `text-lead` | 17 px | 500 | 1,4 | sans |
+| `text-body` | 15 px | 400 | 1,5 | sans |
+| `text-small` | 13 px | 400 | 1,45 | sans |
+| `text-caption` | 12 px | 500 | 1,4 | sans, nie krócej niż 12 px |
+
+Nagłówek i nazwa dania są stylem `text-h2` (serif). Cena to `text-body` z cyframi tabelarycznymi (`tabular-nums`) i wagą 600. Tytuł karty wina to `text-lead` w serif.
+
 ## 4. Zasady dostępności (stałe)
 
 - Kontrast tekstu co najmniej 4,5:1, dużego tekstu, ikon i obramowań pól co najmniej 3:1 (sprawdza `check:design` dla tokenów tekstowych).
@@ -54,6 +90,24 @@ Zmiana w tej iteracji: `ink-3` z `#857a80` (3,73:1, poniżej AA) na `#6f646a`. S
 - Treść działa przy zwiększonym odstępie tekstu: interlinia 1,5, odstęp po akapicie 2×.
 - Kolor nigdy nie jest jedynym sygnałem statusu: zawsze tekst albo ikona.
 - Każdy ekran działa bez JavaScriptu; komponent „i” (`<details>`) jest natywny.
+
+## 5a. Elementy ekranu gościa
+
+Tabela, z której składa się ekran. Nowy ekran bierze te elementy, nie wymyśla nowych.
+
+| Element | Komponent / styl | Uwagi |
+|---|---|---|
+| nagłówek restauracji | `RestaurantHero`, `text-display` / `text-h1`, tło `wine-deep` | adres `text-small`, nazwa w serif |
+| nazwa dania | `text-h2` (serif) | jedna linia, obcinanie z `line-clamp-2` |
+| cena | `text-body` 600, `tabular-nums` | format zależny od języka (`formatPrice`), bez „zł” w tekście, z jednostką w formacie |
+| karta wina | `BestCard` (pierwsza), `WineRow` (kolejne) | `surface`, obrys `line`, cały kafelek to link |
+| tytuł sekcji | `text-lead` 600 | np. „Polecane do Twojego dania” |
+| wyjaśnienie | `Explain` (`<details>`), `text-small`, `ink-2` | wyzwalacz: tekst „Skąd te wina?” i ikona „i” |
+| szklanka dopasowania | `Score`, skala 5 szklanek (4 z 5 = 80%) | bez liczby, gdy `showScores` wyłączone |
+| pieczęć sommeliera | `Seal`, `brass` | tylko przy parze zatwierdzonej |
+| stan pusty | `EmptyState` | copy: nagłówek „Brak win do tego dania”, zdanie wyjaśnienia, co zrobić (np. zmień filtry) |
+
+Wzorcowy copy dla stanów pustych i wyjaśnień jest w `en.ts`/`pl.ts` (klucze `guest.wines.noneTitle`, `guest.explain.*`). Agent używa tych kluczy, nie pisze nowego tekstu.
 
 ## 5. Komponenty gościa: kontrakty
 
@@ -73,6 +127,13 @@ Każdy komponent z `packages/app/src/app/(guest)/_components/guest-ui.tsx` ma tu
 
 Dla agentów: wybieraj komponent po tabeli, nie po wyglądzie. Jeśli żaden nie pasuje, zapytaj zamiast wymyślać nowy.
 
+## 8. Ograniczenia tej wersji dokumentu
+
+- Układ: mobile-first. Szerokość kolumny na telefonie 100%; od 768 px kolumna rozciąga się (bez maksymalnej szerokości 480 px), od 1024 px dwie kolumny (menu i treść). Szerokość treści tekstowej do 75 znaków.
+- Fonty: `Bodoni Moda` i `Hanken Grotesk` są lokalne (`@fontsource`). Fallbacki: `Didot` / `Times New Roman` (serif), `Helvetica Neue` / `system-ui` (sans).
+- Ciemny motyw: nie w tej wersji. Każdy token miałby drugą wartość; do dodania osobnym krokiem.
+- Animacje: brak. Zasada z sekcji 3 obowiązuje, a `<details>` nie ma animacji.
+
 ## 6. Stan prac (lekcja 06)
 
 - [x] Krok 1: referencje (sekcja 1).
@@ -82,6 +143,6 @@ Dla agentów: wybieraj komponent po tabeli, nie po wyglądzie. Jeśli żaden nie
 - [x] Krok 4: typografia w siedmiu stylach (`text-caption`, `text-small`, `text-body`, `text-lead`, `text-h2`, `text-h1`, `text-display`); siedem zamiast sześciu, bo nagłówek 2 i treść wiodąca różnią się realnie.
 - [x] Krok 5: promienie 8 / 12 / 16 / pełne (`rounded-lg`, `rounded-xl`, `rounded-2xl`, `rounded-full`); ikony jednej grubości linii (1,5).
 - [x] Krok 6: kontrakty komponentów gościa (sekcja 5).
-- [ ] Krok 8: test z agentem: ekran zbudowany tylko z tego dokumentu, z listą miejsc, w których agent zgadywał.
+- [x] Krok 8: test z agentem (ekran „Lista win do dania”, tylko z dokumentu). Wynik: ponad 20 wyborów bez podstawy w pierwszej wersji; uzupełnione tabelami tokenów, stylów i elementów ekranu w tej iteracji. Raport testu w `scratchpad/design-test/report.md` (poza repo).
 
 Ratchet w `scripts/check-design.mjs`: limit to 8 kolorów hex poza tokenami, 7 stylów tekstu i 4 promienie. Po każdym kroku 4–5 obniżamy limit, nigdy nie podnosimy.
