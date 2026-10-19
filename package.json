@@ -20,7 +20,7 @@
   "scripts": {
     "dev": "npm run dev -w @wine-match/app --",
     "dev:mockups": "npm run dev -w @wine-match/mockups --",
-    "build": "npm run check:boundaries && npm run build -w @wine-match/mockups && npm run build -w @wine-match/app",
+    "build": "npm run check:boundaries && npm run check:design && npm run build -w @wine-match/mockups && npm run build -w @wine-match/app",
     "start": "npm run start -w @wine-match/app --",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
@@ -35,7 +35,8 @@
     "audit:gate": "node scripts/audit-gate.mjs",
     "lint": "oxlint --deny-warnings",
     "boot:check": "node scripts/boot-check.mjs",
-    "test:e2e": "npm run test:e2e -w @wine-match/app"
+    "test:e2e": "npm run test:e2e -w @wine-match/app",
+    "check:design": "node scripts/check-design.mjs"
   },
   "devDependencies": {
     "@types/node": "22.20.4",
