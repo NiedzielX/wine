@@ -14,7 +14,8 @@
   --font-serif: "Bodoni Moda Variable", "Bodoni 72", Didot, "Times New Roman", serif;
   --color-ink: #22181d;
   --color-ink-2: #5e5258;
-  --color-ink-3: #857a80;
+  /* AA for text on paper and surface (4.5:1). Was #857a80 at 3.73:1; scripts/check-design.mjs keeps it there. */
+  --color-ink-3: #6f646a;
   --color-line: #e4dee1;
   --color-paper: #f5f3f4;
   --color-surface: #ffffff;

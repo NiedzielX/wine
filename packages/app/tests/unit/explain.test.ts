@@ -194,8 +194,8 @@ describe('contrast of the guest explanation (AC16, R2, WCAG 1.4.3 / 1.4.11)', ()
       expect(contrast('ink-2', bg)).toBeGreaterThanOrEqual(4.5);
       expect(contrast('wine', bg)).toBeGreaterThanOrEqual(3);
     }
-    // the reason ink-3 is not allowed for the explanation or the trust note
-    expect(contrast('ink-3', 'paper')).toBeLessThan(4.5);
+    // ink-3 is AA for text since the lesson-06 fix (docs/DESIGN_SYSTEM.md); the explanation still uses ink-2 by rule
+    expect(contrast('ink-3', 'paper')).toBeGreaterThanOrEqual(4.5);
   });
 
   it('the explanation and the trust note never use ink-3', () => {
