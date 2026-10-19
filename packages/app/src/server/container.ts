@@ -102,7 +102,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       importRepository: asClass(db.PgImportRepository).scoped(),
       opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped(),
       guestInteractionRepository: asClass(db.PgGuestInteractionRepository).scoped(),
-      recommendationCodeRepository: asClass(db.PgRecommendationCodeRepository).scoped()
+      recommendationCodeRepository: asClass(db.PgRecommendationCodeRepository).scoped(),
+      salesRepository: asClass(db.PgSalesRepository).scoped()
     });
   } else {
     const store = MemoryStore.from(buildDemoDataset({ ids: 'uuid' }));
@@ -121,7 +122,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       importRepository: asValue(repos.importRepository),
       opportunityDismissalRepository: asValue(repos.opportunityDismissalRepository),
       guestInteractionRepository: asValue(repos.guestInteractionRepository),
-      recommendationCodeRepository: asValue(repos.recommendationCodeRepository)
+      recommendationCodeRepository: asValue(repos.recommendationCodeRepository),
+      salesRepository: asValue(repos.salesRepository)
     });
   }
   return container;

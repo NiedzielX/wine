@@ -17,11 +17,12 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | GuestInteraction | tak | zapisywana od E02 F1 (spec `2026-10-15-guest-usage-events`) przez `GuestInteractionRepository` (`record`, `listBySession`, `countGuestSessions`, od E04 F1 `usageTotals` — agregaty okna KPI; pamięć: do 10 000 zdarzeń). `session_id` = parametr URL `sid` (bez tabeli GuestSession); `source`, `context`, `menuVersion` (= `restaurant.published_at`) w `props`; kolumna `version_id` nie istnieje. Sesja gościa = `session_id` ze zdarzeniem `guest_session_started` |
 | ImportJob | tak | wiersze podglądu w kolumnie `rows` (jsonb) zamiast tabeli ImportRow |
 | User (`app_user`), Membership, Session | tak | hasło jako skrót scrypt; w `session` tylko SHA-256 tokenu; licznik prób i blokada w `app_user`; `membership.role`: owner, manager, sommelier, waiter. `sommelier_decision.actor_id` wskazuje konto (zwykła kolumna) |
-| ImportJob | tak | `rows` (jsonb) to sprawdzony podgląd wierszy, `notes` — jak odczytano plik, `result` — wynik zatwierdzenia; **plik nie jest przechowywany** (`storage_key` puste); status `preview_ready` → `confirmed` / `cancelled`; zatwierdzenie atomowe z blokadą wiersza. Rodzaj `sales` w Fazie 6 |
+| ImportJob | tak | `rows` (jsonb) to sprawdzony podgląd wierszy, `notes` — jak odczytano plik, `result` — wynik zatwierdzenia; **plik nie jest przechowywany** (`storage_key` puste); status `preview_ready` → `confirmed` / `cancelled`; zatwierdzenie atomowe z blokadą wiersza. Rodzaj `sales` od 2026-10-19 (E03 F1): wiersze to pozycje rachunków (tylko kolumny `SALES_FIELDS`), `result.replaced` — zastąpione rachunki |
+| SalesRecord (`sales_record`, od 2026-10-19) | tak | pozycje rachunków z POS (spec `2026-10-15-pos-sales-import-attach-rate`, F1): zapis tylko przez zatwierdzony import `sales`, całe rachunki; ponowny import tych samych rachunków (`business_date`, `check_id`) zastępuje je miękko (`replaced_at`); bez nazw pozycji i danych osobowych |
 | Tłumaczenia treści (od 2026-10-15) | tak | `dish.translations`, `wine.translations`, `restaurant.translations` (jsonb, domyślnie `'{}'`), `pairing.comment_translations` (jsonb), `restaurant.content_locale` (text, domyślnie `'en'`). Kształt: `{ "pl": { "name": …, "description": … }, "en": { … } }`; pola bazowe zostają w języku `content_locale`. Migawka publikacji niesie tłumaczenia (`snapshot.content`, `snapshot.pairings[].commentTranslations`); starsze migawki bez nich czytane jako `{}`. Spec `2026-10-15-bilingual-content` |
 | OpportunityDismissal (`opportunity_dismissal`, od 2026-10-16) | tak | zignorowane okazje sommeliera (spec `2026-10-16-sommelier-opportunities`, F1): jeden wiersz na (`restaurant_id`, `opportunity_key`), aktywny do `expires_at`; `dish_id` / `wine_id` **bez kluczy obcych**; `rule` z `CHECK` na pięć nazw sygnałów. Para z „Dodaj do propozycji” to zwykły wiersz `pairing` (`suggested`, bez wpisu w `sommelier_decision`) |
 | RecommendationCode (`recommendation_code`, od 2026-10-18) | tak | kody polecenia (spec `2026-10-16-recommendation-code`, F1): jeden wiersz na wybór wina na G8 (sesja `sid`, wino, porcja, dania, dzień serwisu); kod unikalny w (`restaurant_id`, `service_day`); `dish_ids` jsonb **bez FK**; bez danych osobowych |
-| Recommendation, GuestSession, ImportRow (osobna tabela), SalesRecord, EngineVersion, CatalogWine | nie | wejdą razem z funkcjami, które ich potrzebują (osobne specyfikacje) |
+| Recommendation, GuestSession, ImportRow (osobna tabela), EngineVersion, CatalogWine | nie | wejdą razem z funkcjami, które ich potrzebują (osobne specyfikacje) |
 
 Poniżej model docelowy.
 
@@ -298,20 +299,44 @@ Partycjonowanie miesięczne. Brak cookies śledzących i danych osobowych gości
 | error | text null | | |
 | created_by, created_at, confirmed_at | | | |
 
-### SalesRecord (opcjonalny import CSV, później API POS)
+### SalesRecord (`sales_record`, import CSV / XLSX z POS, później API POS)
 
-| Pole | Typ |
-|---|---|
-| id | bigint PK |
-| restaurant_id | uuid FK |
-| business_date | date |
-| check_id | text (rachunek / stolik) |
-| covers | smallint |
-| item_type | enum `food`, `wine_glass`, `wine_bottle`, `other` |
-| dish_id / wine_id | uuid null (dopasowane po nazwie lub external_ref) |
-| quantity, net_amount | |
+Spec `2026-10-15-pos-sales-import-attach-rate` (E03), faza 1, migracja `Migration20261019064652_sales_record`. Jedna linia = jedna pozycja rachunku z eksportu POS.
 
-Wine Attach Rate = rachunki z `food` i `wine_*` / rachunki z `food`.
+| Pole | Typ | Uwagi |
+|---|---|---|
+| id | uuid PK | `IdGenerator` |
+| restaurant_id | uuid FK → `restaurant`, not null | zakres tenanta w każdym zapytaniu |
+| import_job_id | uuid FK → `import_job`, not null | z którego importu pochodzi linia (audyt, wycofanie) |
+| business_date | date, not null | dzień biznesowy z POS, bez konwersji stref (Q17) |
+| check_id | varchar(64), not null | numer rachunku/paragonu unikalny w dniu biznesowym — **nie** numer stolika (Q17) |
+| covers | smallint null, `CHECK (covers BETWEEN 0 AND 999)` | goście rachunku, powtarzani w liniach; liczy się `max` |
+| item_type | text, `CHECK` `food`, `wine_glass`, `wine_bottle`, `other` | |
+| quantity | numeric(10,3) → `number`, not null, `CHECK (quantity <> 0)` | ujemna = zwrot / storno |
+| net_amount | numeric(12,2) → `number`, not null | netto linii, PLN (Q9) |
+| replaced_at | timestamptz null | ustawione, gdy nowszy import zastąpił rachunek; odczyty biorą tylko `replaced_at IS NULL` |
+| replaced_by_job_id | uuid FK → `import_job` null | który import zastąpił |
+| created_at | timestamptz | |
+
+Indeks `(restaurant_id, business_date, check_id)`. **Nie ma** `item_name`, `dish_id`, `wine_id` (Q10, Q18): nazwa pozycji jest widoczna tylko w podglądzie importu (`import_job.rows`), kolumny spoza listy pól importu (gość, kelner, płatność, komentarz) nie trafiają nigdzie. Kolumna `recommendation_code` dojdzie addytywnie w E09 F3.
+
+**Zapis** (`PgImportRepository.confirm`, jedna transakcja): blokada wiersza zadania (`FOR UPDATE`; podwójne kliknięcie → `job_closed`), `pg_advisory_xact_lock(hashtext('sales_record:' || restaurant_id))` (dwa importy tych samych rachunków po kolei), `UPDATE … SET replaced_at, replaced_by_job_id` dla aktywnych linii tych samych (`business_date`, `check_id`), wstawienie nowych linii, zamknięcie zadania. Zapisywane są tylko pełne rachunki: rachunek z linią odznaczoną albo z błędem nie jest zapisany i niczego nie zastępuje.
+
+**Odczyt** (`SalesRepository`): `checkTotals` sumuje aktywne linie per rachunek (`GROUP BY business_date, check_id`, `SUM … FILTER`), `dataRange`, `countChecks`; reguły wskaźnika w `core` (`computeSalesKpis`). Wine Attach Rate = rachunki z jedzeniem i winem / rachunki z jedzeniem (Q7, per rachunek; rachunek „ma” typ, gdy suma ilości tego typu > 0).
+
+**Wycofanie (runbook, Q19).** Migracji `sales_record` **nie cofamy (`migration:down`) w produkcji, gdy tabela ma dane** — `down` usuwa linie, których restauracja może już nie mieć w plikach. Wycofanie wdrożenia = poprzedni obraz aplikacji; schemat zostaje (tabela addytywna, poprzedni kod jej nie dotyka). Przed migracją `pg_dump`. Wycofanie **jednego importu** (bez UI, ręcznie, po sprawdzeniu `import_job.id` i restauracji):
+
+```sql
+begin;
+-- 1. usuń linie wycofywanego importu
+delete from sales_record where restaurant_id = :restaurant and import_job_id = :job;
+-- 2. przywróć linie, które ten import zastąpił
+update sales_record set replaced_at = null, replaced_by_job_id = null
+ where restaurant_id = :restaurant and replaced_by_job_id = :job;
+commit;
+```
+
+Wycofuj od najnowszego importu danej restauracji (jeśli późniejszy import zastąpił linie tego importu, najpierw wycofaj tamten).
 
 ### EngineVersion
 

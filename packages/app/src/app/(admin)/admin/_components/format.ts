@@ -20,3 +20,15 @@ export const zl = (n: number, locale: Locale = 'en') => formatPrice(n, locale);
 export const vintageLabel = (w: Wine, locale: Locale = 'en') => (w.vintage === 'NV' ? getDictionary(locale).admin.common.nonVintage : String(w.vintage));
 
 export const first = (v: string | string[] | undefined): string => (Array.isArray(v) ? v[0] : v) ?? '';
+
+const DAY: Record<Locale, Intl.DateTimeFormat> = {
+  en: new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+  pl: new Intl.DateTimeFormat('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+};
+
+/** A business day (`YYYY-MM-DD`, no time zone): "14 Oct 2026" / "14.10.2026". */
+export const formatDay = (day: string, locale: Locale = 'en') => DAY[locale].format(new Date(`${day}T00:00:00.000Z`));
+
+/** A rate 0..1 with one decimal: "40.0%" / "40,0%" (spec 2026-10-15-pos-sales-import-attach-rate, AC7). */
+export const formatRate = (rate: number, locale: Locale = 'en') =>
+  `${new Intl.NumberFormat(locale === 'pl' ? 'pl-PL' : 'en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(rate * 100)}%`;

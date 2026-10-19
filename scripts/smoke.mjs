@@ -257,19 +257,23 @@ await check('GM sees the publish screen with a working button', `/admin/${slug}/
 await check('a session of one user does not open another restaurant', `/admin/nope`, { cookie: GM, status: 403 });
 
 // --- import, QR and setup (Phase 5). Nothing here changes the catalog: every import is cancelled.
-for (const path of ['/import/menu', '/import/wines', '/setup', '/qr']) {
+for (const path of ['/import/menu', '/import/wines', '/import/sales', '/setup', '/qr']) {
   await check(`no session: ${path} is not reachable`, `/admin/${slug}${path}`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });
 }
 await check('no session: QR API', `/api/v1/restaurants/${slug}/qr`, { cookie: '', status: 401 });
 await check('no session: import upload', `/api/v1/imports/menu?restaurant=${slug}`, { method: 'POST', cookie: '', status: 401 });
+await check('no session: sales upload', `/api/v1/imports/sales?restaurant=${slug}`, { method: 'POST', cookie: '', status: 401 });
 await check('A8 import menu: upload step', `${A}/import/menu`, { has: ['Upload and check', 'Download a sample CSV', 'Category, Name, Description, Price', 'Nothing is saved until you confirm'] });
 await check('A9 import wines: upload step', `${A}/import/wines`, { has: ['Upload and check', 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price'] });
+// A13 (spec 2026-10-15-pos-sales-import-attach-rate): GET only, nothing is uploaded
+await check('A13 import sales: upload step', `${A}/import/sales`, { has: ['Import sales', 'Upload and check', 'Use the business day column, not a time stamp', 'How is the file counted?', '/api/v1/import-samples/sales'] });
 await check('A10 setup', `${A}/setup`, { has: ['Checklist', 'Restaurant details', 'Import your menu', 'Print the QR code', 'Pairing suggestions', 'Generate suggestions'] });
 await check('A10 setup: the wine director only views the details', `${A}/setup`, { has: ['Only the owner or general manager changes these details'], hasNot: ['Save details'] });
 await check('A12 QR page', `${A}/qr`, { has: ['QR code', 'Print table tent', 'PNG 1024 px', 'SVG', 'QR code that opens', `/r/${slug}`] });
 await check('sample menu CSV is public', '/api/v1/import-samples/menu', { cookie: '', has: ['category,name,description,price'] });
 await check('sample wines CSV is public', '/api/v1/import-samples/wines', { cookie: '', has: ['producer,wine,vintage'] });
-await check('unknown sample', '/api/v1/import-samples/sales', { cookie: '', status: 404 });
+await check('sample sales CSV is public', '/api/v1/import-samples/sales', { cookie: '', has: ['business date,check number,guests,category,item,quantity,net amount'] });
+await check('unknown sample', '/api/v1/import-samples/beer', { cookie: '', status: 404 });
 
 const qrUrl = `/api/v1/restaurants/${slug}/qr`;
 const svg = await fetch(`${base}${qrUrl}?format=svg`, { headers: { cookie: SESSION } });
@@ -324,7 +328,8 @@ const empty = await upload('menu', 'empty.csv', '');
 expect('upload refused: an empty file', empty.res.status === 422 && empty.body.error?.code === 'empty_file', `${empty.res.status} ${empty.text.slice(0, 120)}`);
 const nofile = await upload('menu', 'x', null);
 expect('upload refused: no file at all', nofile.res.status === 422, `${nofile.res.status}`);
-await check('upload to an unknown kind', `/api/v1/imports/sales?restaurant=${slug}`, { method: 'POST', headers: write(), body: undefined, status: 404 });
+await check('upload to an unknown kind', `/api/v1/imports/beer?restaurant=${slug}`, { method: 'POST', headers: write(), body: undefined, status: 404 });
+await check('sales upload without a file is refused, nothing saved', `/api/v1/imports/sales?restaurant=${slug}`, { method: 'POST', headers: write(), body: undefined, status: 422 });
 
 // a wine list through the same door, as the general manager (who may import and edit the restaurant)
 const WINES_CSV = 'producer;wine;vintage;style;glass;bottle\nSmoke Winery;Test Riesling;2022;Białe;48;210\n';

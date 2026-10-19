@@ -389,14 +389,14 @@ describe('ImportService: menu', () => {
 
   it('the store itself refuses a double confirm (two clicks at once)', async () => {
     const job = await t.imp.upload('halka', 'menu', file('menu.xlsx'), ACTOR);
-    const plan = { newDishes: [], dishUpdates: [], newWines: [], wineUpdates: [], newPairings: [], result: { created: 0, updated: 0, skipped: 0, suggestions: 0 } };
+    const plan = { kind: 'catalog' as const, newDishes: [], dishUpdates: [], newWines: [], wineUpdates: [], newPairings: [], result: { created: 0, updated: 0, skipped: 0, suggestions: 0 } };
     await t.repos.importRepository.confirm(rid(), job.id, plan, '2026-10-14T11:00:00.000Z');
     await expect(t.repos.importRepository.confirm(rid(), job.id, plan, '2026-10-14T11:00:01.000Z')).rejects.toBeInstanceOf(InvariantError);
   });
 
   it('reports problems with the file or the request', async () => {
     await expect(t.imp.upload('halka', 'menu', file('what.docx'), ACTOR)).rejects.toMatchObject({ code: 'unsupported_format' });
-    await expect(t.imp.upload('halka', 'sales' as never, file('menu.xlsx'), ACTOR)).rejects.toMatchObject({ code: 'invalid_kind' });
+    await expect(t.imp.upload('halka', 'beer' as never, file('menu.xlsx'), ACTOR)).rejects.toMatchObject({ code: 'invalid_kind' });
     t.files['header.csv'] = { parser: 'csv', rows: [['name', 'price']] };
     await expect(t.imp.upload('halka', 'menu', file('header.csv'), ACTOR)).rejects.toMatchObject({ code: 'no_rows' });
     await expect(t.imp.upload('nope', 'menu', file('menu.xlsx'), ACTOR)).rejects.toMatchObject({ code: 'not_found' });

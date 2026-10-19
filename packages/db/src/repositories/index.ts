@@ -6,7 +6,8 @@ import {
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
   type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository, type UsageTotals,
-  type RecommendationCodeInput, type RecommendationCodeRecord, type RecommendationCodeRepository, type ServiceDayPeriod
+  type RecommendationCodeInput, type RecommendationCodeRecord, type RecommendationCodeRepository, type ServiceDayPeriod,
+  type CheckKey, type CheckTotals, type SalesPeriod, type SalesRepository
 } from '@wine-match/core';
 import {
   DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
@@ -568,5 +569,56 @@ async function countPending(em: EntityManager, restaurantId: string, since: Date
     [restaurantId, since ?? new Date(0)]
   );
   return Number(rows[0]?.n ?? 0);
+}
+
+/**
+ * Sales lines (spec 2026-10-15-pos-sales-import-attach-rate). Read side: the lines are written by
+ * `PgImportRepository.confirm`. Native SQL, active lines only (`replaced_at is null`), always scoped by restaurant.
+ * `checkTotals` sums per check with `GROUP BY` (a return cancels a sale, Q8); the KPI rules stay in core.
+ */
+export class PgSalesRepository implements SalesRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  async checkTotals(restaurantId: string, period: SalesPeriod): Promise<CheckTotals[]> {
+    const rows = await this.em.getConnection().execute<Array<{
+      business_date: string; check_id: string; covers: number | null; food: string; glass_q: string; glass_a: string; bottle_q: string; bottle_a: string;
+    }>>(
+      `select business_date::text as business_date, check_id, max(covers) as covers,
+              coalesce(sum(quantity) filter (where item_type = 'food'), 0)::text as food,
+              coalesce(sum(quantity) filter (where item_type = 'wine_glass'), 0)::text as glass_q,
+              coalesce(sum(net_amount) filter (where item_type = 'wine_glass'), 0)::text as glass_a,
+              coalesce(sum(quantity) filter (where item_type = 'wine_bottle'), 0)::text as bottle_q,
+              coalesce(sum(net_amount) filter (where item_type = 'wine_bottle'), 0)::text as bottle_a
+         from sales_record
+        where restaurant_id = ? and replaced_at is null and business_date between ? and ?
+        group by business_date, check_id
+        order by business_date, check_id collate "C"`,
+      [restaurantId, period.from, period.to]
+    );
+    return rows.map((r) => ({
+      businessDate: r.business_date, checkId: r.check_id, covers: r.covers === null ? null : Number(r.covers), foodQuantity: Number(r.food),
+      glassQuantity: Number(r.glass_q), glassAmount: Number(r.glass_a), bottleQuantity: Number(r.bottle_q), bottleAmount: Number(r.bottle_a)
+    }));
+  }
+
+  async dataRange(restaurantId: string): Promise<SalesPeriod | null> {
+    const rows = await this.em.getConnection().execute<Array<{ from: string | null; to: string | null }>>(
+      'select min(business_date)::text as "from", max(business_date)::text as "to" from sales_record where restaurant_id = ? and replaced_at is null',
+      [restaurantId]
+    );
+    const r = rows[0];
+    return r?.from && r.to ? { from: r.from, to: r.to } : null;
+  }
+
+  async countChecks(restaurantId: string, keys: CheckKey[]) {
+    if (!keys.length) return 0;
+    const rows = await this.em.getConnection().execute<Array<{ n: string }>>(
+      `select count(*)::text as n from (select distinct k.day, k.check_id from jsonb_to_recordset(?::jsonb) as k(day date, check_id text)) k
+        where exists (select 1 from sales_record s where s.restaurant_id = ? and s.replaced_at is null and s.business_date = k.day and s.check_id = k.check_id)`,
+      [JSON.stringify(keys.map((k) => ({ day: k.businessDate, check_id: k.checkId }))), restaurantId]
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
 }
 

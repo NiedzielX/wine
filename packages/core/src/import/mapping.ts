@@ -1,11 +1,12 @@
-import { MENU_FIELDS, TRANSLATION_FIELDS, WINE_FIELDS, type ImportKind } from './types';
+import { ValidationError } from '../errors';
+import { MENU_FIELDS, SALES_FIELDS, SALES_REQUIRED_FIELDS, TRANSLATION_FIELDS, WINE_FIELDS, type ImportKind, type SalesField } from './types';
 import { normKey } from './normalize';
 
 /**
  * Turns the rows of a file into records of named fields. The header row is recognised by its words
  * (English and Polish); without one the columns are read in a default order and the user is told.
  */
-const SYNONYMS: Record<ImportKind, Record<string, string[]>> = {
+const SYNONYMS: Record<'menu' | 'wines', Record<string, string[]>> = {
   menu: {
     name: ['name', 'dish', 'dish name', 'danie', 'nazwa', 'nazwa dania', 'pozycja', 'item', 'menu item'],
     description: ['description', 'opis', 'skladniki', 'ingredients', 'details', 'desc'],
@@ -30,7 +31,7 @@ const SYNONYMS: Record<ImportKind, Record<string, string[]>> = {
  * „opis EN”, „Tasting note – English” or „Region po polsku” are recognised (spec 2026-10-15-bilingual-content, R5).
  */
 const LANGUAGE_WORDS = { pl: ['pl', 'polski', 'polish', 'po polsku', 'polska'], en: ['en', 'eng', 'english', 'angielski', 'po angielsku', 'angielska'] } as const;
-const TRANSLATED_WORDS: Record<ImportKind, Record<string, string[]>> = {
+const TRANSLATED_WORDS: Record<'menu' | 'wines', Record<string, string[]>> = {
   menu: {
     name: ['name', 'dish', 'dish name', 'danie', 'nazwa', 'nazwa dania'],
     description: ['description', 'opis', 'opis dania', 'skladniki', 'ingredients', 'desc']
@@ -48,12 +49,12 @@ for (const kind of ['menu', 'wines'] as const) {
 }
 
 /** Column order used when a file has no recognisable header. */
-const DEFAULT_ORDER: Record<ImportKind, string[][]> = {
+const DEFAULT_ORDER: Record<'menu' | 'wines', string[][]> = {
   menu: [['name', 'price'], ['name', 'description', 'price'], ['category', 'name', 'description', 'price']],
   wines: [['producer', 'name', 'vintage', 'region', 'grape', 'style', 'glassPrice', 'bottlePrice']]
 };
 
-function matchField(kind: ImportKind, cell: string): string | null {
+function matchField(kind: 'menu' | 'wines', cell: string): string | null {
   const k = normKey(cell);
   if (!k) return null;
   for (const [field, words] of Object.entries(SYNONYMS[kind])) {
@@ -77,6 +78,7 @@ export interface MappedTable {
 }
 
 export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
+  if (kind === 'sales') return mapSalesTable(rows);
   const key = kind === 'menu' ? 'name' : 'producer';
   let best: { index: number; map: Record<string, number> } | null = null;
   for (let i = 0; i < Math.min(5, rows.length); i++) {
@@ -115,6 +117,102 @@ export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
   return { records, notes };
 }
 
+/* ---------------- sales: POS check lines ---------------- */
+
+/**
+ * Header words of a sales export (spec 2026-10-15-pos-sales-import-attach-rate, R3, Q13, API Contracts). Compared by
+ * `normKey`, EXACTLY: no prefix match and no default column order, because guessing columns of financial data is worse
+ * than a refusal („Nazwa klienta” must not become the item name, „Typ płatności” not the item type). Deliberately
+ * absent: `type` / `typ` (payment type), `order` / `stolik` / `table` (a table is reused by several parties, Q17),
+ * gross / `brutto` (KPIs are net, Q9), a bare `amount` / `kwota` (net or gross is unknown).
+ */
+const SALES_SYNONYMS: Record<SalesField, string[]> = {
+  businessDate: ['business date', 'business day', 'date', 'sales date', 'data', 'data sprzedazy', 'data biznesowa', 'dzien', 'dzien sprzedazy', 'dzien biznesowy', 'data rachunku'],
+  checkId: [
+    'check', 'check number', 'check no', 'check id', 'receipt', 'receipt number', 'receipt no', 'bill', 'bill number', 'ticket', 'ticket number',
+    'rachunek', 'nr rachunku', 'numer rachunku', 'paragon', 'nr paragonu', 'numer paragonu'
+  ],
+  covers: ['covers', 'guests', 'pax', 'goscie', 'liczba gosci', 'osoby', 'liczba osob'],
+  itemType: ['item type', 'category', 'product group', 'item group', 'product category', 'kategoria', 'grupa', 'grupa towarowa', 'grupa produktow', 'kategoria produktu', 'typ pozycji', 'rodzaj pozycji'],
+  itemName: ['item', 'item name', 'product', 'product name', 'produkt', 'pozycja', 'nazwa', 'nazwa pozycji', 'nazwa produktu', 'towar', 'nazwa towaru'],
+  quantity: ['qty', 'quantity', 'ilosc', 'szt', 'sztuk', 'ilosc szt'],
+  netAmount: ['net', 'net amount', 'net value', 'net sales', 'net total', 'netto', 'kwota netto', 'wartosc netto', 'sprzedaz netto']
+};
+
+/** How the refusal names a missing column (English; the dashboard translates by field). */
+export const SALES_FIELD_WORDS: Record<SalesField, string> = {
+  businessDate: 'business date', checkId: 'check number', covers: 'guests', itemType: 'item type', itemName: 'item', quantity: 'quantity', netAmount: 'net amount'
+};
+
+/**
+ * What a cell becomes in the record, per field. A record only ever holds these fields, so a column outside
+ * `SALES_FIELDS` (a guest name, a waiter, a payment type, a comment) never reaches `import_job.rows`. A field that needs
+ * a value extracted from free text (E09 F3: the recommendation code from a POS comment) adds its function here, so only
+ * the extracted value is kept (spec 2026-10-16-recommendation-code, R8).
+ */
+const SALES_CELL: Partial<Record<SalesField, (cell: string) => string>> = {
+  // shown in the preview to recognise the line, never saved (Q18); a long cell is cut
+  itemName: (cell) => cell.slice(0, 120)
+};
+
+function matchSalesField(cell: string): SalesField | null {
+  const k = normKey(cell);
+  if (!k) return null;
+  for (const field of SALES_FIELDS) if (SALES_SYNONYMS[field].some((w) => w === k)) return field;
+  return null;
+}
+
+/** Finds the header (one of the first five rows), refuses a file without every required column (Q13), maps the rows. */
+function mapSalesTable(rows: string[][]): MappedTable {
+  let best: { index: number; map: Map<SalesField, number> } | null = null;
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    const map = new Map<SalesField, number>();
+    rows[i].forEach((cell, c) => {
+      const f = matchSalesField(cell);
+      if (f && !map.has(f)) map.set(f, c);
+    });
+    if (map.size >= 2 && (!best || map.size > best.map.size)) best = { index: i, map };
+  }
+  const missing = SALES_REQUIRED_FIELDS.filter((f) => !best?.map.has(f));
+  if (!best || missing.length) {
+    throw new ValidationError('no_header', `Could not find the columns: ${missing.map((f) => SALES_FIELD_WORDS[f]).join(', ')}.`,
+      Object.fromEntries(missing.map((f) => [f, 'required'])));
+  }
+  const { map, index } = best;
+  const notes: string[] = [];
+  const used = new Set(map.values());
+  const ignored = rows[index].filter((c, i) => c && !used.has(i));
+  if (ignored.length) notes.push(`Columns not used: ${ignored.join(', ')}.`);
+  if (!map.has('covers')) notes.push(SALES_NOTES.noCovers);
+  // an optional column is in a record only when the file has it
+  const fields = SALES_FIELDS.filter((f) => map.has(f));
+  const records = rows.slice(index + 1).filter((r) => r.some((c) => c.trim() !== '')).map((r) =>
+    Object.fromEntries(fields.map((f) => {
+      const cell = (r[map.get(f)!] ?? '').trim();
+      const convert = SALES_CELL[f];
+      return [f, convert ? convert(cell) : cell];
+    })));
+  return { records, notes };
+}
+
+/** Notes of a sales import the dashboard translates by their English text (as the other import notes). */
+export const SALES_NOTES = {
+  noCovers: 'No guests column: wine revenue per guest cannot be calculated from this file.',
+  dayMonth: 'Dates like 03/04/2026 were read as day/month (3 April 2026).',
+  monthDay: 'Dates like 04/13/2026 were read as month/day (13 April 2026).',
+  repeatedChecks: 'Check numbers repeat across days. That is fine if your POS numbers receipts per day.'
+} as const;
+
+/** GET /api/v1/import-samples/sales: one line per row of a check, the business day (not a time stamp), net amounts. */
+export const SAMPLE_SALES_CSV = `business date,check number,guests,category,item,quantity,net amount
+2026-10-14,1001,2,Food,Duck breast,2,207.41
+2026-10-14,1001,2,Wine bottle,Morgon 2021,1,166.67
+2026-10-14,1001,2,Drinks,Still water,1,11.11
+2026-10-14,1002,1,Food,Beetroot carpaccio,1,35.19
+2026-10-14,1002,1,Wine glass,Riesling trocken,2,96.30
+2026-10-14,1003,4,Food,Roast chicken for two,2,292.59
+2026-10-14,1004,,Wine glass,Chianti Classico,1,42.59`;
+
 /* ---------------- PDF: lines → rows ---------------- */
 
 const PRICE_END = /^(.*?)[\s.…·_\-–—]*?(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:zł|zl|pln|PLN)?\s*$/;
@@ -126,7 +224,7 @@ const PAGE_NUMBER = /^(?:page|strona|str\.)?\s*\d{1,3}(?:\s*\/\s*\d{1,3})?$/i;
  * a known section word sets the category (or style); a line without a price continues the previous dish.
  * The result is ALWAYS shown to the user for checking.
  */
-export function linesToRows(kind: ImportKind, lines: string[]): { rows: string[][]; notes: string[] } {
+export function linesToRows(kind: 'menu' | 'wines', lines: string[]): { rows: string[][]; notes: string[] } {
   const notes = ['This PDF was read as text. A PDF has no real columns, so check every row before importing.'];
   return kind === 'menu' ? { rows: menuLines(lines), notes } : { rows: wineLines(lines), notes };
 }

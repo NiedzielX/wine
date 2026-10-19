@@ -3,7 +3,7 @@ import type { ImportResult, ImportRow } from '@wine-match/core';
 import { RestaurantEntity } from '../restaurants/restaurant';
 
 /**
- * Upload of a menu or wine list (sales files: Phase 6). The checked rows live in `rows` until the job is
+ * Upload of a menu, a wine list or POS sales (spec 2026-10-15-pos-sales-import-attach-rate). The checked rows live in `rows` until the job is
  * confirmed or cancelled. The uploaded file itself is NOT stored (`storageKey` stays empty): only what was read from it.
  */
 export const ImportJobEntity = defineEntity({

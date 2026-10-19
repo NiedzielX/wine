@@ -97,15 +97,15 @@ describe('public guest API', () => {
     expect(empty).not.toHaveProperty('notice');
   });
 
-  it('sample import files are served for the two kinds, and nothing else', async () => {
-    for (const kind of ['menu', 'wines']) {
+  it('sample import files are served for the three kinds, and nothing else', async () => {
+    for (const kind of ['menu', 'wines', 'sales']) {
       const res = await samplesGet(req(`${URL0}/x`), params({ kind }));
       expect(res.status).toBe(200);
       expect(res.headers.get('content-disposition')).toContain('.csv');
     }
-    expect((await samplesGet(req(`${URL0}/x`), params({ kind: 'sales' }))).status).toBe(404);
+    expect((await samplesGet(req(`${URL0}/x`), params({ kind: 'beer' }))).status).toBe(404);
     const { generateStaticParams } = await import('@/app/api/v1/import-samples/[kind]/route');
-    expect(generateStaticParams()).toEqual([{ kind: 'menu' }, { kind: 'wines' }]);
+    expect(generateStaticParams()).toEqual([{ kind: 'menu' }, { kind: 'wines' }, { kind: 'sales' }]);
   });
 });
 
@@ -237,7 +237,7 @@ describe('the import API: upload, preview, corrections, confirmation, cancel', (
     expect((await importPost(new NextRequest(`${URL0}/x`, { method: 'POST' }), params({ ref: 'menu' }))).status).toBe(422);
     expect((await upload('menu', '', undefined)).status).toBe(401);
     expect((await upload('menu', s.cookie)).status).toBe(403);
-    expect((await upload('sales', s.cookie, s.csrf)).status).toBe(404);
+    expect((await upload('beer', s.cookie, s.csrf)).status).toBe(404);
     const noFile = await importPost(new NextRequest(`${URL0}/x?restaurant=halka`, { method: 'POST', body: 'x', headers: { cookie: s.cookie, 'x-csrf-token': s.csrf, 'content-type': 'text/plain' } }), params({ ref: 'menu' }));
     expect(noFile.status).toBe(422);
   });

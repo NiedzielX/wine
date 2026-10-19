@@ -292,7 +292,7 @@ describe('import and setup actions', () => {
     expect(await redirectOf(() => imports.saveRestaurantDetails(form({ slug: 'halka', back: '/admin/halka/setup', name: 'Halka', address: 'Ul. 1', city: 'Warszawa', wineDirector: 'Marta Wierzbicka', slugValue: 'halka' })))).toMatch(/\/admin\/halka/);
     expect(await redirectOf(() => imports.generateSuggestions(form({ slug: 'halka', back: '/admin/halka/setup' })))).toMatch(/saved=|error=/);
     // an unknown kind on the upload falls back to the menu screen
-    expect(await redirectOf(() => imports.uploadImport(form({ slug: 'halka', kind: 'sales', file: new File([], 'e.csv') })))).toContain('/admin/halka/import/menu');
+    expect(await redirectOf(() => imports.uploadImport(form({ slug: 'halka', kind: 'beer', file: new File([], 'e.csv') })))).toContain('/admin/halka/import/menu');
   });
 });
 

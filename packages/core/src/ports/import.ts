@@ -1,9 +1,11 @@
 import type { Dish, DishCategory, Pairing, Wine } from '../domain/types';
 import type { DishTranslations, WineTranslations } from '../i18n/content';
 import type { ImportJob, ImportResult, ImportRow } from '../import/types';
+import type { CheckKey, SalesRecord } from '../services/sales/types';
 
-/** Everything an import changes, applied in ONE transaction together with closing the job. */
-export interface ImportPlan {
+/** Everything a menu or wine-list import changes, applied in ONE transaction together with closing the job. */
+export interface CatalogImportPlan {
+  kind: 'catalog';
   newDishes: Dish[];
   /** `translations`, when present, replaces the dish's translations (the plan merges the file's values into the current ones) */
   dishUpdates: Array<{ id: string; description: string; category: DishCategory; price: number; translations?: DishTranslations }>;
@@ -13,6 +15,20 @@ export interface ImportPlan {
   newPairings: Pairing[];
   result: ImportResult;
 }
+
+/**
+ * A sales import (spec 2026-10-15-pos-sales-import-attach-rate, Q4): whole checks only. In one transaction the active
+ * lines of the restaurant with a (business_date, check_id) in `checks` are marked replaced by this job, then `records`
+ * are inserted. `checks` are exactly the checks of `records`.
+ */
+export interface SalesImportPlan {
+  kind: 'sales';
+  records: SalesRecord[];
+  checks: CheckKey[];
+  result: ImportResult;
+}
+
+export type ImportPlan = CatalogImportPlan | SalesImportPlan;
 
 export interface ImportRepository {
   create(job: ImportJob): Promise<void>;
@@ -25,6 +41,7 @@ export interface ImportRepository {
   /**
    * Applies the plan and marks the job confirmed, all or nothing. Throws InvariantError("job_closed")
    * when the job is not open (so a double click cannot import twice) and NotFoundError for an unknown job.
+   * Returns how many distinct checks a sales plan replaced (0 for a catalog plan); the stored result carries it as `replaced`.
    */
-  confirm(restaurantId: string, jobId: string, plan: ImportPlan, at: string): Promise<void>;
+  confirm(restaurantId: string, jobId: string, plan: ImportPlan, at: string): Promise<{ replacedChecks: number }>;
 }
