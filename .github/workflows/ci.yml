@@ -46,6 +46,20 @@ jobs:
       - name: Dependency audit (high and critical block; exceptions are listed and dated)
         run: npm run audit:gate
 
+  design:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      - name: Design guard (contrast of tokens, no raw values outside tokens on guest screens, no shadows or emoji)
+        run: npm run check:design
+
   unit:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

@@ -127,14 +127,14 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
                             </span>
                             {/* never prefetched: opening it issues a code (E09 Q19, R6) */}
                             <Link href={href(path, urlPrefs, { dishes: dishesParam, wine: a.wine.id, people: peopleParam })} prefetch={false} data-choose={a.wine.id}
-                              className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#d4ccd0] bg-paper px-3.5 text-small font-semibold focus-visible:outline-2 focus-visible:outline-wine">{l.choose}</Link>
+                              className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-control bg-paper px-3.5 text-small font-semibold focus-visible:outline-2 focus-visible:outline-wine">{l.choose}</Link>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
                   {result.splitSuggested && result.split.length > 0 && (
-                    <div className="mt-4 rounded-xl bg-[#ece8ea] p-3.5">
+                    <div className="mt-4 rounded-xl bg-line p-3.5">
                       <h3 className="text-body font-semibold">{t.guest.tableResult.splitTitle}</h3>
                       <ul className="mt-1.5 grid gap-1.5 text-body">
                         {result.split.map((s) => (

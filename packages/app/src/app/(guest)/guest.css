@@ -34,11 +34,16 @@
   --color-brass-soft: #f3ede1;
   --color-sage: #3b6a52;
   --color-sage-soft: #e5efe9;
+  /* Lesson 06 audit: borders of controls need 3:1 against their background (WCAG 1.4.11). Was #d4ccd0 (1.4:1). */
+  --color-control: #8c8087;
+  --color-wine-soft: #f6eef1;
+  --color-brass-ink: #5d4720;
+  --color-page: #e9e5e7;
 }
 
 @layer base {
   :root { color-scheme: light; }
   /* Sticky top bar (~57px) and bottom action bar (~110px) must never cover a focused or scrolled-to element. */
   html { scroll-padding-top: 4.5rem; scroll-padding-bottom: 7.5rem; }
-  body { @apply bg-[#e9e5e7] font-sans text-ink antialiased; }
+  body { @apply bg-page font-sans text-ink antialiased; }
 }

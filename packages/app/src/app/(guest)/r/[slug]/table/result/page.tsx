@@ -123,11 +123,11 @@ export default async function TableResultPage({ params, searchParams }: Props) {
             )}
 
             {result.splitSuggested && result.split.length > 0 && (
-              <section className="mt-6 rounded-2xl bg-[#ece8ea] p-4">
+              <section className="mt-6 rounded-2xl bg-line p-4">
                 <h2 className="text-body font-semibold">{l.splitTitle}</h2>
                 <p className="mt-1 mb-1.5 text-small text-ink-2">{l.splitText}</p>
                 {result.split.map((s) => (
-                  <Link key={s.dish.id} href={href(`/r/${slug}/wine/${s.wine.id}`, prefs, { dish: s.dish.id })} className="grid grid-cols-[1fr_auto] gap-2 border-b border-[#d4ccd0] py-2.5 text-body last:border-b-0">
+                  <Link key={s.dish.id} href={href(`/r/${slug}/wine/${s.wine.id}`, prefs, { dish: s.dish.id })} className="grid grid-cols-[1fr_auto] gap-2 border-b border-control py-2.5 text-body last:border-b-0">
                     <span><b>{s.dish.name}</b><br /><span className="text-ink-2">{s.wine.producer} {s.wine.name}</span></span>
                     <span className="tabular-nums">{formatPrice(s.wine.glassPrice ?? s.wine.bottlePrice, locale)}</span>
                   </Link>

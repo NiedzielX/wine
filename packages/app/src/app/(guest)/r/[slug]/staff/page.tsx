@@ -66,10 +66,10 @@ export default async function StaffPage({ params, searchParams }: Props) {
                 .filter(([, v]) => v).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
               <label htmlFor="staff-dish" className="text-small font-semibold text-ink-2">{l.dish}</label>
               <div className="flex gap-2">
-                <select id="staff-dish" name="dish" defaultValue={dish.id} className="min-h-11 w-full rounded-lg border border-[#d4ccd0] bg-surface px-3">
+                <select id="staff-dish" name="dish" defaultValue={dish.id} className="min-h-11 w-full rounded-lg border border-control bg-surface px-3">
                   {menu.dishes.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
-                <button type="submit" className="min-h-11 shrink-0 rounded-full border border-[#d4ccd0] bg-surface px-4 text-body font-semibold">{l.show}</button>
+                <button type="submit" className="min-h-11 shrink-0 rounded-full border border-control bg-surface px-4 text-body font-semibold">{l.show}</button>
               </div>
             </form>
             <PrefChips prefs={prefs} hrefFor={(p) => href(path, p, { dish: dish.id })} t={t} locale={locale} />
@@ -85,7 +85,7 @@ export default async function StaffPage({ params, searchParams }: Props) {
                   <div className="flex flex-wrap gap-1.5">
                     {i.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass"><Seal className="size-3.5" />{i.sommelier.role === 'primary' ? l.firstChoice : l.pick}</span>}
                     {i.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-small leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
-                    <span className="rounded-full bg-[#e8ebf0] px-2.5 text-small leading-5 font-semibold text-[#4f5b6e]">{l.matchPct(i.matchScore)}</span>
+                    <span className="rounded-full bg-line px-2.5 text-small leading-5 font-semibold text-ink-2">{l.matchPct(i.matchScore)}</span>
                   </div>
                   <p className="text-body text-ink-2">{l.say(i.why)}</p>
                   <Price wine={i.wine} serving={prefs.serving} t={t} locale={locale} />

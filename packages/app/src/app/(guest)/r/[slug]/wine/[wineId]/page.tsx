@@ -74,7 +74,7 @@ export default async function WinePage({ params, searchParams }: Props) {
       points={t.guest.explain.wine.points({ score: match?.matchScore ?? null, dish: fromTable ? null : dish?.name ?? null, showScores })}
     />
   );
-  const radio = 'grid gap-0.5 rounded-xl border border-[#d4ccd0] bg-surface px-3.5 py-3 has-[input:checked]:border-wine has-[input:checked]:ring-1 has-[input:checked]:ring-wine has-[input:disabled]:opacity-45 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine cursor-pointer';
+  const radio = 'grid gap-0.5 rounded-xl border border-control bg-surface px-3.5 py-3 has-[input:checked]:border-wine has-[input:checked]:ring-1 has-[input:checked]:ring-wine has-[input:disabled]:opacity-45 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine cursor-pointer';
 
   await trackUsage(services, restaurant, session, viewed);
   return (

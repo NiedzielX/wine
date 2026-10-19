@@ -13,8 +13,9 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const guestDir = join(root, 'packages/app/src/app/(guest)');
 const css = readFileSync(join(guestDir, 'guest.css'), 'utf8');
 
-/** baselines measured on 2026-10-19; lower them when the screens get simpler */
-const BASELINE = { hex: 8, textSizes: 7, radii: 4 };
+/** baselines measured on 2026-10-19; lower them when the screens get simpler.
+ * hex: 1 is the theme-color metadata in (guest)/layout.tsx, which needs a literal value. */
+const BASELINE = { hex: 1, textSizes: 7, radii: 4 };
 
 const failures = [];
 

@@ -59,7 +59,7 @@ export function LanguageSwitch({ locale, hrefs, t, tone = 'ink' }: { locale: Loc
   );
 }
 
-const chipBase = 'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-small font-medium whitespace-nowrap focus-visible:outline-2 focus-visible:outline-wine';
+const chipBase = 'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-control bg-surface px-3.5 text-small font-medium whitespace-nowrap focus-visible:outline-2 focus-visible:outline-wine';
 const chipOn = 'aria-[current=true]:border-ink aria-[current=true]:bg-ink aria-[current=true]:text-paper';
 
 /** A toggle chip that is a plain link: the state is in the URL. */
@@ -69,7 +69,7 @@ export function Chip({ href, active, children }: { href: string; active?: boolea
 
 const BUTTON_STYLES = {
   primary: 'border-wine bg-wine text-on-wine hover:bg-wine-deep',
-  secondary: 'border-[#d4ccd0] bg-surface text-ink',
+  secondary: 'border-control bg-surface text-ink',
   quiet: 'border-transparent bg-transparent text-ink hover:bg-ink/5',
   /** on the dark restaurant hero */
   light: 'border-on-wine bg-on-wine text-wine-deep',
@@ -99,7 +99,7 @@ export function EmptyState({ title, text, action }: { title: string; text: strin
 }
 
 export function Notice({ children }: { children: ReactNode }) {
-  return <p role="status" className="my-4 rounded-xl bg-brass-soft px-3.5 py-3 text-body text-[#5d4720]">{children}</p>;
+  return <p role="status" className="my-4 rounded-xl bg-brass-soft px-3.5 py-3 text-body text-brass-ink">{children}</p>;
 }
 
 export function Price({ wine, serving, t, locale }: { wine: Wine; serving: GuestPreferences['serving']; t: Dictionary; locale: Locale }) {
@@ -250,7 +250,7 @@ export function DishScores({ perDish, showScores, t }: { perDish: TableDishScore
 export function ModeSwitch({ dishHref, tableHref, mode, t }: { dishHref: string; tableHref: string; mode: 'dish' | 'table'; t: Dictionary }) {
   const base = 'rounded-full py-2.5 text-center text-body font-semibold text-ink-2 aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-sm';
   return (
-    <nav aria-label={t.guest.menu.mode} className="mb-5 grid grid-cols-2 rounded-full bg-[#ebe7e9] p-1">
+    <nav aria-label={t.guest.menu.mode} className="mb-5 grid grid-cols-2 rounded-full bg-line p-1">
       <Link href={dishHref} aria-current={mode === 'dish' ? 'page' : undefined} className={base}>{t.guest.menu.oneDish}</Link>
       <Link href={tableHref} aria-current={mode === 'table' ? 'page' : undefined} className={base}>{t.guest.menu.wholeTable}</Link>
     </nav>
@@ -344,7 +344,7 @@ export function TableDishPicker({ dishes, selected, variant, dessertsNote, t, lo
   return (
     <div>
       <nav aria-label={t.guest.menu.sections} className="sticky top-[57px] z-10 -mx-5 flex gap-1.5 overflow-x-auto bg-paper px-5 py-2.5 [scrollbar-width:none]">
-        {present.map((c) => <a key={c} href={`#${anchor(c)}`} className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-small font-medium focus-visible:outline-2 focus-visible:outline-wine">{t.guest.categories[c]}</a>)}
+        {present.map((c) => <a key={c} href={`#${anchor(c)}`} className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-control bg-surface px-3.5 text-small font-medium focus-visible:outline-2 focus-visible:outline-wine">{t.guest.categories[c]}</a>)}
       </nav>
       {present.map((c) => (
         <section key={c} id={anchor(c)} data-dish-section="" className="scroll-mt-32">
@@ -355,7 +355,7 @@ export function TableDishPicker({ dishes, selected, variant, dessertsNote, t, lo
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
             {dishes.filter((d) => d.category === c).map((d) => (
               <label key={d.id} data-dish-name={d.name.toLowerCase()}
-                className="flex min-h-12 min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-[#d4ccd0] bg-surface px-3 py-2 text-body leading-tight has-[input:checked]:border-wine has-[input:checked]:bg-[#f6eef1] has-[input:checked]:shadow-[inset_0_0_0_1px_var(--color-wine)] has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-wine">
+                className="flex min-h-12 min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-control bg-surface px-3 py-2 text-body leading-tight has-[input:checked]:border-wine has-[input:checked]:bg-wine-soft has-[input:checked]:shadow-[inset_0_0_0_1px_var(--color-wine)] has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-wine">
                 <input type="checkbox" name="dish" value={d.id} defaultChecked={selected.has(d.id)} className="size-5 shrink-0 cursor-pointer accent-wine" />
                 <span className="min-w-0 [overflow-wrap:anywhere]">{d.name}</span>
               </label>
@@ -367,7 +367,7 @@ export function TableDishPicker({ dishes, selected, variant, dessertsNote, t, lo
   );
 }
 
-const pill = 'inline-flex min-h-9 cursor-pointer items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-small font-medium has-[input:checked]:border-ink has-[input:checked]:bg-ink has-[input:checked]:text-paper has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine';
+const pill = 'inline-flex min-h-9 cursor-pointer items-center rounded-full border border-control bg-surface px-3.5 text-small font-medium has-[input:checked]:border-ink has-[input:checked]:bg-ink has-[input:checked]:text-paper has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine';
 
 /** Colour checkboxes (`styles`) of a table form (G5, G11): pills that are native checkboxes, no script. */
 export function StyleChoice({ prefs, legend, className = 'mt-4', locale }: { prefs: GuestPreferences; legend: string; className?: string; locale: Locale }) {
@@ -416,7 +416,7 @@ export function DishList({ dishes, coverage, hrefFor, currentId, stickyTop = 'to
   return (
     <div>
       <nav aria-label={t.guest.menu.sections} className={`sticky ${stickyTop} z-10 -mx-5 flex gap-1.5 overflow-x-auto bg-paper px-5 py-2.5`}>
-        {present.map((c) => <a key={c} href={`#cat-${c.toLowerCase()}`} className="inline-flex min-h-9 items-center rounded-full border border-[#d4ccd0] bg-surface px-3.5 text-small font-medium">{t.guest.categories[c]}</a>)}
+        {present.map((c) => <a key={c} href={`#cat-${c.toLowerCase()}`} className="inline-flex min-h-9 items-center rounded-full border border-control bg-surface px-3.5 text-small font-medium">{t.guest.categories[c]}</a>)}
       </nav>
       {present.map((c) => (
         <section key={c} id={`cat-${c.toLowerCase()}`} className="scroll-mt-28">
