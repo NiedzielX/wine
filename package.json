@@ -20,6 +20,8 @@
   "scripts": {
     "dev": "npm run dev -w @wine-match/app --",
     "dev:mockups": "npm run dev -w @wine-match/mockups --",
+    "storybook": "npm run storybook -w @wine-match/ui",
+    "storybook:build": "npm run storybook:build -w @wine-match/ui",
     "build": "npm run check:boundaries && npm run check:design && npm run build -w @wine-match/mockups && npm run build -w @wine-match/app",
     "start": "npm run start -w @wine-match/app --",
     "typecheck": "npm run typecheck --workspaces --if-present",
