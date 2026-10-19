@@ -248,7 +248,7 @@ export function DishScores({ perDish, showScores, t }: { perDish: TableDishScore
  * spec 2026-10-16-whole-table-waiter-path R7). The page gives both targets, with its preferences, `lang` and `sid`.
  */
 export function ModeSwitch({ dishHref, tableHref, mode, t }: { dishHref: string; tableHref: string; mode: 'dish' | 'table'; t: Dictionary }) {
-  const base = 'rounded-full py-2.5 text-center text-body font-semibold text-ink-2 aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-sm';
+  const base = 'rounded-full py-2.5 text-center text-body font-semibold text-ink-2 aria-[current=page]:border aria-[current=page]:border-line aria-[current=page]:bg-surface aria-[current=page]:text-ink';
   return (
     <nav aria-label={t.guest.menu.mode} className="mb-5 grid grid-cols-2 rounded-full bg-[#ebe7e9] p-1">
       <Link href={dishHref} aria-current={mode === 'dish' ? 'page' : undefined} className={base}>{t.guest.menu.oneDish}</Link>
