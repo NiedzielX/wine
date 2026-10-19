@@ -3,6 +3,7 @@ import type { DemoDataset } from '../demo/dataset';
 import type { ImportJob } from '../import/types';
 import type { Repositories } from '../ports/repositories';
 import type { SalesImportPlan } from '../ports/import';
+import { SalesKpiService } from '../services/sales/sales-kpi-service';
 import type { CheckKey, SalesItemType, SalesRecord } from '../services/sales/types';
 
 /**
@@ -81,6 +82,26 @@ export function salesContract(t: Omit<OnceRunner, 'beforeAll' | 'afterAll'>, get
     t.expect(await repos.salesRepository.countChecks(OTHER, [{ businessDate: '2033-04-01', checkId: 'T1' }])).toBe(0);
     t.expect(await repos.salesRepository.countChecks(ds.restaurant.id, [{ businessDate: '2033-04-01', checkId: 'T1' }])).toBe(1);
     t.expect(await repos.salesRepository.countChecks(ds.restaurant.id, [])).toBe(0);
+  });
+
+  t.it('SalesKpiService over the store: 4 of 10 checks with food → 0.4; bar checks and a returned bottle do not count (AC7, AC10, phase 2)', async () => {
+    const { repos, ds } = get();
+    const lines: SalesRecord[] = [];
+    for (let i = 1; i <= 9; i++) {
+      lines.push(line('2033-06-01', `F${i}`, 'food', 1, 50, 2));
+      if (i <= 4) lines.push(line('2033-06-01', `F${i}`, i % 2 ? 'wine_bottle' : 'wine_glass', i % 2 ? 1 : 2, i % 2 ? 160 : 60));
+    }
+    lines.push(line('2033-06-02', 'R', 'food', 1, 50, 2), line('2033-06-02', 'R', 'wine_bottle', 1, 160), line('2033-06-02', 'R', 'wine_bottle', -1, -160));
+    lines.push(line('2033-06-02', 'BAR', 'wine_glass', 1, 30));
+    await importLines(lines);
+    const service = new SalesKpiService(repos);
+    const k = await service.getSalesKpis(ds.restaurant.slug, { from: '2033-06-01', to: '2033-06-02' });
+    t.expect(k).toEqual({
+      period: { from: '2033-06-01', to: '2033-06-02' }, source: 'sales_import', checks: 11, foodChecks: 10, foodChecksWithWine: 4, attachRate: 0.4, covers: 20,
+      wineRevenue: 470, wineRevenuePerGuest: 22, wineRevenuePerTable: 44, averageBottle: 160, averageGlass: 30
+    });
+    // a period with no lines: no source, no rate
+    t.expect(await service.getSalesKpis(ds.restaurant.slug, { from: '2033-06-03', to: '2033-06-30' })).toMatchObject({ source: null, checks: 0, attachRate: null });
   });
 
   t.it('the data range spans the first and the last business day with active lines', async () => {

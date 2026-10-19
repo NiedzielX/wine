@@ -2,7 +2,7 @@ import { asClass, asFunction, asValue, createContainer, InjectionMode, type Awil
 import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
-  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService,
+  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
   SommelierService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
   type PasswordHasher, type Repositories, type SessionTokens
 } from '@wine-match/core';
@@ -40,6 +40,7 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   translationService: TranslationService;
   usageEventService: UsageEventService;
   recommendationCodeService: RecommendationCodeService;
+  salesKpiService: SalesKpiService;
   logger: Logger;
 }
 
@@ -71,6 +72,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     translationService: asClass(TranslationService).scoped(),
     usageEventService: asClass(UsageEventService).scoped(),
     recommendationCodeService: asClass(RecommendationCodeService).scoped(),
+    salesKpiService: asClass(SalesKpiService).scoped(),
     // the application's logger, for services that report without failing (recommendation codes)
     logger: asValue<Logger>(logger),
     // time and identity come from outside so core stays deterministic and testable

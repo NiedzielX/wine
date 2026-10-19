@@ -267,6 +267,10 @@ await check('A8 import menu: upload step', `${A}/import/menu`, { has: ['Upload a
 await check('A9 import wines: upload step', `${A}/import/wines`, { has: ['Upload and check', 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price'] });
 // A13 (spec 2026-10-15-pos-sales-import-attach-rate): GET only, nothing is uploaded
 await check('A13 import sales: upload step', `${A}/import/sales`, { has: ['Import sales', 'Upload and check', 'Use the business day column, not a time stamp', 'How is the file counted?', '/api/v1/import-samples/sales'] });
+// phase 2: the Wine Attach Rate card under the upload step, a GET form; the values depend on the imported sales
+await check('A13 Wine Attach Rate card', `${A}/import/sales`, { has: ['data-wine-attach-rate', 'id="wine-attach-rate"', 'name="from"', 'name="to"', 'Checks with food that also had wine'] });
+await check('A13 Wine Attach Rate of a chosen period', `${A}/import/sales?from=2026-01-01&to=2026-01-31`, { has: ['data-wine-attach-rate', 'value="2026-01-01"', 'value="2026-01-31"'], hasNot: ['This period cannot be shown'] });
+await check('A13 Wine Attach Rate: a period ending before it starts is refused in the card', `${A}/import/sales?from=2026-02-01&to=2026-01-31`, { has: ['This period cannot be shown', 'role="alert"'] });
 await check('A10 setup', `${A}/setup`, { has: ['Checklist', 'Restaurant details', 'Import your menu', 'Print the QR code', 'Pairing suggestions', 'Generate suggestions'] });
 await check('A10 setup: the wine director only views the details', `${A}/setup`, { has: ['Only the owner or general manager changes these details'], hasNot: ['Save details'] });
 await check('A12 QR page', `${A}/qr`, { has: ['QR code', 'Print table tent', 'PNG 1024 px', 'SVG', 'QR code that opens', `/r/${slug}`] });

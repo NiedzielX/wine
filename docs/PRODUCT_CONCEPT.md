@@ -73,7 +73,9 @@ Uzasadnienie ceny: przy 1 500 gościach miesięcznie wzrost Wine Attach Rate o 5
 
 ### KPI główne (North Star)
 
-**Wine Attach Rate** = zamówienia z co najmniej jedną pozycją wina / wszystkie zamówienia z jedzeniem, w danym okresie. Mierzone z eksportu POS (CSV w MVP, API później). Porównanie: 4 tygodnie przed wdrożeniem i po wdrożeniu, oraz stoliki, które użyły Wine Match, wobec tych, które nie użyły.
+**Wine Attach Rate** = rachunki z jedzeniem i winem / rachunki z jedzeniem, w danym okresie (wynik ≤ 100%). Jednostką jest **rachunek** (stolik), nie gość. Rachunek „ma jedzenie” / „ma wino”, gdy suma ilości pozycji jedzenia / wina (kieliszek lub butelka) w rachunku jest większa od zera — zwrot butelki znosi jej sprzedaż. Rachunki barowe (samo wino, bez jedzenia) nie wchodzą ani do licznika, ani do mianownika; liczą się tylko do przychodu z wina. Mierzone z eksportu POS (CSV/XLSX w MVP, API później), z dni biznesowych z POS. Porównanie: 4 tygodnie przed wdrożeniem i po wdrożeniu, oraz stoliki, które użyły Wine Match, wobec tych, które nie użyły.
+
+Doprecyzowanie z 2026-10-15 (decyzja właściciela, spec `2026-10-15-pos-sales-import-attach-rate`, Q7): wcześniejsze brzmienie „zamówienia z co najmniej jedną pozycją wina / zamówienia z jedzeniem” nie ograniczało licznika do rachunków z jedzeniem. Ponieważ wskaźnik jest per rachunek, a nie per gość, założenie „+5 pp” (§5) nie przekłada się 1:1 na liczbę gości. W panelu: karta „Wine Attach Rate” na A13 (wybrany okres), dashboard A1 (E04).
 
 ### KPI sprzedażowe (wymagają danych sprzedaży)
 

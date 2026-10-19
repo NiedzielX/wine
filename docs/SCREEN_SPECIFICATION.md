@@ -480,7 +480,7 @@ Jak A8, z różnicami:
 
 ## A13 Import sales — `/admin/{slug}/import/sales?job=`
 
-Spec `2026-10-15-pos-sales-import-attach-rate` (E03), faza 1. Nawigacja: „Import sales” / „Import sprzedaży” pod „Import wines”. Uprawnienie `import.manage` (Owner, GM, Sommelier); bez niego „View only” bez formularzy. Działa bez JavaScriptu (strona poza `(lists)/`, `force-dynamic`), 390 px i 1440 px bez poziomego przewijania.
+Spec `2026-10-15-pos-sales-import-attach-rate` (E03), fazy 1 i 2. Nawigacja: „Import sales” / „Import sprzedaży” pod „Import wines”. Uprawnienie `import.manage` (Owner, GM, Sommelier); bez niego „View only” bez formularzy. Działa bez JavaScriptu (strona poza `(lists)/`, `force-dynamic`), 390 px i 1440 px bez poziomego przewijania.
 
 | Pole | Opis |
 |---|---|
@@ -490,10 +490,10 @@ Spec `2026-10-15-pos-sales-import-attach-rate` (E03), faza 1. Nawigacja: „Impo
 | Dane wejściowe | kolumny (nagłówki PL/EN, tylko dokładnie): data (dzień biznesowy), numer rachunku, typ/kategoria, ilość, kwota netto — wymagane; goście, pozycja — opcjonalne. Brak wymaganej → komunikat „Could not find the columns: net amount.” |
 | Podgląd | karta „What this file will save”: zakres dat, liczba pełnych rachunków, linie per typ, rachunki niepełne (pominięte), „N checks already saved for these dates will be replaced”, Wine Attach Rate pliku („75,0%”, „3 of 4 checks with food had wine”); sekcja „Unrecognised categories” — jedna wartość = jeden select z 4 typami (`typemap_<i>_from/_to`, `valueMap`); tabela: Date, Check, Guests, Type (select; nierozpoznana wartość zostaje wybrana jako „… (choose a type)”), Item, Qty, Net (zł); notatki (niewykorzystane kolumny, brak gości, kolejność dzień/miesiąc, powtarzające się numery) |
 | Walidacje | brak daty/rachunku/typu/ilości/kwoty → błąd; data z godziną → „Use the business day column, not a time stamp.”; data > jutro → błąd; `13/04` i `04/13` w jednym pliku → błędy dat; ilość 0, \|kwota\| > 100 000 → błąd; nierozpoznana kategoria → błąd `unmapped_category`; „Wino” → butelka + ostrzeżenie; zwrot → ostrzeżenie; linia rachunku z błędem lub odznaczona → pozostałe linie „Check incomplete…” (bez zmiany zaznaczenia) |
-| Wynik | „Saved N lines, replaced M checks, skipped K”; karta z liczbami i „Import another file” |
+| Wynik | „Saved N lines, replaced M checks, skipped K”; karta z liczbami, „See Wine Attach Rate” (link do `#wine-attach-rate`) i „Import another file” |
 | Dane wyjściowe | `sales_record` (tylko pełne rachunki; ten sam rachunek z nowszego pliku zastępuje stary) |
 | API | `POST /imports/sales`, `PATCH /imports/{id}/rows` i `POST /imports/{id}/confirm` z opcjonalnym `valueMap`, `GET /import-samples/sales` |
-| Faza 2 | karta „Wine Attach Rate” z wyborem okresu (`SalesKpiService.getSalesKpis`) |
+| Karta „Wine Attach Rate” (faza 2) | pod krokiem uploadu (nie w podglądzie ani wyniku — podgląd ma własny wskaźnik pliku), `id="wine-attach-rate"`. Opis i „Imported sales: {od} – {do}.” (`SalesKpiService.dataRange`) albo „No sales imported yet.”. Formularz `GET` z polami `from` / `to` (`type=date`, dni biznesowe, obie granice włącznie) i „Show”; domyślnie 28 dni (`KPI_DAYS`) kończące się na ostatnim dniu z danymi, bez danych — ostatnie 28 pełnych dni w Warszawie (okno A1). Wynik `SalesKpiService.getSalesKpis`: „40.0%” / „40,0%” (1 miejsce po przecinku) + „4 of 10 checks with food had wine”, pod nim 4 KPI netto: przychód z wina na gościa (z liczbą gości), na stolik (z liczbą rachunków z jedzeniem), średnia butelka, średni kieliszek; brak wartości → „—” (`aria-label` „No data”). Brak linii w okresie → `EmptyState` „No data / No sales data for this period.”; same rachunki barowe → `EmptyState` „No checks with food in this period…” + KPI wina; zły okres (`invalid_period`: koniec przed początkiem, > 366 dni, nie data) → `ErrorMessage` „This period cannot be shown”, wpisane daty zostają w formularzu. Bez własnego „i” (definicję wskaźnika podaje wyjaśnienie ekranu). Bez JS; 390 px i 1440 px bez poziomego przewijania |
 
 ## A10 Setup checklist — `/admin/setup`
 

@@ -9,3 +9,4 @@ export * from './guest/table-recommendation.schema';
 export * from './catalog/translations.schema';
 export * from './opportunities/opportunity-key.schema';
 export * from './recommendations/code-action.schema';
+export * from './sales/sales-period.schema';
