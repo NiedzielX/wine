@@ -5,7 +5,7 @@ import {
   type ContentWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
-  type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository,
+  type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository, type UsageTotals,
   type RecommendationCodeInput, type RecommendationCodeRecord, type RecommendationCodeRepository, type ServiceDayPeriod
 } from '@wine-match/core';
 import {
@@ -417,6 +417,40 @@ export class PgGuestInteractionRepository implements GuestInteractionRepository 
       [restaurantId, range.from, range.to]
     );
     return Number(rows[0]?.n ?? 0);
+  }
+
+  /** One statement over the window's rows (index `(restaurant_id, created_at)`); guest figures only for sessions started in it. */
+  async usageTotals(restaurantId: string, range: { from: Date; to: Date }): Promise<UsageTotals> {
+    const rows = await this.em.getConnection().execute<Array<Record<keyof UsageTotals, number>>>(
+      `with ev as (
+         select session_id, name, dish_id, props from guest_interaction
+          where restaurant_id = ? and created_at >= ? and created_at < ?
+       ),
+       guest as (select distinct session_id from ev where name = 'guest_session_started'),
+       viewed as (
+         select distinct session_id, dish_id from ev
+          where name = 'recommendations_viewed' and dish_id is not null and session_id in (select session_id from guest)
+       ),
+       selected as (
+         select distinct session_id from ev
+          where name = 'wine_selected' and props->>'context' = 'dish' and session_id in (select session_id from guest)
+       ),
+       lookups as (
+         select distinct session_id, name, coalesce(dish_id::text, (props->'dishIds')::text) as subject from ev
+          where name in ('staff_lookup', 'staff_table_lookup')
+       )
+       select (select count(*) from guest)::int as "sessions",
+              (select count(*) from viewed)::int as "recommendationViews",
+              (select count(distinct session_id) from viewed)::int as "sessionsWithViews",
+              (select count(*) from (select distinct v.session_id from viewed v join selected s on s.session_id = v.session_id) x)::int as "sessionsWithSelection",
+              (select count(*) from lookups)::int as "staffLookups"`,
+      [restaurantId, range.from, range.to]
+    );
+    const r = rows[0];
+    return {
+      sessions: Number(r?.sessions ?? 0), recommendationViews: Number(r?.recommendationViews ?? 0), sessionsWithViews: Number(r?.sessionsWithViews ?? 0),
+      sessionsWithSelection: Number(r?.sessionsWithSelection ?? 0), staffLookups: Number(r?.staffLookups ?? 0)
+    };
   }
 }
 

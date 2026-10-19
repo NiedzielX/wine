@@ -341,7 +341,10 @@ await check('the waiter whole table stays public', `/r/${slug}/staff/table?dish=
 
 // --- dashboard (read-only screens of Phase 2)
 await check('admin root redirects to the dashboard', '/admin', { has: ['Dashboard', 'Sommelier-led dishes'] });
-await check('A1 dashboard', A, { has: ['Dashboard', 'Sommelier-led dishes', 'Published dishes', 'Wines on the list', 'Approved pairings', 'engine suggestions are waiting', 'No guests have used Wine Match yet', 'Review queue', 'Recommended for your dish', '<details data-explain="dashboard"', 'What do these tiles count?'], hasNot: [...OLD_LABELS, ' open=""'] });
+await check('A1 dashboard', A, { has: ['Dashboard', 'Sommelier-led dishes', 'Published dishes', 'Wines on the list', 'Approved pairings', 'engine suggestions are waiting', 'Review queue', 'Recommended for your dish', '<details data-explain="dashboard"', 'What do these tiles count?'], hasNot: [...OLD_LABELS, ' open=""'] });
+// E04 F1 (spec 2026-10-15-kpi-dashboard): the Guest usage section — the tiles or, without guest sessions, the empty state; never the section error
+await check('A1 guest usage', A, { has: ['id="usage-title"', '>Guest usage</h2>', 'Last 28 days · '], hasNot: ['Guest activity', 'Analytics are temporarily unavailable.'] });
+await check('A1 guest usage in Polish', A, { cookie: `${SESSION}; wm_lang=pl`, has: ['>Korzystanie gości</h2>', 'Ostatnie 28 dni · '], hasNot: ['Analityka jest chwilowo niedostępna.'] });
 await check('A2 menu', `${A}/menu`, { has: ['Beef tartare', 'Draft, needs check', 'to review', 'Published', 'Filter', 'data-explain="menu"', 'How does a taste profile affect pairings?'] });
 await check('A2 menu: text filter', `${A}/menu?q=porcini`, { has: ['Wild mushroom risotto'], hasNot: ['Beef tartare'] });
 await check('A2 menu: category filter', `${A}/menu?category=Desserts`, { has: ['Dark chocolate tart'], hasNot: ['Duck breast'] });

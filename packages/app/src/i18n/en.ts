@@ -8,6 +8,12 @@ export type IssueParams = Readonly<Record<string, string | undefined>>;
  * guest settings and the name of the person who signs the pairings. The engine's numbers come separately, always
  * from `ENGINE_FACTS` (R4) — never as a literal in a text.
  */
+/** The numbers the "Guest usage" explanation states: the KPI window and the smallest sample with a change (E04). */
+export interface UsageExplainFacts {
+  days: number;
+  minSample: number;
+}
+
 export interface ExplainContext {
   /** the restaurant shows match percentages (otherwise only the glass) */
   showScores: boolean;
@@ -764,12 +770,36 @@ export const en = {
       openWines: 'Open the wine list',
       opportunities: (n: number) => `Opportunities: ${n}`,
       openOpportunities: 'Open opportunities',
-      activity: 'Guest activity',
-      activityText: 'Sessions, recommendations shown, wines chosen and wine revenue.',
-      noGuests: 'No guests have used Wine Match yet',
-      noGuestsText: 'Usage and sales figures appear here once guests start using the app. Nothing has been recorded yet.',
-      getQr: 'Get the QR code',
-      openGuestApp: 'Open the guest app'
+      /** "Guest usage" (spec 2026-10-15-kpi-dashboard, phase 1) */
+      usage: {
+        title: 'Guest usage',
+        window: (days: number, from: string, to: string) => `Last ${days} days · ${from} – ${to}`,
+        sessions: 'Guest sessions',
+        sessionsDetail: 'Guests who opened the app from the QR code or a link',
+        views: 'Dish recommendations viewed',
+        viewsDetail: 'Each dish counted once per session',
+        conversion: 'Recommendation → selection',
+        conversionDetail: (n: string, of: string) => `${n} of ${of} sessions · dish recommendations only`,
+        staffLookups: 'Waiter lookups',
+        staffLookupsDetail: 'Staff screen, a dish or a whole table · not in the guest figures',
+        noData: 'No data',
+        emptyTitle: 'No guests have used Wine Match yet',
+        emptyText: 'Usage figures appear once guests scan the QR code.',
+        getQr: 'Get the QR code',
+        openGuestApp: 'Open the guest app'
+      },
+      /** the change of a KPI against the previous window (R5, R6) */
+      delta: {
+        vsPrevious: (change: string, days: number) => `${change} vs previous ${days} days`,
+        points: (n: string) => `${n} pp`,
+        up: 'Up',
+        down: 'Down',
+        noChange: 'No change',
+        noComparison: 'No comparison',
+        smallSample: 'Too few to compare'
+      },
+      analyticsUnavailable: 'Analytics are temporarily unavailable.',
+      analyticsUnavailableText: 'Pairings and guest app work normally.'
     },
     menu: {
       title: 'Menu',
@@ -1034,6 +1064,17 @@ export const en = {
           'Approved pairings: approved and modified ones. Once published, guests see them as “Sommelier’s pairing”.',
           `Engine suggestions wait in the review queue. With “Fill empty places with engine picks” on, guests see them from ${f.minModelScore}% as “Recommended for your dish”, never as a sommelier’s pairing.`,
           'Wines on the list: active wines. A hidden wine is never shown to guests.'
+        ]
+      },
+      /** the "Guest usage" section of A1 (spec 2026-10-15-kpi-dashboard; E07: the guest figures' explanation belongs to E04) */
+      usage: {
+        summary: 'What do these figures count?',
+        points: (k: UsageExplainFacts) => [
+          `The last ${k.days} full days up to yesterday, compared with the ${k.days} days before.`,
+          'Guest sessions: guests who opened the app from the QR code or a link. Our own tests, bots and link previews are not recorded.',
+          'Dish recommendations viewed: each dish once per session. The whole-table path is not counted here.',
+          `Recommendation → selection: of the sessions that viewed wines for a dish, those that chose one. Below ${k.minSample} sessions in either period the change is not shown.`,
+          'Waiter lookups: the staff screen, for a dish or a whole table. Never counted as guest sessions.'
         ]
       },
       menu: {

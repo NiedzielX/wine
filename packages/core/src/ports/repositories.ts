@@ -186,6 +186,30 @@ export interface GuestInteractionRepository {
   listBySession(restaurantId: string, sessionId: string): Promise<GuestInteraction[]>;
   /** distinct session_id with a guest_session_started event, createdAt in [from, to) */
   countGuestSessions(restaurantId: string, range: { from: Date; to: Date }): Promise<number>;
+  /**
+   * Usage totals of one window for the KPI dashboard (spec 2026-10-15-kpi-dashboard, R2, R3, Q8, Q9). Guest figures
+   * count only guest sessions — a guest_session_started with createdAt in [from, to) — and only their events also in
+   * [from, to): staff sessions, sessions without a start and sessions started before `from` are out.
+   * `sessions === countGuestSessions(restaurantId, range)`. `staffLookups` is the waiter's figure, apart from them.
+   */
+  usageTotals(restaurantId: string, range: { from: Date; to: Date }): Promise<UsageTotals>;
+}
+
+/** What `GuestInteractionRepository.usageTotals` counts in one window. */
+export interface UsageTotals {
+  /** distinct guest sessions */
+  sessions: number;
+  /** distinct (session_id, dish_id) of recommendations_viewed in guest sessions */
+  recommendationViews: number;
+  /** distinct guest sessions with a recommendations_viewed */
+  sessionsWithViews: number;
+  /** of those, sessions with a wine_selected whose props.context = 'dish' (the table path is out) */
+  sessionsWithSelection: number;
+  /**
+   * The waiter's lookups (staff_lookup on G9, staff_table_lookup on G11), any session: distinct (session_id, name,
+   * dish_id or props.dishIds) — a repeated look at the same dish or table counts once, like the guest figures.
+   */
+  staffLookups: number;
 }
 
 /** A recommendation to store: the record without its confirmation, plus the row id (`IdGenerator`). */

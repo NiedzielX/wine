@@ -1,8 +1,8 @@
 ---
-status: approved
+status: in-progress
 created: 2026-10-15
 owner: Filip
-related: [issue #19, #20, #21, #22, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/product-brief.md]
+related: [issue #19, #20, #21, #22, .ai/runs/2026-10-18-e04-f1-usage-kpis.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/product-brief.md]
 ---
 
 # Dashboard KPI w panelu (E04)
@@ -218,19 +218,19 @@ Każdy krok zostawia działającą aplikację. Bramka każdej fazy: `lint`, `che
 12. **App: `pairing-performance.tsx`** + test SSR; `?pairs=all`; smoke `?pairs=all` → 200; E2E: wiersz z wyświetleniami, „No views”, `?pairs=all` z długimi nazwami w fixture przy 390 i 1440 px bez poziomego przewijania; docs A1.
 
 ## Kryteria akceptacji
-- [ ] AC1 (#20, R2, R3, R5, R7) Przy zdarzeniach w oknie A1 pokazuje sesje gości, wyświetlenia rekomendacji dań i konwersję z „N of M sessions” oraz deltą vs poprzednie 28 dni. *Test `usageSummary` + E2E.*
-- [ ] AC2 (#20) Bez zdarzeń A1 pokazuje „No guests have used Wine Match yet”, nie zera. *Test serwisu + SSR + smoke `memory`.*
-- [ ] AC3 (#20, R2) Zdarzenia kelnera i sesji bez startu nie wchodzą do żadnego KPI. *Kontrakt `usageTotals` (memory, PostgreSQL).*
+- [x] AC1 (#20, R2, R3, R5, R7) Przy zdarzeniach w oknie A1 pokazuje sesje gości, wyświetlenia rekomendacji dań i konwersję z „N of M sessions” oraz deltą vs poprzednie 28 dni. *Test `usageSummary` + E2E.*
+- [x] AC2 (#20) Bez zdarzeń A1 pokazuje „No guests have used Wine Match yet”, nie zera. *Test serwisu + SSR + smoke `memory`.*
+- [x] AC3 (#20, R2) Zdarzenia kelnera i sesji bez startu nie wchodzą do żadnego KPI. *Kontrakt `usageTotals` (memory, PostgreSQL).*
 - [ ] AC4 (#21, R5–R7) Przy sprzedaży w oknie Wine Attach Rate jest wyróżniony, z „N of M checks with food” i deltą w pp; obok 4 KPI kwotowe z deltą w %. *Test `salesSummary` + SSR.*
 - [ ] AC5 (#21) Bez sprzedaży w oknie A1 pokazuje komunikat z linkiem do importu (z `import.manage`). *SSR `canImport=true`; `canImport=false` → brak linku.*
-- [ ] AC6 (R6) Mianownik stawki < 30 w którymkolwiek oknie → brak delty („Too few to compare”); poprzednie 0 → „No comparison”; zaokrąglenie do 0 → „No change”. *Test `compare-metric` + SSR.*
+- [ ] AC6 (R6) Mianownik stawki < 30 w którymkolwiek oknie → brak delty („Too few to compare”); poprzednie 0 → „No comparison”; zaokrąglenie do 0 → „No change”. *Test `compare-metric` + SSR.* — F1: liczniki i stawka konwersji ✅ (`core/tests/analytics.test.ts`, `app/tests/unit/usage-kpis.test.ts`); attach rate — F2.
 - [ ] AC7 (#22, R8) Każdy wiersz par ma shown, chosen, konwersję i źródło z tieru w chwili wyświetlenia. *Kontrakt `pairingStats` + test `pairingPerformance`.*
 - [ ] AC8 (#22) Para bez wyświetleń pokazuje „No views”, nie 0%. *Test serwisu + SSR.*
 - [ ] AC9 (#22) Match Score pary zatwierdzonej = `pairingScore(dish, wine).score` (R02). *Test serwisu.*
-- [ ] AC10 (R10) Dane drugiej restauracji niewidoczne w `usageTotals`, `pairingStats`. *Kontrakt.*
-- [ ] AC11 (R9) Sekcja z `{ ok: false }` renderuje „Analytics are temporarily unavailable.” w `h2`; `settleSection` loguje `error`. *Testy SSR komponentów sekcji + test `settleSection`.*
-- [ ] AC12 (R12) 390 i 1440 px bez poziomego przewijania z długimi nazwami i `?pairs=all`. *E2E (kroki 7, 12).*
-- [ ] AC13 (R11) Faza 1 przechodzi bramkę na gałęzi bez kodu E03. *CI fazy 1.*
+- [ ] AC10 (R10) Dane drugiej restauracji niewidoczne w `usageTotals`, `pairingStats`. *Kontrakt.* — F1: `usageTotals` ✅ (kontrakt, pamięć + PostgreSQL); `pairingStats` — F3.
+- [ ] AC11 (R9) Sekcja z `{ ok: false }` renderuje „Analytics are temporarily unavailable.” w `h2`; `settleSection` loguje `error`. *Testy SSR komponentów sekcji + test `settleSection`.* — F1: sekcja Guest usage ✅; Sales / Pairing performance — F2/F3.
+- [ ] AC12 (R12) 390 i 1440 px bez poziomego przewijania z długimi nazwami i `?pairs=all`. *E2E (kroki 7, 12).* — F1 (krok 7) ✅ `kpi-usage.e2e.test.ts`; `?pairs=all` — F3.
+- [x] AC13 (R11) Faza 1 przechodzi bramkę na gałęzi bez kodu E03. *CI fazy 1.*
 
 Dokumentacja (A1, §Analytics, `packages/app/AGENTS.md`) — checklista PR (CODE_REVIEW §3), nie AC.
 
@@ -272,3 +272,5 @@ Dokumentacja (A1, §Analytics, `packages/app/AGENTS.md`) — checklista PR (CODE
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 
 ## Realizacja
+
+- **F1 — #20 Guest usage (2026-10-18/19, gałąź `feat/e04-f1-usage-kpis`, log `.ai/runs/2026-10-18-e04-f1-usage-kpis.md`).** Zrobione: `core/src/services/analytics/` (`kpi-window.ts` — `KPI_DAYS`, `KPI_TIME_ZONE`, `kpiWindow`, `startOfLocalDay`; `compare-metric.ts` — `Metric`, `MIN_RATE_SAMPLE`, `count`/`money`/`rate`; `analytics-service.ts` — `AnalyticsService.usageSummary`), port `GuestInteractionRepository.usageTotals` + typ `UsageTotals` (pamięć, `PgGuestInteractionRepository` jednym zapytaniem z CTE, przypadek kontraktu przez `seedUsageEvents`), `ErrorMessage compact` (`ui`), `Kpi` w `admin/_components/kpi.tsx` z deltą, formatowanie w `_components/kpi-format.ts`, `server/analytics-section.ts` (`settleSection`), sekcja `(lists)/usage-kpis.tsx` na A1 (karta „Guest activity” usunięta, „Needs your attention” na pełną szerokość), `analyticsService` w `container.ts`, słowniki EN/PL (`admin.dashboard.usage`, `admin.dashboard.delta`, `admin.explain.usage`), smoke, docs (SCREEN_SPECIFICATION A1, API_SPECIFICATION §Analytics „planowane”, DATA_MODEL). Testy: `core/tests/analytics.test.ts`, kontrakt (memory + `test:db`), `ui/tests/feedback.test.tsx`, `app/tests/unit/usage-kpis.test.ts`, E2E `app/tests/e2e/kpi-usage.e2e.test.ts`. Odstępstwa: (1) **kafelek „Waiter lookups”** — po E02 F3 i E08 lookupy kelnera (`staff_lookup` + `staff_table_lookup`, unikalne (sesja, danie lub zestaw dań stołu), bez wymogu startu sesji) liczone osobno w `UsageTotals.staffLookups` / `UsageSummary.staffLookups`, nigdy w KPI gości — definicje R2/R3 bez zmian; (2) wyjaśnienie „Guest usage” (E07 przekazało je E04) jako osobne „i” sekcji (`data-explain="usage"`, jedno na sekcję), widoczne tylko przy kafelkach; liczby w tekście z `KPI_DAYS` i `MIN_RATE_SAMPLE`; (3) `Kpi.delta` to `{ text, arrow? }` zamiast `string` (strzałka `aria-hidden` + czytane „Up”/„Down”); (4) liczby w języku panelu (`en-GB` / `pl-PL`); (5) E2E wstawia zdarzenia przez `seedUsageEvents` + `PgGuestInteractionRepository` (`getOrm` z adresem bazy e2e), A1 z JS (strona w `(lists)`); (6) zmiana `packages/app/AGENTS.md` z Q12 była już na `main`. Zostają F2 (#21) i F3 (#22): spec `in-progress`.

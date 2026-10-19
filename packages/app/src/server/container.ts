@@ -2,7 +2,7 @@ import { asClass, asFunction, asValue, createContainer, InjectionMode, type Awil
 import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
-  AdminService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService,
+  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService,
   SommelierService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
   type PasswordHasher, type Repositories, type SessionTokens
 } from '@wine-match/core';
@@ -33,6 +33,7 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   recommendationService: RecommendationService;
   catalogService: CatalogService;
   adminService: AdminService;
+  analyticsService: AnalyticsService;
   sommelierService: SommelierService;
   publishService: PublishService;
   opportunityService: OpportunityService;
@@ -57,6 +58,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     recommendationService: asClass(RecommendationService).scoped(),
     catalogService: asClass(CatalogService).scoped(),
     adminService: asClass(AdminService).scoped(),
+    // the KPI dashboard's read service (spec 2026-10-15-kpi-dashboard): both data sources, like every service
+    analyticsService: asClass(AnalyticsService).scoped(),
     sommelierService: asClass(SommelierService).scoped(),
     authService: asClass(AuthService).scoped(),
     importService: asClass(ImportService).scoped(),
