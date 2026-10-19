@@ -7,6 +7,8 @@ import type { GuestInteractionInput } from '../src/ports/repositories';
 import { AnalyticsService, PAIRING_ROWS_LIMIT } from '../src/services/analytics/analytics-service';
 import { count, MIN_RATE_SAMPLE, money, rate } from '../src/services/analytics/compare-metric';
 import { KPI_DAYS, kpiWindow, localDate, startOfLocalDay } from '../src/services/analytics/kpi-window';
+import { SalesKpiService } from '../src/services/sales/sales-kpi-service';
+import type { SalesItemType } from '../src/services/sales/types';
 import { seedUsageEvents } from '../src/testing/usage-events';
 
 /** Spec 2026-10-15-kpi-dashboard, phase 1: the window, the comparison rules and the usage summary. */
@@ -95,7 +97,7 @@ describe('AnalyticsService.usageSummary (R2, R3, AC1–AC3)', () => {
 
   function setup() {
     const repos = createMemoryRepositories(MemoryStore.from(ds));
-    const service = new AnalyticsService({ ...repos, clock: { now: () => NOW } });
+    const service = new AnalyticsService({ ...repos, clock: { now: () => NOW }, salesKpiService: new SalesKpiService(repos) });
     return { repo: repos.guestInteractionRepository, service };
   }
 
@@ -187,7 +189,7 @@ describe('AnalyticsService.pairingPerformance (#22, R8, Q10, Q11, AC7–AC9)', (
     const ds = structuredClone(buildDemoDataset({ ids: 'uuid' }));
     change?.(ds);
     const repos = createMemoryRepositories(MemoryStore.from(ds));
-    return { ds, repo: repos.guestInteractionRepository, service: new AnalyticsService({ ...repos, clock: { now: () => NOW } }) };
+    return { ds, repo: repos.guestInteractionRepository, service: new AnalyticsService({ ...repos, clock: { now: () => NOW }, salesKpiService: new SalesKpiService(repos) }) };
   }
   const reviewed = (ds: DemoDataset) => ds.pairings.filter((p) => p.status === 'approved' || p.status === 'modified');
   const byId = <T extends { id: string }>(list: T[], id: string) => list.find((x) => x.id === id)!;
@@ -279,5 +281,106 @@ describe('AnalyticsService.pairingPerformance (#22, R8, Q10, Q11, AC7–AC9)', (
     const p = (await service.pairingPerformance(ds.restaurant.slug, { locale: 'pl' }))!;
     for (const r of p.rows) expect(r.dish.name).toBe(localizeDish(byId(ds.dishes, r.dish.id), 'pl').name);
     expect(await service.pairingPerformance('no-such-place')).toBeNull();
+  });
+});
+
+describe('AnalyticsService.salesSummary (#21, R4–R7, Q3, AC4–AC6)', () => {
+  const NOW = new Date('2026-10-15T06:00:00.000Z');   // current window 17 Sep – 14 Oct, previous 20 Aug – 16 Sep
+  function setup() {
+    const ds = buildDemoDataset({ ids: 'uuid' });
+    const store = MemoryStore.from(ds);
+    const repos = createMemoryRepositories(store);
+    const service = new AnalyticsService({ ...repos, clock: { now: () => NOW }, salesKpiService: new SalesKpiService(repos) });
+    let n = 0;
+    const line = (businessDate: string, checkId: string, itemType: SalesItemType, quantity: number, netAmount: number, covers: number | null = null, restaurantId = ds.restaurant.id) =>
+      store.salesLines.push({
+        id: `5a1e5000-0000-4000-8000-${String(++n).padStart(12, '0')}`, businessDate, checkId, covers, itemType, quantity, netAmount,
+        restaurantId, importJobId: 'job', replacedAt: null, replacedByJobId: null
+      });
+    /** `food` checks with food and two guests on `day`; the first `withWine` of them also have a 180 zł bottle, the next `withGlass` two 30 zł glasses */
+    const checks = (day: string, prefix: string, food: number, withWine: number, withGlass = 0) => {
+      for (let i = 1; i <= food; i++) {
+        line(day, `${prefix}${i}`, 'food', 2, 100, 2);
+        if (i <= withWine) line(day, `${prefix}${i}`, 'wine_bottle', 1, 180);
+        else if (i <= withWine + withGlass) line(day, `${prefix}${i}`, 'wine_glass', 2, 60);
+      }
+    };
+    return { ds, store, repos, service, line, checks, slug: ds.restaurant.slug };
+  }
+
+  it('AC4: the attach rate per check in pp with its sample in checks with food, the four amounts in %', async () => {
+    const { service, checks, line, slug } = setup();
+    checks('2026-10-01', 'C', 40, 10, 10);   // 20 of 40 with wine: 0.5
+    line('2026-10-02', 'BAR1', 'wine_glass', 1, 30);   // a bar check: wine revenue, never the rate
+    checks('2026-09-01', 'P', 40, 8, 8);     // 16 of 40: 0.4
+    checks('2026-10-15', 'T', 5, 5);         // today: in neither window
+    const s = (await service.salesSummary(slug))!;
+    expect(s.period).toEqual({ current: { from: '2026-09-17', to: '2026-10-14' }, previous: { from: '2026-08-20', to: '2026-09-16' } });
+    expect(s.source).toBe('sales_import');
+    expect(s.latestDataDay).toBe('2026-10-15');
+    expect(s.attachRate).toMatchObject({ value: 0.5, previous: 0.4, unit: 'pp', noChange: null, sample: { numerator: 20, denominator: 40, previousDenominator: 40 } });
+    expect(s.attachRate.change).toBeCloseTo(10, 9);
+    // per table: (10 × 180 + 10 × 60) / 40 = 60 vs (8 × 180 + 8 × 60) / 40 = 48 → +25%
+    expect(s.wineRevenuePerTable).toMatchObject({ value: 60, previous: 48, change: 25, unit: '%' });
+    // per guest: 2400 / 80 covers = 30 vs 1920 / 80 = 24 → +25%
+    expect(s.wineRevenuePerGuest).toMatchObject({ value: 30, previous: 24, change: 25, unit: '%' });
+    expect(s.averageBottle).toMatchObject({ value: 180, previous: 180, change: 0 });
+    // glasses: (600 + 30) / 21 = 30 vs 480 / 16 = 30
+    expect(s.averageGlass).toMatchObject({ value: 30, previous: 30, change: 0 });
+  });
+
+  it(`AC6: fewer than ${MIN_RATE_SAMPLE} checks with food in either window keep the rate and hide its change`, async () => {
+    const { service, checks, slug } = setup();
+    checks('2026-10-01', 'C', 29, 10);
+    checks('2026-09-01', 'P', 40, 8);
+    const s = (await service.salesSummary(slug))!;
+    expect(s.attachRate).toMatchObject({ value: 10 / 29, change: null, noChange: 'small_sample', sample: { numerator: 10, denominator: 29, previousDenominator: 40 } });
+    expect(s.wineRevenuePerTable.noChange).toBeNull();
+  });
+
+  it('AC5 + Q3: no sales in the current window → source null with the latest day; the previous window alone is not a fall', async () => {
+    const { service, checks, slug } = setup();
+    checks('2026-09-02', 'P', 40, 8);
+    const s = (await service.salesSummary(slug))!;
+    expect(s.source).toBeNull();
+    expect(s.latestDataDay).toBe('2026-09-02');
+    expect(s.attachRate).toMatchObject({ value: null, previous: 0.2, change: null, noChange: 'no_comparison' });
+    expect(s.wineRevenuePerTable).toMatchObject({ value: null, change: null, noChange: 'no_comparison' });
+  });
+
+  it('nothing imported at all → source and latestDataDay null; the previous window empty → no comparison', async () => {
+    const { service, checks, slug } = setup();
+    const none = (await service.salesSummary(slug))!;
+    expect(none).toMatchObject({ source: null, latestDataDay: null });
+    expect(none.attachRate).toMatchObject({ value: null, previous: null, noChange: 'no_comparison', sample: { numerator: 0, denominator: 0, previousDenominator: 0 } });
+    checks('2026-10-01', 'C', 40, 10);
+    const first = (await service.salesSummary(slug))!;
+    expect(first.attachRate).toMatchObject({ value: 0.25, previous: null, change: null, noChange: 'no_comparison' });
+    expect(first.wineRevenuePerTable).toMatchObject({ value: 45, previous: null, noChange: 'no_comparison' });
+  });
+
+  it('bar checks only → data, but no attach rate (null) and no revenue per table; the bottle average stays', async () => {
+    const { service, line, slug } = setup();
+    line('2026-10-05', 'BAR1', 'wine_bottle', 1, 200);
+    const s = (await service.salesSummary(slug))!;
+    expect(s.source).toBe('sales_import');
+    expect(s.attachRate).toMatchObject({ value: null, sample: { numerator: 0, denominator: 0, previousDenominator: 0 } });
+    expect(s.wineRevenuePerTable.value).toBeNull();
+    expect(s.averageBottle.value).toBe(200);
+  });
+
+  it('R4 + R10: only the restaurant’s POS sales — guest events are not read (and codes are not a dependency); another restaurant is not counted', async () => {
+    const { repos, service, checks, line, slug } = setup();
+    checks('2026-10-01', 'C', 40, 10);
+    line('2026-10-01', 'X1', 'food', 1, 100, 2, 'f0000000-0000-4000-8000-000000000099');
+    line('2026-10-01', 'X1', 'wine_bottle', 1, 900, null, 'f0000000-0000-4000-8000-000000000099');
+    const calls: string[] = [];
+    const guestRepo = new Proxy(repos.guestInteractionRepository, { get: (t, k) => { calls.push(String(k)); return Reflect.get(t, k); } });
+    const isolated = new AnalyticsService({ ...repos, guestInteractionRepository: guestRepo, clock: { now: () => NOW }, salesKpiService: new SalesKpiService(repos) });
+    const s = (await isolated.salesSummary(slug))!;
+    expect(calls).toEqual([]);
+    expect(s.attachRate.sample).toEqual({ numerator: 10, denominator: 40, previousDenominator: 0 });
+    expect(s.wineRevenuePerTable.value).toBe(45);
+    expect(await service.salesSummary('no-such-place')).toBeNull();
   });
 });
