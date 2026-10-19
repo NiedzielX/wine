@@ -11,7 +11,7 @@ import type { AuthRepository } from '../ports/auth';
 import type { ImportPlan, ImportRepository } from '../ports/import';
 import type {
   ContentWriteRepository, DecisionRecord, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
-  PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, WineRepository, WineWriteRepository
+  PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, UsageTotals, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
 /** `content` is null for a version published before translations existed (read as `{}`). */
@@ -457,6 +457,38 @@ export class MemoryGuestInteractionRepository implements GuestInteractionReposit
       if (e.restaurantId === restaurantId && e.name === 'guest_session_started' && at >= from && at < to) sessions.add(e.sessionId);
     }
     return sessions.size;
+  }
+
+  async usageTotals(restaurantId: string, range: { from: Date; to: Date }): Promise<UsageTotals> {
+    const from = range.from.getTime();
+    const to = range.to.getTime();
+    const inWindow = this.store.guestInteractions.filter((e) => {
+      const at = e.createdAt.getTime();
+      return e.restaurantId === restaurantId && at >= from && at < to;
+    });
+    const guest = new Set(inWindow.filter((e) => e.name === 'guest_session_started').map((e) => e.sessionId));
+    const views = new Set<string>();
+    const withViews = new Set<string>();
+    const withDishSelection = new Set<string>();
+    const lookups = new Set<string>();
+    for (const e of inWindow) {
+      if (e.name === 'staff_lookup' || e.name === 'staff_table_lookup') {
+        lookups.add(JSON.stringify([e.sessionId, e.name, e.dishId ?? null, e.dishId ? null : e.props.dishIds ?? null]));
+      }
+      if (!guest.has(e.sessionId)) continue;
+      if (e.name === 'recommendations_viewed' && e.dishId) {
+        views.add(`${e.sessionId}|${e.dishId}`);
+        withViews.add(e.sessionId);
+      }
+      if (e.name === 'wine_selected' && e.props.context === 'dish') withDishSelection.add(e.sessionId);
+    }
+    return {
+      sessions: guest.size,
+      recommendationViews: views.size,
+      sessionsWithViews: withViews.size,
+      sessionsWithSelection: [...withViews].filter((s) => withDishSelection.has(s)).length,
+      staffLookups: lookups.size
+    };
   }
 }
 

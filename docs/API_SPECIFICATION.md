@@ -266,6 +266,8 @@ POST /v1/imports/menu/0193…/confirm
 
 ## Analytics
 
+**Stan (spec `2026-10-15-kpi-dashboard`, E04):** trasy `GET …/analytics/*` niżej są **planowane** — nie istnieją. KPI liczy panel po stronie serwera przez `AnalyticsService` z `core` (od E04 F1: użycie gości na A1); kształt odpowiedzi tras ustali osobna specyfikacja (bez obietnicy zgodności z `UsageSummary`).
+
 | Metoda | Ścieżka | Rola | Opis |
 |---|---|---|---|
 | POST | `/public/events` | P | eventy gościa — **planowane** (zdarzenia tylko‑JS, np. `recommendation_clicked`); zdarzenia lejka zapisują strony gościa po stronie serwera, z sesją w parametrze URL `sid` (`docs/SCREEN_SPECIFICATION.md`, „Zdarzenia użycia”) |

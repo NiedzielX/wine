@@ -1,5 +1,6 @@
 import type { OnceRunner } from './contract-types';
 import { recommendationCodeContract } from './recommendation-code-contract';
+import { seedUsageEvents } from './usage-events';
 import type { DemoDataset } from '../demo/dataset';
 import type { OpportunityDismissal } from '../domain/types';
 import type { GuestInteractionInput, Repositories } from '../ports/repositories';
@@ -178,6 +179,55 @@ export function repositoryContract(
       t.expect(await repo.countGuestSessions(ds.restaurant.id, range)).toBe(2);
       t.expect(await repo.countGuestSessions(OTHER, range)).toBe(0);
       t.expect(await repo.countGuestSessions(ds.restaurant.id, { from: at('2031-02-28T00:00:00.000Z'), to: at('2031-03-01T00:00:00.001Z') })).toBe(1);
+    });
+
+    /* ---------- usage totals for the KPI dashboard (spec 2026-10-15-kpi-dashboard, R2, R3, R10, AC3, AC10) ---------- */
+    t.it('totals usage of guest sessions only, in [from, to), and the waiter lookups apart', async () => {
+      const repo = repos.guestInteractionRepository;
+      const [d1, d2] = [ds.dishes[0].id, ds.dishes[1].id];
+      const [w1, w2] = [ds.wines[0].id, ds.wines[1].id];
+      const view = (s: string, iso: string, dishId: string) =>
+        ev(s, 'recommendations_viewed', iso, { dishId, props: { wineIds: [w1], items: [{ wineId: w1, tier: 'engine' }], menuVersion: null } });
+      const pick = (s: string, iso: string, context: string, extra: Partial<GuestInteractionInput> = {}) =>
+        ev(s, 'wine_selected', iso, { wineId: w1, props: { serving: 'glass', context, menuVersion: null }, ...extra });
+      await seedUsageEvents(repo, ds.restaurant.id, [
+        // A: views two dishes (one twice) and selects for a dish — in every figure
+        ev(sid(21), 'guest_session_started', '2032-02-01T00:00:00.000Z', { props: { source: 'qr', menuVersion: null } }),
+        view(sid(21), '2032-02-01T00:01:00.000Z', d1), view(sid(21), '2032-02-01T00:02:00.000Z', d1), view(sid(21), '2032-02-01T00:03:00.000Z', d2),
+        pick(sid(21), '2032-02-01T00:04:00.000Z', 'dish', { dishId: d1 }),
+        // B: views, selects only from the table — a view without a selection
+        ev(sid(22), 'guest_session_started', '2032-02-02T00:00:00.000Z'),
+        view(sid(22), '2032-02-02T00:01:00.000Z', d1),
+        ev(sid(22), 'table_recommendation_viewed', '2032-02-02T00:02:00.000Z', { props: { dishIds: [d1, d2], wineIds: [w2], budgetRelaxed: false, menuVersion: null } }),
+        pick(sid(22), '2032-02-02T00:03:00.000Z', 'table', { props: { serving: 'bottle', context: 'table', dishIds: [d1, d2], menuVersion: null } }),
+        // C: selects without a view — a session, nothing else
+        ev(sid(23), 'guest_session_started', '2032-02-03T00:00:00.000Z'),
+        pick(sid(23), '2032-02-03T00:01:00.000Z', 'dish', { dishId: d1 }),
+        // D: started before `from` — out of every guest figure
+        ev(sid(24), 'guest_session_started', '2032-01-31T23:59:59.999Z'),
+        view(sid(24), '2032-02-01T00:10:00.000Z', d1), pick(sid(24), '2032-02-01T00:11:00.000Z', 'dish', { dishId: d1 }),
+        // E: guest events without a start (a hand-copied sid) — out
+        view(sid(25), '2032-02-04T00:00:00.000Z', d2), pick(sid(25), '2032-02-04T00:01:00.000Z', 'dish', { dishId: d2 }),
+        // F: a view at `to` — the session is in, the view is not
+        ev(sid(26), 'guest_session_started', '2032-02-28T23:59:59.999Z'),
+        view(sid(26), '2032-03-01T00:00:00.000Z', d1),
+        // the waiter: two dishes, one looked up twice, a table looked up and then "Choose this one" — 3 lookups
+        ev(sid(27), 'staff_lookup', '2032-02-05T00:00:00.000Z', { dishId: d1, props: { source: 'staff', prefs: {}, wineIds: [w1], menuVersion: null } }),
+        ev(sid(27), 'staff_lookup', '2032-02-05T00:01:00.000Z', { dishId: d1, props: { source: 'staff', prefs: {}, wineIds: [w1], menuVersion: null } }),
+        ev(sid(27), 'staff_lookup', '2032-02-05T00:02:00.000Z', { dishId: d2, props: { source: 'staff', prefs: {}, wineIds: [w1], menuVersion: null } }),
+        ev(sid(27), 'staff_table_lookup', '2032-02-05T00:03:00.000Z', { wineId: w2, props: { source: 'staff', dishIds: [d1, d2], wineIds: [w2], prefs: {}, splitSuggested: false, budgetRelaxed: false, menuVersion: null } }),
+        ev(sid(27), 'staff_table_lookup', '2032-02-05T00:04:00.000Z', { wineId: w2, props: { source: 'staff', dishIds: [d1, d2], wineIds: [w2], pickedWineId: w2, prefs: {}, splitSuggested: false, budgetRelaxed: false, menuVersion: null } }),
+        // the waiter after the window — out
+        ev(sid(27), 'staff_lookup', '2032-03-01T00:00:00.000Z', { dishId: d2, props: { source: 'staff', prefs: {}, wineIds: [], menuVersion: null } })
+      ]);
+      const range = { from: at('2032-02-01T00:00:00.000Z'), to: at('2032-03-01T00:00:00.000Z') };
+      const totals = await repo.usageTotals(ds.restaurant.id, range);
+      t.expect(totals).toEqual({ sessions: 4, recommendationViews: 3, sessionsWithViews: 2, sessionsWithSelection: 1, staffLookups: 3 });
+      t.expect(totals.sessions).toBe(await repo.countGuestSessions(ds.restaurant.id, range));
+      t.expect(await repo.usageTotals(OTHER, range)).toEqual({ sessions: 0, recommendationViews: 0, sessionsWithViews: 0, sessionsWithSelection: 0, staffLookups: 0 });
+      // the next window: F's view at its `from` belongs to a session started in the previous one — out
+      const next = await repo.usageTotals(ds.restaurant.id, { from: at('2032-03-01T00:00:00.000Z'), to: at('2032-03-29T00:00:00.000Z') });
+      t.expect(next).toEqual({ sessions: 0, recommendationViews: 0, sessionsWithViews: 0, sessionsWithSelection: 0, staffLookups: 1 });
     });
 
     /* ---------- recommendation codes (spec 2026-10-16-recommendation-code) ---------- */

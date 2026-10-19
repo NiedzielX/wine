@@ -1,5 +1,5 @@
 import type { EngineFacts } from '@wine-match/core';
-import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, TableQuantityText, WineExplainContext } from './en';
+import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, TableQuantityText, UsageExplainFacts, WineExplainContext } from './en';
 
 /** Polish plural: 1 wino, 2–4 wina (but 12–14 win), 5+ win. */
 const plural = (n: number, one: string, few: string, many: string) =>
@@ -649,12 +649,34 @@ export const pl = {
       openWines: 'Otwórz kartę win',
       opportunities: (n: number) => `Okazje: ${n}`,
       openOpportunities: 'Otwórz okazje',
-      activity: 'Aktywność gości',
-      activityText: 'Sesje, pokazane rekomendacje, wybrane wina i przychód z wina.',
-      noGuests: 'Goście jeszcze nie korzystali z Wine Match',
-      noGuestsText: 'Dane o korzystaniu i sprzedaży pojawią się tutaj, gdy goście zaczną używać aplikacji. Na razie nic nie zarejestrowano.',
-      getQr: 'Pobierz kod QR',
-      openGuestApp: 'Otwórz aplikację gościa'
+      usage: {
+        title: 'Korzystanie gości',
+        window: (days: number, from: string, to: string) => `Ostatnie ${days} dni · ${from} – ${to}`,
+        sessions: 'Sesje gości',
+        sessionsDetail: 'Goście, którzy otworzyli aplikację z kodu QR lub linku',
+        views: 'Wyświetlone rekomendacje do dań',
+        viewsDetail: 'Każde danie liczone raz na sesję',
+        conversion: 'Rekomendacja → wybór',
+        conversionDetail: (n: string, of: string) => `${n} z ${of} sesji · tylko rekomendacje do dań`,
+        staffLookups: 'Wyszukiwania kelnera',
+        staffLookupsDetail: 'Ekran obsługi, danie lub cały stół · poza liczbami gości',
+        noData: 'Brak danych',
+        emptyTitle: 'Goście jeszcze nie korzystali z Wine Match',
+        emptyText: 'Liczby pojawią się, gdy goście zeskanują kod QR.',
+        getQr: 'Pobierz kod QR',
+        openGuestApp: 'Otwórz aplikację gościa'
+      },
+      delta: {
+        vsPrevious: (change: string, days: number) => `${change} wobec poprzednich ${days} dni`,
+        points: (n: string) => `${n} p.p.`,
+        up: 'Wzrost',
+        down: 'Spadek',
+        noChange: 'Bez zmian',
+        noComparison: 'Brak porównania',
+        smallSample: 'Za mało danych do porównania'
+      },
+      analyticsUnavailable: 'Analityka jest chwilowo niedostępna.',
+      analyticsUnavailableText: 'Parowania i aplikacja gościa działają normalnie.'
     },
     menu: {
       title: 'Menu',
@@ -913,6 +935,16 @@ export const pl = {
           'Zatwierdzone parowania: zatwierdzone i zmienione. Po publikacji gość widzi je jako „Para sommeliera”.',
           `Propozycje silnika czekają w kolejce. Gdy włączone „Uzupełniaj puste miejsca propozycjami silnika”, gość widzi je od ${f.minModelScore}% jako „Polecane do Twojego dania”, nigdy jako „Para sommeliera”.`,
           'Wina w karcie: aktywne wina. Ukrytego wina gość nigdy nie zobaczy.'
+        ]
+      },
+      usage: {
+        summary: 'Co liczą te liczby?',
+        points: (k: UsageExplainFacts) => [
+          `Ostatnie ${k.days} pełnych dni do wczoraj, w porównaniu z ${k.days} dniami wcześniej.`,
+          'Sesje gości: goście, którzy otworzyli aplikację z kodu QR lub linku. Nasze testy, boty i podglądy linków nie są zapisywane.',
+          'Wyświetlone rekomendacje do dań: każde danie raz na sesję. Ścieżka „Cały stół” nie jest tu liczona.',
+          `Rekomendacja → wybór: spośród sesji, które obejrzały wina do dania, te, w których gość wybrał wino. Poniżej ${k.minSample} sesji w którymkolwiek okresie zmiana nie jest pokazywana.`,
+          'Wyszukiwania kelnera: ekran obsługi, dla dania lub całego stołu. Nigdy nie liczą się jako sesje gości.'
         ]
       },
       menu: {

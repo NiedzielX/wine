@@ -28,6 +28,17 @@ describe('ErrorMessage: announced to assistive technology, with a sensible defau
     expect(full).toContain('Gone');
     expect(full).toContain('Try again later.');
     expect(full).toContain('Retry');
+    expect(bare).toContain('<h1');
+    expect(bare).toContain('py-24');
+  });
+
+  it('compact: one section of a page fails — an h2, never an h1, and less padding', () => {
+    const section = html(<ErrorMessage compact title="Analytics are temporarily unavailable." message="Pairings and guest app work normally." />);
+    expect(section).toContain('role="alert"');
+    expect(section).toContain('<h2');
+    expect(section).not.toContain('<h1');
+    expect(section).toContain('py-8');
+    expect(section).not.toContain('py-24');
   });
 });
 
