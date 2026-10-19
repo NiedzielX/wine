@@ -4,23 +4,25 @@ import { pairingScore } from '../../engine/scoring';
 import { NotFoundError, ValidationError } from '../../errors';
 import { localizeDish, localizeWine } from '../../i18n/content';
 import type { Locale } from '../../i18n/locale';
-import type { Repositories } from '../../ports/repositories';
+import type { PairingStat, Repositories } from '../../ports/repositories';
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import { lastFullServiceDays } from '../../recommendation-code/service-day';
 import { opportunityKeySchema } from '../../validators/opportunities/opportunity-key.schema';
 import { parseWith } from '../../validators/parse';
+import { kpiWindow } from '../analytics/kpi-window';
 import { orderReviewed } from '../pairings/pairing-rules';
 import {
   DISMISS_DAYS, WINDOW_DAYS, findOpportunities, opportunityCandidates, scoreKey, type Opportunity, type OpportunityInput, type OrderedPair
 } from './opportunity-rules';
 
 export type OpportunityServiceDeps = Pick<Repositories,
-  'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'opportunityDismissalRepository' | 'recommendationCodeRepository'> & {
+  'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'opportunityDismissalRepository' | 'recommendationCodeRepository'
+  | 'guestInteractionRepository'> & {
   clock: Clock;
   idGenerator: IdGenerator;
 };
 
-/** `dish`: S1–S3 only, no aggregate queries (A6, A1); `all`: every signal (A14), S5 from the recommendation codes. */
+/** `dish`: S1–S3 only, no aggregate queries (A6, A1); `all`: every signal (A14), S4 from guests' usage, S5 from the codes. */
 export type OpportunityScope = 'dish' | 'all';
 
 export interface OpportunityItem extends Opportunity {
@@ -49,7 +51,7 @@ export interface OpportunityView {
   groups: OpportunityGroup[];
   /** ignored and not yet expired, soonest to return first */
   dismissed: DismissedOpportunity[];
-  /** sources that failed to load (phase 3: `usage`, phase 4: `orders`); the other signals are still shown */
+  /** sources that failed to load (`usage`: S4, `orders`: S5), in this order; the other signals are still shown */
   degraded: Array<'usage' | 'orders'>;
 }
 
@@ -92,6 +94,14 @@ export class OpportunityService {
     return stats.filter((s) => s.context === 'dish').map((s) => ({ dishId: s.dishId, wineId: s.wineId, orders: s.ordered }));
   }
 
+  /**
+   * S4 input: how guests saw and chose each (dish, wine, source) in E04's KPI window — the last 28 full calendar days in
+   * Warsaw, ending yesterday (`kpiWindow().currentRange`), the same numbers as A1 "Pairing performance".
+   */
+  private async usage(restaurantId: string): Promise<PairingStat[]> {
+    return this.d.guestInteractionRepository.pairingStats(restaurantId, kpiWindow(this.d.clock.now()).currentRange);
+  }
+
   /** Current data of one restaurant (the panel reads the current state, not the published one). */
   private async input(restaurantId: string): Promise<Omit<OpportunityInput, 'dismissedKeys'>> {
     const [dishes, wines, pairings] = await Promise.all([
@@ -110,17 +120,16 @@ export class OpportunityService {
       this.input(restaurant.id),
       this.d.opportunityDismissalRepository.listActive(restaurant.id, this.d.clock.now())
     ]);
-    // S5 (orders) for scope "all" only; a failed read leaves the other signals and says so (S4, usage: phase 3)
+    // S4 (usage) and S5 (orders) for scope "all" only; a failed read leaves the other signals and says so
     const degraded: OpportunityView['degraded'] = [];
+    let pairingStats: PairingStat[] | undefined;
     let orders: OrderedPair[] | undefined;
     if (opts.scope === 'all') {
-      try {
-        orders = await this.orders(restaurant.id);
-      } catch {
-        degraded.push('orders');
-      }
+      const [usage, codes] = await Promise.allSettled([this.usage(restaurant.id), this.orders(restaurant.id)]);
+      if (usage.status === 'fulfilled') pairingStats = usage.value; else degraded.push('usage');
+      if (codes.status === 'fulfilled') orders = codes.value; else degraded.push('orders');
     }
-    const items = findOpportunities({ ...data, orders, dismissedKeys: new Set(dismissals.map((x) => x.key)) })
+    const items = findOpportunities({ ...data, orders, pairingStats, dismissedKeys: new Set(dismissals.map((x) => x.key)) })
       .filter((o) => !opts.dishId || o.dishId === opts.dishId);
 
     const dishes = new Map(data.dishes.map((x) => [x.id, locale ? localizeDish(x, locale) : x]));
@@ -155,9 +164,10 @@ export class OpportunityService {
     const input = parseWith(opportunityKeySchema, { key }, 'This opportunity is not valid.');
     const restaurant = await this.restaurant(slug);
     const data = await this.input(restaurant.id);
-    // S5 keys need the orders (a read error propagates: nothing is stored); other keys never query them
+    // S4 keys need the usage, S5 keys the orders (a read error propagates: nothing is stored); other keys query neither
     const orders = input.key.startsWith('ordered_not_reviewed:') ? await this.orders(restaurant.id) : undefined;
-    const candidate = opportunityCandidates({ ...data, orders }).find((o) => o.key === input.key);
+    const pairingStats = input.key.startsWith('shown_rarely_chosen:') ? await this.usage(restaurant.id) : undefined;
+    const candidate = opportunityCandidates({ ...data, orders, pairingStats }).find((o) => o.key === input.key);
     if (!candidate) throw new ValidationError('opportunity_stale', 'This opportunity is no longer current.');
     const now = this.d.clock.now();
     await this.d.opportunityDismissalRepository.upsert(restaurant.id, {

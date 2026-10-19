@@ -8,7 +8,7 @@ import { DISMISS_DAYS, ENGINE_FACTS } from '@wine-match/core';
 import { DishStatusBadge, PairingStatusBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
 import { PanelExplain } from '../../../_components/explain';
 import { Flash, ReadOnlyNotice } from '../../../_components/flash';
-import { OpportunityList } from '../../../_components/opportunity-list';
+import { OpportunityList, pairingAnchor } from '../../../_components/opportunity-list';
 import { first, formatDateTime, zl } from '../../../_components/format';
 import { addPairing, approveAllPairings, approvePairing, deletePairing, movePairing, rejectPairing, restorePairing, savePairingNote, setPairingRole } from '../../actions';
 import { getRequestScope } from '@/server/request-scope';
@@ -96,7 +96,7 @@ export default async function PairingsPage({ params, searchParams }: Props) {
             <CardContent className="px-0">
               {w.approved.length === 0 && <p className="px-6 py-8 text-center text-sm text-muted-foreground">{m.noneApproved}</p>}
               {w.approved.map((p, i) => (
-                <div key={p.id} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b px-6 py-4 last:border-b-0">
+                <div key={p.id} id={pairingAnchor(p.id)} className="grid scroll-mt-4 grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b px-6 py-4 last:border-b-0 target:bg-brass-soft/40">
                   <span className="font-serif text-2xl leading-tight text-muted-foreground">{i + 1}</span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-3">

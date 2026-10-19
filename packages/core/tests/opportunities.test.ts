@@ -4,12 +4,15 @@ import type { CodeContext, Dish, DishCategory, Pairing, PairingRole, PairingStat
 import { MIN_MODEL_SCORE } from '../src/engine/recommend';
 import { NotFoundError, ValidationError } from '../src/errors';
 import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repositories';
-import type { RecommendationCodeRepository } from '../src/ports/repositories';
+import type { GuestInteractionInput, GuestInteractionRepository, PairingStat, RecommendationCodeRepository } from '../src/ports/repositories';
+import { MIN_RATE_SAMPLE } from '../src/services/analytics/compare-metric';
 import {
-  DISMISS_DAYS, MIN_ORDERS, STRONG_MATCH, WINDOW_DAYS, findOpportunities, opportunityCandidates, opportunityKey, scoreKey, type OpportunityInput
+  DISMISS_DAYS, LOW_RATE_FACTOR, MIN_ORDERS, MIN_OTHER_CHOSEN, MIN_SHOWN, STRONG_MATCH, WINDOW_DAYS, findOpportunities, opportunityCandidates,
+  opportunityKey, scoreKey, type OpportunityInput
 } from '../src/services/opportunities/opportunity-rules';
 import { OpportunityService, buildScoreMatrix } from '../src/services/opportunities/opportunity-service';
 import { SommelierService } from '../src/services/pairings/sommelier-service';
+import { seedUsageEvents } from '../src/testing/usage-events';
 import { opportunityKeySchema } from '../src/validators/opportunities/opportunity-key.schema';
 
 /* ---------------- pure rules on a small, hand-made menu ---------------- */
@@ -590,5 +593,210 @@ describe('OpportunityService: S5 from the recommendation codes', () => {
     const p = unpaired(b);
     await codes(b, [p.dish], p.wine, LAST, MIN_ORDERS - 1);
     await expect(b.svc.dismiss('halka', `ordered_not_reviewed:${p.dish}:${p.wine}`, ACTOR)).rejects.toMatchObject({ code: 'opportunity_stale' });
+  });
+});
+
+/* ---------------- phase 3: S4 shown_rarely_chosen ---------------- */
+
+describe('S4 shown_rarely_chosen (pure rule)', () => {
+  const d = dish('d1');
+  const prim = wine('w_p', { glassPrice: null });
+  const alt = wine('w_a', { glassPrice: null });
+  const eng = wine('w_e', { glassPrice: null });
+  const stat = (wineId: string, source: PairingStat['source'], shown: number, chosen: number): PairingStat => ({ dishId: 'd1', wineId, source, shown, chosen });
+  const primary = pairing('d1', 'w_p', 'approved', 'primary');
+  const alternative = pairing('d1', 'w_a', 'approved', 'alternative');
+  // bottle-only wines keep S2 out; the primary 2 of 30 (6.7%), the other wines 5 of 20 (25%): at most half of it fires
+  const base = (over: Partial<OpportunityInput> = {}) => input({
+    dishes: [d], wines: [prim, alt, eng], pairings: [primary, alternative],
+    scores: scores([['d1', 'w_p', 80], ['d1', 'w_a', 75], ['d1', 'w_e', 70]]),
+    pairingStats: [stat('w_p', 'sommelier', 30, 2), stat('w_a', 'sommelier', 12, 3), stat('w_e', 'engine', 8, 2)], ...over
+  });
+  const s4 = (i: OpportunityInput) => findOpportunities(i).filter((o) => o.rule === 'shown_rarely_chosen');
+
+  it('uses the thresholds of Q7; MIN_SHOWN is E04’s small-sample threshold', () => {
+    expect([MIN_SHOWN, MIN_OTHER_CHOSEN, LOW_RATE_FACTOR]).toEqual([30, 5, 0.5]);
+    expect(MIN_SHOWN).toBe(MIN_RATE_SAMPLE);
+  });
+
+  it('fires for the approved primary with the numbers of the sentence and the pairing to open on A6', () => {
+    const [o] = s4(base());
+    expect(o).toEqual({
+      key: 'shown_rarely_chosen:d1:w_p', rule: 'shown_rarely_chosen', dishId: 'd1', wineId: 'w_p', action: 'open_dish', pairingId: primary.id,
+      evidence: { rule: 'shown_rarely_chosen', shown: 30, chosen: 2, otherShown: 20, otherChosen: 5 }
+    });
+    expect(opportunityKeySchema.safeParse({ key: o.key }).success).toBe(true);
+  });
+
+  it('needs shown ≥ 30 (29 is silent) and otherChosen ≥ 5 (4 is silent)', () => {
+    expect(s4(base({ pairingStats: [stat('w_p', 'sommelier', 29, 2), stat('w_a', 'sommelier', 12, 3), stat('w_e', 'engine', 8, 2)] }))).toEqual([]);
+    expect(s4(base({ pairingStats: [stat('w_p', 'sommelier', 30, 2), stat('w_a', 'sommelier', 12, 3), stat('w_e', 'engine', 8, 1)] }))).toEqual([]);
+  });
+
+  it('a rate exactly at LOW_RATE_FACTOR × the others’ rate fires, one choice more does not; the pair is not among "the others"', () => {
+    // 3 of 30 = 10% against 5 of 25 = 20%: exactly half. Counting the primary among the others (8 of 55) would hide it.
+    const at = (chosen: number) => base({ pairingStats: [stat('w_p', 'sommelier', 30, chosen), stat('w_a', 'sommelier', 15, 3), stat('w_e', 'engine', 10, 2)] });
+    expect(s4(at(3)).map((o) => o.evidence)).toEqual([{ rule: 'shown_rarely_chosen', shown: 30, chosen: 3, otherShown: 25, otherChosen: 5 }]);
+    expect(s4(at(4))).toEqual([]);
+  });
+
+  it('counts only the sommelier rows of the pair; an engine row of the same wine counts nowhere', () => {
+    expect(s4(base({ pairingStats: [stat('w_p', 'engine', 40, 0), stat('w_a', 'sommelier', 12, 3), stat('w_e', 'engine', 8, 2)] }))).toEqual([]);
+    const both = s4(base({ pairingStats: [stat('w_p', 'sommelier', 30, 2), stat('w_p', 'engine', 40, 0), stat('w_a', 'sommelier', 12, 3), stat('w_e', 'engine', 8, 2)] }));
+    expect(both.map((o) => o.evidence)).toEqual([{ rule: 'shown_rarely_chosen', shown: 30, chosen: 2, otherShown: 20, otherChosen: 5 }]);
+  });
+
+  it('never fires for an Alternative or a best_value pairing (the position effect), nor for a pairing that is not approved', () => {
+    for (const role of ['alternative', 'best_value'] as const) {
+      const i = base({
+        pairings: [primary, pairing('d1', 'w_a', 'approved', role)],
+        pairingStats: [stat('w_a', 'sommelier', 60, 1), stat('w_p', 'sommelier', 12, 3), stat('w_e', 'engine', 8, 2)]
+      });
+      expect(s4(i)).toEqual([]);
+    }
+    expect(s4(base({ pairings: [{ ...primary, status: 'suggested', role: null }, alternative] }))).toEqual([]);
+    expect(s4(base({ pairings: [{ ...primary, status: 'rejected' }, alternative] }))).toEqual([]);
+    expect(s4(base({ pairings: [{ ...primary, status: 'modified' }, alternative] }))).toHaveLength(1);
+  });
+
+  it('is silent for a dish guests do not see, a hidden wine, and without usage data (scope "dish", or the read failed)', () => {
+    expect(s4(base({ dishes: [dish('d1', { status: 'hidden' })] }))).toEqual([]);
+    expect(s4(base({ wines: [wine('w_p', { active: false, glassPrice: null }), alt, eng] }))).toEqual([]);
+    expect(s4(base({ pairingStats: undefined }))).toEqual([]);
+    expect(s4(base({ pairingStats: [] }))).toEqual([]);
+  });
+
+  it('counts only rows of the same dish, and gives the same list for any order of the rows (R1)', () => {
+    const foreign: PairingStat = { dishId: 'd2', wineId: 'w_a', source: 'sommelier', shown: 50, chosen: 40 };
+    const i = base({ dishes: [d, dish('d2')], pairingStats: [stat('w_p', 'sommelier', 30, 2), stat('w_a', 'sommelier', 12, 3), stat('w_e', 'engine', 8, 1), foreign] });
+    expect(s4(i)).toEqual([]);
+    const ok = base();
+    expect(findOpportunities({ ...ok, pairingStats: [...ok.pairingStats!].reverse() })).toEqual(findOpportunities(ok));
+  });
+});
+
+describe('OpportunityService: S4 from guests’ usage events (seedUsageEvents, E02)', () => {
+  let b: Built;
+  beforeEach(() => { b = build(); });
+  let n = 0;
+  // NOW = 2026-10-16 12:00 in Warsaw: E04's window is 18 Sep – 15 Oct (calendar days, today out)
+  const IN = '2026-10-01T12:00:00.000Z';
+  const ev = (sessionId: string, name: GuestInteractionInput['name'], at: string, extra: Partial<GuestInteractionInput> = {}): GuestInteractionInput =>
+    ({ sessionId, name, props: { menuVersion: null }, engineVersion: 'wm-test', createdAt: new Date(at), ...extra });
+  /** `k` guest sessions that saw `wine` for `dishId` with `tier`; the first `chosen` of them chose it */
+  const sessions = (k: number, chosen: number, dishId: string, wine: string, tier: string, at = IN) => Array.from({ length: k }, (_, i) => {
+    const s = `dd000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
+    return [
+      ev(s, 'guest_session_started', at, { props: { source: 'qr', menuVersion: null } }),
+      ev(s, 'recommendations_viewed', at, { dishId, props: { wineIds: [wine], items: [{ wineId: wine, tier }], menuVersion: null } }),
+      ...(i < chosen ? [ev(s, 'wine_selected', at, { dishId, wineId: wine, props: { serving: 'glass', context: 'dish', menuVersion: null } })] : [])
+    ];
+  }).flat();
+  /** a published dish with an approved primary pairing of an active wine, and another active wine for "the others" */
+  const target = (x: Built) => {
+    const published = new Set(x.data.dishes.filter((d) => d.status === 'published').map((d) => d.id));
+    const active = new Set(x.data.wines.filter((w) => w.active).map((w) => w.id));
+    const primary = x.data.pairings.find((p) => (p.status === 'approved' || p.status === 'modified') && p.role === 'primary' && published.has(p.dishId) && active.has(p.wineId))!;
+    const other = x.data.wines.find((w) => w.active && w.id !== primary.wineId)!;
+    return { primary, dish: primary.dishId, wine: primary.wineId, other: other.id, key: `shown_rarely_chosen:${primary.dishId}:${primary.wineId}` };
+  };
+  const seed = (x: Built, events: GuestInteractionInput[]) => seedUsageEvents(x.repos.guestInteractionRepository, x.data.restaurant.id, events);
+  const s4 = async (x: Built, svc: OpportunityService = x.svc) =>
+    (await svc.list('halka', { scope: 'all' }))!.groups.flatMap((g) => g.items).filter((o) => o.rule === 'shown_rarely_chosen');
+  const withUsage = (x: Built, repo: GuestInteractionRepository, codes: RecommendationCodeRepository = x.repos.recommendationCodeRepository) =>
+    new OpportunityService({ ...x.repos, guestInteractionRepository: repo, recommendationCodeRepository: codes, clock: x.clock, idGenerator: { uuid: () => '00000000-0000-4000-8000-0000000000d4' } });
+
+  it('AC11: fires for the primary from 30 views and 5 choices of the other wines; 29 views or 4 choices are silent', async () => {
+    const t = target(b);
+    await seed(b, [...sessions(29, 2, t.dish, t.wine, 'sommelier_primary'), ...sessions(20, 5, t.dish, t.other, 'engine')]);
+    expect(await s4(b)).toEqual([]);
+    await seed(b, sessions(1, 0, t.dish, t.wine, 'sommelier'));
+    const [o] = await s4(b);
+    expect(o).toMatchObject({ key: t.key, action: 'open_dish', pairingId: t.primary.id, evidence: { shown: 30, chosen: 2, otherShown: 20, otherChosen: 5 } });
+    expect(o.wine?.id).toBe(t.wine);
+
+    const c = build();
+    const tc = target(c);
+    await seed(c, [...sessions(30, 2, tc.dish, tc.wine, 'sommelier_primary'), ...sessions(20, 4, tc.dish, tc.other, 'engine')]);
+    expect(await s4(c)).toEqual([]);
+  });
+
+  it('AC11: a rate of exactly half the others’ fires, one choice more does not; the pair is left out of "the others"', async () => {
+    const t = target(b);
+    await seed(b, [...sessions(30, 3, t.dish, t.wine, 'sommelier_primary'), ...sessions(25, 5, t.dish, t.other, 'engine')]);
+    expect((await s4(b)).map((o) => o.evidence)).toEqual([{ rule: 'shown_rarely_chosen', shown: 30, chosen: 3, otherShown: 25, otherChosen: 5 }]);
+    const c = build();
+    const tc = target(c);
+    await seed(c, [...sessions(30, 4, tc.dish, tc.wine, 'sommelier_primary'), ...sessions(25, 5, tc.dish, tc.other, 'engine')]);
+    expect(await s4(c)).toEqual([]);
+  });
+
+  it('AC11: only the sommelier rows count — the wine seen as an engine pick is no S4; an Alternative never gives S4', async () => {
+    const t = target(b);
+    await seed(b, [...sessions(40, 0, t.dish, t.wine, 'engine'), ...sessions(20, 10, t.dish, t.other, 'engine')]);
+    expect(await s4(b)).toEqual([]);
+    // the same numbers under the sommelier's label fire while the pairing is the primary, and stop once it is an alternative
+    const c = build();
+    const tc = target(c);
+    await seed(c, [...sessions(30, 0, tc.dish, tc.wine, 'sommelier'), ...sessions(20, 10, tc.dish, tc.other, 'engine')]);
+    expect((await s4(c)).length).toBe(1);
+    await c.som.setRole('halka', tc.primary.id, 'alternative', ACTOR);
+    expect(await s4(c)).toEqual([]);
+  });
+
+  it('counts only E04’s window: views on the day before it and today are out', async () => {
+    const t = target(b);
+    await seed(b, [
+      ...sessions(30, 0, t.dish, t.wine, 'sommelier_primary', '2026-09-17T12:00:00.000Z'),
+      ...sessions(30, 0, t.dish, t.wine, 'sommelier_primary', '2026-10-16T08:00:00.000Z'),
+      ...sessions(20, 10, t.dish, t.other, 'engine')
+    ]);
+    expect(await s4(b)).toEqual([]);
+  });
+
+  it('is not computed for scope "dish" (A6, A1): no usage query; scope "all" queries once', async () => {
+    const t = target(b);
+    await seed(b, [...sessions(30, 0, t.dish, t.wine, 'sommelier_primary'), ...sessions(20, 10, t.dish, t.other, 'engine')]);
+    const repo = b.repos.guestInteractionRepository;
+    let calls = 0;
+    const counting: GuestInteractionRepository = Object.assign(Object.create(repo) as GuestInteractionRepository, {
+      pairingStats: async (...a: Parameters<GuestInteractionRepository['pairingStats']>) => { calls++; return repo.pairingStats(...a); }
+    });
+    const svc = withUsage(b, counting);
+    const dishView = (await svc.list('halka', { scope: 'dish', dishId: t.dish }))!;
+    expect(dishView.groups.flatMap((g) => g.items).some((o) => o.rule === 'shown_rarely_chosen')).toBe(false);
+    expect(calls).toBe(0);
+    expect((await s4(b, svc)).length).toBe(1);
+    expect(calls).toBe(1);
+  });
+
+  it('AC11: a failed read keeps S1–S3 and reports degraded: ["usage"]; ignoring an S4 key then stores nothing', async () => {
+    const before = await flat(b);
+    const failing: GuestInteractionRepository = Object.assign(Object.create(b.repos.guestInteractionRepository) as GuestInteractionRepository, {
+      pairingStats: async () => { throw new Error('db down'); }
+    });
+    const svc = withUsage(b, failing);
+    const view = (await svc.list('halka', { scope: 'all' }))!;
+    expect(view.degraded).toEqual(['usage']);
+    expect(view.groups.flatMap((g) => g.items.map((o) => `${o.rule} | ${g.dish.name} | ${o.wine?.name ?? '-'} | ${JSON.stringify(o.evidence)}`))).toEqual(before);
+    expect((await svc.list('halka', { scope: 'dish' }))!.degraded).toEqual([]);
+    await expect(svc.dismiss('halka', target(b).key, ACTOR)).rejects.toThrow('db down');
+    expect(await b.repos.opportunityDismissalRepository.listActive(b.data.restaurant.id, new Date(NOW))).toEqual([]);
+    // both sources down: both named, in a fixed order
+    const failingCodes: RecommendationCodeRepository = Object.assign(Object.create(b.repos.recommendationCodeRepository) as RecommendationCodeRepository, {
+      pairStats: async () => { throw new Error('db down'); }
+    });
+    expect((await withUsage(b, failing, failingCodes).list('halka', { scope: 'all' }))!.degraded).toEqual(['usage', 'orders']);
+  });
+
+  it('Ignore hides the S4 opportunity and Restore shows it again; a key below the thresholds is stale', async () => {
+    const t = target(b);
+    await expect(b.svc.dismiss('halka', t.key, ACTOR)).rejects.toMatchObject({ code: 'opportunity_stale' });
+    await seed(b, [...sessions(30, 0, t.dish, t.wine, 'sommelier_primary'), ...sessions(20, 10, t.dish, t.other, 'engine')]);
+    await b.svc.dismiss('halka', t.key, ACTOR);
+    expect(await s4(b)).toEqual([]);
+    expect((await b.svc.list('halka', { scope: 'all' }))!.dismissed).toEqual([expect.objectContaining({ key: t.key, rule: 'shown_rarely_chosen' })]);
+    await b.svc.restore('halka', t.key, ACTOR);
+    expect((await s4(b)).map((o) => o.key)).toEqual([t.key]);
   });
 });

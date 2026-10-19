@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: implemented
 created: 2026-10-16
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/specs/2026-10-16-how-it-works-explanations.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/lessons/2026-10-14-write-path-conventions.md]
@@ -316,7 +316,7 @@ Nowe kody `DomainError`:
 - **Klucz przedmiotu:** stały klucz i 30 dni mogą ukryć okazję, która istotnie się zmieniła (np. wynik z 86 na 94). W MVP to akceptujemy. Odcisk dowodów w kluczu można dodać później, addytywnie.
 - **Brak historii „Dodaj” (Q14 ⚠):** audyt „kto dodał do propozycji” zostaje tylko jako `updatedBy`; historia zaczyna się od „Approve”.
 - **E07:** bez komponentu „i” w panelu F2 pokazuje tekst w opisie karty (Q16).
-- **E02/E04:** S4 wymaga `items[].tier` (E02) i `pairingStats` (E04 F3, approved, niezaimplementowane). Zmiana kształtu odczytu oznacza zmianę F3.
+- **E02/E04:** S4 wymaga `items[].tier` (E02) i `pairingStats` (E04 F3, zaimplementowane w #74, `GuestInteractionRepository.pairingStats` → `PairingStat { dishId, wineId, source, shown, chosen }`; F3 czyta je w oknie `kpiWindow().currentRange`). Zmiana kształtu odczytu oznacza zmianę S4.
 - **E09:** S5 czyta `pairStats` (`context: 'dish'`, `ordered`).
   - Oznaczanie „zamówione” przez kelnera jest publiczne i można je zawyżyć (E09 Q8). S5 tylko podpowiada i nic nie zmienia bez decyzji, więc ryzyko jest niskie.
   - Kod nie dowodzi przyczynowości (E09 Q12), dlatego zdanie mówi „zamówiono z kodem”, a nie „sprzedano dzięki”.
@@ -441,23 +441,23 @@ Nie proponujemy zastąpienia żadnej decyzji. Rozbieżność z „co noc” (Q2)
     E2E: S5 → „Zatwierdź”. Docs.
 
 ## Kryteria akceptacji
-- [ ] AC1 (F1, R1) `findOpportunities` daje identyczną listę po permutacji tablic wejściowych. `check:boundaries` przechodzi. *Testy `opportunities.test.ts`.*
-- [ ] AC2 (F1, R2–R4) S1–S3 wywołują się dokładnie przy warunkach z tabeli:
+- [x] AC1 (F1, R1) `findOpportunities` daje identyczną listę po permutacji tablic wejściowych. `check:boundaries` przechodzi. *Testy `opportunities.test.ts`.*
+- [x] AC2 (F1, R2–R4) S1–S3 wywołują się dokładnie przy warunkach z tabeli:
   - wynik 84 nie wywołuje S2/S3, a 85 wywołuje;
   - para `rejected` blokuje S2/S3;
   - ukryte wino nigdy nie jest proponowane.
 
   *Testy jednostkowe.*
-- [ ] AC3 (F1, R5) `addSuggestion` tworzy parę `suggested` (`dirty: false`, `updatedBy` = autor, bez wpisu historii); `pendingPairingChanges` i `hasUnpublishedChanges` bez zmian. Niedozwolone stany kończą się kodami z tabeli błędów. `recommendForDish` daje ten sam wynik z nową parą i bez niej. *Testy serwisu i silnika, kontrakt zapisu.*
-- [ ] AC4 (F1, R6) Zignorowana okazja nie wraca przed `expiresAt`, a po nim wraca, jeśli warunek nadal obowiązuje. Ponowne „Ignoruj” przedłuża termin. `restore` przywraca okazję od razu. Klucz, który nie jest kandydatem → `opportunity_stale` bez zapisu. Zignorowanie S2 nie odsłania kolejnego wina. *Test serwisu (stały zegar) + kontrakt (memory, PostgreSQL).*
-- [ ] AC5 (F1, D18) Zignorowania i okazje innej restauracji są niewidoczne i nie dają się zignorować. *Kontrakt + test serwisu.*
-- [ ] AC6 (F1) Migracja `up` / `down` przechodzi, `schema:check` jest zgodny. *`npm run test:db`.*
-- [ ] AC7 (F2, R7) `manager` widzi A14 i kartę na A6 bez przycisków. Sfałszowany formularz `manager` do każdej z trzech akcji kończy się odmową bez zapisu. *Test akcji + E2E.*
-- [ ] AC8 (F2, R8) „Dodaj do propozycji” (A6, A14), „Ignoruj” i „Przywróć” działają bez JavaScriptu. Nowa propozycja jest widoczna na A6 (E2E bez JS) i w A7 (E2E z JS, bo A7 jest w `(lists)`). *E2E.*
-- [ ] AC9 (F2, R9) Teksty okazji (PL i EN) nie zawierają „AI”, a klucze PL i EN są zgodne. *Test słowników.*
-- [ ] AC10 (F2) `/admin/halka/opportunities` → 200 z tytułem w trybach `memory` i `postgres`. Przy 390 i 1440 px nie ma poziomego przewijania. *`npm run smoke` + przegląd ekranów.*
-- [ ] AC11 (F3) S4 wywołuje się tylko dla pary Primary, przy `shown ≥ 30`, `otherChosen ≥ 5` i stawce `≤ 0.5 ×` stawki pozostałych win dania, tylko dla wierszy sommeliera. Błąd odczytu nie psuje A14. *Testy na `seedUsageEvents`.*
-- [ ] AC12 (F4) S5 wywołuje się od 5 zamówień w wierszach `context: 'dish'`. „Zatwierdź” używa `expectedVersion`, a nieaktualna wersja daje konflikt. *Testy + E2E.*
+- [x] AC3 (F1, R5) `addSuggestion` tworzy parę `suggested` (`dirty: false`, `updatedBy` = autor, bez wpisu historii); `pendingPairingChanges` i `hasUnpublishedChanges` bez zmian. Niedozwolone stany kończą się kodami z tabeli błędów. `recommendForDish` daje ten sam wynik z nową parą i bez niej. *Testy serwisu i silnika, kontrakt zapisu.*
+- [x] AC4 (F1, R6) Zignorowana okazja nie wraca przed `expiresAt`, a po nim wraca, jeśli warunek nadal obowiązuje. Ponowne „Ignoruj” przedłuża termin. `restore` przywraca okazję od razu. Klucz, który nie jest kandydatem → `opportunity_stale` bez zapisu. Zignorowanie S2 nie odsłania kolejnego wina. *Test serwisu (stały zegar) + kontrakt (memory, PostgreSQL).*
+- [x] AC5 (F1, D18) Zignorowania i okazje innej restauracji są niewidoczne i nie dają się zignorować. *Kontrakt + test serwisu.*
+- [x] AC6 (F1) Migracja `up` / `down` przechodzi, `schema:check` jest zgodny. *`npm run test:db`.*
+- [x] AC7 (F2, R7) `manager` widzi A14 i kartę na A6 bez przycisków. Sfałszowany formularz `manager` do każdej z trzech akcji kończy się odmową bez zapisu. *Test akcji + E2E.*
+- [x] AC8 (F2, R8) „Dodaj do propozycji” (A6, A14), „Ignoruj” i „Przywróć” działają bez JavaScriptu. Nowa propozycja jest widoczna na A6 (E2E bez JS) i w A7 (E2E z JS, bo A7 jest w `(lists)`). *E2E.*
+- [x] AC9 (F2, R9) Teksty okazji (PL i EN) nie zawierają „AI”, a klucze PL i EN są zgodne. *Test słowników.*
+- [x] AC10 (F2) `/admin/halka/opportunities` → 200 z tytułem w trybach `memory` i `postgres`. Przy 390 i 1440 px nie ma poziomego przewijania. *`npm run smoke` + przegląd ekranów.*
+- [x] AC11 (F3) S4 wywołuje się tylko dla pary Primary, przy `shown ≥ 30`, `otherChosen ≥ 5` i stawce `≤ 0.5 ×` stawki pozostałych win dania, tylko dla wierszy sommeliera. Błąd odczytu nie psuje A14. *Testy na `seedUsageEvents`.*
+- [x] AC12 (F4) S5 wywołuje się od 5 zamówień w wierszach `context: 'dish'`. „Zatwierdź” używa `expectedVersion`, a nieaktualna wersja daje konflikt. *Testy + E2E.*
 
 Dokumentacja (R10) jest pozycją checklisty PR (CODE_REVIEW §3), a nie AC.
 
@@ -481,6 +481,8 @@ Dokumentacja (R10) jest pozycją checklisty PR (CODE_REVIEW §3), a nie AC.
   - poprawki typów, schematu i komunikatów;
   - Q17 (odrzucona para);
   - rekalibracja przy zmianie `ENGINE_VERSION`.
+
+- 2026-10-19: F3 (S4) zrealizowane; wszystkie AC1–AC12 spełnione, status `implemented` (F5/S6 to osobna, warunkowa specyfikacja).
 
 ## Zatwierdzenie
 Filip (product owner) 2026-10-16: „Akceptuję rekomendacje we wszystkich decyzjach ⚠” — każda pozycja ⚠ w tej specyfikacji (tabela i Ryzyka) przyjęta zgodnie z rekomendacją.
@@ -510,3 +512,10 @@ Filip (product owner) 2026-10-16: „Akceptuję rekomendacje we wszystkich decyz
   - testy: `core/tests/opportunities.test.ts` (próg 4/5, pomijane zatwierdzone/`modified`/`rejected`, wiersze `table`, okno, `degraded`, konflikt wersji, zignoruj/przywróć S5), `core/tests/recommendation-code.test.ts`, `app/tests/unit/opportunity-pages.test.ts`, E2E S5 → „Approve” bez JS w `app/tests/e2e/opportunities.e2e.test.ts`;
   - docs: `RECOMMENDATION_ENGINE.md` §13, `SCREEN_SPECIFICATION.md` A14.
   - **Odstępstwa i doprecyzowania:** (1) S5 bez pary z wynikiem < `MIN_MODEL_SCORE` ma akcję `open_dish` (tylko „Otwórz parowania” w nagłówku grupy), bo „Dodaj” skończyłoby się `low_match`; (2) okno to 28 pełnych dni serwisu **przed** bieżącym (bieżący, niezakończony dzień nie wchodzi); (3) wiersze `pairStats` o tym samym (danie, wino) są sumowane (odporność na kolejność, R1); (4) do E09 F2/F3 `ordered` = potwierdzenia kelnera, więc w praktyce S5 milczy, dopóki nikt nie potwierdza kodów; E2E wstawia kody SQL-em.
+- **F3 — S4 (PR „E10-F3”, issue #53, gałąź `feat/e10-f3-signal-s4`, 2026-10-19).** Log: `.ai/runs/2026-10-19-e10-f3-signal-s4.md`. Zrobiony krok 11 planu (AC11); po nim spełnione są wszystkie AC1–AC12, więc specyfikacja jest `implemented` (F5/S6 — osobna, warunkowa specyfikacja):
+  - `opportunity-rules.ts`: `MIN_SHOWN` (= `MIN_RATE_SAMPLE` z E04 `compare-metric.ts`, 30), `MIN_OTHER_CHOSEN = 5`, `LOW_RATE_FACTOR = 0.5`, wejście `pairingStats?: PairingStat[]`, reguła S4 (para zatwierdzona z rolą `primary`, danie `published`, wino `active`; `shown`/`chosen` z wierszy `sommelier` pary, „pozostałe” = suma wierszy dania bez tej pary; warunek bez dzielenia: `chosen × otherShown ≤ LOW_RATE_FACTOR × otherChosen × shown`), akcja `open_dish` z `pairingId`, ewidencja `{ shown, chosen, otherShown, otherChosen }`;
+  - `OpportunityService`: zależność `guestInteractionRepository`, `pairingStats` w oknie `kpiWindow(now).currentRange` tylko dla `scope: 'all'` (równolegle z `pairStats` S5, `Promise.allSettled`), błąd → `degraded: ['usage']` (oba źródła: `['usage', 'orders']`); `dismiss` klucza S4 czyta zdarzenia (błąd propaguje, nic nie zapisuje);
+  - app: zdanie S4 w `opportunity-list.tsx` (procenty zaokrąglone do całości, `WINDOW_DAYS`), link „Otwórz parowania” / „Open pairings” do `/admin/{slug}/pairings/{dishId}#pairing-{pairingId}`; wiersze „Approved for guests” na A6 mają kotwicę `id="pairing-{id}"` (`pairingAnchor`); teksty `shown_rarely_chosen` były w słownikach od F2;
+  - testy: `core/tests/opportunities.test.ts` (reguła czysta i serwis na `seedUsageEvents`: progi 29/30 i 4/5, granica `0.5 ×` włącznie, para wyłączona z „pozostałych”, tylko wiersze `sommelier`, Alternative/`best_value` bez S4, okno E04, `scope: 'dish'` bez zapytania, `degraded`, Ignoruj/Przywróć; mutacje sprawdzone), `app/tests/unit/opportunity-pages.test.ts` (A14 EN/PL, GM, kotwica A6), E2E bez JS `app/tests/e2e/opportunities.e2e.test.ts` (29 pokazań → brak, 30 → S4, link do wiersza A6);
+  - docs: `RECOMMENDATION_ENGINE.md` §13 (S4, progi, okno), `SCREEN_SPECIFICATION.md` (A6 kotwica, A14).
+  - **Odstępstwa i doprecyzowania:** (1) wiersz `engine` tego samego wina (np. sprzed zatwierdzenia) nie liczy się ani do pary, ani do „pozostałych” — „bez tej pary” = bez (danie, wino) w każdym źródle; (2) „Otwórz parowania” S4 to link w wierszu okazji (z kotwicą), widoczny także dla ról bez `pairings.decide` (to odczyt), obok linku w nagłówku grupy; (3) okno S4 to okno KPI E04 (dni kalendarzowe w Warszawie), a nie dni serwisu jak w S5 — te same liczby co A1 „Pairing performance”; (4) `degraded` ma stałą kolejność `usage`, `orders`.
