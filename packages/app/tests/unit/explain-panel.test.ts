@@ -123,7 +123,7 @@ beforeAll(async () => {
 
 describe('one explanation per dashboard card, in its place (AC2, AC3, R3)', () => {
   const pages: Array<[string, unknown, () => Record<string, string>, string[]]> = [
-    ['A1 dashboard', DashboardPage, () => ({}), ['dashboard']],
+    ['A1 dashboard', DashboardPage, () => ({}), ['dashboard', 'performance']],
     ['A2 menu', MenuListPage, () => ({}), ['menu']],
     ['A3 dish', DishPage, () => ({ dishId: duck }), ['score']],
     ['A4 wine list', WineListPage, () => ({}), ['wines']],

@@ -803,6 +803,26 @@ export const en = {
         noComparison: 'No comparison',
         smallSample: 'Too few to compare'
       },
+      /** "Pairing performance" (spec 2026-10-15-kpi-dashboard, phase 3, #22) */
+      pairings: {
+        title: 'Pairing performance',
+        caption: 'How often guests saw and chose each pairing, with its source when they saw it',
+        dish: 'Dish',
+        wine: 'Wine',
+        source: 'Source',
+        match: 'Match',
+        shown: 'Shown',
+        chosen: 'Chosen',
+        conversion: 'Conversion',
+        sources: { sommelier: 'Sommelier', engine: 'Engine' },
+        noViews: 'No views',
+        showAll: (n: number) => `Show all ${n} pairings`,
+        showTop: (n: number) => `Show top ${n}`,
+        omitted: (n: number) => n === 1 ? '1 pairing hidden: the dish or wine was removed.' : `${n} pairings hidden: the dish or wine was removed.`,
+        emptyTitle: 'No pairings to measure yet',
+        emptyText: 'Approve pairings for your dishes; guests’ views and choices appear here.',
+        openReview: 'Review suggestions'
+      },
       analyticsUnavailable: 'Analytics are temporarily unavailable.',
       analyticsUnavailableText: 'Pairings and guest app work normally.'
     },
@@ -1080,6 +1100,16 @@ export const en = {
           'Dish recommendations viewed: each dish once per session. The whole-table path is not counted here.',
           `Recommendation → selection: of the sessions that viewed wines for a dish, those that chose one. Below ${k.minSample} sessions in either period the change is not shown.`,
           'Waiter lookups: the staff screen, for a dish or a whole table. Never counted as guest sessions.'
+        ]
+      },
+      /** the "Pairing performance" table of A1 (spec 2026-10-15-kpi-dashboard, phase 3) */
+      performance: {
+        summary: 'What does this table count?',
+        points: (k: UsageExplainFacts) => [
+          `Guest sessions of the last ${k.days} full days up to yesterday. The waiter’s screen and the whole-table path are not counted.`,
+          'Shown: sessions that saw the wine among the recommendations for the dish. Chosen: of those, sessions that chose it for that dish.',
+          'Source: Sommelier if the wine was your approved pairing when the guest saw it, Engine if it was an engine suggestion — not its status today.',
+          'Match: the engine’s score for the dish and the wine, without guest preferences. “No views”: an approved pairing guests have not seen yet.'
         ]
       },
       menu: {

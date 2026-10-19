@@ -150,7 +150,8 @@ describe('A6 card and A1 line', () => {
     const html = await render(DashboardPage);
     expect(html).toContain('Opportunities: 6');
     expect(html).toContain('href="/admin/halka/opportunities">Open opportunities</a>');
-    expect(explainIds(html)).toEqual(['dashboard']);
+    // the opportunities line adds no explanation (the second one belongs to the pairing performance table, E04 F3)
+    expect(explainIds(html)).toEqual(['dashboard', 'performance']);
     expect(await render(DashboardPage, {}, 'pl')).toContain('Okazje: 6');
   });
 });

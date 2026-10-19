@@ -680,6 +680,25 @@ export const pl = {
         noComparison: 'Brak porównania',
         smallSample: 'Za mało danych do porównania'
       },
+      pairings: {
+        title: 'Skuteczność par',
+        caption: 'Jak często goście widzieli i wybierali każdą parę, ze źródłem z chwili wyświetlenia',
+        dish: 'Danie',
+        wine: 'Wino',
+        source: 'Źródło',
+        match: 'Dopasowanie',
+        shown: 'Pokazane',
+        chosen: 'Wybrane',
+        conversion: 'Konwersja',
+        sources: { sommelier: 'Sommelier', engine: 'Silnik' },
+        noViews: 'Bez wyświetleń',
+        showAll: (n: number) => `Pokaż wszystkie pary (${n})`,
+        showTop: (n: number) => `Pokaż pierwsze ${n}`,
+        omitted: (n: number) => `${n} ${plural(n, 'para ukryta', 'pary ukryte', 'par ukrytych')}: danie lub wino zostało usunięte.`,
+        emptyTitle: 'Nie ma jeszcze par do zmierzenia',
+        emptyText: 'Zatwierdź pary do dań; tu pojawią się wyświetlenia i wybory gości.',
+        openReview: 'Przejrzyj propozycje'
+      },
       analyticsUnavailable: 'Analityka jest chwilowo niedostępna.',
       analyticsUnavailableText: 'Parowania i aplikacja gościa działają normalnie.'
     },
@@ -950,6 +969,15 @@ export const pl = {
           'Wyświetlone rekomendacje do dań: każde danie raz na sesję. Ścieżka „Cały stół” nie jest tu liczona.',
           `Rekomendacja → wybór: spośród sesji, które obejrzały wina do dania, te, w których gość wybrał wino. Poniżej ${k.minSample} sesji w którymkolwiek okresie zmiana nie jest pokazywana.`,
           'Wyszukiwania kelnera: ekran obsługi, dla dania lub całego stołu. Nigdy nie liczą się jako sesje gości.'
+        ]
+      },
+      performance: {
+        summary: 'Co liczy ta tabela?',
+        points: (k: UsageExplainFacts) => [
+          `Sesje gości z ostatnich ${k.days} pełnych dni do wczoraj. Ekran kelnera i ścieżka „Cały stół” nie są liczone.`,
+          'Pokazane: sesje, w których gość zobaczył wino wśród rekomendacji do dania. Wybrane: spośród nich sesje, w których wybrał je do tego dania.',
+          'Źródło: Sommelier, jeśli wino było Twoją zatwierdzoną parą, gdy gość je zobaczył; Silnik, jeśli było propozycją silnika — nie według dzisiejszego statusu.',
+          'Dopasowanie: wynik silnika dla dania i wina, bez preferencji gościa. „Bez wyświetleń”: zatwierdzona para, której goście jeszcze nie widzieli.'
         ]
       },
       menu: {

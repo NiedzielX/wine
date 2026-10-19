@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildDemoDataset } from '../src/demo/dataset';
+import { buildDemoDataset, type DemoDataset } from '../src/demo/dataset';
+import { pairingScore } from '../src/engine/scoring';
+import { localizeDish } from '../src/i18n/content';
 import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repositories';
 import type { GuestInteractionInput } from '../src/ports/repositories';
-import { AnalyticsService } from '../src/services/analytics/analytics-service';
+import { AnalyticsService, PAIRING_ROWS_LIMIT } from '../src/services/analytics/analytics-service';
 import { count, MIN_RATE_SAMPLE, money, rate } from '../src/services/analytics/compare-metric';
 import { KPI_DAYS, kpiWindow, localDate, startOfLocalDay } from '../src/services/analytics/kpi-window';
 import { seedUsageEvents } from '../src/testing/usage-events';
@@ -93,7 +95,7 @@ describe('AnalyticsService.usageSummary (R2, R3, AC1–AC3)', () => {
 
   function setup() {
     const repos = createMemoryRepositories(MemoryStore.from(ds));
-    const service = new AnalyticsService({ restaurantRepository: repos.restaurantRepository, guestInteractionRepository: repos.guestInteractionRepository, clock: { now: () => NOW } });
+    const service = new AnalyticsService({ ...repos, clock: { now: () => NOW } });
     return { repo: repos.guestInteractionRepository, service };
   }
 
@@ -161,5 +163,121 @@ describe('AnalyticsService.usageSummary (R2, R3, AC1–AC3)', () => {
 
   it('an unknown restaurant → null', async () => {
     expect(await setup().service.usageSummary('no-such-place')).toBeNull();
+  });
+});
+
+describe('AnalyticsService.pairingPerformance (#22, R8, Q10, Q11, AC7–AC9)', () => {
+  const NOW = new Date('2026-10-15T06:00:00.000Z');   // current window 17 Sep – 14 Oct
+  let n = 0;
+  const sid = () => `cc000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
+  const ev = (sessionId: string, name: GuestInteractionInput['name'], at: string, extra: Partial<GuestInteractionInput> = {}): GuestInteractionInput =>
+    ({ sessionId, name, props: { menuVersion: null }, engineVersion: 'wm-test', createdAt: new Date(at), ...extra });
+  /** a guest session that saw `wineId` for `dishId` with `tier` and, when `select`, chose it */
+  const saw = (at: string, dishId: string, wineId: string, tier: string, select = false) => {
+    const s = sid();
+    return [
+      ev(s, 'guest_session_started', at, { props: { source: 'qr', menuVersion: null } }),
+      ev(s, 'recommendations_viewed', at, { dishId, props: { wineIds: [wineId], items: [{ wineId, tier }], menuVersion: null } }),
+      ...(select ? [ev(s, 'wine_selected', at, { dishId, wineId, props: { serving: 'glass', context: 'dish', menuVersion: null } })] : [])
+    ];
+  };
+  const times = (k: number, make: (i: number) => GuestInteractionInput[]) => Array.from({ length: k }, (_, i) => make(i)).flat();
+
+  function setup(change?: (ds: DemoDataset) => void) {
+    const ds = structuredClone(buildDemoDataset({ ids: 'uuid' }));
+    change?.(ds);
+    const repos = createMemoryRepositories(MemoryStore.from(ds));
+    return { ds, repo: repos.guestInteractionRepository, service: new AnalyticsService({ ...repos, clock: { now: () => NOW } }) };
+  }
+  const reviewed = (ds: DemoDataset) => ds.pairings.filter((p) => p.status === 'approved' || p.status === 'modified');
+  const byId = <T extends { id: string }>(list: T[], id: string) => list.find((x) => x.id === id)!;
+
+  it('AC7 + AC9: shown, chosen, conversion and the source at the time of viewing; the Match Score is the engine’s', async () => {
+    const { ds, repo, service } = setup();
+    const top = reviewed(ds)[0];
+    const engineWine = ds.wines.find((w) => w.active && !ds.pairings.some((p) => p.dishId === top.dishId && p.wineId === w.id))!;
+    await seedUsageEvents(repo, ds.restaurant.id, [
+      ...times(54, (i) => saw('2026-10-01T12:00:00.000Z', top.dishId, top.wineId, i % 2 ? 'sommelier' : 'sommelier_primary', i < 19)),
+      ...times(3, (i) => saw('2026-10-02T12:00:00.000Z', top.dishId, engineWine.id, 'engine', i === 0)),
+      // the previous window is not part of the table
+      ...times(5, () => saw('2026-09-01T12:00:00.000Z', top.dishId, top.wineId, 'sommelier', true))
+    ]);
+    const p = (await service.pairingPerformance(ds.restaurant.slug))!;
+    expect(p.period.current).toEqual({ from: '2026-09-17', to: '2026-10-14' });
+    const dish = byId(ds.dishes, top.dishId);
+    const wine = byId(ds.wines, top.wineId);
+    expect(p.rows[0]).toEqual({
+      dish: { id: dish.id, name: dish.name },
+      wine: { id: wine.id, name: wine.name, producer: wine.producer, vintage: String(wine.vintage) },
+      source: 'sommelier', matchScore: pairingScore(dish, wine).score, shown: 54, chosen: 19, conversion: 19 / 54
+    });
+    expect(p.rows[1]).toMatchObject({ wine: { id: engineWine.id }, source: 'engine', shown: 3, chosen: 1, conversion: 1 / 3, matchScore: pairingScore(dish, engineWine).score });
+    expect(p.omitted).toBe(0);
+  });
+
+  it('AC8: reviewed pairings guests never saw are rows with no views (conversion null) — only a published dish with an active wine', async () => {
+    const draftDish = 'Polish cheese selection';
+    const { ds, service } = setup((d) => {
+      const draft = d.dishes.find((x) => x.name === draftDish)!;
+      const hidden = d.wines.find((w) => !w.active)!;
+      const extra = d.pairings.filter((x) => x.status === 'suggested').slice(0, 2);
+      extra[0].dishId = draft.id;   // approved, but the dish is a draft
+      extra[0].status = 'approved';
+      extra[1].wineId = hidden.id;  // approved, but the wine is hidden
+      extra[1].status = 'approved';
+    });
+    const p = (await service.pairingPerformance(ds.restaurant.slug))!;
+    const visible = reviewed(ds).filter((x) => byId(ds.dishes, x.dishId).status === 'published' && byId(ds.wines, x.wineId).active);
+    expect(visible.length).toBeLessThan(reviewed(ds).length);
+    expect(p.total).toBe(visible.length);
+    expect(p.rows).toHaveLength(visible.length);
+    for (const r of p.rows) expect(r).toMatchObject({ source: 'sommelier', shown: 0, chosen: 0, conversion: null });
+    expect(p.rows.some((r) => r.dish.name === draftDish)).toBe(false);
+    expect(p.rows.some((r) => !byId(ds.wines, r.wine.id).active)).toBe(false);
+    // no views: sorted by dish name, then wine name
+    const names = p.rows.map((r) => r.dish.name);
+    expect(names).toEqual([...names].sort(new Intl.Collator('en').compare));
+  });
+
+  it('a pairing rejected today but seen as the sommelier’s keeps its historical row; seen once as engine, once as sommelier → two rows', async () => {
+    const { ds, repo, service } = setup();
+    const rejected = ds.pairings.find((x) => x.status === 'rejected')!;
+    const top = reviewed(ds)[0];
+    await seedUsageEvents(repo, ds.restaurant.id, [
+      ...times(2, () => saw('2026-10-01T12:00:00.000Z', rejected.dishId, rejected.wineId, 'sommelier')),
+      ...saw('2026-10-01T12:00:00.000Z', top.dishId, top.wineId, 'engine'),
+      ...saw('2026-10-03T12:00:00.000Z', top.dishId, top.wineId, 'sommelier_primary', true)
+    ]);
+    const p = (await service.pairingPerformance(ds.restaurant.slug))!;
+    expect(p.rows.filter((r) => r.dish.id === rejected.dishId && r.wine.id === rejected.wineId)).toEqual([
+      expect.objectContaining({ source: 'sommelier', shown: 2, chosen: 0, conversion: 0 })
+    ]);
+    // the pair with views has no extra "no views" row
+    expect(p.rows.filter((r) => r.dish.id === top.dishId && r.wine.id === top.wineId).map((r) => [r.source, r.shown, r.chosen])).toEqual([['sommelier', 1, 1], ['engine', 1, 0]]);
+    expect(p.rows.slice(0, 3).map((r) => r.shown)).toEqual([2, 1, 1]);
+  });
+
+  it('rows whose dish or wine left the catalog are omitted and counted; limit cuts the rows, total keeps them all', async () => {
+    const { ds, repo, service } = setup();
+    const top = reviewed(ds)[0];
+    const gone = 'dddddddd-0000-4000-8000-000000000001';
+    await seedUsageEvents(repo, ds.restaurant.id, [
+      ...saw('2026-10-01T12:00:00.000Z', gone, top.wineId, 'engine'),
+      ...saw('2026-10-01T12:00:00.000Z', top.dishId, gone, 'sommelier')
+    ]);
+    const all = (await service.pairingPerformance(ds.restaurant.slug))!;
+    expect(all.omitted).toBe(2);
+    expect(all.total).toBe(all.rows.length);
+    expect(all.total).toBeGreaterThan(PAIRING_ROWS_LIMIT);
+    const top10 = (await service.pairingPerformance(ds.restaurant.slug, { limit: PAIRING_ROWS_LIMIT }))!;
+    expect(top10.rows).toEqual(all.rows.slice(0, PAIRING_ROWS_LIMIT));
+    expect(top10).toMatchObject({ total: all.total, omitted: 2 });
+  });
+
+  it('dish names in the panel language; an unknown restaurant → null', async () => {
+    const { ds, service } = setup();
+    const p = (await service.pairingPerformance(ds.restaurant.slug, { locale: 'pl' }))!;
+    for (const r of p.rows) expect(r.dish.name).toBe(localizeDish(byId(ds.dishes, r.dish.id), 'pl').name);
+    expect(await service.pairingPerformance('no-such-place')).toBeNull();
   });
 });

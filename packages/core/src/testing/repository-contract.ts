@@ -231,6 +231,67 @@ export function repositoryContract(
       t.expect(next).toEqual({ sessions: 0, recommendationViews: 0, sessionsWithViews: 0, sessionsWithSelection: 0, staffLookups: 1 });
     });
 
+    /* ---------- pairing stats for the KPI dashboard and E10 S4 (spec 2026-10-15-kpi-dashboard, R2, R8, Q10, AC7, AC10) ---------- */
+    t.it('counts shown and chosen per (dish, wine, source of the session’s latest view) in guest sessions of [from, to)', async () => {
+      const repo = repos.guestInteractionRepository;
+      const [d1, d2] = [ds.dishes[0].id, ds.dishes[1].id];
+      const [w1, w2] = [ds.wines[0].id, ds.wines[1].id];
+      const start = (s: string, iso: string) => ev(s, 'guest_session_started', iso, { props: { source: 'qr', menuVersion: null } });
+      const view = (s: string, iso: string, dishId: string, items: unknown) =>
+        ev(s, 'recommendations_viewed', iso, { dishId, props: { wineIds: [], items, menuVersion: null } });
+      const pick = (s: string, iso: string, dishId: string | undefined, wineId: string, context = 'dish') =>
+        ev(s, 'wine_selected', iso, { ...(dishId ? { dishId } : {}), wineId, props: { serving: 'glass', context, menuVersion: null } });
+      await seedUsageEvents(repo, ds.restaurant.id, [
+        // A: sees w1 as an engine pick, later as the sommelier's (approved in between) and w2 as the primary; chooses w1
+        start(sid(31), '2033-02-01T10:00:00.000Z'),
+        view(sid(31), '2033-02-01T10:01:00.000Z', d1, [{ wineId: w1, tier: 'engine' }, { wineId: w2, tier: 'sommelier_primary' }]),
+        view(sid(31), '2033-02-01T10:05:00.000Z', d1, [{ wineId: w1, tier: 'sommelier' }]),
+        pick(sid(31), '2033-02-01T10:06:00.000Z', d1, w1),
+        // B: sees w1 from the engine, chooses it only at the whole table — not chosen
+        start(sid(32), '2033-02-02T10:00:00.000Z'),
+        view(sid(32), '2033-02-02T10:01:00.000Z', d1, [{ wineId: w1, tier: 'engine' }]),
+        pick(sid(32), '2033-02-02T10:02:00.000Z', d1, w1, 'table'),
+        // C: sees w1 twice (one session), chooses w2 for d1 (never shown) and w1 for another dish — not chosen
+        start(sid(33), '2033-02-03T10:00:00.000Z'),
+        view(sid(33), '2033-02-03T10:01:00.000Z', d1, [{ wineId: w1, tier: 'engine' }]),
+        view(sid(33), '2033-02-03T10:02:00.000Z', d1, [{ wineId: w1, tier: 'engine' }]),
+        pick(sid(33), '2033-02-03T10:03:00.000Z', d1, w2),
+        pick(sid(33), '2033-02-03T10:04:00.000Z', d2, w1),
+        // D: items missing, not an array, or not usable — only w2 (engine) of d2 counts
+        start(sid(34), '2033-02-04T10:00:00.000Z'),
+        ev(sid(34), 'recommendations_viewed', '2033-02-04T10:01:00.000Z', { dishId: d2, props: { wineIds: [w1], menuVersion: null } }),
+        view(sid(34), '2033-02-04T10:02:00.000Z', d2, { wineId: w1, tier: 'engine' }),
+        view(sid(34), '2033-02-04T10:03:00.000Z', d2, [{ wineId: w1, tier: 'unknown' }, 'junk', null, { tier: 'engine' }, { wineId: w2, tier: 'engine' }]),
+        // E: started before `from`; F: no start at all (a hand-copied sid, the waiter) — out
+        start(sid(35), '2033-01-31T23:59:59.999Z'),
+        view(sid(35), '2033-02-05T10:00:00.000Z', d1, [{ wineId: w1, tier: 'engine' }]), pick(sid(35), '2033-02-05T10:01:00.000Z', d1, w1),
+        view(sid(36), '2033-02-05T11:00:00.000Z', d1, [{ wineId: w1, tier: 'engine' }]), pick(sid(36), '2033-02-05T11:01:00.000Z', d1, w1),
+        ev(sid(36), 'staff_lookup', '2033-02-05T11:02:00.000Z', { dishId: d1, props: { source: 'staff', prefs: {}, wineIds: [w1], menuVersion: null } }),
+        // G: chooses before the view (order does not matter) — chosen
+        start(sid(37), '2033-02-06T10:00:00.000Z'),
+        pick(sid(37), '2033-02-06T10:01:00.000Z', d1, w1),
+        view(sid(37), '2033-02-06T10:02:00.000Z', d1, [{ wineId: w1, tier: 'sommelier_primary' }]),
+        // H: two views at the same instant — the later write wins
+        start(sid(38), '2033-02-07T10:00:00.000Z'),
+        view(sid(38), '2033-02-07T10:01:00.000Z', d1, [{ wineId: w1, tier: 'engine' }]),
+        view(sid(38), '2033-02-07T10:01:00.000Z', d1, [{ wineId: w1, tier: 'sommelier' }]),
+        // I: a view at `to` — out
+        start(sid(39), '2033-02-28T23:00:00.000Z'),
+        view(sid(39), '2033-03-01T00:00:00.000Z', d1, [{ wineId: w1, tier: 'engine' }])
+      ]);
+      const range = { from: at('2033-02-01T00:00:00.000Z'), to: at('2033-03-01T00:00:00.000Z') };
+      const byte = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+      const expected = [
+        { dishId: d1, wineId: w1, source: 'engine', shown: 2, chosen: 0 },        // B, C
+        { dishId: d1, wineId: w1, source: 'sommelier', shown: 3, chosen: 2 },     // A, G, H; chosen A, G
+        { dishId: d1, wineId: w2, source: 'sommelier', shown: 1, chosen: 0 },     // A
+        { dishId: d2, wineId: w2, source: 'engine', shown: 1, chosen: 0 }         // D
+      ].sort((a, b) => byte(a.dishId, b.dishId) || byte(a.wineId, b.wineId) || byte(a.source, b.source));
+      t.expect(await repo.pairingStats(ds.restaurant.id, range)).toEqual(expected);
+      t.expect(await repo.pairingStats(OTHER, range)).toEqual([]);
+      t.expect(await repo.pairingStats(ds.restaurant.id, { from: at('2033-03-01T00:00:00.000Z'), to: at('2033-03-29T00:00:00.000Z') })).toEqual([]);
+    });
+
     /* ---------- recommendation codes (spec 2026-10-16-recommendation-code) ---------- */
     recommendationCodeContract(t, () => ({ repos, ds }));
 

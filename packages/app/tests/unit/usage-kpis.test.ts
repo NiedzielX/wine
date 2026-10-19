@@ -170,7 +170,7 @@ describe('A1 with the Guest usage section', () => {
     expect(text(h)).toContain('No guests have used Wine Match yet');
     expect(h).not.toContain('Guest activity');
     expect(h).not.toContain('Nothing has been recorded yet');
-    expect(explainIds(h)).toEqual(['dashboard']);
+    expect(explainIds(h)).toEqual(['dashboard', 'performance']);
   });
 
   it('AC1 + AC3: guest sessions in the window show the tiles; the waiter is apart; today is left out', async () => {
@@ -195,7 +195,7 @@ describe('A1 with the Guest usage section', () => {
     expect(t).toContain('Recommendation → selection 0.0% 0 of 1 sessions');
     expect(t).toContain('Waiter lookups 1');
     expect(t).toContain('No comparison');
-    expect(explainIds(h)).toEqual(['usage', 'dashboard']);
+    expect(explainIds(h)).toEqual(['usage', 'dashboard', 'performance']);
     expect(placementProblems(h)).toEqual([]);
     expect(text(await render('pl'))).toContain('Sesje gości 2');
   });

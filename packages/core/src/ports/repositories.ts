@@ -194,6 +194,33 @@ export interface GuestInteractionRepository {
    * `sessions === countGuestSessions(restaurantId, range)`. `staffLookups` is the waiter's figure, apart from them.
    */
   usageTotals(restaurantId: string, range: { from: Date; to: Date }): Promise<UsageTotals>;
+  /**
+   * How often guests saw and chose each (dish, wine) of the dish recommendations in one window (spec
+   * 2026-10-15-kpi-dashboard, R2, R8, Q10; read by E04 "Pairing performance" and E10 S4). Guest sessions only, like
+   * `usageTotals`: a guest_session_started with createdAt in [from, to), and only their events also in [from, to).
+   *
+   * Per (session, dish, wine): the source is the tier of the session's latest recommendations_viewed for the dish whose
+   * `props.items` contains the wine (`sommelier_primary` | `sommelier` → 'sommelier', `engine` → 'engine'); ties on
+   * createdAt go to the later write. `shown` = such sessions; `chosen` = of those, sessions with a wine_selected whose
+   * `props.context = 'dish'` for the same dish_id and wine_id (in any order). Events whose `props.items` is missing or
+   * not an array, and items without a known tier, are skipped. The table path and the waiter are out.
+   * One row per (dishId, wineId, source) with shown > 0, ordered by dishId, wineId, then source.
+   */
+  pairingStats(restaurantId: string, range: { from: Date; to: Date }): Promise<PairingStat[]>;
+}
+
+/** Where a pairing stood when the guest saw it (E04 R8): the sommelier's tiers or the engine's. */
+export type PairingStatSource = 'sommelier' | 'engine';
+
+/** One row of `GuestInteractionRepository.pairingStats`: one (dish, wine, source) in one window. */
+export interface PairingStat {
+  dishId: string;
+  wineId: string;
+  source: PairingStatSource;
+  /** distinct guest sessions whose latest view of the dish showed the wine with this source */
+  shown: number;
+  /** of those sessions, the ones that selected the wine for the dish (context 'dish') */
+  chosen: number;
 }
 
 /** What `GuestInteractionRepository.usageTotals` counts in one window. */
