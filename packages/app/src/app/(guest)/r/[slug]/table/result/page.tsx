@@ -69,8 +69,8 @@ export default async function TableResultPage({ params, searchParams }: Props) {
     <>
       <TopBar back={tablePath} title={restaurant.name} t={t} langSwitch={langSwitch} />
       <main className="flex-1 px-5 pt-5 pb-10 lg:mx-auto lg:w-full lg:max-w-[720px]">
-        <h1 className="font-serif text-[28px] leading-tight">{l.title}</h1>
-        <p className="mt-1 text-[14.5px] text-ink-2">{l.dishes(chosen.length, chosen.map((d) => d.name).join(', '))}</p>
+        <h1 className="font-serif text-h1 leading-tight">{l.title}</h1>
+        <p className="mt-1 text-body text-ink-2">{l.dishes(chosen.length, chosen.map((d) => d.name).join(', '))}</p>
         {result.setAside.length > 0 && <Notice>{l.dessertsApart(result.setAside.map((d) => d.name).join(l.or))}</Notice>}
         <Explain id="tableResult" className="mt-2" summary={t.guest.explain.tableResult.summary} points={t.guest.explain.tableResult.points(ENGINE_FACTS, { showScores })} />
         {result.notice && <Notice>{result.notice}</Notice>}
@@ -79,20 +79,20 @@ export default async function TableResultPage({ params, searchParams }: Props) {
           <EmptyState title={l.noneTitle} text={l.noneText} action={<Button href={tablePath} variant="secondary">{l.changePrefs}</Button>} />
         ) : (
           <>
-            <Link href={wineHref(best.wine.id)} className="mt-6 block rounded-[18px] border border-line bg-surface p-5 focus-visible:outline-2 focus-visible:outline-wine">
+            <Link href={wineHref(best.wine.id)} className="mt-6 block rounded-2xl border border-line bg-surface p-5 focus-visible:outline-2 focus-visible:outline-wine">
               {/* no seal in the header: the seal marks only a sommelier's pairing, next to its dish (E07 R7, AC11) */}
-              <p className="text-sm font-semibold text-wine">{l.recommended}</p>
+              <p className="text-small font-semibold text-wine">{l.recommended}</p>
               <div className="mt-3 grid grid-cols-[1fr_auto] items-start gap-3.5">
                 <div>
-                  <h2 className="font-serif text-[25px] leading-[1.15]">{best.wine.name}</h2>
-                  <p className="text-[14.5px] text-ink-2">{best.wine.producer}, {best.wine.region}</p>
+                  <h2 className="font-serif text-h2 leading-[1.15]">{best.wine.name}</h2>
+                  <p className="text-body text-ink-2">{best.wine.producer}, {best.wine.region}</p>
                   <TableFitLine fit={best.fit} t={t} />
                 </div>
                 <Score score={best.overall} colour={best.wine.colour} showScores={showScores} size={48} t={t} />
               </div>
               <div className="mt-4 grid gap-2.5 border-t border-line pt-4">
                 <DishScores perDish={best.perDish} showScores={showScores} t={t} />
-                {showScores && <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-3"><span>{l.overall}</span><b className="font-serif text-[22px]">{best.overall}%</b></div>}
+                {showScores && <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-3"><span>{l.overall}</span><b className="font-serif text-h2">{best.overall}%</b></div>}
               </div>
               <div className="mt-3"><Price wine={best.wine} serving="bottle" t={t} locale={locale} /></div>
             </Link>
@@ -100,19 +100,19 @@ export default async function TableResultPage({ params, searchParams }: Props) {
             {/* how much wine: links outside the card's link; no amount until a number is chosen (R16, Q4); none by the glass */}
             {best.serving === 'bottle' && (
               <section data-table-people="" className="mt-4">
-                {best.quantity && <TableQuantityLine quantity={best.quantity} t={t} locale={locale} className="text-[15.5px] font-semibold tabular-nums" />}
+                {best.quantity && <TableQuantityLine quantity={best.quantity} t={t} locale={locale} className="text-body font-semibold tabular-nums" />}
                 <PeopleLinks people={result.people} hrefFor={(n) => href(`/r/${slug}/table/result`, prefs, { dishes: tableParam, people: String(n) })} t={t} />
               </section>
             )}
 
             {alts.length > 0 && (
               <section className="mt-7">
-                <h2 className="mb-1 text-[15px] font-semibold">{l.others}</h2>
+                <h2 className="mb-1 text-body font-semibold">{l.others}</h2>
                 {alts.map((a) => (
                   <Link key={a.wine.id} href={wineHref(a.wine.id)} className="grid grid-cols-[1fr_auto] items-start gap-3 border-b border-line py-4 last:border-b-0">
                     <div>
-                      <h3 className="font-serif text-[19px] leading-tight">{a.wine.name}</h3>
-                      <p className="text-sm text-ink-2">{a.wine.producer}, {a.wine.region}</p>
+                      <h3 className="font-serif text-lead leading-tight">{a.wine.name}</h3>
+                      <p className="text-small text-ink-2">{a.wine.producer}, {a.wine.region}</p>
                       <TableFitLine fit={a.fit} t={t} />
                       <div className="mt-2.5"><Price wine={a.wine} serving="bottle" t={t} locale={locale} /></div>
                     </div>
@@ -123,11 +123,11 @@ export default async function TableResultPage({ params, searchParams }: Props) {
             )}
 
             {result.splitSuggested && result.split.length > 0 && (
-              <section className="mt-6 rounded-[18px] bg-[#ece8ea] p-4">
-                <h2 className="text-[15px] font-semibold">{l.splitTitle}</h2>
-                <p className="mt-1 mb-1.5 text-sm text-ink-2">{l.splitText}</p>
+              <section className="mt-6 rounded-2xl bg-[#ece8ea] p-4">
+                <h2 className="text-body font-semibold">{l.splitTitle}</h2>
+                <p className="mt-1 mb-1.5 text-small text-ink-2">{l.splitText}</p>
                 {result.split.map((s) => (
-                  <Link key={s.dish.id} href={href(`/r/${slug}/wine/${s.wine.id}`, prefs, { dish: s.dish.id })} className="grid grid-cols-[1fr_auto] gap-2 border-b border-[#d4ccd0] py-2.5 text-[14.5px] last:border-b-0">
+                  <Link key={s.dish.id} href={href(`/r/${slug}/wine/${s.wine.id}`, prefs, { dish: s.dish.id })} className="grid grid-cols-[1fr_auto] gap-2 border-b border-[#d4ccd0] py-2.5 text-body last:border-b-0">
                     <span><b>{s.dish.name}</b><br /><span className="text-ink-2">{s.wine.producer} {s.wine.name}</span></span>
                     <span className="tabular-nums">{formatPrice(s.wine.glassPrice ?? s.wine.bottlePrice, locale)}</span>
                   </Link>

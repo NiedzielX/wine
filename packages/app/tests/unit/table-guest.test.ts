@@ -104,7 +104,7 @@ describe('G6: the honest table result (R1, R9, R12, AC14)', () => {
     expect(result.items.length).toBeGreaterThan(1);
     for (const item of result.items) expect(html).not.toContain(item.why);
     expect(bestCard(html)).toContain('Works with all 4 dishes.');
-    const lines = html.match(/<p class="mt-1\.5 text-sm text-ink-2">(?:Works with|Not a strong match)[^<]*<\/p>/g) ?? [];
+    const lines = html.match(/<p class="mt-1\.5 text-small text-ink-2">(?:Works with|Not a strong match)[^<]*<\/p>/g) ?? [];
     expect(lines).toHaveLength(result.items.length);
   });
 

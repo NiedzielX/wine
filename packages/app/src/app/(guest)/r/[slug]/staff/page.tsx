@@ -64,12 +64,12 @@ export default async function StaffPage({ params, searchParams }: Props) {
             <form action={path} method="get" className="grid gap-1.5">
               {Object.entries({ serving: prefs.serving !== 'any' ? prefs.serving : '', styles: prefs.styles.join(','), maxPrice: prefs.maxPrice ? String(prefs.maxPrice) : '', weight: prefs.weight !== 'any' ? prefs.weight : '', mood: prefs.mood !== 'any' ? prefs.mood : '', lang: lang ?? '', sid: session.id })
                 .filter(([, v]) => v).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-              <label htmlFor="staff-dish" className="text-[13.5px] font-semibold text-ink-2">{l.dish}</label>
+              <label htmlFor="staff-dish" className="text-small font-semibold text-ink-2">{l.dish}</label>
               <div className="flex gap-2">
-                <select id="staff-dish" name="dish" defaultValue={dish.id} className="min-h-11 w-full rounded-md border border-[#d4ccd0] bg-surface px-3">
+                <select id="staff-dish" name="dish" defaultValue={dish.id} className="min-h-11 w-full rounded-lg border border-[#d4ccd0] bg-surface px-3">
                   {menu.dishes.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
-                <button type="submit" className="min-h-11 shrink-0 rounded-full border border-[#d4ccd0] bg-surface px-4 text-[15px] font-semibold">{l.show}</button>
+                <button type="submit" className="min-h-11 shrink-0 rounded-full border border-[#d4ccd0] bg-surface px-4 text-body font-semibold">{l.show}</button>
               </div>
             </form>
             <PrefChips prefs={prefs} hrefFor={(p) => href(path, p, { dish: dish.id })} t={t} locale={locale} />
@@ -79,15 +79,15 @@ export default async function StaffPage({ params, searchParams }: Props) {
               ) : items.map((i, k) => (
                 <article key={i.wine.id} className="grid gap-1 border-t border-line py-3.5">
                   <div className="flex items-baseline justify-between gap-2.5">
-                    <h2 className="font-serif text-lg">{k + 1}. {i.wine.producer} {i.wine.name}</h2>
+                    <h2 className="font-serif text-lead">{k + 1}. {i.wine.producer} {i.wine.name}</h2>
                     {i.wine.listNumber !== undefined && <span className="shrink-0 text-ink-3 tabular-nums">{l.listNo(i.wine.listNumber)}</span>}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {i.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-[12.5px] leading-5 font-semibold text-brass"><Seal className="size-3.5" />{i.sommelier.role === 'primary' ? l.firstChoice : l.pick}</span>}
-                    {i.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-[12.5px] leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
-                    <span className="rounded-full bg-[#e8ebf0] px-2.5 text-[12.5px] leading-5 font-semibold text-[#4f5b6e]">{l.matchPct(i.matchScore)}</span>
+                    {i.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass"><Seal className="size-3.5" />{i.sommelier.role === 'primary' ? l.firstChoice : l.pick}</span>}
+                    {i.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-small leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
+                    <span className="rounded-full bg-[#e8ebf0] px-2.5 text-small leading-5 font-semibold text-[#4f5b6e]">{l.matchPct(i.matchScore)}</span>
                   </div>
-                  <p className="text-[14.5px] text-ink-2">{l.say(i.why)}</p>
+                  <p className="text-body text-ink-2">{l.say(i.why)}</p>
                   <Price wine={i.wine} serving={prefs.serving} t={t} locale={locale} />
                 </article>
               ))}

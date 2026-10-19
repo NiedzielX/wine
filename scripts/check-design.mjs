@@ -14,7 +14,7 @@ const guestDir = join(root, 'packages/app/src/app/(guest)');
 const css = readFileSync(join(guestDir, 'guest.css'), 'utf8');
 
 /** baselines measured on 2026-10-19; lower them when the screens get simpler */
-const BASELINE = { hex: 8, textSizes: 24, radii: 9 };
+const BASELINE = { hex: 8, textSizes: 7, radii: 4 };
 
 const failures = [];
 
@@ -45,7 +45,7 @@ const all = sources.join('\n');
 const distinct = (re) => new Set([...all.matchAll(re)].map((m) => m[0])).size;
 const measured = {
   hex: distinct(/#[0-9a-fA-F]{6}\b/g),
-  textSizes: distinct(/text-\[[0-9.]+px\]|text-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl)\b/g),
+  textSizes: distinct(/text-\[[0-9.]+px\]|text-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl)\b|text-(?:caption|small|body|lead|h2|h1|display)\b/g),
   radii: distinct(/rounded(?:-(?:none|sm|md|lg|xl|2xl|3xl))?(?:-\[[0-9.]+px\])?(?=[\s"'`}])/g)
 };
 for (const key of Object.keys(BASELINE)) {

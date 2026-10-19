@@ -36,18 +36,18 @@ export default async function HowItWorksPage({ params, searchParams }: Props) {
     <>
       <TopBar back={back} title={r.name} t={t} langSwitch={<LanguageSwitch locale={locale} hrefs={langHrefs(`/r/${r.slug}/how-it-works`)} t={t} />} />
       <main className="flex-1 px-5 pt-6 pb-10 lg:mx-auto lg:w-full lg:max-w-[720px]">
-        <h1 className="font-serif text-[30px] leading-[1.08] tracking-tight lg:text-4xl">{h.title}</h1>
-        <p className="mt-2 max-w-[60ch] text-[15.5px] text-ink-2">{h.lead(r.name)}</p>
+        <h1 className="font-serif text-h1 leading-[1.08] tracking-tight lg:text-display">{h.title}</h1>
+        <p className="mt-2 max-w-[60ch] text-body text-ink-2">{h.lead(r.name)}</p>
         {sections.map((s) => (
           <section key={s.id} data-section={s.id} aria-labelledby={`how-${s.id}`} className="mt-7 max-w-[60ch]">
-            <h2 id={`how-${s.id}`} className="font-serif text-[22px] leading-tight">{s.title}</h2>
-            {s.text.map((p) => <p key={p} className="mt-2 text-[15.5px] leading-normal break-words">{p}</p>)}
+            <h2 id={`how-${s.id}`} className="font-serif text-h2 leading-tight">{s.title}</h2>
+            {s.text.map((p) => <p key={p} className="mt-2 text-body leading-normal break-words">{p}</p>)}
             {s.points && (
-              <ul className="mt-2 grid list-disc gap-1.5 pl-5 text-[15.5px] leading-snug marker:text-ink-2">
+              <ul className="mt-2 grid list-disc gap-1.5 pl-5 text-body leading-snug marker:text-ink-2">
                 {s.points.map((p) => <li key={p}>{p}</li>)}
               </ul>
             )}
-            {s.after && <p className="mt-2 text-[15.5px] leading-normal">{s.after}</p>}
+            {s.after && <p className="mt-2 text-body leading-normal">{s.after}</p>}
           </section>
         ))}
         <Button href={back} variant="secondary" className="mt-9">{h.back}</Button>
