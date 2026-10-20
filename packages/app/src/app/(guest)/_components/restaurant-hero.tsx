@@ -14,7 +14,7 @@ export function WineDirectorNote({ restaurant: r, howHref, staffHref, t }: { res
   return (
     <div className="grid gap-4 border-t border-line pt-6">
       <div className="flex items-center gap-3">
-        <span className="grid size-[42px] shrink-0 place-items-center rounded-full bg-brass-soft font-serif text-lead text-brass" aria-hidden="true">{initials}</span>
+        <span className="grid size-[42px] shrink-0 place-items-center rounded-full bg-brass-soft font-serif text-lead text-brass-ink" aria-hidden="true">{initials}</span>
         <p><b>{t.guest.hero.wineListBy(r.wineDirector)}</b><br /><small className="text-small text-ink-3">{t.guest.hero.directorLine}</small></p>
       </div>
       <div className="grid justify-items-start">

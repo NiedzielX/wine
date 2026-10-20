@@ -130,7 +130,7 @@ export function Badges({ item, t }: { item: RecommendationItem; t: Dictionary })
   if (!item.sommelier && !item.bestValue) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
-      {item.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass"><Seal className="size-3.5" />{t.guest.wines.sommelierPairing}</span>}
+      {item.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass-ink"><Seal className="size-3.5" />{t.guest.wines.sommelierPairing}</span>}
       {item.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-small leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
     </div>
   );

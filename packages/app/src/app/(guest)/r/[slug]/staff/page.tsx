@@ -83,7 +83,7 @@ export default async function StaffPage({ params, searchParams }: Props) {
                     {i.wine.listNumber !== undefined && <span className="shrink-0 text-ink-3 tabular-nums">{l.listNo(i.wine.listNumber)}</span>}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {i.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass"><Seal className="size-3.5" />{i.sommelier.role === 'primary' ? l.firstChoice : l.pick}</span>}
+                    {i.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass-ink"><Seal className="size-3.5" />{i.sommelier.role === 'primary' ? l.firstChoice : l.pick}</span>}
                     {i.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-small leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
                     <span className="rounded-full bg-line px-2.5 text-small leading-5 font-semibold text-ink-2">{l.matchPct(i.matchScore)}</span>
                   </div>

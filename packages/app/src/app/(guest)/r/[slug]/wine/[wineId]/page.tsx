@@ -97,7 +97,7 @@ export default async function WinePage({ params, searchParams }: Props) {
 
           {match && dish && (
             <div className={`mt-6 grid gap-1.5 rounded-xl p-4 ${match.sommelier ? 'bg-brass-soft' : 'bg-paper'}`}>
-              <p className={`flex items-center gap-1.5 text-small font-semibold ${match.sommelier ? 'text-brass' : 'text-ink-2'}`}>
+              <p className={`flex items-center gap-1.5 text-small font-semibold ${match.sommelier ? 'text-brass-ink' : 'text-ink-2'}`}>
                 {match.sommelier ? <><Seal className="size-3.5" />{w.director(restaurant.wineDirector)}</> : w.whyWith(dish.name)}
               </p>
               <p className="text-body">{match.why}</p>
