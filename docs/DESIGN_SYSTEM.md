@@ -94,6 +94,7 @@ Dla agentów: wybieraj komponent po tabeli, nie po wyglądzie. Jeśli żaden nie
 - [x] Krok 4: typografia w siedmiu stylach (`text-caption`, `text-small`, `text-body`, `text-lead`, `text-h2`, `text-h1`, `text-display`); siedem zamiast sześciu, bo nagłówek 2 i treść wiodąca różnią się realnie.
 - [x] Krok 5: promienie 8 / 12 / 16 / pełne (`rounded-lg`, `rounded-xl`, `rounded-2xl`, `rounded-full`); ikony jednej grubości linii (1,5).
 - [x] Krok 6: kontrakty komponentów gościa (sekcja 5).
+- [x] Storybook panelu z opisami „kiedy używać / kiedy nie” i testy axe na każdej story (PR #84); job `a11y` w CI uruchamia je i test kontrastu tokenów osobno (PR #86).
 - [x] Krok 8: test z agentem (ekran „Lista win do dania”, tylko z dokumentu). Wynik: ponad 20 wyborów bez podstawy w pierwszej wersji; uzupełnione tabelami tokenów, stylów i elementów ekranu w tej iteracji. Raport testu w `scratchpad/design-test/report.md` (poza repo).
 
 Ratchet w `scripts/check-design.mjs`: limit to 8 kolorów hex poza tokenami, 7 stylów tekstu i 4 promienie. Po każdym kroku 4–5 obniżamy limit, nigdy nie podnosimy.
