@@ -9,6 +9,8 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-19] [Axe w Vitest (jsdom) nie mierzy kontrastu: kontrast sprawdzaj z tokenów](lessons/2026-10-19-axe-in-jsdom-limits.md) — `color-contrast` wyłączony w jsdom jawnie; kontrast liczy `src/stories/contrast.ts` z `styles.css`; asercja niepustego markupu.
+- [2026-10-19] [W świeżym worktree najpierw pełna `npm install`, potem `-w <pakiet> -D`](lessons/2026-10-19-full-install-before-adding-deps.md) — instalacja z `-w` zostawia `node_modules` bez narzędzi roota (np. `vitest`).
 - [2026-10-18] [Element widoczny tylko z JavaScriptem: `useSyncExternalStore`, nie `setState` w `useEffect`](lessons/2026-10-18-script-only-ui-use-sync-external-store.md) — `useSyncExternalStore(noop, () => true, () => false)`: brak elementu w HTML i przy hydratacji, bez błędu oxlint `set-state-in-effect`.
 - [2026-10-17] [E2E „bez JavaScriptu” w agent-browser: blokuj skrypty przed pierwszą stroną, klikaj przez `eval`](lessons/2026-10-17-e2e-without-javascript.md) — `route '**/*.js' --abort` przed pierwszym `open` (cache), bez `:has-text`; lokalnie systemowy Chrome + `embedded-postgres`; proxy bez JS ustawia `x-forwarded-host` (akt. 2026-10-19).
 - [2026-10-17] [`headers()` w Next.js 16 ukrywa nagłówki routera — prefetch rozpoznawaj w proxy](lessons/2026-10-17-nextjs-headers-hide-router-prefetch.md) — `Next-Router-Prefetch`/`RSC` są niewidoczne w stronie; proxy ustawia własny nagłówek, `after()` wołaj ostatni przed `return`.
