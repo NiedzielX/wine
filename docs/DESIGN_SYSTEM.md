@@ -55,7 +55,7 @@ Pełna tabela tokenów (wartości z `guest.css`, kontrast liczony na tle `paper`
 
 Zasady granic: obramowanie pola formularza ma kontrast co najmniej 3:1 (`ink-3`, nie `line`). `line` to tylko dekoracja, nie granica elementu interaktywnego.
 
-Ciemnego motywu i widoku desktopowego nie ma w tej wersji dokumentu. Wyjaśnione w sekcji 8.
+Ciemnego motywu i widoku desktopowego nie ma w tej wersji dokumentu. Wyjaśnione w sekcji 8. Kontrast tekstów panelu (jasny i ciemny motyw) sprawdza `check:design`.
 
 Warstwa 3 — komponenty biorą kolor z roli, nigdy z surowej wartości (`text-ink-2`, nie `text-[#5e5258]`).
 
@@ -67,7 +67,8 @@ Zmiana w tej iteracji: `ink-3` z `#857a80` (3,73:1, poniżej AA) na `#6f646a`. S
 - **Promienie:** 8 (`rounded-lg`, małe kontrolki), 12 (`rounded-xl`, przyciski, karty), 16 (`rounded-2xl`, panele), pełne (`rounded-full`, pigułki).
 - **Typografia:** siedem stylów zdefiniowanych w `guest.css` (`--text-*`): caption 12, small 13, body 15, lead 17, h2 24, h1 30, display 40. Nowe wartości px nie wchodzą do kodu. Hierarchia przez grubość i kolor, nie tylko rozmiar. Linia tekstu 45–75 znaków. Rodziny: `serif` (Bodoni Moda, nagłówki i nazwy) i `sans` (Hanken Grotesk, reszta).
 - **Ruch:** bez animacji sukcesu przed potwierdzeniem z serwera. Przy ograniczeniu ruchu w systemie animacje znikają.
-- **Ikony:** jeden zestaw na produkt, grubość linii dopasowana do fontu. Emoji nie są ikonami.
+- **Ikony:** jeden zestaw na produkt, grubość linii dopasowana do fontu. Emoji nie są ikonami. Gość: ikony inline SVG, grubość 1,5. Panel: Lucide, także znaczniki statusu (`StatusIcon`), bez znaków typu ✓ w tekście.
+- **Cienie:** gość nie używa cienia utilities (płaskie powierzchnie z linią 1 px). Arkusz filtrów (nakładka) może mieć cień, bo to warstwa nad treścią.
 
 Każdy styl ma rozmiar, wagę i wysokość linii:
 
