@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildDemoDataset } from '../src/demo/dataset';
+import type { GuestSessionRef } from '../src/guest/session';
 import { ImportService } from '../src/import/import-service';
 import { mapTable } from '../src/import/mapping';
 import type { ImportFileParser, ParsedFile, RowEdit } from '../src/import/types';
@@ -116,5 +117,93 @@ describe('ImportService: codes on the sales preview and in the saved lines', () 
     });
     await expect(service.summary('halka', { from: '2026-10-15', to: '2026-10-14' })).rejects.toMatchObject({ code: 'invalid_period' });
     await expect(service.summary('nope', { from: '2026-10-14', to: '2026-10-14' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('a bill re-imported without its code gives up the earlier match: its old lines are replaced and the code leaves the till (R8, R9)', async () => {
+    const first = await imp.upload('halka', 'sales', { name: 'pos.csv', bytes: new Uint8Array(10) }, ACTOR);
+    await imp.confirm('halka', first.id, ACTOR);
+    const period = { from: '2026-10-14', to: '2026-10-15' };
+    expect(await repos.recommendationCodeRepository.unmatchedPosCodes(data.restaurant.id, period)).toBe(3);
+
+    // the same bill 301 again, exported without its comment: no code on its lines (checks 302 and 304 are not in this file)
+    const again: ParsedFile = { parser: 'csv', rows: [POS.rows[0], POS.rows[1].slice(0, 6).concat(['']), POS.rows[2].slice(0, 6).concat([''])] };
+    let seqAgain = 0;
+    const reimport = new ImportService({
+      ...repos, importFileParser: { parse: async () => again }, clock: { now: () => new Date('2026-10-21T11:00:00.000Z') },
+      idGenerator: { uuid: () => `00000000-0000-4000-9000-${String(++seqAgain).padStart(12, '0')}` }
+    });
+    const job = await reimport.upload('halka', 'sales', { name: 'pos-again.csv', bytes: new Uint8Array(10) }, ACTOR);
+    await reimport.confirm('halka', job.id, ACTOR);
+
+    const active = store.salesLines.filter((l) => l.replacedAt === null);
+    expect(active.filter((l) => l.checkId === '301')).toHaveLength(2);
+    expect(active.filter((l) => l.checkId === '301').every((l) => !l.recommendationCode)).toBe(true);
+    expect(store.salesLines.filter((l) => l.checkId === '301' && l.replacedAt !== null)).toHaveLength(2);
+    expect(active.map((l) => l.recommendationCode)).not.toContain('W7K');
+    // W7K was an unmatched code of this day; with its line replaced only W3M and A4K remain
+    expect(await repos.recommendationCodeRepository.unmatchedPosCodes(data.restaurant.id, period)).toBe(2);
+  });
+});
+
+describe('AC11: a table order of three dishes is one recommendation in the summary and three rows in the pair stats (Q12, R10)', () => {
+  const PERIOD = { from: '2026-10-14', to: '2026-10-14' };
+  const ACTOR_TABLE = { id: 'user-marta', name: 'Marta Wierzbicka' };
+  let data: ReturnType<typeof buildDemoDataset>;
+  let store: MemoryStore;
+  let repos: ReturnType<typeof createMemoryRepositories>;
+  let seq: number;
+  const uuid = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`;
+  const codeService = (iso: string) => new RecommendationCodeService({
+    restaurantRepository: repos.restaurantRepository, wineRepository: repos.wineRepository, dishRepository: repos.dishRepository,
+    recommendationCodeRepository: repos.recommendationCodeRepository, clock: { now: () => new Date(iso) },
+    idGenerator: { uuid }, logger: createLogger(() => {})
+  });
+  const session = (id: string): GuestSessionRef => ({ id, isNew: false, source: 'qr' });
+
+  beforeEach(() => {
+    data = buildDemoDataset({ ids: 'uuid' });
+    store = MemoryStore.from(data);
+    repos = createMemoryRepositories(store);
+    seq = 0;
+  });
+
+  it('counts the table code once in the summary, expands it to three table rows, and a POS match does not count it again', async () => {
+    const service = codeService('2026-10-14T19:00:00.000Z');   // service day 14 Oct (21:00 Warsaw)
+    const wine = data.wines[0].id;
+    const dishes = data.dishes.slice(0, 3).map((d) => d.id).sort((a, b) => a.localeCompare(b));
+
+    // a direct choice (no dish) is in the summary and never in the pair stats (AC11, Q12)
+    const direct = await service.issue('halka', { session: session('sid-direct'), source: 'guest', wineId: wine, serving: 'bottle', dishIds: [] });
+    expect(direct).not.toBeNull();
+    const table = await service.issue('halka', { session: session('sid-table'), source: 'guest', wineId: wine, serving: 'bottle', dishIds: dishes });
+    expect(table).not.toBeNull();
+    const tableRows = (over: Record<string, number>) => dishes.map((dishId) => ({
+      dishId, wineId: wine, context: 'table', issued: 1, staffConfirmed: 0, posMatched: 0, ordered: 0, ...over
+    }));
+
+    // issued, nobody confirmed, no POS match: one table choice and one direct choice, both counted once
+    expect(await service.summary('halka', PERIOD)).toEqual({ period: PERIOD, issued: 2, staffConfirmed: 0, posMatched: 0, ordered: 0, unmatchedPosCodes: 0 });
+    expect(await service.pairStats('halka', PERIOD)).toEqual(tableRows({}));
+
+    // the waiter confirms the table code: still one order for the whole table
+    await service.confirm('halka', table!.code, 'staff_view');
+    expect(await service.summary('halka', PERIOD)).toEqual({ period: PERIOD, issued: 2, staffConfirmed: 1, posMatched: 0, ordered: 1, unmatchedPosCodes: 0 });
+    expect(await service.pairStats('halka', PERIOD)).toEqual(tableRows({ staffConfirmed: 1, ordered: 1 }));
+
+    // the till has the same code on a check with wine: matched in the POS, but still one order (R9, R10)
+    const till: ParsedFile = { parser: 'csv', rows: [
+      POS.rows[0],
+      ['14.10.2026', '401', 'Kuchnia', 'Kaczka', '3', '310', ''],
+      ['14.10.2026', '401', 'Butelka', 'Morgon 2021', '1', '166,67', table!.code]
+    ] };
+    let seqImport = 0;
+    const imp = new ImportService({
+      ...repos, importFileParser: { parse: async () => till }, clock: { now: () => new Date('2026-10-21T10:00:00.000Z') },
+      idGenerator: { uuid: () => `00000000-0000-4000-9000-${String(++seqImport).padStart(12, '0')}` }
+    });
+    const job = await imp.upload('halka', 'sales', { name: 'pos-table.csv', bytes: new Uint8Array(10) }, ACTOR_TABLE);
+    await imp.confirm('halka', job.id, ACTOR_TABLE);
+    expect(await service.summary('halka', PERIOD)).toEqual({ period: PERIOD, issued: 2, staffConfirmed: 1, posMatched: 1, ordered: 1, unmatchedPosCodes: 0 });
+    expect(await service.pairStats('halka', PERIOD)).toEqual(tableRows({ staffConfirmed: 1, posMatched: 1, ordered: 1 }));
   });
 });

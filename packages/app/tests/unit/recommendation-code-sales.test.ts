@@ -48,6 +48,23 @@ describe('A13 recommendation codes on the sales import (E09 F3), server-rendered
     expect(text(pl)).toContain('4 rachunki mają kod polecenia. 4 kody nie pasują do poleceń z tego dnia.');
   });
 
+  it('the "Recommendation code" column shows only when the file has a code column or a code in an item cell (SCREEN_SPECIFICATION A13)', async () => {
+    await signIn();
+    const scope = await createRequestScope();
+    const actor = { id: 'user-tomasz', name: 'Tomasz' };
+    const upload = async (name: string, csv: string) => (await scope.cradle.importService.upload('halka', 'sales', { name, bytes: new TextEncoder().encode(csv) }, actor)).id;
+    const head = 'business date,check number,item type,item,quantity,net amount';
+    const withColumn = await upload('column.csv', `${head},recommendation code\n14.10.2026,501,Food,Duck breast,2,207.41,\n14.10.2026,502,Wine bottle,Morgon 2021,1,166.67,W7K\n`);
+    const codeInItem = await upload('item-code.csv', `${head}\n14.10.2026,601,Food,Duck breast,2,207.41\n14.10.2026,602,Wine bottle,W7K,1,166.67\n`);
+    const plain = await upload('plain.csv', `${head}\n14.10.2026,701,Food,Duck breast,2,207.41\n14.10.2026,702,Wine bottle,Morgon 2021,1,166.67\n`);
+    await scope.dispose();
+
+    const column = (h: string) => /<th[^>]*>Recommendation code<\/th>/.test(h);
+    expect(column(await render({ job: withColumn }))).toBe(true);
+    expect(column(await render({ job: codeInItem }))).toBe(true);
+    expect(column(await render({ job: plain }))).toBe(false);
+  });
+
   it('the card shows the orders of the period once each, the codes on the till without a recommendation, and a refused period (AC12)', async () => {
     await signIn();
     const scope = await createRequestScope();

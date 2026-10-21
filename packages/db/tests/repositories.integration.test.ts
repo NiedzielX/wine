@@ -35,8 +35,8 @@ const MARTA = actor('marta', 'Marta Wierzbicka');
 const TOMASZ = actor('tomasz', 'Tomasz Lis');
 
 /** Creates a fresh test database, applies the real migrations and seeds the demo data. */
-async function freshDatabase(): Promise<MikroORM> {
-  const url = new URL(await createDatabase(baseUrl, 'winematch_db_test'));
+async function freshDatabase(name = 'winematch_db_test'): Promise<MikroORM> {
+  const url = new URL(await createDatabase(baseUrl, name));
   const orm = await MikroORM.init(ormConfig({
     clientUrl: url.toString(),
     extensions: [Migrator],
@@ -589,6 +589,67 @@ run('PostgreSQL', () => {
       const s = services(pgRepos(orm));
       const job = await s.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
       expect((await s.imp.confirm('halka', job.id, TL)).created).toBe(12);
+    });
+  });
+
+  describe('recommendation code on a sales line on PostgreSQL (spec 2026-10-16-recommendation-code, phase 3, migration up/down)', () => {
+    // its own database: the migration is run down and up here, which must not touch the shared one
+    let own: MikroORM;
+    beforeAll(async () => { own = await freshDatabase('winematch_db_recode_test'); });
+    afterAll(async () => { await own?.close(true); });
+
+    const TL = actor('tomasz', 'Tomasz Lis');
+    const fixture = (name: string) => ({ name, bytes: new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url))) });
+    const period = { from: '2026-10-01', to: '2026-10-31' };
+    const column = async () => own.em.getConnection().execute<Array<{ is_nullable: string; column_default: string | null; data_type: string; character_maximum_length: number }>>(
+      "select is_nullable, column_default, data_type, character_maximum_length from information_schema.columns where table_name = 'sales_record' and column_name = 'recommendation_code'");
+    const index = async () => own.em.getConnection().execute<Array<{ indexdef: string }>>(
+      "select indexdef from pg_indexes where tablename = 'sales_record' and indexname = 'sales_record_recommendation_code_idx'");
+    const lines = async () => (await own.em.getConnection().execute<Array<{ n: string }>>(
+      'select count(*)::text as n from sales_record where replaced_at is null'))[0].n;
+    const coded = async () => (await own.em.getConnection().execute<Array<{ n: string }>>(
+      'select count(recommendation_code)::text as n from sales_record where replaced_at is null'))[0].n;
+
+    it('up adds a nullable column with no default and a partial index, down removes both, and up keeps the existing lines (up/down)', async () => {
+      const migration = new Migration20261021190119_sales_record_recommendation_code(own.em.getDriver(), own.config);
+      const run = async (fn: 'up' | 'down') => {
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      const shape = { is_nullable: 'YES', column_default: null, data_type: 'character varying', character_maximum_length: 4 };
+
+      // the database is migrated to the head: the column and the partial index exist
+      expect(await column()).toEqual([shape]);
+      expect((await index())[0].indexdef).toMatch(/\(restaurant_id, business_date, recommendation_code\) WHERE \(recommendation_code IS NOT NULL\)/i);
+
+      // existing sales lines (the import writes the column, so it is imported while the column is there)
+      const s = services(pgRepos(own));
+      const job = await s.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
+      expect((await s.imp.confirm('halka', job.id, TL)).created).toBe(12);
+      const before = await pgRepos(own).salesRepository.checkTotals(ds.restaurant.id, period);
+      expect(before).toHaveLength(6);
+
+      // down removes the column and the index; the existing lines stay
+      await run('down');
+      expect(await column()).toEqual([]);
+      expect(await index()).toEqual([]);
+      expect(await lines()).toBe('12');
+
+      // up on those rows: the column comes back nullable without a default, the index too, the lines stay as they were
+      await run('up');
+      expect(await column()).toEqual([shape]);
+      expect((await index())[0].indexdef).toMatch(/WHERE \(recommendation_code IS NOT NULL\)/i);
+      expect(await lines()).toBe('12');
+      expect(await coded()).toBe('0');
+      expect(await pgRepos(own).salesRepository.checkTotals(ds.restaurant.id, period)).toEqual(before);
+
+      // and down again removes both once more
+      await run('down');
+      expect(await column()).toEqual([]);
+      expect(await index()).toEqual([]);
+      await run('up');
+      expect(await column()).toEqual([shape]);
     });
   });
 });
