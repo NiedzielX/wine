@@ -566,6 +566,20 @@ run('PostgreSQL', () => {
       await insert('food', -1, 0);
     });
 
+    it('the covers check accepts 0 and 999 and rejects -1 and 1000 (sales_record_covers_check)', async () => {
+      const s = services(pgRepos(orm));
+      const job = await s.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
+      const conn = orm.em.getConnection();
+      const insert = (covers: number) => conn.execute(
+        `insert into sales_record (id, restaurant_id, import_job_id, business_date, check_id, covers, item_type, quantity, net_amount, created_at)
+         values (?, ?, ?, '2026-10-14', 'covers', ?, 'food', 1, 10, now())`, [randomUUID(), ds.restaurant.id, job.id, covers]);
+      await expect(insert(-1)).rejects.toThrow(/sales_record_covers_check/);
+      await expect(insert(1000)).rejects.toThrow(/sales_record_covers_check/);
+      await insert(0);
+      await insert(999);
+      expect(Number((await conn.execute<Array<{ n: string }>>("select count(*)::text as n from sales_record where check_id = 'covers'"))[0].n)).toBe(2);
+    });
+
     it('the migration creates the table with its index, and down drops it again (AC6, up/down)', async () => {
       const exists = async () => (await orm.em.getConnection().execute<Array<{ n: string }>>("select count(*)::text as n from information_schema.tables where table_name = 'sales_record'"))[0].n === '1';
       const index = await orm.em.getConnection().execute<Array<{ indexdef: string }>>("select indexdef from pg_indexes where tablename = 'sales_record' and indexname = 'sales_record_restaurant_id_business_date_check_id_index'");
