@@ -1,4 +1,4 @@
-import { IMPORT_LIMITS, defaultSalesPeriod, type SalesKpiService } from '@wine-match/core';
+import { IMPORT_LIMITS, defaultSalesPeriod, type RecommendationCodeService, type SalesKpiService } from '@wine-match/core';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
@@ -6,6 +6,7 @@ import { PanelExplain } from '../../../_components/explain';
 import { Flash, ReadOnlyNotice } from '../../../_components/flash';
 import { first } from '../../../_components/format';
 import { DoneStep, PreviewStep, UploadStep } from '../../../_components/import-screen';
+import { RecommendationCodeCard, type CodeSummaryResult } from '../../../_components/recommendation-code-card';
 import { SalesAttachRate, type AttachRateResult } from '../../../_components/sales-attach-rate';
 import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
@@ -29,7 +30,7 @@ export default async function ImportSalesPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   const access = await requireAccess(slug);
   const canImport = access.can('import.manage');
-  const { importService, salesKpiService, clock } = (await getRequestScope()).cradle;
+  const { importService, salesKpiService, recommendationCodeService, clock } = (await getRequestScope()).cradle;
   const jobId = first(sp.job);
   const path = `/admin/${slug}/import/sales`;
   const { locale, t } = await getI18n();
@@ -51,7 +52,12 @@ export default async function ImportSalesPage({ params, searchParams }: Props) {
     const range = await salesKpiService.dataRange(slug);
     const asked = { from: first(sp.from), to: first(sp.to) };
     const period = asked.from || asked.to ? asked : defaultSalesPeriod(range, clock.now());
-    attach = <SalesAttachRate action={path} period={period} range={range} result={await attachRate(salesKpiService, slug, period)} locale={locale} t={t} />;
+    attach = (
+      <>
+        <SalesAttachRate action={path} period={period} range={range} result={await attachRate(salesKpiService, slug, period)} locale={locale} t={t} />
+        <div className="mt-6"><RecommendationCodeCard result={await codeSummary(recommendationCodeService, slug, period)} t={t} /></div>
+      </>
+    );
   }
 
   return (
@@ -64,6 +70,16 @@ export default async function ImportSalesPage({ params, searchParams }: Props) {
       {attach && <div className="mt-6">{attach}</div>}
     </Page>
   );
+}
+
+/** The recommendation totals of the period (spec 2026-10-16-recommendation-code, Q13); a refused period is shown in the card. */
+async function codeSummary(service: RecommendationCodeService, slug: string, period: { from: string; to: string }): Promise<CodeSummaryResult> {
+  try {
+    return { ok: true, summary: await service.summary(slug, period) };
+  } catch (e) {
+    if (isDomainError(e, 'invalid_period')) return { ok: false };
+    throw e;
+  }
 }
 
 /** The KPIs of the period; a period the service refuses (`invalid_period`) is shown as an error in the card. */

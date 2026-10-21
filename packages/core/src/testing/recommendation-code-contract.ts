@@ -1,6 +1,7 @@
 import type { OnceRunner } from './contract-types';
 import type { DemoDataset } from '../demo/dataset';
 import type { RecommendationCodeInput, Repositories } from '../ports/repositories';
+import type { SalesItemType, SalesRecord } from '../services/sales/types';
 
 /**
  * `RecommendationCodeRepository` cases of the repository contract (spec 2026-10-16-recommendation-code, R3, R7, R11,
@@ -121,5 +122,72 @@ export function recommendationCodeContract(t: Omit<OnceRunner, 'beforeAll' | 'af
     t.expect(await repo.countUnmatched(ds.restaurant.id, pairs)).toBe(2);
     t.expect(await repo.countUnmatched(OTHER, pairs)).toBe(3);
     t.expect(await repo.countUnmatched(ds.restaurant.id, [])).toBe(0);
+  });
+
+  /* ---- POS matching (spec 2026-10-16-recommendation-code, phase 3: R9, R10, Q11, AC10) ---- */
+  const jobId = (n: number) => `b0b0c0de-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  let lineSeq = 0;
+  const line = (businessDate: string, checkId: string, itemType: SalesItemType, quantity: number, recommendationCode: string | null): SalesRecord => ({
+    id: `5a1e5000-0000-4000-9000-${String(++lineSeq).padStart(12, '0')}`,
+    businessDate, checkId, covers: 2, itemType, quantity, netAmount: quantity * 10, recommendationCode
+  });
+  const importSales = async (repos: Repositories, ds: DemoDataset, n: number, lines: SalesRecord[]) => {
+    const restaurantId = ds.restaurant.id;
+    const id = jobId(n);
+    await repos.importRepository.create({
+      id, restaurantId, kind: 'sales', fileName: 'pos.csv', fileType: 'csv', fileSize: 10, status: 'preview_ready', parser: 'csv', rows: [],
+      notes: [], error: null, createdBy: 'Marta Wierzbicka', createdAt: '2033-05-01T10:00:00.000Z', confirmedAt: null, result: null
+    });
+    const checks = [...new Map(lines.map((l) => [`${l.businessDate}|${l.checkId}`, { businessDate: l.businessDate, checkId: l.checkId }])).values()];
+    await repos.importRepository.confirm(restaurantId, id, {
+      kind: 'sales', checks, records: lines, result: { created: lines.length, updated: 0, skipped: 0, suggestions: 0 }
+    }, '2033-05-01T11:00:00.000Z');
+  };
+
+  t.it('a code is matched in the POS once when its check has wine; ordered counts it once with the waiter (R9, R10, AC10)', async () => {
+    const { repos, ds } = get();
+    const repo = repos.recommendationCodeRepository;
+    const restaurantId = ds.restaurant.id;
+    const day = '2033-05-01';
+    const period = { from: day, to: day };
+    await repo.tryIssue(restaurantId, input(60, { serviceDay: day, code: 'K2M', dishIds: [ds.dishes[0].id] }));
+    await repo.tryIssue(restaurantId, input(61, { serviceDay: day, code: 'K2N', dishIds: [ds.dishes[0].id] }));
+    await repo.setConfirmed(restaurantId, day, 'K2M', new Date('2033-05-01T19:42:00.000Z'), 'staff_view');
+    const checks = [
+      line(day, 'c1', 'food', 2, 'K2M'), line(day, 'c1', 'wine_bottle', 1, null),
+      line(day, 'c2', 'food', 1, 'K2M'), line(day, 'c2', 'wine_glass', 2, null),   // the same code on two checks with wine
+      line(day, 'c3', 'food', 1, 'K2N'),                                           // no wine on the check: no match
+      line(day, 'c4', 'food', 1, 'K2P'), line(day, 'c4', 'wine_bottle', 1, null),  // a code no recommendation issued
+      line(day, 'c5', 'food', 1, 'K2P'), line(day, 'c5', 'wine_glass', 1, null)    // the same unmatched code again
+    ];
+    await importSales(repos, ds, 60, checks);
+    t.expect(await repo.totals(restaurantId, period)).toEqual({ issued: 2, staffConfirmed: 1, posMatched: 1, ordered: 1 });
+    t.expect(await repo.unmatchedPosCodes(restaurantId, period)).toBe(1);
+    t.expect(await repo.pairStats(restaurantId, period)).toEqual([
+      { dishId: ds.dishes[0].id, wineId: ds.wines[0].id, context: 'dish', issued: 2, staffConfirmed: 1, posMatched: 1, ordered: 1 }
+    ]);
+    // a repeated import of the same checks replaces the lines and counts nothing twice (R9)
+    await importSales(repos, ds, 61, [line(day, 'c1', 'food', 2, 'K2M'), line(day, 'c1', 'wine_bottle', 1, null)]);
+    t.expect(await repo.totals(restaurantId, period)).toEqual({ issued: 2, staffConfirmed: 1, posMatched: 1, ordered: 1 });
+    t.expect(await repo.unmatchedPosCodes(restaurantId, period)).toBe(1);
+    // another restaurant sees none of it (D18)
+    t.expect(await repo.totals(OTHER, period)).toEqual({ issued: 0, staffConfirmed: 0, posMatched: 0, ordered: 0 });
+    t.expect(await repo.unmatchedPosCodes(OTHER, period)).toBe(0);
+  });
+
+  t.it('a code matched in the POS and never confirmed counts as ordered; a confirmed code without a match stays confirmed only', async () => {
+    const { repos, ds } = get();
+    const repo = repos.recommendationCodeRepository;
+    const restaurantId = ds.restaurant.id;
+    const day = '2033-05-02';
+    const period = { from: day, to: day };
+    await repo.tryIssue(restaurantId, input(62, { serviceDay: day, code: 'Q3R', dishIds: [ds.dishes[0].id] }));
+    await repo.tryIssue(restaurantId, input(63, { serviceDay: day, code: 'Q3S', dishIds: [ds.dishes[0].id] }));
+    await repo.setConfirmed(restaurantId, day, 'Q3S', new Date('2033-05-02T19:00:00.000Z'), 'staff_view');
+    await importSales(repos, ds, 62, [line(day, 'd1', 'food', 1, 'Q3R'), line(day, 'd1', 'wine_bottle', 1, null)]);
+    t.expect(await repo.totals(restaurantId, period)).toEqual({ issued: 2, staffConfirmed: 1, posMatched: 1, ordered: 2 });
+    // a check whose wine was returned (the sum is zero) does not match (R9)
+    await importSales(repos, ds, 63, [line(day, 'd2', 'food', 1, 'Q3S'), line(day, 'd2', 'wine_bottle', 1, null), line(day, 'd2', 'wine_bottle', -1, null)]);
+    t.expect(await repo.totals(restaurantId, period)).toEqual({ issued: 2, staffConfirmed: 1, posMatched: 1, ordered: 2 });
   });
 }

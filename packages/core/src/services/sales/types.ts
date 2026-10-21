@@ -23,6 +23,8 @@ export interface SalesRecord extends CheckKey {
   quantity: number;
   /** net amount of the line, PLN; negative for a return */
   netAmount: number;
+  /** the recommendation code written on this line of the POS (spec 2026-10-16-recommendation-code, R8); null when none */
+  recommendationCode: string | null;
 }
 
 /** A period of business days (`YYYY-MM-DD`), both ends inclusive. */

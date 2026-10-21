@@ -14,6 +14,7 @@ import { Migration20261015140000_bilingual_content } from '../src/migrations/Mig
 import { Migration20261018125821_recommendation_code } from '../src/migrations/Migration20261018125821_recommendation_code';
 import { Migration20261016152214_opportunity_dismissal } from '../src/migrations/Migration20261016152214_opportunity_dismissal';
 import { Migration20261019064652_sales_record } from '../src/migrations/Migration20261019064652_sales_record';
+import { Migration20261021190119_sales_record_recommendation_code } from '../src/migrations/Migration20261021190119_sales_record_recommendation_code';
 import { PairingEntity } from '../src/entities';
 import { PgAuthRepository } from '../src/repositories/auth';
 import { PgImportRepository } from '../src/repositories/import';
@@ -580,6 +581,11 @@ run('PostgreSQL', () => {
       expect(await exists()).toBe(false);
       await run('up');
       expect(await exists()).toBe(true);
+      // the later migration (recommendation code on a line) adds its column and index back on top of the table
+      const later = new Migration20261021190119_sales_record_recommendation_code(orm.em.getDriver(), orm.config);
+      later.reset();
+      await later.up();
+      for (const q of later.getQueries()) await later.execute(q);
       const s = services(pgRepos(orm));
       const job = await s.imp.upload('halka', 'sales', fixture('sales-pos.csv'), TL);
       expect((await s.imp.confirm('halka', job.id, TL)).created).toBe(12);

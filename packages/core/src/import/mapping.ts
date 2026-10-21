@@ -1,6 +1,7 @@
 import { ValidationError } from '../errors';
 import { MENU_FIELDS, SALES_FIELDS, SALES_REQUIRED_FIELDS, TRANSLATION_FIELDS, WINE_FIELDS, type ImportKind, type SalesField } from './types';
 import { normKey } from './normalize';
+import { findCodeInText, isWholeCellCode, normalizeCode } from '../recommendation-code/code-format';
 
 /**
  * Turns the rows of a file into records of named fields. The header row is recognised by its words
@@ -135,13 +136,16 @@ const SALES_SYNONYMS: Record<SalesField, string[]> = {
   covers: ['covers', 'guests', 'pax', 'goscie', 'liczba gosci', 'osoby', 'liczba osob'],
   itemType: ['item type', 'category', 'product group', 'item group', 'product category', 'kategoria', 'grupa', 'grupa towarowa', 'grupa produktow', 'kategoria produktu', 'typ pozycji', 'rodzaj pozycji'],
   itemName: ['item', 'item name', 'product', 'product name', 'produkt', 'pozycja', 'nazwa', 'nazwa pozycji', 'nazwa produktu', 'towar', 'nazwa towaru'],
+  // spec 2026-10-16-recommendation-code, R8: exact words only (a comment column is too general to guess, Q13 of E03)
+  recommendationCode: ['kod', 'kod polecenia', 'kod wine match', 'code', 'recommendation code', 'komentarz', 'uwagi', 'notatka', 'comment', 'note', 'notes'],
   quantity: ['qty', 'quantity', 'ilosc', 'szt', 'sztuk', 'ilosc szt'],
   netAmount: ['net', 'net amount', 'net value', 'net sales', 'net total', 'netto', 'kwota netto', 'wartosc netto', 'sprzedaz netto']
 };
 
 /** How the refusal names a missing column (English; the dashboard translates by field). */
 export const SALES_FIELD_WORDS: Record<SalesField, string> = {
-  businessDate: 'business date', checkId: 'check number', covers: 'guests', itemType: 'item type', itemName: 'item', quantity: 'quantity', netAmount: 'net amount'
+  businessDate: 'business date', checkId: 'check number', covers: 'guests', itemType: 'item type', itemName: 'item',
+  recommendationCode: 'recommendation code', quantity: 'quantity', netAmount: 'net amount'
 };
 
 /**
@@ -185,14 +189,24 @@ function mapSalesTable(rows: string[][]): MappedTable {
   if (ignored.length) notes.push(`Columns not used: ${ignored.join(', ')}.`);
   if (!map.has('covers')) notes.push(SALES_NOTES.noCovers);
   // an optional column is in a record only when the file has it
-  const fields = SALES_FIELDS.filter((f) => map.has(f));
-  const records = rows.slice(index + 1).filter((r) => r.some((c) => c.trim() !== '')).map((r) =>
+  const dataRows = rows.slice(index + 1).filter((r) => r.some((c) => c.trim() !== ''));
+  // a whole item cell that is a code (`W7K`) is the code of the line too (R8); free text never is
+  const codeInItem = (r: string[]) => (map.has('itemName') && isWholeCellCode(r[map.get('itemName')!] ?? '') ? normalizeCode(r[map.get('itemName')!] ?? '') : null);
+  const withCode = map.has('recommendationCode') || dataRows.some((r) => codeInItem(r) !== null);
+  const fields = SALES_FIELDS.filter((f) => (f === 'recommendationCode' ? withCode : map.has(f)));
+  const records = dataRows.map((r) =>
     Object.fromEntries(fields.map((f) => {
+      if (f === 'recommendationCode') return [f, recommendationCodeOf(map.has(f) ? r[map.get(f)!] ?? '' : '') ?? codeInItem(r) ?? ''];
       const cell = (r[map.get(f)!] ?? '').trim();
       const convert = SALES_CELL[f];
       return [f, convert ? convert(cell) : cell];
     })));
   return { records, notes };
+}
+
+/** The code a comment or a cell contains, in its stored form, or null (R8: only the code leaves the comment). */
+function recommendationCodeOf(text: string): string | null {
+  return findCodeInText(text);
 }
 
 /** Notes of a sales import the dashboard translates by their English text (as the other import notes). */

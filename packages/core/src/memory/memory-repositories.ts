@@ -649,14 +649,19 @@ export class MemoryRecommendationCodeRepository implements RecommendationCodeRep
   }
 
   async pairStats(restaurantId: string, period: ServiceDayPeriod): Promise<PairCodeStats[]> {
+    const matched = this.posMatches(restaurantId);
     const stats = new Map<string, PairCodeStats>();
     for (const { record: r } of this.inPeriod(restaurantId, period)) {
       if (r.context === 'direct') continue;
+      const pos = matched.has(`${r.serviceDay}|${r.code}`);
+      const confirmed = r.confirmedAt !== null;
       for (const dishId of r.dishIds) {
         const key = `${dishId}|${r.wineId}|${r.context}`;
         const s = stats.get(key) ?? { dishId, wineId: r.wineId, context: r.context, issued: 0, staffConfirmed: 0, posMatched: 0, ordered: 0 };
         s.issued += 1;
-        if (r.confirmedAt !== null) { s.staffConfirmed += 1; s.ordered += 1; }
+        if (confirmed) s.staffConfirmed += 1;
+        if (pos) s.posMatched += 1;
+        if (confirmed || pos) s.ordered += 1;
         stats.set(key, s);
       }
     }
@@ -664,13 +669,44 @@ export class MemoryRecommendationCodeRepository implements RecommendationCodeRep
   }
 
   async totals(restaurantId: string, period: ServiceDayPeriod) {
+    const matched = this.posMatches(restaurantId);
     const rows = this.inPeriod(restaurantId, period);
+    const isMatched = (r: RecommendationCodeRecord) => matched.has(`${r.serviceDay}|${r.code}`);
     const staffConfirmed = rows.filter((r) => r.record.confirmedAt !== null).length;
-    return { issued: rows.length, staffConfirmed, posMatched: 0, ordered: staffConfirmed };
+    const posMatched = rows.filter((r) => isMatched(r.record)).length;
+    const ordered = rows.filter((r) => r.record.confirmedAt !== null || isMatched(r.record)).length;
+    return { issued: rows.length, staffConfirmed, posMatched, ordered };
   }
 
-  async unmatchedPosCodes() {
-    return 0;
+  async unmatchedPosCodes(restaurantId: string, period: ServiceDayPeriod) {
+    const issued = new Set(this.rows(restaurantId).map((r) => `${r.record.serviceDay}|${r.record.code}`));
+    const unmatched = new Set<string>();
+    for (const l of this.store.salesLines) {
+      if (l.restaurantId !== restaurantId || l.replacedAt !== null || !l.recommendationCode) continue;
+      if (l.businessDate < period.from || l.businessDate > period.to) continue;
+      const key = `${l.businessDate}|${l.recommendationCode}`;
+      if (!issued.has(key)) unmatched.add(key);
+    }
+    return unmatched.size;
+  }
+
+  /**
+   * POS matches (R9): `${businessDate}|${code}` of every active check that has a code on one of its lines and wine sold
+   * (glasses + bottles, summed over the check, above zero). The same rule as the SQL in `PgRecommendationCodeRepository`.
+   */
+  private posMatches(restaurantId: string): Set<string> {
+    const lines = this.store.salesLines.filter((l) => l.restaurantId === restaurantId && l.replacedAt === null);
+    const wineByCheck = new Map<string, number>();
+    for (const l of lines) {
+      if (l.itemType !== 'wine_glass' && l.itemType !== 'wine_bottle') continue;
+      const check = `${l.businessDate}|${l.checkId}`;
+      wineByCheck.set(check, (wineByCheck.get(check) ?? 0) + l.quantity);
+    }
+    const matched = new Set<string>();
+    for (const l of lines) {
+      if (l.recommendationCode && (wineByCheck.get(`${l.businessDate}|${l.checkId}`) ?? 0) > 0) matched.add(`${l.businessDate}|${l.recommendationCode}`);
+    }
+    return matched;
   }
 
   async countUnmatched(restaurantId: string, pairs: Array<{ businessDate: string; code: string }>) {

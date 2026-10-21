@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-21] [W testach kontraktu każdy import ma nowe identyfikatory linii; test migracji odtwarza późniejsze migracje](lessons/2026-10-21-test-ids-and-migration-replay.md) — ponowny zapis tych samych `id` daje naruszenie klucza, które `translate()` pokazuje jako `duplicate_pairing`.
 - [2026-10-19] [Axe w Vitest (jsdom) nie mierzy kontrastu: kontrast sprawdzaj z tokenów](lessons/2026-10-19-axe-in-jsdom-limits.md) — `color-contrast` wyłączony w jsdom jawnie; kontrast liczy `src/stories/contrast.ts` z `styles.css`; asercja niepustego markupu.
 - [2026-10-19] [W świeżym worktree najpierw pełna `npm install`, potem `-w <pakiet> -D`](lessons/2026-10-19-full-install-before-adding-deps.md) — instalacja z `-w` zostawia `node_modules` bez narzędzi roota (np. `vitest`).
 - [2026-10-18] [Element widoczny tylko z JavaScriptem: `useSyncExternalStore`, nie `setState` w `useEffect`](lessons/2026-10-18-script-only-ui-use-sync-external-store.md) — `useSyncExternalStore(noop, () => true, () => false)`: brak elementu w HTML i przy hydratacji, bez błędu oxlint `set-state-in-effect`.

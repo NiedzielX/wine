@@ -54,6 +54,8 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 
 **Tabela addytywna z 2026-10-19** (spec `2026-10-15-pos-sales-import-attach-rate`, F1, migracja `Migration20261019064652_sales_record`): `sales_record` (pozycje rachunków z POS); istniejące tabele bez zmian (`import_job.kind` dopuszczał już `sales`). Kontraktem są nazwy kolumn, wartości `item_type` w `CHECK`, tożsamość rachunku (`business_date`, `check_id`) i miękkie zastępowanie (`replaced_at`, `replaced_by_job_id`; odczyty tylko `replaced_at IS NULL`). **`down` usuwa dane sprzedaży: w produkcji po pierwszym imporcie nie wolno go uruchamiać** (Q19) — wycofanie to poprzedni obraz aplikacji, schemat zostaje; wycofanie pojedynczego importu: SQL w `docs/DATA_MODEL.md` (SalesRecord).
 
+**Kolumna z 2026-10-21** (spec `2026-10-16-recommendation-code`, F3, migracja `Migration20261021190119_sales_record_recommendation_code`): `sales_record.recommendation_code` (nullable, addytywna; stare wiersze mają null) i indeks częściowy. Nowe pole importu `recommendationCode` (§6) jest opcjonalne; nagłówki „Uwagi”, „Komentarz”, „Notatka”, „Kod” są teraz rozpoznawane tylko dokładnie, a z komentarza zostaje wyłącznie kod.
+
 **Ścieżka:** expand → migrate → contract w osobnych PR-ach: najpierw dodaj nową kolumnę lub tabelę i pisz do obu, potem przenieś dane migracją, dopiero w kolejnym PR-ze usuń stare. PR z migracją zawiera test `up` i `down` (`npm run test:db`) i plan wycofania w opisie. `npm run schema:check -w @wine-match/db` musi pokazywać zgodność. Zmiana modelu aktualizuje [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
 
 ## 4. Konfiguracja i zmienne środowiskowe

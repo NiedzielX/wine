@@ -39,7 +39,7 @@ export function importContract(name: string, setup: () => Promise<{ repos: Repos
     });
     const plan = (over: Partial<CatalogImportPlan> = {}): CatalogImportPlan => ({ kind: 'catalog', newDishes: [], dishUpdates: [], newWines: [], wineUpdates: [], newPairings: [], result: { created: 0, updated: 0, skipped: 0, suggestions: 0 }, ...over });
     const salesLine = (businessDate: string, checkId: string, over: Partial<SalesRecord> = {}): SalesRecord =>
-      ({ id: uuid(), businessDate, checkId, covers: 2, itemType: 'food', quantity: 1, netAmount: 50, ...over });
+      ({ id: uuid(), businessDate, checkId, covers: 2, itemType: 'food', quantity: 1, netAmount: 50, recommendationCode: null, ...over });
     const salesPlan = (records: SalesRecord[]): SalesImportPlan => ({
       kind: 'sales', records, checks: [...new Map(records.map((r) => [`${r.businessDate}|${r.checkId}`, { businessDate: r.businessDate, checkId: r.checkId }])).values()],
       result: { created: records.length, updated: 0, skipped: 0, suggestions: 0 }
