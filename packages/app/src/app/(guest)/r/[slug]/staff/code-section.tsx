@@ -13,7 +13,7 @@ export interface CodeCard {
   confirmedAt: string | null;
 }
 
-const fieldClass = 'min-h-11 w-full min-w-0 rounded-lg border border-[#d4ccd0] bg-surface px-3';
+const fieldClass = 'min-h-11 w-full min-w-0 rounded-lg border border-control bg-surface px-3';
 const buttonClass = 'inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border px-5 text-body font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine';
 
 /**
@@ -39,7 +39,7 @@ export function CodeSection({ path, slug, input, lang, sid, message, card, t }: 
         <label htmlFor="staff-code" className="text-small font-semibold text-ink-2">{c.label}</label>
         <div className="flex gap-2">
           <input id="staff-code" name="code" defaultValue={input} maxLength={16} autoComplete="off" autoCapitalize="characters" spellCheck={false} className={`${fieldClass} font-serif text-lead tracking-[0.14em] uppercase`} />
-          <button type="submit" className={`${buttonClass} border-[#d4ccd0] bg-surface`}>{c.find}</button>
+          <button type="submit" className={`${buttonClass} border-control bg-surface`}>{c.find}</button>
         </div>
       </form>
       {message && <p role="status" className="text-body text-ink-2">{message}</p>}
@@ -60,7 +60,7 @@ export function CodeSection({ path, slug, input, lang, sid, message, card, t }: 
             {card.confirmedAt ? (
               <>
                 <span className="font-semibold text-sage">{c.markedAt(card.confirmedAt)}</span>
-                <button type="submit" className={`${buttonClass} border-[#d4ccd0] bg-surface`}>{c.undo}</button>
+                <button type="submit" className={`${buttonClass} border-control bg-surface`}>{c.undo}</button>
               </>
             ) : (
               <button type="submit" className={`${buttonClass} border-wine bg-wine text-on-wine hover:bg-wine-deep`}>{c.confirm}</button>

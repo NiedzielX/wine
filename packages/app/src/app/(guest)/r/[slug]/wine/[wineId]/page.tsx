@@ -74,7 +74,7 @@ export default async function WinePage({ params, searchParams }: Props) {
       points={t.guest.explain.wine.points({ score: match?.matchScore ?? null, dish: fromTable ? null : dish?.name ?? null, showScores })}
     />
   );
-  const radio = 'grid gap-0.5 rounded-xl border border-[#d4ccd0] bg-surface px-3.5 py-3 has-[input:checked]:border-wine has-[input:checked]:ring-1 has-[input:checked]:ring-wine has-[input:disabled]:opacity-45 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine cursor-pointer';
+  const radio = 'grid gap-0.5 rounded-xl border border-control bg-surface px-3.5 py-3 has-[input:checked]:border-wine has-[input:checked]:ring-1 has-[input:checked]:ring-wine has-[input:disabled]:opacity-45 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-wine cursor-pointer';
 
   await trackUsage(services, restaurant, session, viewed);
   return (
@@ -97,7 +97,7 @@ export default async function WinePage({ params, searchParams }: Props) {
 
           {match && dish && (
             <div className={`mt-6 grid gap-1.5 rounded-xl p-4 ${match.sommelier ? 'bg-brass-soft' : 'bg-paper'}`}>
-              <p className={`flex items-center gap-1.5 text-small font-semibold ${match.sommelier ? 'text-brass' : 'text-ink-2'}`}>
+              <p className={`flex items-center gap-1.5 text-small font-semibold ${match.sommelier ? 'text-brass-ink' : 'text-ink-2'}`}>
                 {match.sommelier ? <><Seal className="size-3.5" />{w.director(restaurant.wineDirector)}</> : w.whyWith(dish.name)}
               </p>
               <p className="text-body">{match.why}</p>
