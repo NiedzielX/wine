@@ -92,7 +92,7 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
           <ModeSwitch dishHref={href(`/r/${slug}/staff`, urlPrefs)} tableHref={href(path, urlPrefs)} mode="table" t={t} />
 
           {result && (
-            <section aria-labelledby="staff-table-bottle" data-staff-table-result="" className="rounded-[18px] border border-line bg-surface p-4">
+            <section aria-labelledby="staff-table-bottle" data-staff-table-result="" className="rounded-2xl border border-line bg-surface p-4">
               {chosen.length > MAX_TABLE_DISHES && <Notice>{l.truncated(MAX_TABLE_DISHES)}</Notice>}
               {result.notice && <Notice>{result.notice}</Notice>}
               {!best ? (
@@ -101,49 +101,49 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
                 <>
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                     <div className="min-w-0">
-                      <h2 id="staff-table-bottle" className="font-serif text-[24px] leading-tight">{l.thisBottle(best.wine.listNumber, `${best.wine.producer} ${best.wine.name}`)}</h2>
-                      <p className="mt-1 text-[14.5px] text-ink-2 tabular-nums">{t.guest.wines.bottlePrice(formatPrice(best.wine.bottlePrice, locale))}</p>
+                      <h2 id="staff-table-bottle" className="font-serif text-h2 leading-tight">{l.thisBottle(best.wine.listNumber, `${best.wine.producer} ${best.wine.name}`)}</h2>
+                      <p className="mt-1 text-body text-ink-2 tabular-nums">{t.guest.wines.bottlePrice(formatPrice(best.wine.bottlePrice, locale))}</p>
                     </div>
                     <CodeForWaiter code={issued?.code ?? null} t={t} labels={l.code} compact />
                   </div>
-                  <TableFitLine fit={best.fit} t={t} className="mt-3 text-[17px] leading-snug font-semibold" />
+                  <TableFitLine fit={best.fit} t={t} className="mt-3 text-lead leading-snug font-semibold" />
                   <div className="mt-3 border-t border-line pt-3">
                     <DishScores perDish={best.perDish} showScores t={t} />
                   </div>
                   <div data-table-people="" className="mt-3 border-t border-line pt-3">
-                    {best.quantity && <TableQuantityLine quantity={best.quantity} t={t} locale={locale} className="text-[16px] font-semibold tabular-nums" />}
+                    {best.quantity && <TableQuantityLine quantity={best.quantity} t={t} locale={locale} className="text-lead font-semibold tabular-nums" />}
                     {/* never prefetched: the page issues a code for the bottle (E09 Q19) */}
                     <PeopleLinks people={result.people} hrefFor={(n) => href(path, urlPrefs, { dishes: dishesParam, wine: pickedWineId, people: String(n) })} prefetch={false} t={t} />
                   </div>
                   {alts.length > 0 && (
                     <div className="mt-4 border-t border-line pt-3">
-                      <h3 className="text-[14px] font-semibold text-ink-2">{l.others}</h3>
+                      <h3 className="text-body font-semibold text-ink-2">{l.others}</h3>
                       <ul>
                         {alts.map((a) => (
-                          <li key={a.wine.id} data-alternative={a.wine.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line py-2 text-[14.5px] last:border-b-0">
+                          <li key={a.wine.id} data-alternative={a.wine.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line py-2 text-body last:border-b-0">
                             <span className="min-w-0">
                               <b className="font-semibold">{listNo(a.wine.listNumber)}{a.wine.producer} {a.wine.name}</b>
                               <span className="text-ink-2 tabular-nums"> · {l.fitsOf(a.fit.fits, a.fit.of)} · {formatPrice(a.wine.bottlePrice, locale)}</span>
                             </span>
                             {/* never prefetched: opening it issues a code (E09 Q19, R6) */}
                             <Link href={href(path, urlPrefs, { dishes: dishesParam, wine: a.wine.id, people: peopleParam })} prefetch={false} data-choose={a.wine.id}
-                              className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#d4ccd0] bg-paper px-3.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-wine">{l.choose}</Link>
+                              className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-control bg-paper px-3.5 text-small font-semibold focus-visible:outline-2 focus-visible:outline-wine">{l.choose}</Link>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
                   {result.splitSuggested && result.split.length > 0 && (
-                    <div className="mt-4 rounded-[14px] bg-[#ece8ea] p-3.5">
-                      <h3 className="text-[15px] font-semibold">{t.guest.tableResult.splitTitle}</h3>
-                      <ul className="mt-1.5 grid gap-1.5 text-[14.5px]">
+                    <div className="mt-4 rounded-xl bg-line p-3.5">
+                      <h3 className="text-body font-semibold">{t.guest.tableResult.splitTitle}</h3>
+                      <ul className="mt-1.5 grid gap-1.5 text-body">
                         {result.split.map((s) => (
                           <li key={s.dish.id}><b>{s.dish.name}</b>: {listNo(s.wine.listNumber)}{s.wine.producer} {s.wine.name} · <span className="tabular-nums">{formatPrice(s.wine.glassPrice ?? s.wine.bottlePrice, locale)}</span></li>
                         ))}
                       </ul>
                     </div>
                   )}
-                  {result.setAside.length > 0 && <p className="mt-3 text-sm text-ink-2">{l.dessertsNote(result.setAside.map((d) => d.name).join(', '))}</p>}
+                  {result.setAside.length > 0 && <p className="mt-3 text-small text-ink-2">{l.dessertsNote(result.setAside.map((d) => d.name).join(', '))}</p>}
                 </>
               )}
             </section>
@@ -152,8 +152,8 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
 
           {result ? (
             <div className="mt-6 flex items-center justify-between gap-3">
-              <h2 className="font-serif text-[22px]">{l.changeTable}</h2>
-              <Link href={href(path, urlPrefs)} className="inline-flex min-h-11 items-center text-[14.5px] font-semibold text-wine underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-wine">{l.newTable}</Link>
+              <h2 className="font-serif text-h2">{l.changeTable}</h2>
+              <Link href={href(path, urlPrefs)} className="inline-flex min-h-11 items-center text-body font-semibold text-wine underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-wine">{l.newTable}</Link>
             </div>
           ) : (
             <p className="text-ink-2">{l.lead}</p>
@@ -180,7 +180,7 @@ export default async function StaffTablePage({ params, searchParams }: Props) {
         {dishes.length > 0 && (
           <div className="pointer-events-none sticky bottom-0 z-10 grid gap-2 bg-gradient-to-t from-paper from-70% to-transparent px-5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom))] *:pointer-events-auto lg:pointer-events-auto lg:static lg:mx-auto lg:w-full lg:max-w-[720px] lg:bg-none lg:pb-8">
             <SelectionCount formId="staff-table-form" name="dish" labels={{ initial: t.guest.table.countInitial(2), none: t.guest.table.countNone, below: counts.map((n) => t.guest.table.countOne(n)), selected: counts.map((n) => t.guest.table.countMany(n)) }} />
-            <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full border border-wine bg-wine px-5 text-[16px] font-semibold text-on-wine hover:bg-wine-deep disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">{l.submit}</button>
+            <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full border border-wine bg-wine px-5 text-lead font-semibold text-on-wine hover:bg-wine-deep disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">{l.submit}</button>
           </div>
         )}
       </form>

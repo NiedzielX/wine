@@ -53,19 +53,19 @@ export default async function LandingPage({ params, searchParams }: Props) {
         {hasMenu ? (
           <>
             {tableCard && (
-              <section aria-labelledby="table-card" className="mb-8 grid gap-3 rounded-[18px] border border-line bg-surface p-5">
-                <h2 id="table-card" className="font-serif text-[24px] leading-tight">{t.guest.landing.tableCardTitle}</h2>
-                <p className="text-[15px] leading-snug text-ink-2">{t.guest.landing.tableCardText}</p>
+              <section aria-labelledby="table-card" className="mb-8 grid gap-3 rounded-2xl border border-line bg-surface p-5">
+                <h2 id="table-card" className="font-serif text-h2 leading-tight">{t.guest.landing.tableCardTitle}</h2>
+                <p className="text-body leading-snug text-ink-2">{t.guest.landing.tableCardText}</p>
                 <Button href={tableHref} className="w-full sm:w-auto sm:justify-self-start">{t.guest.landing.tableCardAction}</Button>
               </section>
             )}
-            <h2 className="font-serif text-[28px] leading-tight">{t.guest.landing.pickDish}</h2>
+            <h2 className="font-serif text-h1 leading-tight">{t.guest.landing.pickDish}</h2>
             <p className="mt-1 text-ink-2">{t.guest.landing.pickDishLead}</p>
             <Explain id="landing" className="mt-1" summary={t.guest.explain.landing.summary} points={t.guest.explain.landing.points(ENGINE_FACTS, { showScores, showUnreviewed, director: r.wineDirector, restaurant: r.name })} />
             <DishList dishes={menu.dishes} coverage={coverage} stickyTop="top-0" t={t} locale={locale} hrefFor={(d) => href(`/r/${r.slug}/dish/${d.id}/wines`, prefs)} />
           </>
         ) : (
-          <p className="rounded-xl bg-brass-soft px-4 py-3 text-[15px] text-[#5d4720]">{t.guest.landing.menuUpdating}</p>
+          <p className="rounded-xl bg-brass-soft px-4 py-3 text-body text-brass-ink">{t.guest.landing.menuUpdating}</p>
         )}
         <div className="mt-10 lg:hidden"><WineDirectorNote restaurant={r} howHref={howHref} staffHref={staffHref} t={t} /></div>
       </div>

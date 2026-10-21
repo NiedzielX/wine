@@ -2,6 +2,7 @@
 #
 #   lint        lint, package boundaries, typecheck, dependency audit gate
 #   unit        unit tests of every package, with a coverage report (no threshold)
+#   a11y        axe (WCAG 2.1 AA) on every Storybook story, and contrast of design tokens
 #   build       production build with no environment and no database, plus the start-up checks
 #   database    PostgreSQL integration tests, on a throwaway container (testcontainers)
 #   e2e         the built app on a throwaway PostgreSQL, driven by agent-browser (home page and admin panel)
@@ -46,6 +47,20 @@ jobs:
       - name: Dependency audit (high and critical block; exceptions are listed and dated)
         run: npm run audit:gate
 
+  design:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      - name: Design guard (contrast of tokens, no raw values outside tokens on guest screens, no shadows or emoji)
+        run: npm run check:design
+
   unit:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -59,6 +74,20 @@ jobs:
       - run: npm ci
       - name: Unit tests with coverage report
         run: npm test
+
+  a11y:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      - name: Accessibility (axe on every story) and token contrast
+        run: npm run test:a11y -w @wine-match/ui
 
   build:
     runs-on: ubuntu-24.04

@@ -33,7 +33,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
       <ModeSwitch dishHref={href(`/r/${slug}/menu`, prefs)} tableHref={href(`/r/${slug}/table`, prefs)} mode="dish" t={t} />
       {menu.dishes.length === 0 ? (
         <div className="py-12 text-center">
-          <h2 className="font-serif text-2xl">{t.guest.menu.updatingTitle}</h2>
+          <h2 className="font-serif text-h2">{t.guest.menu.updatingTitle}</h2>
           <p className="mt-2 text-ink-2">{t.guest.menu.updatingText}</p>
         </div>
       ) : (

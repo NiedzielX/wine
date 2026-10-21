@@ -38,5 +38,5 @@ export function SelectionCount({ formId, name, min = 2, labels }: { formId: stri
   const n = count ?? 0;
   const pick = (list: string[]) => list[n] ?? list[list.length - 1];
   const text = count === null ? labels.initial : n === 0 ? labels.none : n < min ? pick(labels.below) : pick(labels.selected);
-  return <span aria-live="polite" className="text-center text-sm text-ink-2">{text}</span>;
+  return <span aria-live="polite" className="text-center text-small text-ink-2">{text}</span>;
 }
