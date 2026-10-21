@@ -65,7 +65,7 @@ export default async function LandingPage({ params, searchParams }: Props) {
             <DishList dishes={menu.dishes} coverage={coverage} stickyTop="top-0" t={t} locale={locale} hrefFor={(d) => href(`/r/${r.slug}/dish/${d.id}/wines`, prefs)} />
           </>
         ) : (
-          <p className="rounded-xl bg-brass-soft px-4 py-3 text-body text-[#5d4720]">{t.guest.landing.menuUpdating}</p>
+          <p className="rounded-xl bg-brass-soft px-4 py-3 text-body text-brass-ink">{t.guest.landing.menuUpdating}</p>
         )}
         <div className="mt-10 lg:hidden"><WineDirectorNote restaurant={r} howHref={howHref} staffHref={staffHref} t={t} /></div>
       </div>

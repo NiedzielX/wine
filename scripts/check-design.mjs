@@ -13,8 +13,9 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const guestDir = join(root, 'packages/app/src/app/(guest)');
 const css = readFileSync(join(guestDir, 'guest.css'), 'utf8');
 
-/** baselines measured on 2026-10-19; lower them when the screens get simpler */
-const BASELINE = { hex: 8, textSizes: 7, radii: 4 };
+/** baselines measured on 2026-10-19; lower them when the screens get simpler.
+ * hex: 1 is the theme-color metadata in (guest)/layout.tsx, which needs a literal value. */
+const BASELINE = { hex: 1, textSizes: 7, radii: 4 };
 
 const failures = [];
 
@@ -69,6 +70,20 @@ const measured = {
 };
 for (const key of Object.keys(BASELINE)) {
   if (measured[key] > BASELINE[key]) failures.push(`${key}: ${measured[key]} distinct values, baseline ${BASELINE[key]} (use a token or a role)`);
+}
+
+// 3. text colour on a tinted background in the same class list (e.g. `bg-brass-soft … text-brass`)
+const colourNames = Object.keys(tokens);
+const pairs = [];
+for (const m of all.matchAll(/["'`]([^"'`\n]*)["'`]/g)) {
+  const words = m[1].split(/\s+/);
+  const bgs = words.filter((w) => w.startsWith('bg-')).map((w) => w.slice(3)).filter((n) => colourNames.includes(n));
+  const texts = words.filter((w) => w.startsWith('text-')).map((w) => w.slice(5)).filter((n) => colourNames.includes(n));
+  for (const bg of bgs) for (const text of texts) pairs.push([text, bg]);
+}
+for (const [text, bg] of new Set(pairs.map((p) => p.join('\u0000')).map((s) => s.split('\u0000')))) {
+  const ratio = contrast(tokens[text], tokens[bg]);
+  if (ratio < 4.5) failures.push(`contrast: text-${text} on bg-${bg} is ${ratio.toFixed(2)}:1 (need 4.5:1)`);
 }
 
 if (failures.length) {

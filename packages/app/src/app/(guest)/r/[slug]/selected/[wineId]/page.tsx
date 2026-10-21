@@ -73,7 +73,7 @@ export default async function SelectedPage({ params, searchParams }: Props) {
       <main className="flex-1 px-5 pt-6 pb-8 lg:mx-auto lg:w-full lg:max-w-[720px]">
         <div className="grid justify-items-center gap-3.5 text-center">
           <p className="max-w-[30ch] text-body text-ink-2">{l.showWaiter}</p>
-          <div className="grid w-full justify-items-center gap-2.5 rounded-2xl border border-[#d4ccd0] bg-surface px-5 py-6">
+          <div className="grid w-full justify-items-center gap-2.5 rounded-2xl border border-control bg-surface px-5 py-6">
             {wine.listNumber !== undefined && <span className="text-small text-ink-2">{l.listNo(wine.listNumber)}</span>}
             <h2 className="font-serif text-h1 leading-[1.12]">{wine.producer}<br />{wine.name}</h2>
             <span className="text-ink-2">{wine.vintage === 'NV' ? t.guest.wine.nonVintage : wine.vintage}</span>
