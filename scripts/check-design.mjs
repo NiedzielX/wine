@@ -32,6 +32,22 @@ for (const name of TEXT_TOKENS) {
   }
 }
 
+// 1b. panel text tokens (packages/ui/src/styles.css), light and dark theme
+const panelCss = readFileSync(join(root, 'packages/ui/src/styles.css'), 'utf8');
+const [lightBlock, darkBlock] = panelCss.split(/^\.dark\s*\{/m);
+const themes = {
+  light: { block: lightBlock, pairs: [['foreground', 'background'], ['muted-foreground', 'background'], ['muted-foreground', 'card'], ['primary', 'background'], ['accent-foreground', 'accent'], ['sage', 'card'], ['brass', 'card'], ['destructive', 'card']] },
+  dark: { block: darkBlock ?? '', pairs: [['foreground', 'background'], ['muted-foreground', 'background'], ['muted-foreground', 'card'], ['primary', 'background'], ['sage', 'card'], ['brass', 'card']] }
+};
+for (const [theme, { block, pairs }] of Object.entries(themes)) {
+  const vars = Object.fromEntries([...block.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6})/g)].map((m) => [m[1], m[2]]));
+  for (const [fg, bg] of pairs) {
+    if (!vars[fg] || !vars[bg]) { failures.push(`panel ${theme}: token --${fg} or --${bg} missing in styles.css`); continue; }
+    const ratio = contrast(vars[fg], vars[bg]);
+    if (ratio < 4.5) failures.push(`panel ${theme}: --${fg} on --${bg} is ${ratio.toFixed(2)}:1 (need 4.5:1)`);
+  }
+}
+
 // 2. raw values in guest screens (everything under (guest) except the theme file)
 const sources = [];
 const walk = (dir) => {
@@ -43,6 +59,9 @@ const walk = (dir) => {
 };
 walk(guestDir);
 const all = sources.join('\n');
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+for (const file of sources) { if (EMOJI.test(file)) failures.push('guest screen contains an emoji glyph (use an icon from the single set)'); }
+if (/\bshadow-(?:sm|md|lg|xl|2xl)\b/.test(all)) failures.push('guest screens use a shadow utility (flat surfaces with a 1px line; only overlays such as the filter sheet may use an arbitrary shadow, docs/DESIGN_SYSTEM.md §3)');
 const distinct = (re) => new Set([...all.matchAll(re)].map((m) => m[0])).size;
 const measured = {
   hex: distinct(/#[0-9a-fA-F]{6}\b/g),

@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, NativeSelect, NativeSelectOption } from '@wine-match/ui';
+import { Alert, AlertDescription, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, NativeSelect, NativeSelectOption, StatusIcon } from '@wine-match/ui';
 import { LOCALES, TEXT_LIMITS, restaurantContentVersion, type SetupStep, type SetupStepKey } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -54,7 +54,7 @@ export default async function SetupPage({ params, searchParams }: Props) {
           <CardContent className="px-0">
             {setup.steps.map((step) => ({ ...step, href: HREFS[step.key] })).map((s, i) => (
               <div key={s.key} className="grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-start gap-3 border-b px-6 py-4 last:border-b-0">
-                <span aria-hidden="true" className={`grid size-6 place-items-center rounded-full text-xs ${s.done ? 'bg-sage-soft text-sage' : s.key === next?.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{s.done ? '✓' : i + 1}</span>
+                <span aria-hidden="true" className={`grid size-6 place-items-center rounded-full text-xs ${s.done ? 'bg-sage-soft text-sage' : s.key === next?.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{s.done ? <StatusIcon done className="size-3.5" /> : i + 1}</span>
                 <div className="min-w-0 text-sm"><b className="font-medium">{m.steps[s.key]}</b><div className="text-muted-foreground">{detail(s)}</div></div>
                 {s.href && (!s.done || s.key === 'qr') && <Button asChild size="sm" variant={s.key === next?.key ? 'default' : 'outline'}><Link href={s.href}>{m.links[s.key]}</Link></Button>}
               </div>
