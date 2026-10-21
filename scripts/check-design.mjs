@@ -53,6 +53,20 @@ for (const key of Object.keys(BASELINE)) {
   if (measured[key] > BASELINE[key]) failures.push(`${key}: ${measured[key]} distinct values, baseline ${BASELINE[key]} (use a token or a role)`);
 }
 
+// 3. text colour on a tinted background in the same class list (e.g. `bg-brass-soft … text-brass`)
+const colourNames = Object.keys(tokens);
+const pairs = [];
+for (const m of all.matchAll(/["'`]([^"'`\n]*)["'`]/g)) {
+  const words = m[1].split(/\s+/);
+  const bgs = words.filter((w) => w.startsWith('bg-')).map((w) => w.slice(3)).filter((n) => colourNames.includes(n));
+  const texts = words.filter((w) => w.startsWith('text-')).map((w) => w.slice(5)).filter((n) => colourNames.includes(n));
+  for (const bg of bgs) for (const text of texts) pairs.push([text, bg]);
+}
+for (const [text, bg] of new Set(pairs.map((p) => p.join('\u0000')).map((s) => s.split('\u0000')))) {
+  const ratio = contrast(tokens[text], tokens[bg]);
+  if (ratio < 4.5) failures.push(`contrast: text-${text} on bg-${bg} is ${ratio.toFixed(2)}:1 (need 4.5:1)`);
+}
+
 if (failures.length) {
   console.error('check-design failed:\n  ' + failures.join('\n  '));
   process.exit(1);

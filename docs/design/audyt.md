@@ -49,7 +49,7 @@ Data: 2026-10-19. Zakres: aplikacja gościa (`packages/app/src/app/(guest)`), pa
 ## 5. Otwarte
 
 - Pigułki jako świadoma decyzja (sekcja 1): zostają, do przeglądu przez człowieka.
-- Kontrast odznaki „Sommelier’s pairing” (brąz na `brass-soft`, 4,30:1): naprawiony tekstem `brass-ink` (7,54:1) w odznace gościa, na stronie wina, na G9 i w nagłówku restauracji. `check:design` tego nie łapie (sprawdza tylko tokeny tekstu na tle paper/surface); do dodania osobno.
+- Kontrast odznaki „Sommelier’s pairing” (brąz na `brass-soft`, 4,30:1): naprawiony tekstem `brass-ink` (7,54:1) w odznace gościa, na stronie wina, na G9 i w nagłówku restauracji. `check:design` od teraz to łapie: para `text-*` i `bg-*` w jednym literale klas musi mieć kontrast ≥ 4,5:1 (test negatywny: przywrócenie `text-brass` na `brass-soft` daje błąd).
 - Wykrywacz jako agent na tym samym raporcie: do zrobienia w kolejnym przebiegu, nie blokuje tego PR.
 - Ciemny motyw gościa: poza zakresem (decyzja właściciela).
 
