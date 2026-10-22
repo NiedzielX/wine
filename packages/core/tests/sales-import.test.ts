@@ -126,8 +126,9 @@ describe('finding the columns of a sales file (R3, Q13)', () => {
 
   it('reads Polish headers with Polish letters, exactly; other columns are not copied into the records (R9)', () => {
     const t = mapTable('sales', [['Raport sprzedaży'], [...header, 'Nazwa klienta', 'Typ płatności', 'Typ', 'Stolik', 'Kelner', 'Uwagi'], ['14.10.2026', '101', '2', 'Kuchnia', 'Kaczka', '1', '96,30', 'Jan Kowalski', 'Karta', 'X', '12', 'Ola', 'Pan Kowalski, alergia']]);
-    expect(t.records).toEqual([{ businessDate: '14.10.2026', checkId: '101', covers: '2', itemType: 'Kuchnia', itemName: 'Kaczka', quantity: '1', netAmount: '96,30' }]);
-    expect(t.notes).toEqual(['Columns not used: Nazwa klienta, Typ płatności, Typ, Stolik, Kelner, Uwagi.']);
+    // „Uwagi” is the comment column of the recommendation code (R8): it is read, but only a code would leave it
+    expect(t.records).toEqual([{ businessDate: '14.10.2026', checkId: '101', covers: '2', itemType: 'Kuchnia', itemName: 'Kaczka', quantity: '1', netAmount: '96,30', recommendationCode: '' }]);
+    expect(t.notes).toEqual(['Columns not used: Nazwa klienta, Typ płatności, Typ, Stolik, Kelner.']);
     expect(JSON.stringify(t.records)).not.toMatch(/Kowalski|Karta|Ola|alergia/);
   });
 
@@ -301,7 +302,10 @@ describe('ImportService: sales', () => {
     expect(JSON.stringify(job.rows)).not.toContain('Kowalski');
     const preview = await t.imp.salesPreview('halka', job.id);
     expect(preview.unmappedValues).toEqual([{ value: 'Wina białe', lines: 1 }]);
-    expect(preview.summary).toEqual({ from: '2026-10-14', to: '2026-10-15', checks: 3, lines: { food: 2, wine_glass: 1, wine_bottle: 1, other: 0 }, incompleteChecks: 1, replacedChecks: 0 });
+    expect(preview.summary).toEqual({
+      from: '2026-10-14', to: '2026-10-15', checks: 3, lines: { food: 2, wine_glass: 1, wine_bottle: 1, other: 0 }, incompleteChecks: 1, replacedChecks: 0,
+      checksWithCode: 0, unmatchedCodes: 0
+    });
     expect(preview.kpis).toMatchObject({ foodChecks: 2, foodChecksWithWine: 1, attachRate: 0.5 });
     expect(t.store.salesLines).toEqual([]);
   });

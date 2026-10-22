@@ -1180,7 +1180,7 @@ export const pl = {
         tasting_note_pl: 'Notatka degustacyjna (PL)', tasting_note_en: 'Notatka degustacyjna (EN)', region_pl: 'Region (PL)', region_en: 'Region (EN)', country_pl: 'Kraj (PL)', country_en: 'Kraj (EN)',
         category: 'Kategoria', name: 'Nazwa', description: 'Opis', price: 'Cena (zł)',
         producer: 'Producent', wineName: 'Wino', vintage: 'Rocznik', region: 'Region', country: 'Kraj', grape: 'Szczep', style: 'Styl', glassPrice: 'Kieliszek', bottlePrice: 'Butelka',
-        businessDate: 'Data', checkId: 'Rachunek', covers: 'Goście', itemType: 'Typ', itemName: 'Pozycja', quantity: 'Ilość', netAmount: 'Netto (zł)'
+        businessDate: 'Data', checkId: 'Rachunek', covers: 'Goście', itemType: 'Typ', itemName: 'Pozycja', recommendationCode: 'Kod polecenia', quantity: 'Ilość', netAmount: 'Netto (zł)'
       },
       uploadTitle: '1. Prześlij plik',
       uploadText: 'CSV, Excel (.xlsx) lub PDF, do 10 MB. Nic nie zostanie zapisane, dopóki nie potwierdzisz.',
@@ -1260,6 +1260,19 @@ export const pl = {
         resultReplaced: 'Zastąpione rachunki',
         doneText: 'Pozycje są zapisane. Nowszy eksport tych samych rachunków je zastępuje, więc ponowny import poprawionego pliku jest bezpieczny.',
         seeRate: 'Zobacz Wine Attach Rate',
+        codeNote: (checks: number, unmatched: number) => `${checks} ${plural(checks, 'rachunek ma kod polecenia', 'rachunki mają kod polecenia', 'rachunków ma kod polecenia')}. ${unmatched === 0 ? 'Każdy pasuje do polecenia z tego dnia.' : `${unmatched} ${plural(unmatched, 'kod nie pasuje', 'kody nie pasują', 'kodów nie pasuje')} do poleceń z tego dnia.`}`,
+        recommendation: {
+          title: 'Wino z polecenia',
+          description: 'Kody poleceń wydane w wybranych dniach biznesowych i to, ile z nich zamówiono.',
+          ordered: (ordered: number, issued: number) => `Zamówione: ${ordered} z ${issued} ${issued === 1 ? 'polecenia' : 'poleceń'}`,
+          split: (waiter: number, till: number) => `(kelner ${waiter}, kasa ${till}). Każde polecenie liczy się raz.`,
+          unmatched: (n: number) => `Kody w kasie bez polecenia: ${n}`,
+          noneTitle: 'Brak danych',
+          none: 'W tym okresie nie wydano ani nie zaimportowano kodów poleceń.',
+          note: 'Kod pokazuje, że gość zamówił polecane wino. Nie dowodzi, że zrobiło to polecenie.',
+          invalidTitle: 'Tego okresu nie można pokazać',
+          invalid: 'Wybierz daty oddalone najwyżej o 366 dni, z końcem nie przed początkiem.'
+        },
         attach: {
           title: 'Wine Attach Rate',
           description: 'Rachunki z jedzeniem, na których było też wino, spośród wszystkich rachunków z jedzeniem, w wybranych dniach.',

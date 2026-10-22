@@ -47,7 +47,8 @@ const qty = (n: number) => Math.round(n * 1000) / 1000;
 const keyOf = (k: CheckKey) => `${k.businessDate}|${k.checkId}`;
 
 /** Sums the lines per check, in the order the checks first appear. Used by the memory store and the import preview. */
-export function aggregateChecks(lines: Array<Omit<SalesRecord, 'id'>>): CheckTotals[] {
+/** The KPI rules read only what they sum: the code of a line does not change a check's totals. */
+export function aggregateChecks(lines: Array<Omit<SalesRecord, 'id' | 'recommendationCode'>>): CheckTotals[] {
   const checks = new Map<string, CheckTotals>();
   for (const l of lines) {
     const key = keyOf(l);

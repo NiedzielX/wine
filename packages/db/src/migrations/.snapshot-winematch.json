@@ -3088,6 +3088,23 @@
           "enumItems": [],
           "mappedType": "decimal"
         },
+        "recommendation_code": {
+          "name": "recommendation_code",
+          "type": "varchar(4)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 4,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
         "replaced_at": {
           "name": "replaced_at",
           "type": "timestamptz(6)",
@@ -3150,6 +3167,15 @@
           "keyName": "sales_record_pkey",
           "primary": true,
           "unique": true
+        },
+        {
+          "columnNames": [],
+          "composite": false,
+          "constraint": false,
+          "keyName": "sales_record_recommendation_code_idx",
+          "primary": false,
+          "unique": false,
+          "expression": "create index sales_record_recommendation_code_idx on sales_record (restaurant_id, business_date, recommendation_code) where recommendation_code is not null"
         },
         {
           "columnNames": [

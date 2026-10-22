@@ -103,10 +103,14 @@ export const TRANSLATION_FIELDS = { menu: MENU_TRANSLATION_FIELDS, wines: WINE_T
  * `itemName` is shown in the preview to recognise a line but is never saved (Q18). Nothing outside this list is copied
  * from the file into a record (R9).
  */
-export const SALES_FIELDS = ['businessDate', 'checkId', 'covers', 'itemType', 'itemName', 'quantity', 'netAmount'] as const;
+export const SALES_FIELDS = ['businessDate', 'checkId', 'covers', 'itemType', 'itemName', 'recommendationCode', 'quantity', 'netAmount'] as const;
 export type SalesField = (typeof SALES_FIELDS)[number];
 export const SALES_REQUIRED_FIELDS: readonly SalesField[] = ['businessDate', 'checkId', 'itemType', 'quantity', 'netAmount'];
-export const SALES_OPTIONAL_FIELDS: readonly SalesField[] = ['covers', 'itemName'];
+/**
+ * `recommendationCode` (spec 2026-10-16-recommendation-code, R8) is the only part of a POS comment that is kept: the
+ * code itself, normalised, or nothing. The comment text never reaches a record.
+ */
+export const SALES_OPTIONAL_FIELDS: readonly SalesField[] = ['covers', 'itemName', 'recommendationCode'];
 
 /**
  * One decision for every line with the same unrecognised category (Q3, R4): „Wina białe” → `wine_bottle`. Values are
