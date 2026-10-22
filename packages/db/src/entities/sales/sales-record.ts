@@ -17,7 +17,7 @@ export const SalesRecordEntity = defineEntity({
     importJob: () => p.manyToOne(ImportJobEntity),
     businessDate: p.date(),
     checkId: p.string().length(64),
-    covers: p.integer().columnType('smallint').nullable().check('covers between 0 and 999'),
+    covers: p.integer().columnType('smallint').nullable().check('covers >= 0 and covers <= 999'),
     itemType: p.enum([...SALES_ITEM_TYPES]),
     quantity: p.decimal('number').precision(10).scale(3).check('quantity <> 0'),
     netAmount: p.decimal('number').precision(12).scale(2),
