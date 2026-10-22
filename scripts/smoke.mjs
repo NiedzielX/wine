@@ -354,6 +354,9 @@ await check('A1 dashboard', A, { has: ['Dashboard', 'Sommelier-led dishes', 'Pub
 // E04 F1 (spec 2026-10-15-kpi-dashboard): the Guest usage section — the tiles or, without guest sessions, the empty state; never the section error
 await check('A1 guest usage', A, { has: ['id="usage-title"', '>Guest usage</h2>', 'Last 28 days · '], hasNot: ['Guest activity', 'Analytics are temporarily unavailable.'] });
 await check('A1 guest usage in Polish', A, { cookie: `${SESSION}; wm_lang=pl`, has: ['>Korzystanie gości</h2>', 'Ostatnie 28 dni · '], hasNot: ['Analityka jest chwilowo niedostępna.'] });
+// E04 F2 (spec 2026-10-15-kpi-dashboard): the Sales section first — the tiles or, without POS sales in the window, the empty state; never the section error
+await check('A1 sales', A, { has: ['id="sales-title"', '>Sales</h2>', 'Wine attach rate'], hasNot: ['Analytics are temporarily unavailable.'] });
+await check('A1 sales in Polish', A, { cookie: `${SESSION}; wm_lang=pl`, has: ['>Sprzedaż</h2>', 'Wine Attach Rate'], hasNot: ['Analityka jest chwilowo niedostępna.'] });
 // E04 F3: the Pairing performance table (the demo has approved pairings, so rows with or without views), top 10 and ?pairs=all
 await check('A1 pairing performance', A, { has: ['id="pairings-title"', '>Pairing performance</h2>', 'data-pairing-row=', `href="${A}?pairs=all"`, 'data-explain="performance"'], hasNot: ['Analytics are temporarily unavailable.'] });
 await check('A1 pairing performance: all rows', `${A}?pairs=all`, { has: ['>Pairing performance</h2>', 'data-pairing-row=', 'Show top 10'], hasNot: ['Analytics are temporarily unavailable.', '>Show all '] });

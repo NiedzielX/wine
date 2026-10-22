@@ -4,16 +4,20 @@ import { localizeDish } from '../../i18n/content';
 import type { Locale } from '../../i18n/locale';
 import type { PairingStatSource, Repositories } from '../../ports/repositories';
 import type { Clock } from '../../ports/runtime';
-import { count, rate, type Metric } from './compare-metric';
+import type { SalesKpiService } from '../sales/sales-kpi-service';
+import { count, money, rate, type Metric } from './compare-metric';
 import { kpiWindow, type KpiPeriod } from './kpi-window';
 
 /**
- * The KPI dashboard's read service (spec 2026-10-15-kpi-dashboard). Phase 1: guest usage; phase 3: pairing
- * performance. Sales (`salesSummary`, phase 2) is added here with its own dependency; each method is loaded and fails
- * on its own on A1 (R9).
+ * The KPI dashboard's read service (spec 2026-10-15-kpi-dashboard): guest usage (phase 1), sales (phase 2, through
+ * E03's `SalesKpiService`) and pairing performance (phase 3). Each method is loaded and fails on its own on A1 (R9).
  */
 export type AnalyticsServiceDeps = Pick<Repositories,
-  'restaurantRepository' | 'guestInteractionRepository' | 'pairingRepository' | 'dishRepository' | 'wineRepository'> & { clock: Clock };
+  'restaurantRepository' | 'guestInteractionRepository' | 'pairingRepository' | 'dishRepository' | 'wineRepository'> & {
+  clock: Clock;
+  /** E03's contract for E04 (phase 2): the sales KPIs of a period and the days with data */
+  salesKpiService: Pick<SalesKpiService, 'getSalesKpis' | 'dataRange'>;
+};
 
 /** The number of pairing rows A1 shows before "Show all N pairings" (Q11). */
 export const PAIRING_ROWS_LIMIT = 10;
@@ -58,6 +62,24 @@ export interface UsageSummary {
   staffLookups: Metric;
 }
 
+/**
+ * The sales KPIs of the last 28 full days against the 28 before (#21, R4–R7, Q3). Only POS sales (E03): no figure
+ * divides guest sessions (E02) or ordered recommendation codes (E09) by checks, or the other way round (R4).
+ */
+export interface SalesSummary {
+  period: UsageSummary['period'];
+  /** null: no active sales line in the current window — A1 shows the empty state, not zeros */
+  source: 'sales_import' | null;
+  /** the last business day with sales data at all (any window), null when nothing was imported */
+  latestDataDay: string | null;
+  /** checks with food that had wine / checks with food (E03 Q7), per check; `sample` in checks with food */
+  attachRate: Metric;
+  wineRevenuePerGuest: Metric;
+  wineRevenuePerTable: Metric;
+  averageBottle: Metric;
+  averageGlass: Metric;
+}
+
 export class AnalyticsService {
   constructor(private readonly deps: AnalyticsServiceDeps) {}
 
@@ -77,6 +99,34 @@ export class AnalyticsService {
       recommendationViews: count(cur.recommendationViews, prev.recommendationViews),
       recommendationToSelection: rate(cur.sessionsWithSelection, cur.sessionsWithViews, prev.sessionsWithSelection, prev.sessionsWithViews),
       staffLookups: count(cur.staffLookups, prev.staffLookups)
+    };
+  }
+
+  /**
+   * Sales of the last 28 full days against the 28 before (#21): E03's `getSalesKpis` once per window and `dataRange`
+   * for the latest day with data (Q3). The attach rate is a rate in percentage points with its sample in checks with
+   * food (R5–R7); the four amounts change in %. A window without sales has null amounts, so its change is
+   * "no comparison". Null for an unknown restaurant.
+   */
+  async salesSummary(slug: string): Promise<SalesSummary | null> {
+    const restaurant = await this.deps.restaurantRepository.findBySlug(slug);
+    if (!restaurant) return null;
+    const w = kpiWindow(this.deps.clock.now());
+    const sales = this.deps.salesKpiService;
+    const [cur, prev, range] = await Promise.all([
+      sales.getSalesKpis(slug, w.current),
+      sales.getSalesKpis(slug, w.previous),
+      sales.dataRange(slug)
+    ]);
+    return {
+      period: { current: w.current, previous: w.previous },
+      source: cur.source,
+      latestDataDay: range?.to ?? null,
+      attachRate: rate(cur.foodChecksWithWine, cur.foodChecks, prev.foodChecksWithWine, prev.foodChecks),
+      wineRevenuePerGuest: money(cur.wineRevenuePerGuest, prev.wineRevenuePerGuest),
+      wineRevenuePerTable: money(cur.wineRevenuePerTable, prev.wineRevenuePerTable),
+      averageBottle: money(cur.averageBottle, prev.averageBottle),
+      averageGlass: money(cur.averageGlass, prev.averageGlass)
     };
   }
 

@@ -775,6 +775,27 @@ export const en = {
       openWines: 'Open the wine list',
       opportunities: (n: number) => `Opportunities: ${n}`,
       openOpportunities: 'Open opportunities',
+      /** "Sales" (spec 2026-10-15-kpi-dashboard, phase 2, #21): POS sales from E03, never divided by guest sessions (R4) */
+      sales: {
+        title: 'Sales',
+        attachRate: 'Wine attach rate',
+        attachDetail: (n: string, of: string) => `${n} of ${of} checks with food`,
+        perGuest: 'Wine revenue per guest',
+        perGuestDetail: 'Checks with food that have a guest count',
+        perTable: 'Wine revenue per table',
+        perTableDetail: 'Per check with food',
+        averageBottle: 'Average bottle',
+        averageBottleDetail: 'Net price per bottle sold',
+        averageGlass: 'Average glass',
+        averageGlassDetail: 'Net price per glass sold',
+        noData: 'No data',
+        through: (day: string) => `Sales data through ${day}`,
+        emptyTitle: 'Upload a POS export to see attach rate',
+        emptyText: (days: number) => `Wine attach rate and wine revenue come from your POS sales of the last ${days} days.`,
+        importSales: 'Import sales',
+        noImportAccess: 'Someone with import access can upload it.',
+        latest: (day: string) => `Latest sales data: ${day}.`
+      },
       /** "Guest usage" (spec 2026-10-15-kpi-dashboard, phase 1) */
       usage: {
         title: 'Guest usage',
@@ -1100,6 +1121,16 @@ export const en = {
           'Dish recommendations viewed: each dish once per session. The whole-table path is not counted here.',
           `Recommendation → selection: of the sessions that viewed wines for a dish, those that chose one. Below ${k.minSample} sessions in either period the change is not shown.`,
           'Waiter lookups: the staff screen, for a dish or a whole table. Never counted as guest sessions.'
+        ]
+      },
+      /** the "Sales" section of A1 (spec 2026-10-15-kpi-dashboard, phase 2; E07: explanations of new KPIs belong to E04) */
+      salesKpis: {
+        summary: 'How are sales counted?',
+        points: (k: UsageExplainFacts) => [
+          `Sales from your POS exports for the last ${k.days} full days up to yesterday, compared with the ${k.days} days before.`,
+          'Wine attach rate: checks with food that also had wine, out of all checks with food. Bar checks with wine only count for wine revenue, not for the rate.',
+          `Below ${k.minSample} checks with food in either period the change is not shown.`,
+          'Amounts are net. Revenue per guest uses the guests column of the export. Guest sessions in the app are never divided by checks.'
         ]
       },
       /** the "Pairing performance" table of A1 (spec 2026-10-15-kpi-dashboard, phase 3) */

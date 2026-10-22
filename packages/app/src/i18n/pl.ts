@@ -654,6 +654,26 @@ export const pl = {
       openWines: 'Otwórz kartę win',
       opportunities: (n: number) => `Okazje: ${n}`,
       openOpportunities: 'Otwórz okazje',
+      sales: {
+        title: 'Sprzedaż',
+        attachRate: 'Wine Attach Rate',
+        attachDetail: (n: string, of: string) => `${n} z ${of} rachunków z jedzeniem`,
+        perGuest: 'Przychód z wina na gościa',
+        perGuestDetail: 'Rachunki z jedzeniem z liczbą gości',
+        perTable: 'Przychód z wina na stolik',
+        perTableDetail: 'Na rachunek z jedzeniem',
+        averageBottle: 'Średnia butelka',
+        averageBottleDetail: 'Cena netto sprzedanej butelki',
+        averageGlass: 'Średni kieliszek',
+        averageGlassDetail: 'Cena netto sprzedanego kieliszka',
+        noData: 'Brak danych',
+        through: (day: string) => `Dane sprzedaży do ${day}`,
+        emptyTitle: 'Wgraj eksport z POS, aby zobaczyć Wine Attach Rate',
+        emptyText: (days: number) => `Wine Attach Rate i przychód z wina liczymy ze sprzedaży z POS z ostatnich ${days} dni.`,
+        importSales: 'Importuj sprzedaż',
+        noImportAccess: 'Może go wgrać osoba z uprawnieniem do importu.',
+        latest: (day: string) => `Ostatnie dane sprzedaży: ${day}.`
+      },
       usage: {
         title: 'Korzystanie gości',
         window: (days: number, from: string, to: string) => `Ostatnie ${days} dni · ${from} – ${to}`,
@@ -969,6 +989,15 @@ export const pl = {
           'Wyświetlone rekomendacje do dań: każde danie raz na sesję. Ścieżka „Cały stół” nie jest tu liczona.',
           `Rekomendacja → wybór: spośród sesji, które obejrzały wina do dania, te, w których gość wybrał wino. Poniżej ${k.minSample} sesji w którymkolwiek okresie zmiana nie jest pokazywana.`,
           'Wyszukiwania kelnera: ekran obsługi, dla dania lub całego stołu. Nigdy nie liczą się jako sesje gości.'
+        ]
+      },
+      salesKpis: {
+        summary: 'Jak liczymy sprzedaż?',
+        points: (k: UsageExplainFacts) => [
+          `Sprzedaż z eksportów POS z ostatnich ${k.days} pełnych dni do wczoraj, w porównaniu z ${k.days} dniami wcześniej.`,
+          'Wine Attach Rate: rachunki z jedzeniem, na których było też wino, spośród wszystkich rachunków z jedzeniem. Rachunki barowe z samym winem liczą się do przychodu z wina, nie do wskaźnika.',
+          `Poniżej ${k.minSample} rachunków z jedzeniem w którymkolwiek okresie zmiana nie jest pokazywana.`,
+          'Kwoty netto. Przychód na gościa korzysta z kolumny gości w eksporcie. Sesji gości w aplikacji nigdy nie dzielimy przez rachunki.'
         ]
       },
       performance: {
