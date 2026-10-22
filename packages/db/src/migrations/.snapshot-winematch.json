@@ -3167,8 +3167,8 @@
       "checks": [
         {
           "name": "sales_record_covers_check",
-          "expression": "covers between 0 and 999",
-          "definition": "check (covers between 0 and 999)",
+          "expression": "covers >= 0 and covers <= 999",
+          "definition": "check (covers >= 0 and covers <= 999)",
           "columnName": "covers"
         },
         {
