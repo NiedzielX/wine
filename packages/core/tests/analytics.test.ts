@@ -295,7 +295,7 @@ describe('AnalyticsService.salesSummary (#21, R4–R7, Q3, AC4–AC6)', () => {
     const line = (businessDate: string, checkId: string, itemType: SalesItemType, quantity: number, netAmount: number, covers: number | null = null, restaurantId = ds.restaurant.id) =>
       store.salesLines.push({
         id: `5a1e5000-0000-4000-8000-${String(++n).padStart(12, '0')}`, businessDate, checkId, covers, itemType, quantity, netAmount,
-        restaurantId, importJobId: 'job', replacedAt: null, replacedByJobId: null
+        restaurantId, importJobId: 'job', recommendationCode: null, replacedAt: null, replacedByJobId: null
       });
     /** `food` checks with food and two guests on `day`; the first `withWine` of them also have a 180 zł bottle, the next `withGlass` two 30 zł glasses */
     const checks = (day: string, prefix: string, food: number, withWine: number, withGlass = 0) => {
