@@ -19,6 +19,20 @@ async function chain(name: string) {
   return { parsed, mapped, ...buildSalesRows(mapped.records, TODAY) };
 }
 
+describe('sales files with recommendation codes: only the code leaves the till comment (E09 F3, AC9)', () => {
+  it('sales-pos-codes.csv: the comment column keeps its code and nothing else (R8)', async () => {
+    const { mapped, rows } = await chain('sales-pos-codes.csv');
+    expect(mapped.notes).toEqual([expect.stringContaining('No guests column')]);
+    expect(JSON.stringify(rows)).not.toMatch(/Kowalski|alergia|Ola|glutenu|stolik|Uwagi/);
+    const { lines, checksWithCode, codes } = completeChecks(rows);
+    expect(lines.map((l) => [l.checkId, l.recommendationCode])).toEqual([
+      ['301', 'W7K'], ['301', null], ['302', 'W3M'], ['303', null], ['304', 'A4K'], ['305', null], ['305', 'H4N']
+    ]);
+    expect(checksWithCode).toBe(4);
+    expect(codes.map((c) => `${c.businessDate}|${c.code}`).sort()).toEqual(['2026-10-14|A4K', '2026-10-14|W3M', '2026-10-14|W7K', '2026-10-15|H4N']);
+  });
+});
+
 describe('sales files: parser → columns → lines (AC11)', () => {
   for (const name of ['sales-pos.csv', 'sales-pos-1250.csv']) {
     it(`${name}: Polish headers and letters, ';' and decimal commas; guest, waiter and payment columns are ignored`, async () => {

@@ -15,7 +15,7 @@ function setup() {
   let n = 0;
   const add = (restaurantId: string, businessDate: string, checkId: string, itemType: SalesItemType, quantity: number, netAmount: number, covers: number | null = null, replacedAt: string | null = null) =>
     store.salesLines.push({
-      id: `5a1e5000-0000-4000-8000-${String(++n).padStart(12, '0')}`, businessDate, checkId, covers, itemType, quantity, netAmount,
+      id: `5a1e5000-0000-4000-8000-${String(++n).padStart(12, '0')}`, businessDate, checkId, covers, itemType, quantity, netAmount, recommendationCode: null,
       restaurantId, importJobId: 'job', replacedAt, replacedByJobId: replacedAt ? 'job-2' : null
     });
   return { ds, store, service, add, rid: ds.restaurant.id, slug: ds.restaurant.slug };

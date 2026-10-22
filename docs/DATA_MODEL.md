@@ -253,7 +253,7 @@ Kod polecenia wydany na G8 (spec `2026-10-16-recommendation-code`, F1; R1–R5, 
 | confirmed_at | timestamptz null | „Zamówione” w G9 (F2); `coalesce` — drugie potwierdzenie nie zmienia czasu |
 | confirmed_by | varchar(20) null | `actor` potwierdzenia (`staff_view`) |
 
-Indeksy: unikalny `recommendation_code_choice_unique` (`restaurant_id`, `service_day`, `session_id`, `wine_id`, `serving`, `dish_ids`) — ten sam wybór w tym samym dniu ma jeden kod (R3), a prefiks indeksu liczy polecenia sesji (limit 30 gość / 300 kelner, R13); (`restaurant_id`, `issued_at`). Zapis: `insert … on conflict do nothing returning`, po konflikcie odczyt po kluczu wyboru (`existing`) albo `code_taken` (do 6 prób 3-znakowych i 6 prób 4-znakowych, Q4). Pamięć (`DATA_SOURCE=memory`) trzyma najwyżej 10 000 poleceń. Migracja `Migration20261018125821_recommendation_code` jest addytywna; `down` usuwa tabelę (tylko dev/test — w produkcji wycofanie to poprzedni obraz aplikacji, schemat zostaje). Retencja: brak w MVP (Q14). Kolumna `sales_record.recommendation_code` dojdzie w F3.
+Indeksy: unikalny `recommendation_code_choice_unique` (`restaurant_id`, `service_day`, `session_id`, `wine_id`, `serving`, `dish_ids`) — ten sam wybór w tym samym dniu ma jeden kod (R3), a prefiks indeksu liczy polecenia sesji (limit 30 gość / 300 kelner, R13); (`restaurant_id`, `issued_at`). Zapis: `insert … on conflict do nothing returning`, po konflikcie odczyt po kluczu wyboru (`existing`) albo `code_taken` (do 6 prób 3-znakowych i 6 prób 4-znakowych, Q4). Pamięć (`DATA_SOURCE=memory`) trzyma najwyżej 10 000 poleceń. Migracja `Migration20261018125821_recommendation_code` jest addytywna; `down` usuwa tabelę (tylko dev/test — w produkcji wycofanie to poprzedni obraz aplikacji, schemat zostaje). Retencja: brak w MVP (Q14). Kolumna `sales_record.recommendation_code` dodana w F3 (migracja `Migration20261021190119_sales_record_recommendation_code`, sekcja SalesRecord).
 
 ### Recommendation (precomputed cache)
 
@@ -302,6 +302,8 @@ Partycjonowanie miesięczne. Brak cookies śledzących i danych osobowych gości
 ### SalesRecord (`sales_record`, import CSV / XLSX z POS, później API POS)
 
 Spec `2026-10-15-pos-sales-import-attach-rate` (E03), faza 1, migracja `Migration20261019064652_sales_record`. Jedna linia = jedna pozycja rachunku z eksportu POS.
+
+**Kod polecenia (E09 F3, spec `2026-10-16-recommendation-code`, migracja `Migration20261021190119_sales_record_recommendation_code`):** kolumna `recommendation_code varchar(4) null` (znormalizowany kod albo null; komentarz z POS nigdy nie trafia do bazy, R8) i częściowy indeks `sales_record_recommendation_code_idx` (`restaurant_id`, `business_date`, `recommendation_code`) `where recommendation_code is not null`. Dopasowanie w POS (R9) nie jest zapisywane: liczy się przy odczycie — kod polecenia dnia (`business_date` = `service_day`) na dowolnej linii aktywnego rachunku, którego suma ilości `wine_glass` + `wine_bottle` > 0. `down` tej migracji usuwa kolumnę razem z kodami z importów: tylko dev/test; w produkcji wycofanie = poprzedni obraz aplikacji.
 
 | Pole | Typ | Uwagi |
 |---|---|---|

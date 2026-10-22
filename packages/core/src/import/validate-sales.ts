@@ -1,4 +1,5 @@
 import { SALES_NOTES } from './mapping';
+import { normalizeCode } from '../recommendation-code/code-format';
 import { normKey, normaliseItemType, parseAmount, parseCovers, parseQuantity, readDateCell, isoDay, slashedDateOrder, type DateCell } from './normalize';
 import { SALES_FIELDS, type ImportIssue, type ImportIssueCode, type ImportRow, type RowEdit, type ValueMapEntry } from './types';
 import type { CheckKey, SalesItemType, SalesRecord } from '../services/sales/types';
@@ -60,6 +61,9 @@ export function evaluateSalesRow(input: Record<string, string>, facts: FileFacts
 
   if (!f.checkId) issues.push(err('checkId', 'check_missing', 'Check number is missing.'));
   else if (f.checkId.length > 64) issues.push(err('checkId', 'check_too_long', 'The check number is too long (64 characters at most).'));
+
+  // R8: the field holds a code in its stored form or nothing; text typed over it in the preview is dropped, not an error
+  if (Object.hasOwn(f, 'recommendationCode')) f.recommendationCode = normalizeCode(f.recommendationCode) ?? '';
 
   if (Object.hasOwn(f, 'covers') && f.covers) {
     const c = parseCovers(f.covers);
@@ -218,14 +222,19 @@ export function unmappedValues(rows: ImportRow[]): Array<{ value: string; lines:
 /** A line as it will be saved (only for a ticked line without errors). */
 const toLine = (r: ImportRow): Omit<SalesRecord, 'id'> => ({
   businessDate: r.fields.businessDate, checkId: r.fields.checkId, covers: r.fields.covers ? Number(r.fields.covers) : null,
-  itemType: r.fields.itemType as SalesItemType, quantity: Number(r.fields.quantity), netAmount: Number(r.fields.netAmount)
+  itemType: r.fields.itemType as SalesItemType, quantity: Number(r.fields.quantity), netAmount: Number(r.fields.netAmount),
+  recommendationCode: r.fields.recommendationCode ? r.fields.recommendationCode : null
 });
 
 /**
  * What a confirm saves (R6): the lines of complete checks only — every line of the check ticked and without errors.
- * A check with one unticked or broken line is saved not at all and replaces nothing. Worked out once, here.
+ * A check with one unticked or broken line is saved not at all and replaces nothing. Worked out once, here. `codes` are
+ * the distinct (business day, recommendation code) pairs of the lines that will be saved; `checksWithCode` counts the
+ * saved checks that carry a code (spec 2026-10-16-recommendation-code, A13 preview note).
  */
-export function completeChecks(rows: ImportRow[]): { lines: Array<Omit<SalesRecord, 'id'>>; checks: CheckKey[]; incomplete: number } {
+export function completeChecks(rows: ImportRow[]): {
+  lines: Array<Omit<SalesRecord, 'id'>>; checks: CheckKey[]; incomplete: number; checksWithCode: number; codes: Array<{ businessDate: string; code: string }>
+} {
   const groups = new Map<string, ImportRow[]>();
   for (const r of rows) {
     if (!hasKey(r)) continue;
@@ -234,6 +243,8 @@ export function completeChecks(rows: ImportRow[]): { lines: Array<Omit<SalesReco
   }
   const lines: Array<Omit<SalesRecord, 'id'>> = [];
   const checks: CheckKey[] = [];
+  const codes = new Map<string, { businessDate: string; code: string }>();
+  let checksWithCode = 0;
   let incomplete = 0;
   for (const group of groups.values()) {
     if (group.some((l) => !l.include || hasError(l.issues))) {
@@ -242,6 +253,9 @@ export function completeChecks(rows: ImportRow[]): { lines: Array<Omit<SalesReco
     }
     checks.push({ businessDate: group[0].fields.businessDate, checkId: group[0].fields.checkId });
     lines.push(...group.map(toLine));
+    const own = group.map((l) => l.fields.recommendationCode).filter((c): c is string => Boolean(c));
+    if (own.length) checksWithCode += 1;
+    for (const code of own) codes.set(`${group[0].fields.businessDate}|${code}`, { businessDate: group[0].fields.businessDate, code });
   }
-  return { lines, checks, incomplete };
+  return { lines, checks, incomplete, checksWithCode, codes: [...codes.values()] };
 }

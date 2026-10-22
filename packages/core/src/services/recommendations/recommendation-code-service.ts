@@ -1,4 +1,4 @@
-import type { CodeServing, CodeSource, CodeTier, PairCodeStats, RecommendationCodeRecord, Wine } from '../../domain/types';
+import type { CodeServing, CodeSource, CodeSummary, CodeTier, PairCodeStats, RecommendationCodeRecord, Wine } from '../../domain/types';
 import { ENGINE_VERSION } from '../../engine/scoring';
 import { NotFoundError, ValidationError } from '../../errors';
 import { MAX_TABLE_DISHES } from '../../guest/prefs';
@@ -135,13 +135,27 @@ export class RecommendationCodeService {
   /**
    * Results per (dish, wine, context) for the service days of the period, both ends inclusive (R12, Q12): a table code
    * gives one row per dish with context `table`, a `direct` code none. Readers that credit an order to one dish (E10
-   * S5) take context `dish` only. Until POS matching (phase 3) `ordered` = `staffConfirmed`.
+   * S5) take context `dish` only. `ordered` = confirmed by the waiter or matched in the POS, counted once (R10).
    */
   async pairStats(slug: string, period: ServiceDayPeriod): Promise<PairCodeStats[]> {
     assertServiceDayPeriod(period);
     const restaurant = await this.deps.restaurantRepository.findBySlug(slug);
     if (!restaurant) throw new NotFoundError('Restaurant');
     return this.deps.recommendationCodeRepository.pairStats(restaurant.id, { from: period.from, to: period.to });
+  }
+
+  /**
+   * The totals of the period (R12, A13 card "Wine from a recommendation"): every issued choice, including `direct`, the
+   * waiter's confirmations, the POS matches (R9) and the codes on the till that match no issued code.
+   */
+  async summary(slug: string, period: ServiceDayPeriod): Promise<CodeSummary> {
+    assertServiceDayPeriod(period);
+    const restaurant = await this.deps.restaurantRepository.findBySlug(slug);
+    if (!restaurant) throw new NotFoundError('Restaurant');
+    const range = { from: period.from, to: period.to };
+    const codes = this.deps.recommendationCodeRepository;
+    const [totals, unmatchedPosCodes] = await Promise.all([codes.totals(restaurant.id, range), codes.unmatchedPosCodes(restaurant.id, range)]);
+    return { period: range, ...totals, unmatchedPosCodes };
   }
 
   /**

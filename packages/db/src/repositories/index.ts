@@ -502,10 +502,26 @@ const CODE_COLUMNS = `code, service_day::text as service_day, session_id, source
   menu_version, tier, engine_version, issued_at, confirmed_at`;
 
 /**
+ * POS matches of a period (spec 2026-10-16-recommendation-code, R9): one row per (business day, code) that sits on a
+ * line of an active check with wine sold (glasses + bottles, summed over the check, above zero). Two parameters: the
+ * restaurant, then the period. Read at query time and never stored, so a repeated import cannot count a code twice.
+ */
+const POS_MATCHES = `pos_matches as (
+  select distinct s.business_date, s.recommendation_code as code
+    from sales_record s
+   where s.restaurant_id = ? and s.replaced_at is null and s.recommendation_code is not null and s.business_date between ? and ?
+     and (select coalesce(sum(w.quantity), 0) from sales_record w
+           where w.restaurant_id = s.restaurant_id and w.replaced_at is null and w.business_date = s.business_date
+             and w.check_id = s.check_id and w.item_type in ('wine_glass', 'wine_bottle')) > 0
+)`;
+/** Whether the recommendation row `r` is matched in the POS (uses `pos_matches`). */
+const IS_MATCHED = 'exists (select 1 from pos_matches m where m.business_date = r.service_day and m.code = r.code)';
+
+/**
  * Recommendation codes (spec 2026-10-16-recommendation-code, R11). Native statements throughout, so the identity
  * map never holds a stale row. `tryIssue` is one `insert … on conflict do nothing returning`: a conflict on either
  * unique index (the code of the day, or the choice) inserts nothing, and a read by the choice key tells `existing`
- * from `code_taken`. POS matching (R9) needs `sales_record` (phase 3): `posMatched` is 0 until then.
+ * from `code_taken`. `ordered` counts a code once: confirmed by the waiter or matched in the POS (R10).
  */
 export class PgRecommendationCodeRepository implements RecommendationCodeRepository {
   private readonly em: EntityManager;
@@ -565,33 +581,51 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async pairStats(restaurantId: string, period: ServiceDayPeriod) {
-    const rows = await this.run<{ dish_id: string; wine_id: string; context: 'dish' | 'table'; issued: string; confirmed: string }>(
-      `select d.dish_id, r.wine_id, r.context, count(*)::text as issued, count(r.confirmed_at)::text as confirmed
+    const rows = await this.run<{ dish_id: string; wine_id: string; context: 'dish' | 'table'; issued: string; confirmed: string; matched: string; ordered: string }>(
+      `with ${POS_MATCHES}
+       select d.dish_id, r.wine_id, r.context, count(*)::text as issued, count(r.confirmed_at)::text as confirmed,
+              count(*) filter (where ${IS_MATCHED})::text as matched,
+              count(*) filter (where r.confirmed_at is not null or ${IS_MATCHED})::text as ordered
          from recommendation_code r cross join lateral jsonb_array_elements_text(r.dish_ids) as d(dish_id)
         where r.restaurant_id = ? and r.service_day between ? and ? and r.context in ('dish', 'table')
         group by d.dish_id, r.wine_id, r.context`,
-      [restaurantId, period.from, period.to]
+      [restaurantId, period.from, period.to, restaurantId, period.from, period.to]
     );
     return rows
       .map((r) => ({
         dishId: r.dish_id, wineId: r.wine_id, context: r.context, issued: Number(r.issued),
-        staffConfirmed: Number(r.confirmed), posMatched: 0, ordered: Number(r.confirmed)
+        staffConfirmed: Number(r.confirmed), posMatched: Number(r.matched), ordered: Number(r.ordered)
       }))
       .sort((a, b) => a.dishId.localeCompare(b.dishId) || a.wineId.localeCompare(b.wineId) || a.context.localeCompare(b.context));
   }
 
   async totals(restaurantId: string, period: ServiceDayPeriod) {
-    const rows = await this.run<{ issued: string; confirmed: string }>(
-      `select count(*)::text as issued, count(confirmed_at)::text as confirmed from recommendation_code
-        where restaurant_id = ? and service_day between ? and ?`,
-      [restaurantId, period.from, period.to]
+    const rows = await this.run<{ issued: string; confirmed: string; matched: string; ordered: string }>(
+      `with ${POS_MATCHES}
+       select count(*)::text as issued, count(r.confirmed_at)::text as confirmed,
+              count(*) filter (where ${IS_MATCHED})::text as matched,
+              count(*) filter (where r.confirmed_at is not null or ${IS_MATCHED})::text as ordered
+         from recommendation_code r
+        where r.restaurant_id = ? and r.service_day between ? and ?`,
+      [restaurantId, period.from, period.to, restaurantId, period.from, period.to]
     );
-    const confirmed = Number(rows[0]?.confirmed ?? 0);
-    return { issued: Number(rows[0]?.issued ?? 0), staffConfirmed: confirmed, posMatched: 0, ordered: confirmed };
+    return {
+      issued: Number(rows[0]?.issued ?? 0), staffConfirmed: Number(rows[0]?.confirmed ?? 0),
+      posMatched: Number(rows[0]?.matched ?? 0), ordered: Number(rows[0]?.ordered ?? 0)
+    };
   }
 
-  async unmatchedPosCodes() {
-    return 0;
+  async unmatchedPosCodes(restaurantId: string, period: ServiceDayPeriod) {
+    const rows = await this.run<{ n: string }>(
+      `select count(*)::text as n from (
+         select distinct s.business_date, s.recommendation_code as code from sales_record s
+          where s.restaurant_id = ? and s.replaced_at is null and s.recommendation_code is not null and s.business_date between ? and ?
+            and not exists (select 1 from recommendation_code r
+                             where r.restaurant_id = s.restaurant_id and r.service_day = s.business_date and r.code = s.recommendation_code)
+       ) u`,
+      [restaurantId, period.from, period.to]
+    );
+    return Number(rows[0]?.n ?? 0);
   }
 
   async countUnmatched(restaurantId: string, pairs: Array<{ businessDate: string; code: string }>) {

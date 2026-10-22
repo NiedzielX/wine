@@ -17,7 +17,7 @@ export function salesContract(t: Omit<OnceRunner, 'beforeAll' | 'afterAll'>, get
   let n = 0;
   const uuid = (prefix: string) => `${prefix}-0000-4000-8000-${String(++n).padStart(12, '0')}`;
   const line = (businessDate: string, checkId: string, itemType: SalesItemType, quantity: number, netAmount: number, covers: number | null = null): SalesRecord =>
-    ({ id: uuid('5a1e5000'), businessDate, checkId, covers, itemType, quantity, netAmount });
+    ({ id: uuid('5a1e5000'), businessDate, checkId, covers, itemType, quantity, netAmount, recommendationCode: null });
 
   /** An import job of the restaurant, confirmed with these lines. Returns how many checks it replaced. */
   async function importLines(records: SalesRecord[]): Promise<number> {

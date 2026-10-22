@@ -87,7 +87,7 @@ export class PgImportRepository implements ImportRepository {
     if (plan.records.length) {
       await em.insertMany(SalesRecordEntity, plan.records.map((r) => ({
         id: r.id, restaurant: restaurantId, importJob: jobId, businessDate: r.businessDate, checkId: r.checkId, covers: r.covers,
-        itemType: r.itemType, quantity: r.quantity, netAmount: r.netAmount, replacedAt: null, replacedByJob: null, createdAt: new Date(at)
+        itemType: r.itemType, quantity: r.quantity, netAmount: r.netAmount, recommendationCode: r.recommendationCode, replacedAt: null, replacedByJob: null, createdAt: new Date(at)
       })));
     }
     return replaced;
