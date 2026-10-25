@@ -7,6 +7,16 @@ export type RestaurantServiceDeps = Pick<Repositories, 'restaurantRepository' | 
 export const RESERVED_SLUGS = ['login', 'api', 'r', 'admin', 'static', 'assets', '_next', 'new', 'null', 'undefined'];
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/**
+ * The one rule for a restaurant slug (it is printed on QR codes). Does not normalise: callers decide
+ * whether to trim or lower-case first. `null` means the slug is acceptable.
+ */
+export function validateSlug(slug: string): 'invalid' | 'reserved' | null {
+  if (slug.length < 2 || slug.length > 40 || !SLUG_PATTERN.test(slug)) return 'invalid';
+  if (RESERVED_SLUGS.includes(slug)) return 'reserved';
+  return null;
+}
+
 /** The restaurant's own details. The slug is part of every printed QR code: changing it breaks those codes. */
 export class RestaurantService {
   private readonly d: RestaurantServiceDeps;
@@ -28,8 +38,8 @@ export class RestaurantService {
     if (!next.wineDirector) fields.wineDirector = 'required';
     if (!next.address) fields.address = 'required';
     if (!next.city) fields.city = 'required';
-    if (next.slug.length < 2 || next.slug.length > 40 || !SLUG_PATTERN.test(next.slug)) fields.slug = 'invalid';
-    else if (RESERVED_SLUGS.includes(next.slug)) fields.slug = 'reserved';
+    const slugProblem = validateSlug(next.slug);
+    if (slugProblem) fields.slug = slugProblem;
     if (Object.keys(fields).length) throw new ValidationError('validation_failed', 'Check the highlighted details.', fields);
     try {
       await this.d.restaurantWriteRepository.updateDetails(r.id, next);
