@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-25] [Plik wczytywany w każdej sesji ma budżet; szczegóły idą do plików czytanych na żądanie](lessons/2026-10-25-context-budget-and-routing.md) — root `AGENTS.md` + `AGENTS.md` pakietu mieszczą się w 32 KiB (limit Codexa), numeracja sekcji się nie zmienia, pilnuje tego `npm run check:context`.
 - [2026-10-25] [Podgląd importu czyta zapisane wiersze, więc pola niedozwolone do zapisu nie wchodzą do wiersza](lessons/2026-10-25-import-preview-reads-saved-rows.md) — nazwa pozycji POS jest tylko rozpoznawana przy mapowaniu, nigdy nie trafia do `import_job.rows`.
 - [2026-10-25] [Konfiguracja agenta w repo: `deny` nie blokuje basha, sandbox na Linuksie ma prywatny localhost, hook zawodzi zamykająco](lessons/2026-10-25-agent-config-in-repo.md) — buduj granice warstwami (deny, hook w Node, sandbox), wylicz sekrety w `deny`, nie włączaj sandboxa we wspólnym pliku bez testu.
 - [2026-10-25] [Przy pytaniu z rekomendacją wykonaj ją i zapisz wybór, nie wstrzymuj pracy](lessons/2026-10-25-recommended-decision-default.md) — pytaj tylko bez rekomendacji albo przy decyzji nieodwracalnej lub wychodzącej na zewnątrz.

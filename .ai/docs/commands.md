@@ -17,6 +17,7 @@ Przeniesione z `AGENTS.md` §1.5 bez zmiany treści.
 | `npm run check:boundaries` | granice pakietów |
 | `npm run audit:gate` | audyt zależności produkcyjnych: wysokie i krytyczne blokują, wyjątki tylko jawne i z terminem (`scripts/audit-gate.mjs`) |
 | `npm run secrets:scan` | skan sekretów w plikach śledzonych przez git, bez zależności: wzorce kluczy, tokenów, connection stringów z hasłem; wyjątki tylko w `scripts/secret-scan.allowlist.json`, każdy z powodem i skrótem wartości; wartości nigdy nie są drukowane; w CI job `secrets` |
+| `npm run check:context` | rozmiary i spójność plików, które agent wczytuje: budżety `AGENTS.md` (root, pakiety, łańcuch Codex 32 KiB), `.ai/lessons.md`, `.ai/docs`, opisy i długość `SKILL.md`, ścieżki w bloku routingu, importy `CLAUDE.md`, linki lekcji, nazwy plików w `.ai/`, odwołania `AGENTS.md §N`; kod 1 przy błędzie, ostrzeżenia nie przerywają; tokeny to szacunek (bajty/3,5), pomiar to `/context all`; w CI w jobie `lint` (`scripts/check-context.mjs`) |
 | `npm run boot:check` | start zbudowanej aplikacji bez bazy: zła konfiguracja zatrzymuje serwer, demo tylko świadomie, ogólne 500 bez sekretów (po `npm run build`) |
 | `npm run smoke -- <url> <slug>` | smoke test uruchomionej aplikacji: strony gościa, panel (po zalogowaniu kontem demo), uwierzytelnianie, uprawnienia, API; domyślnie `http://localhost:3000 halka` |
 | `npm run user:create -- --email … --name … --role … --restaurant …` | tworzy konto do panelu (hasło z `USER_PASSWORD`, min. 12 znaków) |
@@ -26,3 +27,10 @@ Przeniesione z `AGENTS.md` §1.5 bez zmiany treści.
 | `npm run db:migration:create` / `db:migrate` / `db:seed` | migracje i dane demo |
 
 Skrypty npm uruchamiają się przez `/bin/sh`, który na Linuksie bywa `dash`: w skryptach i poleceniach powłoki **NIE używaj bashizmów** (`{a,b}`, `${PIPESTATUS}`, `[[ ]]`, `time`). Pisz POSIX albo skrypt Node (`scripts/*.mjs`).
+
+## Testy: wykluczenia z pokrycia i miejsce testów
+
+Przeniesione z `AGENTS.md` §7 bez zmiany treści.
+
+- **Wykluczenia z raportu pokrycia są jawne, w konfiguracji każdego pakietu** (`vitest.config.ts`), z uzasadnieniem: pliki stron i komponentów React (`app/src/app/**.tsx`, pokrywa je E2E), kod shadcn/ui, pakiet `mockups` (prototyp do wycofania), wspólne zestawy testów (`core/src/testing`), repozytoria i encje (pokrywa je `test:db`). Nowe wykluczenie wymaga zgody właściciela.
+- **Gdzie piszemy testy:** `core/tests/` (logika domeny), `db/tests/` (bez bazy: `*.test.ts`; z bazą: `*.integration.test.ts`), `app/tests/unit/` (trasy API, akcje, serwer), `app/tests/e2e/` (przeglądarka), `ui/tests/`, `testkit/tests/` (narzędzia testowe i skrypty repozytorium: hook agenta, skaner sekretów, `check:context`).

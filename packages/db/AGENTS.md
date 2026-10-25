@@ -1,6 +1,6 @@
 # packages/db — AGENTS.md
 
-Zasady ogólne: `../../AGENTS.md` (§1.2–1.3 i §7). Model danych: `../../docs/DATA_MODEL.md`.
+Zasady ogólne: `../../AGENTS.md` (§1.2–1.3 i §7). Model danych: `../../docs/DATA_MODEL.md`. Szczegóły architektury: `../../.ai/docs/architecture-rules.md`.
 
 **Co tu jest:** encje MikroORM (`src/entities`), konfiguracja runtime z pulą połączeń (`src/config.ts`), konfiguracja CLI z migratorem i seederem (`src/mikro-orm.config.ts`), singleton ORM (`src/orm.ts`), mappery encja → domena (`src/mappers.ts`), repozytoria implementujące porty z `core` (`src/repositories`), migracje (`src/migrations`), seedery (`src/seeders`).
 
