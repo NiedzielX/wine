@@ -3,7 +3,7 @@
 Ten plik obowiązuje każdego agenta AI (Claude Code, Codex, Cursor, Copilot, Aider i inne) pracującego w tym repozytorium. Jest **jedynym źródłem prawdy** o procesie pracy; `CLAUDE.md` go importuje. Słowa **MUSISZ / NIE WOLNO / POWINIENEŚ** mają znaczenie normatywne.
 ## Routing zadań
 
-Czytaj tyle, ile wymaga zadanie; reguły procesu (§2–§9) i niezmienniki (§1.2–§1.6, §7) są niżej i obowiązują zawsze. Pełne §1.2–§1.4, §1.6: `.ai/docs/architecture-rules.md`; §1.5: `.ai/docs/commands.md`.
+Czytaj tyle, ile wymaga zadanie; §1.2–§1.6 (pełne: `.ai/docs/architecture-rules.md`, §1.5: `.ai/docs/commands.md`), §2–§9 i niezmienniki z §7 obowiązują zawsze.
 
 <!-- routing:start -->
 | Zadanie | Czytaj |
@@ -59,7 +59,7 @@ Każdy pakiet ma własny `AGENTS.md` ze szczegółami — **przeczytaj go przed 
 Granice sprawdza `npm run check:boundaries` (część `npm run build`). Skrót; pełna wersja: `.ai/docs/architecture-rules.md` §1.2.
 - `core` **NIE importuje** React, Next.js, MikroORM, `pg`, Awilix, `node:*` ani innych pakietów projektu. `db` nie importuje React, Next.js, Awilix, `ui` ani `app`; encje MikroORM **nie wychodzą** poza `db`. `ui` nie importuje `core`, `db`, `app`, Next.js ani MikroORM.
 - W `app/src/app` (strony, layouty, route handlery) nie importuj `@wine-match/db` ani `@mikro-orm/*`: dane wyłącznie przez serwisy z kontenera DI. Strony gościa (`(guest)`) nie używają shadcn/ui, z `@wine-match/ui` tylko `brand/*`.
-- Pakiety wewnętrzne eksportują źródła TypeScript; nie dodawaj `dist/` ani `tsc --build`. Każdy pakiet ma własny `AGENTS.md`: **przeczytaj go przed zmianą w pakiecie**.
+- Pakiety eksportują źródła TypeScript (bez `dist/`, `tsc --build`). Każdy pakiet ma własny `AGENTS.md`: **przeczytaj go przed zmianą w pakiecie**.
 
 ### 1.3 Logika, dane i Dependency Injection
 
@@ -70,7 +70,6 @@ Skrót; pełna wersja, w tym wyjątki od konwencji komend: `.ai/docs/architectur
 - **Awilix:** jedyny root kompozycji to `app/src/server/container.ts`; serwisy rozwiązuj z zakresu żądania (`getRequestScope()`, `createRequestScope()` + `dispose()`), nigdy z kontenera głównego.
 - **Zapisy (komendy)** tylko przez serwisy z `core` z `actor`, opcjonalnie `expectedVersion`, błędy jako `DomainError`; goście czytają opublikowaną migawkę (`listPublished*`), panel dane bieżące. Zatwierdzone wyjątki (2026-10-15, 2026-10-16): telemetria (`UsageEventService`) i wydanie kodu polecenia (`RecommendationCodeService.issue`) bez `actor` i `DomainError`, błąd tylko do `logger`; polecenia operatora w `packages/db/scripts/` mogą pisać przez MikroORM, nigdy kod uruchamiany przez aplikację.
 - **Uprawnienia:** jedna tabela (`core/src/auth/permissions.ts`), każde wejście sprawdza samo (`requireAccess`, `authorizeAction`, `handle()`); ukrycie przycisku nie jest zabezpieczeniem. Błędów domenowych nie rozpoznajemy przez `instanceof`, tylko `domainError()`.
-- **Import:** logika w `core/src/import`, parsery plików w `@wine-match/db/import`; plik nie jest przechowywany, zatwierdzenie atomowe i jednorazowe.
 - **MikroORM:** encje przez `defineEntity`; zmiana encji wymaga migracji w tym samym przebiegu (`npm run db:migration:create`), zastosowanych migracji nie edytuj, `npm run schema:check -w @wine-match/db` musi być zgodne. **QR:** `PUBLIC_BASE_URL/r/{slug}`, zmiana sluga unieważnia wydrukowane kody.
 
 ### 1.4 Frontend
