@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-25] [Konfiguracja agenta w repo: `deny` nie blokuje basha, sandbox na Linuksie ma prywatny localhost, hook zawodzi zamykająco](lessons/2026-10-25-agent-config-in-repo.md) — buduj granice warstwami (deny, hook w Node, sandbox), wylicz sekrety w `deny`, nie włączaj sandboxa we wspólnym pliku bez testu.
 - [2026-10-21] [W testach kontraktu każdy import ma nowe identyfikatory linii; test migracji odtwarza późniejsze migracje](lessons/2026-10-21-test-ids-and-migration-replay.md) — ponowny zapis tych samych `id` daje naruszenie klucza, które `translate()` pokazuje jako `duplicate_pairing`.
 - [2026-10-21] [`schema:check` porównuje z plikiem snapshotu nazwanym od bazy, nie z introspekcją](lessons/2026-10-21-schema-check-snapshot-per-database.md) — snapshoty `.snapshot-<baza>.json` muszą mieć postać z encji (nie znormalizowaną przez Postgresa); sprawdzaj `schema:check` dla każdej nazwy bazy.
 
