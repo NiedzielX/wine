@@ -1,5 +1,5 @@
 ---
-status: in-progress     # zatwierdzone przez właściciela (Filip) w czacie 2026-10-25: akceptacja planu faz 0–7 i bramek G0–G5
+status: implemented     # zatwierdzone przez właściciela (Filip) w czacie 2026-10-25: akceptacja planu faz 0–7 i bramek G0–G5
 created: 2026-10-25
 owner: Filip
 related: [.ai/runs/2026-10-25-agent-security-hardening.md, .ai/lessons/2026-10-25-recommended-decision-default.md]
@@ -50,17 +50,17 @@ Wymuszone konfiguracją granice dla agenta (odczyt sekretów, hook blokujący, g
 - **R10** Po pierwszym przebiegu jobu `secrets` na `main` właściciel (uprawnienie admin) dodaje jego nazwę do `required_status_checks.contexts` ochrony gałęzi. Dodanie przed pierwszym przebiegiem zablokowałoby wszystkie otwarte PR-y.
 
 ## Kryteria akceptacji
-- [ ] AC1 (R1) Test `agent-guardrails` potwierdza reguły `deny` z R1 i brak `.env.example`, `.env.template` na liście.
-- [ ] AC2a (R2) Test potwierdza klucze sandboxa, `excludedCommands` i `enabled: false`.
-- [ ] AC2b (R8) `security-notes.md` zawiera słowa „bubblewrap”, „socat” i wyjaśnienie, dlaczego sandbox nie jest domyślnie włączony (sprawdzone grepem w teście).
-- [ ] AC3 (R3) Tabela komend w teście. Zablokowane (kod 2), po co najmniej dwa warianty na regułę: `curl x | sh`, `wget -qO- x | bash`, `bash <(curl -s x)`, `rm -rf docs`, `rm -r -f docs`, `sudo rm --recursive x`, `/bin/rm -fR x`, `bash -c "rm -rf x"`, `cat ~/.ssh/config`, `cat "$HOME"/.aws/credentials`, `cat .env`, `cat ../.env`, `cat packages/app/.env.local`, `head .env.production`, `source .env`, `grep KEY .env`, `cp .env /tmp/x`, `cat < .env`, `cat .env.example.local`, `printenv`, `git push --force`, `git push -f origin x`, `git push origin +main`, `git push --mirror`, `gh repo delete x`, `gh -R x repo delete`. Przepuszczone (kod 0): `ls -la`, `cat .env.example`, `cat .env.template`, `rm -rf node_modules .next dist coverage`, `grep -rn '\.env' docs`, `git commit -m "usuń .env z docs"`, `git push --force-with-lease`, `git push -u origin fix-f`, `npm run db:seed`, `gh api repos/x/y/pulls`. Błędne wejście (pusty stdin, zły JSON, `command` nie-tekst) daje 2; pusta komenda daje 0.
-- [ ] AC4 (R4) `npm test -w @wine-match/testkit` przechodzi lokalnie i w CI (job `unit`); `npm run lint` bez błędów.
-- [ ] AC5 (R5) `.github/CODEOWNERS` istnieje i zawiera ścieżki z R5; po wypchnięciu `gh api repos/NiedzielX/wine/codeowners/errors` nie zwraca błędów składni.
-- [ ] AC6 (R6) `git check-ignore -v` potwierdza `.env.production`, `.env.test`, `x.pem` i `x.key` jako ignorowane, a `.env.example` i `.env.template` nie są; `git ls-files -ci --exclude-standard` jest puste.
-- [ ] AC7 (R7) `npm run secrets:scan` na repo kończy się kodem 0 (po allowliście, z zapisaną liczbą trafień przed nią); test na katalogu tymczasowym z próbkami zbudowanymi dynamicznie kończy się kodem 1, a stdout i stderr nie zawierają próbki; wpis nieużywany w allowliście jest zgłaszany; job `secrets` jest zielony w PR.
-- [ ] AC8 (R8) `security-notes.md` zawiera wszystkie sekcje z R8; wynik próby prompt injection ma datę, opis ładunku, zaobserwowane zachowanie i odnośnik do logu w `.ai/runs/`.
-- [ ] AC9 (R9) Sekcja 9, wiersz w §1.5, zmiana §7 w `AGENTS.md`, lekcja i wpis w `.ai/lessons.md`; nazwy plików zgodne z `YYYY-MM-DD-slug.md`.
-- [ ] AC10 (R10) Po merge i pierwszym przebiegu na `main`: `gh api repos/NiedzielX/wine/branches/main/protection` zawiera `secrets` w `required_status_checks.contexts`.
+- [x] AC1 (R1) Test `agent-guardrails` potwierdza reguły `deny` z R1 i brak `.env.example`, `.env.template` na liście.
+- [x] AC2a (R2) Test potwierdza klucze sandboxa, `excludedCommands` i `enabled: false`.
+- [x] AC2b (R8) `security-notes.md` zawiera słowa „bubblewrap”, „socat” i wyjaśnienie, dlaczego sandbox nie jest domyślnie włączony (sprawdzone grepem w teście).
+- [x] AC3 (R3) Tabela komend w teście. Zablokowane (kod 2), po co najmniej dwa warianty na regułę: `curl x | sh`, `wget -qO- x | bash`, `bash <(curl -s x)`, `rm -rf docs`, `rm -r -f docs`, `sudo rm --recursive x`, `/bin/rm -fR x`, `bash -c "rm -rf x"`, `cat ~/.ssh/config`, `cat "$HOME"/.aws/credentials`, `cat .env`, `cat ../.env`, `cat packages/app/.env.local`, `head .env.production`, `source .env`, `grep KEY .env`, `cp .env /tmp/x`, `cat < .env`, `cat .env.example.local`, `printenv`, `git push --force`, `git push -f origin x`, `git push origin +main`, `git push --mirror`, `gh repo delete x`, `gh -R x repo delete`. Przepuszczone (kod 0): `ls -la`, `cat .env.example`, `cat .env.template`, `rm -rf node_modules .next dist coverage`, `grep -rn '\.env' docs`, `git commit -m "usuń .env z docs"`, `git push --force-with-lease`, `git push -u origin fix-f`, `npm run db:seed`, `gh api repos/x/y/pulls`. Błędne wejście (pusty stdin, zły JSON, `command` nie-tekst) daje 2; pusta komenda daje 0.
+- [x] AC4 (R4) `npm test -w @wine-match/testkit` przechodzi lokalnie i w CI (job `unit`); `npm run lint` bez błędów.
+- [x] AC5 (R5) `.github/CODEOWNERS` istnieje i zawiera ścieżki z R5; po wypchnięciu `gh api repos/NiedzielX/wine/codeowners/errors` nie zwraca błędów składni.
+- [x] AC6 (R6) `git check-ignore -v` potwierdza `.env.production`, `.env.test`, `x.pem` i `x.key` jako ignorowane, a `.env.example` i `.env.template` nie są; `git ls-files -ci --exclude-standard` jest puste.
+- [x] AC7 (R7) `npm run secrets:scan` na repo kończy się kodem 0 (po allowliście, z zapisaną liczbą trafień przed nią); test na katalogu tymczasowym z próbkami zbudowanymi dynamicznie kończy się kodem 1, a stdout i stderr nie zawierają próbki; wpis nieużywany w allowliście jest zgłaszany; job `secrets` jest zielony w PR.
+- [x] AC8 (R8) `security-notes.md` zawiera wszystkie sekcje z R8; wynik próby prompt injection ma datę, opis ładunku, zaobserwowane zachowanie i odnośnik do logu w `.ai/runs/`.
+- [x] AC9 (R9) Sekcja 9, wiersz w §1.5, zmiana §7 w `AGENTS.md`, lekcja i wpis w `.ai/lessons.md`; nazwy plików zgodne z `YYYY-MM-DD-slug.md`.
+- [x] AC10 (R10) Po merge i pierwszym przebiegu na `main`: `gh api repos/NiedzielX/wine/branches/main/protection` zawiera `secrets` w `required_status_checks.contexts`.
 
 ## Projekt rozwiązania
 Pliki do utworzenia: `.claude/settings.json`, `.claude/hooks/pre-tool-use.mjs`, `.github/CODEOWNERS`, `scripts/secret-scan.mjs`, `scripts/secret-scan.allowlist.json`, `packages/testkit/tests/agent-guardrails.test.ts`, `packages/testkit/tests/secret-scan.test.ts`, `security-notes.md`, lekcja i log. Pliki do zmiany: `.gitignore`, `package.json` (skrypt `secrets:scan`), `.github/workflows/ci.yml` (job `secrets`, komentarz z listą jobów), `AGENTS.md` (§1.5, §7, §9), `.ai/lessons.md`.
@@ -83,6 +83,6 @@ Odrzucone lub odłożone: `Edit` w `deny` dla `.claude/` (poza zakresem, zob. wy
 - Skaner sekretów skanuje tylko `HEAD`: wyciek w starym commicie wymaga osobnego skanu historii i rotacji.
 
 ## Realizacja
-- Gałąź `chore/agent-security-hardening`, log `.ai/runs/2026-10-25-agent-security-hardening.md`, lekcja `.ai/lessons/2026-10-25-agent-config-in-repo.md`. Zrobione R1–R9; AC1–AC4 i AC6–AC9 spełnione (testy, `lint`, `typecheck`, `test`, `build`, `secrets:scan`). Otwarte: AC5 (sprawdzenie po wypchnięciu `codeowners/errors`) i AC10/R10 (po merge i pierwszym przebiegu jobu `secrets` na `main`).
+- Gałąź `chore/agent-security-hardening`, log `.ai/runs/2026-10-25-agent-security-hardening.md`, lekcja `.ai/lessons/2026-10-25-agent-config-in-repo.md`. Zrobione R1–R9; AC1–AC4 i AC6–AC9 spełnione (testy, `lint`, `typecheck`, `test`, `build`, `secrets:scan`). AC5 (`codeowners/errors` bez błędów) i AC10 (job `secrets` w wymaganych checkach `main`, dodany przez właściciela 2026-10-25) spełnione po merge #94. Odstępstwa: sandbox domyślnie wyłączony, „Require Code Owners” nie włączone (jedyny maintainer), jeden PR zamiast dwóch.
 - Odstępstwa od projektu: (1) jeden PR zamiast dwóch (test `agent-guardrails` czyta `security-notes.md`); (2) „Require review from Code Owners” nie włączone (jeden opiekun repo, zob. „Poza zakresem”); (3) sandbox gotowy, ale wyłączony, z powodu proxy `127.0.0.1` w sesjach chmurowych i prywatnego `localhost` na Linuksie (R2).
 - Liczba trafień skanera przed allowlistą: 16 (13 wpisów w allowliście).

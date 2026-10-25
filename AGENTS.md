@@ -322,7 +322,7 @@ Praca nie jest skończona, dopóki jej działania nie udowodnisz. „Powinno dzi
 
 ## 9. Bezpieczeństwo agentów
 
-Specyfikacja: `.ai/specs/2026-10-25-agent-security-hardening.md`; uprawnienia agenta, znane obejścia i wynik próby prompt injection: `security-notes.md`.
+Specyfikacja: `.ai/specs/implemented/2026-10-25-agent-security-hardening.md`; uprawnienia agenta, znane obejścia i wynik próby prompt injection: `security-notes.md`.
 
 - Konfiguracja agenta i procesu (`.claude/`, `.mcp.json`, `.agents/`, `skills-lock.json`, `AGENTS.md`, `CLAUDE.md`, `.github/`, `scripts/`) jest objęta `.github/CODEOWNERS`. Zmieniasz ją przez PR z przeglądem; wymuszenie Code Owners wraca, gdy repo będzie miało drugą osobę.
 - Nowy skill albo serwer MCP wchodzi tylko przez PR i przeczytaj go w całości przed użyciem (grep po `!` nie wykryje złośliwej instrukcji w zwykłym tekście). **NIE WOLNO** włączać `enableAllProjectMcpServers`.

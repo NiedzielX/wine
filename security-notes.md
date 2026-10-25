@@ -1,6 +1,6 @@
 # Security notes: warsztat agenta AI w Wine Match
 
-Stan na 2026-10-25. Specyfikacja: `.ai/specs/2026-10-25-agent-security-hardening.md`, log przebiegu: `.ai/runs/2026-10-25-agent-security-hardening.md`. Dokument nie zawiera żadnych wartości sekretów, tylko liczby i nazwy wzorców.
+Stan na 2026-10-25. Specyfikacja: `.ai/specs/implemented/2026-10-25-agent-security-hardening.md`, log przebiegu: `.ai/runs/2026-10-25-agent-security-hardening.md`. Dokument nie zawiera żadnych wartości sekretów, tylko liczby i nazwy wzorców.
 
 ## 1. Którą nogę *lethal trifecta* odcinamy
 
