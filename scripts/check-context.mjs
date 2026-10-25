@@ -211,7 +211,41 @@ if (rootAgents) {
   }
 }
 
-// 8. Skills: description at most 1024 characters, body within the line budget. .claude/skills holds symlinks to
+// 8. `npm run <script>` in the instruction files must name a script that exists in a package.json
+function scriptNames() {
+  const names = new Set();
+  const files = [join(root, 'package.json'), ...listDir(join(root, 'packages')).map((n) => join(root, 'packages', n, 'package.json'))];
+  let found = false;
+  for (const f of files) {
+    const text = read(f);
+    if (text === null) continue;
+    found = true;
+    try {
+      for (const k of Object.keys(JSON.parse(text).scripts ?? {})) names.add(k);
+    } catch {
+      error(rel(f), 'is not valid JSON');
+    }
+  }
+  return found ? names : null;
+}
+const scripts = scriptNames();
+if (scripts) {
+  const files = ['AGENTS.md', 'CLAUDE.md', ...listDir(join(root, 'packages')).map((n) => `packages/${n}/AGENTS.md`),
+    ...listDir(join(root, '.ai', 'docs'), (n) => n.endsWith('.md')).map((n) => `.ai/docs/${n}`)];
+  for (const f of files) {
+    const text = read(join(root, f));
+    if (text === null) continue;
+    const seen = new Set();
+    for (const m of text.matchAll(/npm run ([A-Za-z0-9:_-]+)/g)) {
+      if (!scripts.has(m[1]) && !seen.has(m[1])) {
+        seen.add(m[1]);
+        error(f, `mentions \`npm run ${m[1]}\`, which is not a script in any package.json`);
+      }
+    }
+  }
+}
+
+// 9. Skills: description at most 1024 characters, body within the line budget. .claude/skills holds symlinks to
 // .agents/skills, so symlinks are skipped and each skill is counted once.
 function description(text) {
   const m = /^---\n([\s\S]*?)\n---/.exec(text);

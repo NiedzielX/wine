@@ -206,6 +206,34 @@ describe('check-context: section references', () => {
   });
 });
 
+describe('check-context: npm scripts', () => {
+  const pkg = (scripts: Record<string, string>) => JSON.stringify({ name: 'x', scripts });
+
+  it('passes a mentioned script that exists in the root or a package package.json', () => {
+    const files = validTree();
+    files['package.json'] = pkg({ lint: 'x' });
+    files['packages/core/package.json'] = pkg({ 'db:migrate': 'x' });
+    files['.ai/docs/commands.md'] = '# Commands\n\nRun `npm run lint` and `npm run db:migrate`.\n';
+    expect(run(files).code).toBe(0);
+  });
+
+  it('fails on a mentioned script that does not exist, once per file', () => {
+    const files = validTree();
+    files['package.json'] = pkg({ lint: 'x' });
+    files['.ai/docs/commands.md'] = '# Commands\n\n`npm run gone` and again `npm run gone`.\n';
+    const r = run(files);
+    expect(r.code).toBe(1);
+    expect(r.out.match(/npm run gone/g)?.length).toBe(1);
+    expect(r.out).toContain('.ai/docs/commands.md: mentions `npm run gone`');
+  });
+
+  it('skips the check when the tree has no package.json', () => {
+    const files = validTree();
+    files['.ai/docs/commands.md'] = '# Commands\n\n`npm run anything`.\n';
+    expect(run(files).code).toBe(0);
+  });
+});
+
 describe('check-context: lessons and file names', () => {
   it('fails when a lesson link is broken, listed twice, or a lesson file is not in the index', () => {
     const broken = validTree();
