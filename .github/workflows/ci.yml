@@ -1,6 +1,7 @@
 # Every pull request runs all checks. A job fails the pull request; nothing is merged on a red check.
 #
-#   lint        lint, package boundaries, typecheck, dependency audit gate
+#   lint        lint, package boundaries, typecheck, dependency audit gate, size and consistency of agent context files
+#   secrets     secret scan of the tracked files (no dependencies installed)
 #   unit        unit tests of every package, with a coverage report (no threshold)
 #   a11y        axe (WCAG 2.1 AA) on every Storybook story, and contrast of design tokens
 #   build       production build with no environment and no database, plus the start-up checks
@@ -46,6 +47,19 @@ jobs:
         run: npm run typecheck
       - name: Dependency audit (high and critical block; exceptions are listed and dated)
         run: npm run audit:gate
+      - name: Agent context files (size budgets, routing paths, CLAUDE.md imports, lesson links)
+        run: npm run check:context
+
+  secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Secret scan (tracked files; values are never printed)
+        run: npm run secrets:scan
 
   design:
     runs-on: ubuntu-24.04

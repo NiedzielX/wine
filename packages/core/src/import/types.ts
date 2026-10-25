@@ -100,8 +100,8 @@ export const TRANSLATION_FIELDS = { menu: MENU_TRANSLATION_FIELDS, wines: WINE_T
 
 /**
  * Columns of a sales import. `covers` and `itemName` are optional: a record has them only when the file has the column.
- * `itemName` is shown in the preview to recognise a line but is never saved (Q18). Nothing outside this list is copied
- * from the file into a record (R9).
+ * `itemName` only finds the header and a whole-cell code (R8); it is never saved, not even in the preview job (E03 Q18,
+ * R9). Nothing outside this list is copied from the file into a record.
  */
 export const SALES_FIELDS = ['businessDate', 'checkId', 'covers', 'itemType', 'itemName', 'recommendationCode', 'quantity', 'netAmount'] as const;
 export type SalesField = (typeof SALES_FIELDS)[number];

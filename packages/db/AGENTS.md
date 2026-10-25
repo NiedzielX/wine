@@ -1,6 +1,6 @@
 # packages/db — AGENTS.md
 
-Zasady ogólne: `../../AGENTS.md` (§1.2–1.3 i §7). Model danych: `../../docs/DATA_MODEL.md`.
+Zasady ogólne: `../../AGENTS.md` (§1.2–1.3 i §7). Model danych: `../../docs/DATA_MODEL.md`. Szczegóły architektury: `../../.ai/docs/architecture-rules.md`.
 
 **Co tu jest:** encje MikroORM (`src/entities`), konfiguracja runtime z pulą połączeń (`src/config.ts`), konfiguracja CLI z migratorem i seederem (`src/mikro-orm.config.ts`), singleton ORM (`src/orm.ts`), mappery encja → domena (`src/mappers.ts`), repozytoria implementujące porty z `core` (`src/repositories`), migracje (`src/migrations`), seedery (`src/seeders`).
 
@@ -13,6 +13,6 @@ Zasady ogólne: `../../AGENTS.md` (§1.2–1.3 i §7). Model danych: `../../docs
 - Seedery muszą być idempotentne.
 
 - `src/import` (`@wine-match/db/import`, osobne wejście bez MikroORM): parsery plików (`NodeImportFileParser`: CSV w UTF-8 i Windows-1250, własny czytnik XLSX na `fflate` z limitem rozpakowania i bez parsera XML, PDF na `unpdf` jako linie tekstu). Typ po zawartości, nieudany plik = `ValidationError` z czytelnym kodem. `PgImportRepository.confirm` w jednej transakcji z blokadą wiersza zadania; plan `sales` (E03) dodatkowo bierze `pg_advisory_xact_lock` restauracji, zastępuje miękko aktywne linie tych samych rachunków i wstawia nowe (`sales_record`, odczyt `PgSalesRepository`, tylko `replaced_at is null`). Pliki testowe tworzy `tests/fixtures/generate.py`.
-- `src/auth` (`@wine-match/db/auth`, osobne wejście bez MikroORM): hasher scrypt (`ScryptPasswordHasher`) i tokeny sesji (`NodeSessionTokens`); `core` nie może używać `node:crypto`, więc implementacje portów `PasswordHasher` i `SessionTokens` są tutaj. Konta: encje `User` (`app_user`), `Membership`, `Session` (w bazie tylko hash tokenu), `PgAuthRepository` (atomowy licznik prób w jednym `UPDATE … RETURNING`). Polecenie `npm run user:create`. Seeder zakłada konta demo (hasło publiczne — tylko dane demo).
+- `src/auth` (`@wine-match/db/auth`, osobne wejście bez MikroORM): hasher scrypt (`ScryptPasswordHasher`) i tokeny sesji (`NodeSessionTokens`); `core` nie może używać `node:crypto`, więc implementacje portów `PasswordHasher` i `SessionTokens` są tutaj. Konta: encje `User` (`app_user`), `Membership`, `Session` (w bazie tylko hash tokenu), `PgAuthRepository` (atomowy licznik prób w jednym `UPDATE … RETURNING`). Polecenia operatora `npm run user:create` i `npm run restaurant:create` (`scripts/restaurant-bootstrap.ts`: `run(argv, env, { openOrm })`, walidacja pól przed bazą, jedna transakcja, kontrola migracji; testy `tests/create-restaurant-cli.test.ts` i `tests/restaurant-bootstrap.integration.test.ts`). Seeder zakłada konta demo (hasło publiczne — tylko dane demo).
 
 **Testy:** `npm run test:db` (z katalogu głównego). Test tworzy świeżą bazę `<nazwa>_test`, stosuje prawdziwe migracje, uruchamia seeder i `repositoryContract` z `core`.

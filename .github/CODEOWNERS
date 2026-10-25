@@ -1,0 +1,14 @@
+# Files that configure what an agent may do, how CI runs and where secrets are scanned. A change here is a change to
+# the project's safety boundary, so it is marked for review (spec 2026-10-25-agent-security-hardening, R5).
+# Enforcement ("Require review from Code Owners") is off while the repository has one maintainer: the author of a
+# pull request cannot approve it, so with enforce_admins it would block every merge. Turn it on with a second person.
+/.claude/                   @NiedzielX
+/.mcp.json                  @NiedzielX
+/.agents/                   @NiedzielX
+/skills-lock.json           @NiedzielX
+/AGENTS.md                  @NiedzielX
+/CLAUDE.md                  @NiedzielX
+/.github/                   @NiedzielX
+/scripts/                   @NiedzielX
+/security-notes.md          @NiedzielX
+/.ai/docs/                  @NiedzielX

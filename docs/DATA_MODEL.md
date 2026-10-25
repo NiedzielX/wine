@@ -320,7 +320,7 @@ Spec `2026-10-15-pos-sales-import-attach-rate` (E03), faza 1, migracja `Migratio
 | replaced_by_job_id | uuid FK → `import_job` null | który import zastąpił |
 | created_at | timestamptz | |
 
-Indeks `(restaurant_id, business_date, check_id)`. **Nie ma** `item_name`, `dish_id`, `wine_id` (Q10, Q18): nazwa pozycji jest widoczna tylko w podglądzie importu (`import_job.rows`), kolumny spoza listy pól importu (gość, kelner, płatność, komentarz) nie trafiają nigdzie. Kolumna `recommendation_code` dojdzie addytywnie w E09 F3.
+Indeks `(restaurant_id, business_date, check_id)`. **Nie ma** `item_name`, `dish_id`, `wine_id` (Q10, Q18): nazwa pozycji nie jest zapisywana nigdzie, ani w `import_job.rows`, ani w podglądzie (issue #90): kolumna nazwy tylko wskazuje nagłówek i kod polecenia, kolumny spoza listy pól importu (gość, kelner, płatność, komentarz) nie trafiają nigdzie. Kolumna `recommendation_code` dojdzie addytywnie w E09 F3.
 
 **Zapis** (`PgImportRepository.confirm`, jedna transakcja): blokada wiersza zadania (`FOR UPDATE`; podwójne kliknięcie → `job_closed`), `pg_advisory_xact_lock(hashtext('sales_record:' || restaurant_id))` (dwa importy tych samych rachunków po kolei), `UPDATE … SET replaced_at, replaced_by_job_id` dla aktywnych linii tych samych (`business_date`, `check_id`), wstawienie nowych linii, zamknięcie zadania. Zapisywane są tylko pełne rachunki: rachunek z linią odznaczoną albo z błędem nie jest zapisany i niczego nie zastępuje.
 

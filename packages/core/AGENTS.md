@@ -1,6 +1,6 @@
 # packages/core — AGENTS.md
 
-Zasady ogólne: `../../AGENTS.md` (§1.2–1.3 i §7). Tu tylko to, co dotyczy tego pakietu.
+Zasady ogólne: `../../AGENTS.md` (§1.2–1.3 i §7). Tu tylko to, co dotyczy tego pakietu. Szczegóły architektury: `../../.ai/docs/architecture-rules.md`.
 
 **Co tu jest:** typy domenowe (`src/domain`), deterministyczny silnik (`src/engine`), porty repozytoriów (`src/ports`), serwisy aplikacyjne (`src/services`), repozytoria w pamięci (`src/memory`), dane demo Halka (`src/demo`), kontrakt repozytoriów dla testów (`src/testing`).
 

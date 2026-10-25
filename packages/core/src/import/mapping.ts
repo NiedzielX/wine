@@ -148,17 +148,6 @@ export const SALES_FIELD_WORDS: Record<SalesField, string> = {
   recommendationCode: 'recommendation code', quantity: 'quantity', netAmount: 'net amount'
 };
 
-/**
- * What a cell becomes in the record, per field. A record only ever holds these fields, so a column outside
- * `SALES_FIELDS` (a guest name, a waiter, a payment type, a comment) never reaches `import_job.rows`. A field that needs
- * a value extracted from free text (E09 F3: the recommendation code from a POS comment) adds its function here, so only
- * the extracted value is kept (spec 2026-10-16-recommendation-code, R8).
- */
-const SALES_CELL: Partial<Record<SalesField, (cell: string) => string>> = {
-  // shown in the preview to recognise the line, never saved (Q18); a long cell is cut
-  itemName: (cell) => cell.slice(0, 120)
-};
-
 function matchSalesField(cell: string): SalesField | null {
   const k = normKey(cell);
   if (!k) return null;
@@ -193,13 +182,12 @@ function mapSalesTable(rows: string[][]): MappedTable {
   // a whole item cell that is a code (`W7K`) is the code of the line too (R8); free text never is
   const codeInItem = (r: string[]) => (map.has('itemName') && isWholeCellCode(r[map.get('itemName')!] ?? '') ? normalizeCode(r[map.get('itemName')!] ?? '') : null);
   const withCode = map.has('recommendationCode') || dataRows.some((r) => codeInItem(r) !== null);
-  const fields = SALES_FIELDS.filter((f) => (f === 'recommendationCode' ? withCode : map.has(f)));
+  // the item name only identifies the header and a whole-cell code (R8); it is never a field of a record (E03 Q18, R9)
+  const fields = SALES_FIELDS.filter((f) => f !== 'itemName' && (f === 'recommendationCode' ? withCode : map.has(f)));
   const records = dataRows.map((r) =>
     Object.fromEntries(fields.map((f) => {
       if (f === 'recommendationCode') return [f, recommendationCodeOf(map.has(f) ? r[map.get(f)!] ?? '' : '') ?? codeInItem(r) ?? ''];
-      const cell = (r[map.get(f)!] ?? '').trim();
-      const convert = SALES_CELL[f];
-      return [f, convert ? convert(cell) : cell];
+      return [f, (r[map.get(f)!] ?? '').trim()];
     })));
   return { records, notes };
 }

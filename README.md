@@ -38,6 +38,7 @@ npm run dev
 | `npm run boot:check` | start zbudowanej aplikacji bez bazy (po `npm run build`): zła konfiguracja zatrzymuje serwer, demo tylko świadomie, ogólne 500 bez sekretów |
 | `npm run smoke` | smoke test uruchomionej aplikacji (`npm start` w drugim terminalu): ponad 200 sprawdzeń stron gościa, panelu, logowania, uprawnień, importu, QR i API; loguje się kontem demo; niczego nie zmienia w danych. Każde żądanie ma nagłówek `x-wine-match-synthetic: 1` (ruch własny): strony renderują się normalnie, ale nie zapisują zdarzeń użycia gościa — wysyłaj go też z `curl` i monitoringu |
 | `npm run user:create` | tworzy konto do panelu (patrz niżej) |
+| `npm run restaurant:create` | zakłada restaurację i jej pierwszego właściciela na PostgreSQL (patrz niżej) |
 | `npm run engine:matrix` | przegląd kalibracji silnika: najlepsze wina dla każdego dania demo |
 | `npm run db:migration:create` | nowa migracja z różnicy encje ↔ baza |
 | `npm run db:migrate` / `npm run db:seed` | migracje / dane demo |
@@ -48,6 +49,41 @@ npm run dev
 USER_PASSWORD='długie hasło, min. 12 znaków' npm run user:create -- \
   --email jan@example.com --name "Jan Kowalski" --role sommelier --restaurant halka
 ```
+
+**Nowa restauracja i jej właściciel** (`npm run restaurant:create`; na PostgreSQL po `npm run db:migrate`, bez danych demo). Jedna transakcja zakłada restaurację (`status: onboarding`, niepublikowaną) i konto z rolą `owner`; właściciel loguje się pod `/admin/{slug}` i zaczyna od Setup (import menu). Slug trafia na wydrukowane kody QR i nie jest normalizowany: tylko małe litery, cyfry i pojedyncze myślniki, 2–40 znaków, nie zajęte słowo (`admin`, `api`, …). Wszystkie pola poniżej są wymagane:
+
+```bash
+USER_PASSWORD='długie hasło, min. 12 znaków' npm run restaurant:create -- \
+  --name "Bistro Nad Wisłą" --slug bistro-nad-wisla \
+  --address "ul. Wiślna 1" --city Kraków --wine-director "Anna Nowak" \
+  --owner-email anna@example.com --owner-name "Anna Nowak"
+```
+
+- Błędy pól i hasła są zgłaszane naraz, zanim polecenie połączy się z bazą. Brak `DATABASE_URL` albo niezastosowane migracje (`npm run db:migrate`) kończą się kodem 1 i niczego nie zapisują. Polecenie nie czyta `DATA_SOURCE`, `ALLOW_DEMO_DATA` ani `PUBLIC_BASE_URL` i nie ładuje danych demo.
+- Zajęty slug albo e-mail istniejącego konta (bez względu na wielkość liter) → kod 1, nic nie zapisane. Flaga `--allow-existing-account` (np. ta sama osoba w drugim lokalu) dodaje istniejącemu kontu tylko członkostwo `owner`; jego hasło się nie zmienia, a `USER_PASSWORD` nie jest potrzebne.
+- Hasło jest wyłącznie w `USER_PASSWORD` (nigdy w argumentach); ani ono, ani `DATABASE_URL` nie trafia na wyjście. Wartość z końcowym znakiem nowej linii jest używana dosłownie, więc nie ustawiaj jej przez `echo` bez `-n`.
+- **W kontenerze** (obraz `migrate`) hasło wczytaj bez echa i przekaż samą nazwą zmiennej, nigdy `-e USER_PASSWORD=…`, wartością w pliku compose ani flagą:
+
+  ```sh
+  stty -echo; printf 'Owner password: '; read -r USER_PASSWORD; stty echo; echo
+  export USER_PASSWORD
+  docker compose run --rm -e USER_PASSWORD migrate npm run restaurant:create -- --name … --slug … --address … --city … --wine-director … --owner-email … --owner-name …
+  unset USER_PASSWORD
+  ```
+
+- **Przekazanie hasła właścicielowi:** na pilotaż maintainer zna hasło do czasu jego zmiany (zmiany hasła w panelu jeszcze nie ma) i przekazuje je właścicielowi razem z adresem `/admin/{slug}` jednorazowym kanałem poza systemem (nie e-mailem z hasłem w treści ani czatem zespołu). Przed drugim lokalem potrzebna jest zmiana hasła przez właściciela albo link zaproszenia (osobne zgłoszenie).
+- **Strona gościa świeżej restauracji** `/r/{slug}` odpowiada 200 od razu (nazwa, adres, „Tonight's menu is being updated”); ukrywanie restauracji `onboarding` przed gośćmi to osobne zgłoszenie.
+- **Cofnięcie pomyłki** (brak polecenia usuwania; jedna transakcja `psql`, tylko zanim zaimportowano menu):
+
+  ```sql
+  BEGIN;
+  DELETE FROM membership WHERE restaurant_id = (SELECT id FROM restaurant WHERE slug = '<slug>');
+  DELETE FROM app_user u WHERE u.email = '<email>' AND NOT EXISTS (SELECT 1 FROM membership m WHERE m.user_id = u.id);
+  DELETE FROM restaurant WHERE slug = '<slug>';
+  COMMIT;
+  ```
+
+  Sesje znikają kaskadowo razem z kontem; konto z innymi członkostwami zostaje. Jeśli ostatni `DELETE` kończy się błędem klucza obcego (dania, wina, importy, zdarzenia gościa, publikacje), restauracja jest już w użyciu: wykonaj `ROLLBACK` i ustaw `UPDATE restaurant SET status = 'archived' WHERE slug = '<slug>'` (zajęty slug pozostaje zajęty).
 
 Ciasteczko sesji jest w produkcji `Secure`. Żeby uruchomić build produkcyjny lokalnie po http (`npm run build && npm start`), ustaw `AUTH_COOKIE_SECURE=false` (jest w `.env.example`); nigdy na publicznym serwerze.
 
