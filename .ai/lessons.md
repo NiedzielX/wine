@@ -10,6 +10,7 @@ Format linii (najnowsze na górze):
 ## Aktywne
 
 - [2026-10-25] [Przy pytaniu z rekomendacją wykonaj ją i zapisz wybór, nie wstrzymuj pracy](lessons/2026-10-25-recommended-decision-default.md) — pytaj tylko bez rekomendacji albo przy decyzji nieodwracalnej lub wychodzącej na zewnątrz.
+- [2026-10-25] [Nowy advisory czerwieni CI wszystkich PR-ów; gdy poprawka jest młodsza niż 14 dni, daj dateowany wyjątek dla nazwanych advisories](lessons/2026-10-25-audit-gate-new-advisories.md) — wyjątek w `audit-gate` wymienia advisories i wygasa najpóźniej, gdy poprawiona wersja kończy 14 dni; potem bump.
 - [2026-10-21] [W testach kontraktu każdy import ma nowe identyfikatory linii; test migracji odtwarza późniejsze migracje](lessons/2026-10-21-test-ids-and-migration-replay.md) — ponowny zapis tych samych `id` daje naruszenie klucza, które `translate()` pokazuje jako `duplicate_pairing`.
 - [2026-10-21] [`schema:check` porównuje z plikiem snapshotu nazwanym od bazy, nie z introspekcją](lessons/2026-10-21-schema-check-snapshot-per-database.md) — snapshoty `.snapshot-<baza>.json` muszą mieć postać z encji (nie znormalizowaną przez Postgresa); sprawdzaj `schema:check` dla każdej nazwy bazy.
 
