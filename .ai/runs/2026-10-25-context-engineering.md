@@ -2,7 +2,7 @@
 started: 2026-10-25 13:25
 ended: 2026-10-25 14:10
 agent: Claude Code
-spec: .ai/specs/2026-10-25-context-engineering.md
+spec: .ai/specs/implemented/2026-10-25-context-engineering.md
 outcome: success
 related: [.ai/runs/2026-10-25-agent-security-hardening.md]
 ---
@@ -28,7 +28,7 @@ Właściciel (Filip) po lekcji 10 (context engineering) zatwierdził w czacie pl
 - Pomiar przed/po: tabela w specyfikacji („Realizacja”).
 
 ## Wynik
-Fazy 0–6 wykonane. Stały koszt sesji Claude Code spadł z ok. 9,2 tys. do ok. 6,7 tys. tokenów (szacunek), pakiet `app` przestał przekraczać limit Codexa. Cel „root ≈ 150 linii” z planu nie został osiągnięty: root ma 238 linii i 22 KB, bo reguły procesu to ok. 14 KB. Dług techniczny: `packages/app/AGENTS.md` (10 KB, margines do limitu Codexa ok. 400 B), osierocony `agent/skills`, aktywna spec 60 KB. Zadania właściciela: `/context all` w świeżej sesji przed i po; decyzja o `agent/skills`. AC6b zamyka się po zielonym CI.
+Fazy 0–6 wykonane. Stały koszt sesji Claude Code spadł z ok. 9,2 tys. do ok. 6,7 tys. tokenów (szacunek), pakiet `app` przestał przekraczać limit Codexa. Cel „root ≈ 150 linii” z planu nie został osiągnięty: root ma 238 linii i 22 KB, bo reguły procesu to ok. 14 KB. Dług techniczny: `packages/app/AGENTS.md` (10 KB, margines do limitu Codexa ok. 400 B), osierocony `agent/skills`, aktywna spec 60 KB. Zadania właściciela: `/context all` w świeżej sesji przed i po; decyzja o `agent/skills`. AC6b zamknięte: CI zielone w PR #100.
 
 ## Lekcje
 - `.ai/lessons/2026-10-25-context-budget-and-routing.md`

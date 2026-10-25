@@ -1,5 +1,5 @@
 ---
-status: in-progress      # zatwierdzone przez właściciela (Filip) w czacie 2026-10-25: „działaj ze wszystkimi fazami” po przedstawieniu planu
+status: implemented      # zatwierdzone przez właściciela (Filip) w czacie 2026-10-25: „działaj ze wszystkimi fazami” po przedstawieniu planu
 created: 2026-10-25
 owner: Filip
 related: [.ai/runs/2026-10-25-context-engineering.md, .ai/specs/implemented/2026-10-25-agent-security-hardening.md]
@@ -36,7 +36,7 @@ Zmniejszyć stały koszt sesji bez utraty reguł procesu i ochrony architektury 
 - [x] AC4 (R3, R4c) `CLAUDE.md` bez powtórzeń §2/§6; test sprawdza regułę importu.
 - [x] AC5 (R4, R5, R9) `npm test -w @wine-match/testkit` przechodzi i zawiera przypadki negatywne dla: budżetu roota (bajty, linie), pakietu, łańcucha Codex, dokumentu routowanego, brakującej ścieżki routingu, brakującego/zdublowanego bloku routingu, `CLAUDE.md` (import, pakiet, brak pliku), odwołania `§`, linku lekcji (brak, dubel, sierota), nazwy pliku, skilla (opis > 1024, ciało > 500, brak frontmatter/description/SKILL.md) i kod 0 przy samych ostrzeżeniach.
 - [x] AC6a (R4) Lokalnie `node scripts/check-context.mjs` zwraca 0 na repozytorium; `ci.yml` ma krok w jobie `lint`.
-- [ ] AC6b (R4) Job `lint` zielony w PR (zamyka się po wypchnięciu).
+- [x] AC6b (R4) Job `lint` zielony w PR #100 (wszystkie 8 jobów zielone).
 - [x] AC7 (R6) Wiersz routingu ze wzorcowym serwisem; ścieżka istnieje.
 - [x] AC8 (R7) §8 zawiera kryterium pod-agentów.
 - [x] AC9 (R10) Lekcja i wpis w indeksie; `npm run lint`, `typecheck`, `test`, `build` zielone (dowody w logu).
@@ -74,4 +74,4 @@ Gałąź `chore/context-engineering`, log `.ai/runs/2026-10-25-context-engineeri
 
 Stały koszt sesji Claude Code spadł o ok. 27% (szacunek). Pomiar `/context all` przed i po zostaje zadaniem właściciela.
 
-Weryfikacja i dowody (w tym porównanie 240 linii oryginału, 238 dosłownie w rootcie lub `.ai/docs`): w logu przebiegu. Otwarte: AC6b (zielony job `lint` w PR).
+Weryfikacja i dowody (w tym porównanie 240 linii oryginału, 238 dosłownie w rootcie lub `.ai/docs`): w logu przebiegu.
