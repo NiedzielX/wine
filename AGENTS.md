@@ -9,6 +9,10 @@ Czytaj tyle, ile wymaga zadanie; reguły procesu (§2–§9) i niezmienniki (§1
 | Zadanie | Czytaj |
 |---|---|
 | każde, na starcie | `.ai/lessons.md`, potem lekcje z `.ai/lessons/` o pasujących tytułach |
+| poprawka błędu | `.ai/docs/commands.md` (§6.1: najpierw test, który pada) |
+| nowa funkcja | `.ai/specs/` (specyfikacja przed kodem: §3), `.ai/docs/process-templates.md` |
+| refaktoryzacja | `.ai/docs/architecture-rules.md` |
+| review | `CODE_REVIEW.md`, `SDLC.md` |
 | `app` (strony, API, akcje, DI) | `packages/app/AGENTS.md`, `.ai/docs/architecture-rules.md` |
 | `core` (domena, serwisy) | `packages/core/AGENTS.md`; nowy serwis wzoruj na `packages/core/src/services/sales/sales-kpi-service.ts` |
 | silnik rekomendacji | `docs/RECOMMENDATION_ENGINE.md`, `packages/core/AGENTS.md` |
