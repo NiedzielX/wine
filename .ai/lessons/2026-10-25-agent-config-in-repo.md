@@ -10,7 +10,7 @@ promoted: AGENTS.md §9
 # Konfiguracja agenta w repo: `deny` nie blokuje basha, sandbox na Linuksie ma prywatny localhost, hook zawodzi zamykająco
 
 ## Kontekst
-Lekcja 9 kursu (bezpieczeństwo narzędzi) i utwardzenie repo (`.ai/specs/2026-10-25-agent-security-hardening.md`). Pięć rzeczy, które nie są oczywiste z samej konfiguracji.
+Lekcja 9 kursu (bezpieczeństwo narzędzi) i utwardzenie repo (`.ai/specs/implemented/2026-10-25-agent-security-hardening.md`). Pięć rzeczy, które nie są oczywiste z samej konfiguracji.
 
 ## Przyczyna
 Dokumentacja Claude Code i próby w tym środowisku:
