@@ -1,6 +1,6 @@
 import { ENGINE_FACTS, budgetOptions, parseDishIds, parsePeople } from '@wine-match/core';
 import type { Metadata } from 'next';
-import { BudgetChoice, Explain, LanguageSwitch, ModeSwitch, PeopleChoice, StyleChoice, TableDishPicker, TopBar } from '../../../_components/guest-ui';
+import { BudgetChoice, EmptyState, Explain, LanguageSwitch, ModeSwitch, PeopleChoice, StyleChoice, TableDishPicker, TopBar } from '../../../_components/guest-ui';
 import { SelectionCount } from '../../../_components/selection-count';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { getI18n } from '@/server/i18n';
@@ -45,6 +45,10 @@ export default async function TablePage({ params, searchParams }: Props) {
           <ModeSwitch dishHref={href(`/r/${slug}/menu`, prefs)} tableHref={href(`/r/${slug}/table`, prefs)} mode="table" t={t} />
           <p className="text-ink-2">{l.lead}</p>
           <Explain id="table" className="mt-1" summary={t.guest.explain.table.summary} points={t.guest.explain.table.points(ENGINE_FACTS)} />
+          {menu.dishes.length === 0 ? (
+            <EmptyState title={t.guest.menu.updatingTitle} text={t.guest.menu.updatingText} />
+          ) : (
+            <>
           <TableDishPicker dishes={menu.dishes} selected={selected} variant="rows" t={t} locale={locale} />
           <PeopleChoice people={parsePeople(q)} t={t} />
           <details className="mt-6" open={prefs.styles.length > 0 || prefs.maxPrice !== null}>
@@ -52,11 +56,15 @@ export default async function TablePage({ params, searchParams }: Props) {
             <StyleChoice prefs={prefs} legend={t.guest.prefs.colour} locale={locale} />
             <BudgetChoice prefs={prefs} budgets={budgetOptions('bottle')} legend={l.budgetPerBottle} t={t} locale={locale} />
           </details>
+            </>
+          )}
         </main>
+        {menu.dishes.length > 0 && (
         <div className="pointer-events-none sticky bottom-0 z-10 grid gap-2 bg-gradient-to-t from-paper from-70% to-transparent px-5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom))] *:pointer-events-auto lg:pointer-events-auto lg:static lg:mx-auto lg:w-full lg:max-w-[720px] lg:bg-none lg:pb-8">
           <SelectionCount formId="table-form" name="dish" labels={{ initial: l.countInitial(2), none: l.countNone, below: counts.map((n) => l.countOne(n)), selected: counts.map((n) => l.countMany(n)) }} />
           <button type="submit" className="inline-flex min-h-11 items-center justify-center rounded-full border border-wine bg-wine px-5 text-body font-semibold text-on-wine hover:bg-wine-deep disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">{l.submit}</button>
         </div>
+        )}
       </form>
     </>
   );
