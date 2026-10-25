@@ -4,6 +4,12 @@ dist
 next-env.d.ts
 .env
 .env.local
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+id_rsa*
 *.tsbuildinfo
 .DS_Store
 *.log
