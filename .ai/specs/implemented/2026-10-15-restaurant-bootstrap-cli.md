@@ -1,5 +1,5 @@
 ---
-status: approved
+status: implemented
 created: 2026-10-15
 owner: Filip
 related: [issue #23, issue #24, .ai/specs/product-brief.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-15-guest-usage-events.md]
@@ -139,16 +139,16 @@ D05 (Halka tylko demo) — respektowana. D09 — realizuje punkt 4 „Now”. Q0
 4. **Właściciel** → otwiera `/admin/halka` → 403 → system nie zwraca danych tamtej restauracji.
 
 ## Kryteria akceptacji
-- [ ] AC1 (R1) Given baza po `db:migrate` bez `db:seed`, When `restaurant:create` z poprawnymi flagami i `USER_PASSWORD`, Then powstaje restauracja `onboarding` i konto `owner` z hashem weryfikowalnym przez `ScryptPasswordHasher`. (`packages/db/tests/restaurant-bootstrap.integration.test.ts`)
-- [ ] AC2 (R1, R7) Given e2e po migracjach i seedzie, When `global-setup` uruchamia prawdziwe `restaurant:create` (`dbScript`), Then nowe konto loguje się, widzi Setup, a `/admin/halka` zwraca 403. (`packages/app/tests/e2e/`)
-- [ ] AC3 (R3) Given zajęty slug albo zajęty e-mail (inną wielkością liter) bez flagi, albo dwa równoległe wywołania z tym samym slugiem, Then kod 1 (jedno wywołanie równoległe sukcesem) i liczba wierszy `restaurant`, `app_user`, `membership` zmienia się najwyżej o jeden komplet. (test integracyjny)
-- [ ] AC4 (R4) Given istniejące konto i `--allow-existing-account` bez `USER_PASSWORD`, Then kod 0, nowe członkostwo `owner`, `password_hash` bez zmian. (test integracyjny)
-- [ ] AC5 (R2) Given niepoprawny slug (wielkie litery, spacja, `admin`, 1/41 znaków), brak pola, nieznana flaga albo `USER_PASSWORD` < 12 znaków bez flagi, Then kod 1 i `openOrm` nie zostaje wywołane; wiele błędów zgłoszonych naraz. (`core/tests/` dla `validateSlug`; `packages/db/tests/create-restaurant-cli.test.ts`)
-- [ ] AC6 (R5) Given brak `DATABASE_URL` → kod 1 (test CLI bez bazy); Given baza bez zastosowanych migracji → kod 1 z podpowiedzią i brak tabel/wierszy utworzonych przez polecenie (test integracyjny na świeżej bazie bez `migration:up`).
-- [ ] AC7 (R6) stdout i stderr w każdym powyższym scenariuszu nie zawierają wartości `USER_PASSWORD` ani `DATABASE_URL`. (asercja w testach CLI i integracyjnych)
-- [ ] AC8 (R7) Właściciel nowej restauracji wobec akcji serwerowych i API Halki → odmowa; `membershipFor` nie zwraca Halki. (`packages/app/tests/unit/`)
-- [ ] AC9 (R8) Istniejące testy `RestaurantService` i zachowanie `user:create` bez zmian.
-- [ ] AC10 (R9) AGENTS §1.5, README, `docs/USER_ROLES.md`, BC §5 opisują polecenie; README zawiera wywołanie w kontenerze, regułę przekazania hasła i SQL cofnięcia.
+- [x] AC1 (R1) Given baza po `db:migrate` bez `db:seed`, When `restaurant:create` z poprawnymi flagami i `USER_PASSWORD`, Then powstaje restauracja `onboarding` i konto `owner` z hashem weryfikowalnym przez `ScryptPasswordHasher`. (`packages/db/tests/restaurant-bootstrap.integration.test.ts`)
+- [x] AC2 (R1, R7) Given e2e po migracjach i seedzie, When `global-setup` uruchamia prawdziwe `restaurant:create` (`dbScript`), Then nowe konto loguje się, widzi Setup, a `/admin/halka` zwraca 403. (`packages/app/tests/e2e/`)
+- [x] AC3 (R3) Given zajęty slug albo zajęty e-mail (inną wielkością liter) bez flagi, albo dwa równoległe wywołania z tym samym slugiem, Then kod 1 (jedno wywołanie równoległe sukcesem) i liczba wierszy `restaurant`, `app_user`, `membership` zmienia się najwyżej o jeden komplet. (test integracyjny)
+- [x] AC4 (R4) Given istniejące konto i `--allow-existing-account` bez `USER_PASSWORD`, Then kod 0, nowe członkostwo `owner`, `password_hash` bez zmian. (test integracyjny)
+- [x] AC5 (R2) Given niepoprawny slug (wielkie litery, spacja, `admin`, 1/41 znaków), brak pola, nieznana flaga albo `USER_PASSWORD` < 12 znaków bez flagi, Then kod 1 i `openOrm` nie zostaje wywołane; wiele błędów zgłoszonych naraz. (`core/tests/` dla `validateSlug`; `packages/db/tests/create-restaurant-cli.test.ts`)
+- [x] AC6 (R5) Given brak `DATABASE_URL` → kod 1 (test CLI bez bazy); Given baza bez zastosowanych migracji → kod 1 z podpowiedzią i brak tabel/wierszy utworzonych przez polecenie (test integracyjny na świeżej bazie bez `migration:up`).
+- [x] AC7 (R6) stdout i stderr w każdym powyższym scenariuszu nie zawierają wartości `USER_PASSWORD` ani `DATABASE_URL`. (asercja w testach CLI i integracyjnych)
+- [x] AC8 (R7) Właściciel nowej restauracji wobec akcji serwerowych i API Halki → odmowa; `membershipFor` nie zwraca Halki. (`packages/app/tests/unit/`)
+- [x] AC9 (R8) Istniejące testy `RestaurantService` i zachowanie `user:create` bez zmian.
+- [x] AC10 (R9) AGENTS §1.5, README, `docs/USER_ROLES.md`, BC §5 opisują polecenie; README zawiera wywołanie w kontenerze, regułę przekazania hasła i SQL cofnięcia.
 
 ## 📋 Phasing
 - **Faza 1 — `validateSlug()` w `core`:** bez zmiany zachowania; nie zależy od A8/A10.
@@ -193,3 +193,9 @@ D05 (Halka tylko demo) — respektowana. D09 — realizuje punkt 4 „Now”. Q0
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 
 ## Realizacja
+- Gałąź `feat/e05-s01-restaurant-create`, PR do `main` (numer w opisie zgłoszenia #24); log przebiegu: `.ai/runs/2026-10-25-e05-s01-restaurant-create.md`.
+- Faza 1: `validateSlug()` w `core` (+ `core/tests/validate-slug.test.ts`). Faza 2: `packages/db/scripts/restaurant-bootstrap.ts`, `create-restaurant.ts`, skrypty `restaurant:create`; testy `create-restaurant-cli.test.ts` (AC5, AC6 cz. 1, AC7), `restaurant-bootstrap.integration.test.ts` (AC1, AC3, AC4, AC6 cz. 2, AC7), `app/tests/unit/restaurant-owner-scope.test.ts` (AC8), `app/tests/e2e/restaurant-create.e2e.test.ts` + `global-setup.ts` (AC2); dokumentacja (AC10).
+- Odstępstwo od A6: kontrola migracji zaczyna się od `to_regclass('mikro_orm_migrations')`; dopiero gdy tabela istnieje, wołane jest `migrator.getPending()`. Powód: `getPending()` na bazie bez migracji zakłada tabelę `mikro_orm_migrations` (`storage.ensureTable()`), a AC6 wymaga, żeby polecenie niczego nie utworzyło. Nazwa API z A6 (`getPending`) potwierdzona w MikroORM 7.2.2.
+- Odstępstwo od AC2 (forma): scenariusz e2e używa tylko `fetch` na zbudowanej aplikacji (brak `agent-browser` w środowisku wykonawczym); sprawdza logowanie, członkostwo tylko w nowej restauracji, Setup z „Import your menu” i 403 panelu oraz API Halki. Pozostałe pliki e2e (z przeglądarką) nie były uruchamiane.
+- Przy wywołaniu bez `--allow-existing-account` błąd `DATABASE_URL is not set.` jest zgłaszany razem z błędami pól (jedna lista), a nieznana flaga (`parseArgs strict`) daje komunikat użycia obok błędów pozostałych pól.
+- AGENTS §1.3 miało już wzmiankę o `restaurant:create` w wyjątku (2) na `main`; dopisano §1.5, `packages/db/AGENTS.md`, README, `docs/USER_ROLES.md`, BC §5.
