@@ -81,6 +81,7 @@ Pakiety wewnętrzne eksportują źródła TypeScript (bez kroku build); Next.js 
 | `npm run boot:check` | start zbudowanej aplikacji bez bazy: zła konfiguracja zatrzymuje serwer, demo tylko świadomie, ogólne 500 bez sekretów (po `npm run build`) |
 | `npm run smoke -- <url> <slug>` | smoke test uruchomionej aplikacji: strony gościa, panel (po zalogowaniu kontem demo), uwierzytelnianie, uprawnienia, API; domyślnie `http://localhost:3000 halka` |
 | `npm run user:create -- --email … --name … --role … --restaurant …` | tworzy konto do panelu (hasło z `USER_PASSWORD`, min. 12 znaków) |
+| `npm run restaurant:create -- --name … --slug … --address … --city … --wine-director … --owner-email … --owner-name … [--allow-existing-account]` | zakłada restaurację (`onboarding`) i jej właściciela (rola `owner`) w jednej transakcji na PostgreSQL, bez danych demo; wymaga `DATABASE_URL` i zastosowanych migracji, hasło z `USER_PASSWORD` (min. 12 znaków); kod 1 przy każdym błędzie |
 | `npm run build` | granice + build mockupów i aplikacji (z typecheckiem Next.js) |
 | `npm run engine:matrix` | przegląd kalibracji silnika: najlepsze wina dla każdego dania demo |
 | `npm run db:migration:create` / `db:migrate` / `db:seed` | migracje i dane demo |

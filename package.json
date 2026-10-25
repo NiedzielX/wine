@@ -34,6 +34,7 @@
     "engine:matrix": "npm run engine:matrix -w @wine-match/core --",
     "smoke": "node scripts/smoke.mjs",
     "user:create": "npm run user:create -w @wine-match/db --",
+    "restaurant:create": "npm run restaurant:create -w @wine-match/db --",
     "audit:gate": "node scripts/audit-gate.mjs",
     "secrets:scan": "node scripts/secret-scan.mjs",
     "lint": "oxlint --deny-warnings",

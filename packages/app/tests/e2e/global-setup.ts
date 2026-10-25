@@ -3,14 +3,15 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createDatabase, startBuiltApp, startTestDatabase } from '@wine-match/testkit';
 import type { TestProject } from 'vitest/node';
+import { NEW_RESTAURANT } from './new-restaurant';
 
 const appDir = fileURLToPath(new URL('../..', import.meta.url));
 const rootDir = fileURLToPath(new URL('../../../..', import.meta.url));
 
-/** Runs an npm script of the db package against the e2e database (migrations, demo data). */
-function dbScript(script: string, databaseUrl: string): Promise<void> {
+/** Runs an npm script of the db package against the e2e database (migrations, demo data, operator commands). */
+function dbScript(script: string, databaseUrl: string, args: string[] = [], env: Record<string, string> = {}): Promise<void> {
   return new Promise((resolve, reject) => {
-    execFile('npm', ['run', script, '-w', '@wine-match/db'], { cwd: rootDir, env: { ...process.env, DATABASE_URL: databaseUrl }, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile('npm', ['run', script, '-w', '@wine-match/db', ...(args.length ? ['--', ...args] : [])], { cwd: rootDir, env: { ...process.env, ...env, DATABASE_URL: databaseUrl }, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) reject(new Error(`npm run ${script} failed:\n${stdout}${stderr}`));
       else resolve();
     });
@@ -29,6 +30,11 @@ export default async function setup(project: TestProject): Promise<() => Promise
   const databaseUrl = await createDatabase(server.url, 'winematch_e2e');
   await dbScript('migration:up', databaseUrl);
   await dbScript('seed', databaseUrl);
+  // a second restaurant with its own owner, made by the real operator command (spec E05-S01, AC2)
+  await dbScript('restaurant:create', databaseUrl, [
+    '--name', NEW_RESTAURANT.name, '--slug', NEW_RESTAURANT.slug, '--address', NEW_RESTAURANT.address, '--city', NEW_RESTAURANT.city,
+    '--wine-director', NEW_RESTAURANT.wineDirector, '--owner-email', NEW_RESTAURANT.ownerEmail, '--owner-name', NEW_RESTAURANT.ownerName
+  ], { USER_PASSWORD: NEW_RESTAURANT.password });
 
   const app = await startBuiltApp({
     cwd: appDir,
