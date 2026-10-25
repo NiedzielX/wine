@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-25] [Podgląd importu czyta zapisane wiersze, więc pola niedozwolone do zapisu nie wchodzą do wiersza](lessons/2026-10-25-import-preview-reads-saved-rows.md) — nazwa pozycji POS jest tylko rozpoznawana przy mapowaniu, nigdy nie trafia do `import_job.rows`.
 - [2026-10-25] [Konfiguracja agenta w repo: `deny` nie blokuje basha, sandbox na Linuksie ma prywatny localhost, hook zawodzi zamykająco](lessons/2026-10-25-agent-config-in-repo.md) — buduj granice warstwami (deny, hook w Node, sandbox), wylicz sekrety w `deny`, nie włączaj sandboxa we wspólnym pliku bez testu.
 - [2026-10-25] [Przy pytaniu z rekomendacją wykonaj ją i zapisz wybór, nie wstrzymuj pracy](lessons/2026-10-25-recommended-decision-default.md) — pytaj tylko bez rekomendacji albo przy decyzji nieodwracalnej lub wychodzącej na zewnątrz.
 - [2026-10-25] [Nowy advisory czerwieni CI wszystkich PR-ów; gdy poprawka jest młodsza niż 14 dni, daj dateowany wyjątek dla nazwanych advisories](lessons/2026-10-25-audit-gate-new-advisories.md) — wyjątek w `audit-gate` wymienia advisories i wygasa najpóźniej, gdy poprawiona wersja kończy 14 dni; potem bump.

@@ -37,8 +37,8 @@ describe('mapping: only the code of a POS comment is kept (R8)', () => {
 
   it('an item cell that is a code alone is a code; a cell with words around it is not (R8)', () => {
     const { records } = mapTable('sales', POS.rows as string[][]);
-    expect(records[2]).toMatchObject({ checkId: '302', itemName: 'W3M', recommendationCode: 'W3M' });
-    expect(records[3]).toMatchObject({ checkId: '303', itemName: 'Wino W7K butelka', recommendationCode: '' });
+    expect(records[2]).toMatchObject({ checkId: '302', recommendationCode: 'W3M' });
+    expect(records[3]).toMatchObject({ checkId: '303', recommendationCode: '' });
   });
 
   it('a file without a comment or an item code has no code field at all', () => {
