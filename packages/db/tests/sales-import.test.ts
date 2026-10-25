@@ -40,7 +40,9 @@ describe('sales files: parser → columns → lines (AC11)', () => {
       expect(mapped.notes).toEqual(['Columns not used: Kelner, Nazwa klienta, Typ płatności.']);
       expect(notes).toEqual([]);
       expect(JSON.stringify(rows)).not.toMatch(/Kowalski|Nowak|Karta|Gotówka|Ola|Piotr/);
-      expect(rows[0].fields).toEqual({ businessDate: '2026-10-14', checkId: '101', covers: '2', itemType: 'food', itemName: 'Pierś z kaczki', quantity: '2', netAmount: '207.41' });
+      expect(rows[0].fields).toEqual({ businessDate: '2026-10-14', checkId: '101', covers: '2', itemType: 'food', quantity: '2', netAmount: '207.41' });
+      // item names are never kept in the job (E03 Q18, R9): not in the rows the job stores, not in the preview data
+      expect(JSON.stringify(rows)).not.toMatch(/Pierś z kaczki/);
       // the line without a check number (AC2) is the only error; a return and a bare "Wino" are warnings
       expect(rows.filter((r) => !r.include).map((r) => r.rowNumber)).toEqual([13]);
       expect(rows[9].issues.map((i) => i.code)).toContain('return_line');
