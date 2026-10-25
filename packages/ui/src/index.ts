@@ -14,6 +14,7 @@ export { Skeleton } from './components/skeleton';
 export { LevelMeter } from './components/level-meter';
 export { NativeSelect, NativeSelectOption } from "./components/native-select";
 export { Textarea } from "./components/textarea";
+export { StatusIcon } from "./components/status-icon";
 export { EmptyState } from './backend/feedback/EmptyState';
 export { ErrorMessage } from './backend/feedback/ErrorMessage';
 export { LoadingMessage } from './backend/feedback/LoadingMessage';

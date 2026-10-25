@@ -249,8 +249,9 @@ export interface ServiceDayPeriod { from: string; to: string }
 /**
  * Recommendation codes (spec 2026-10-16-recommendation-code, R11). A code is unique per (restaurant, service day); a
  * choice — (service day, session, wine, serving, dish ids) — has one code. Issuing is telemetry-like (AGENTS §1.3,
- * Q7), confirming is a command of the service. POS matching (R9) needs `sales_record` (phase 3): until then
- * `posMatched` is 0. The in-memory implementation keeps at most 10 000 recommendations.
+ * Q7), confirming is a command of the service. A POS match (R9) is read from the active `sales_record` lines at read
+ * time, never stored, so a second import of the same file cannot count it twice. The in-memory implementation keeps at
+ * most 10 000 recommendations.
  */
 export interface RecommendationCodeRepository {
   /** inserts unless (serviceDay, code) or the choice exists; `existing` returns the stored record of the same choice */
@@ -266,7 +267,7 @@ export interface RecommendationCodeRepository {
   pairStats(restaurantId: string, period: ServiceDayPeriod): Promise<PairCodeStats[]>;
   /** totals per R10 for the period, including context 'direct' */
   totals(restaurantId: string, period: ServiceDayPeriod): Promise<Omit<CodeSummary, 'period' | 'unmatchedPosCodes'>>;
-  /** stored checks in the period whose code matches no issued code (A13 card); 0 until phase 3 */
+  /** distinct (business day, code) pairs on the stored checks of the period that match no issued code (A13 card) */
   unmatchedPosCodes(restaurantId: string, period: ServiceDayPeriod): Promise<number>;
   /** import preview: how many of these distinct (businessDate, code) pairs have no issued code */
   countUnmatched(restaurantId: string, pairs: Array<{ businessDate: string; code: string }>): Promise<number>;

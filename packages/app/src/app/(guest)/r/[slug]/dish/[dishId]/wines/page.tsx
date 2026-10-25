@@ -45,7 +45,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
         <p className="mt-1.5 line-clamp-2 max-w-[48ch] text-body text-ink-2">{dish.description}</p>
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <span className="mr-1 text-body tabular-nums">{formatPrice(dish.price, locale)}</span>
-          {tasteWords(dish, locale).map((w) => <span key={w} className="rounded-full bg-[#ebe7e9] px-2.5 py-0.5 text-small text-ink-2">{w}</span>)}
+          {tasteWords(dish, locale).map((w) => <span key={w} className="rounded-full bg-line px-2.5 py-0.5 text-small text-ink-2">{w}</span>)}
         </div>
       </header>
 
@@ -106,7 +106,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
         <>
           <Link href={href(path, prefs)} scroll={false} aria-label={t.guest.wines.closeFilters} className="fixed inset-0 z-40 bg-ink/40" />
           <section role="dialog" aria-modal="true" aria-labelledby="sheet-title" className="fixed bottom-0 left-1/2 z-50 max-h-[88dvh] w-full max-w-[480px] -translate-x-1/2 overflow-auto rounded-t-2xl bg-surface px-5 pt-3 pb-[calc(18px+env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(34,24,29,0.16)] lg:top-0 lg:right-0 lg:bottom-auto lg:left-auto lg:h-dvh lg:max-h-none lg:w-[420px] lg:max-w-none lg:translate-x-0 lg:rounded-none lg:px-7 lg:pt-6 lg:shadow-[-12px_0_40px_rgba(34,24,29,0.16)]">
-            <div className="mx-auto mb-3.5 h-1 w-9 rounded-lg bg-[#d4ccd0] lg:hidden" />
+            <div className="mx-auto mb-3.5 h-1 w-9 rounded-lg bg-control lg:hidden" />
             <header className="flex items-center justify-between">
               <h2 id="sheet-title" className="font-serif text-h2">{t.guest.wines.refine}</h2>
               <Link href={href(path, prefs)} scroll={false} aria-label={t.common.close} className="grid size-11 place-items-center rounded-full hover:bg-ink/5">

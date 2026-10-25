@@ -775,6 +775,27 @@ export const en = {
       openWines: 'Open the wine list',
       opportunities: (n: number) => `Opportunities: ${n}`,
       openOpportunities: 'Open opportunities',
+      /** "Sales" (spec 2026-10-15-kpi-dashboard, phase 2, #21): POS sales from E03, never divided by guest sessions (R4) */
+      sales: {
+        title: 'Sales',
+        attachRate: 'Wine attach rate',
+        attachDetail: (n: string, of: string) => `${n} of ${of} checks with food`,
+        perGuest: 'Wine revenue per guest',
+        perGuestDetail: 'Checks with food that have a guest count',
+        perTable: 'Wine revenue per table',
+        perTableDetail: 'Per check with food',
+        averageBottle: 'Average bottle',
+        averageBottleDetail: 'Net price per bottle sold',
+        averageGlass: 'Average glass',
+        averageGlassDetail: 'Net price per glass sold',
+        noData: 'No data',
+        through: (day: string) => `Sales data through ${day}`,
+        emptyTitle: 'Upload a POS export to see attach rate',
+        emptyText: (days: number) => `Wine attach rate and wine revenue come from your POS sales of the last ${days} days.`,
+        importSales: 'Import sales',
+        noImportAccess: 'Someone with import access can upload it.',
+        latest: (day: string) => `Latest sales data: ${day}.`
+      },
       /** "Guest usage" (spec 2026-10-15-kpi-dashboard, phase 1) */
       usage: {
         title: 'Guest usage',
@@ -1102,6 +1123,16 @@ export const en = {
           'Waiter lookups: the staff screen, for a dish or a whole table. Never counted as guest sessions.'
         ]
       },
+      /** the "Sales" section of A1 (spec 2026-10-15-kpi-dashboard, phase 2; E07: explanations of new KPIs belong to E04) */
+      salesKpis: {
+        summary: 'How are sales counted?',
+        points: (k: UsageExplainFacts) => [
+          `Sales from your POS exports for the last ${k.days} full days up to yesterday, compared with the ${k.days} days before.`,
+          'Wine attach rate: checks with food that also had wine, out of all checks with food. Bar checks with wine only count for wine revenue, not for the rate.',
+          `Below ${k.minSample} checks with food in either period the change is not shown.`,
+          'Amounts are net. Revenue per guest uses the guests column of the export. Guest sessions in the app are never divided by checks.'
+        ]
+      },
       /** the "Pairing performance" table of A1 (spec 2026-10-15-kpi-dashboard, phase 3) */
       performance: {
         summary: 'What does this table count?',
@@ -1284,7 +1315,7 @@ export const en = {
         tasting_note_pl: 'Tasting note (PL)', tasting_note_en: 'Tasting note (EN)', region_pl: 'Region (PL)', region_en: 'Region (EN)', country_pl: 'Country (PL)', country_en: 'Country (EN)',
         category: 'Category', name: 'Name', description: 'Description', price: 'Price (zł)',
         producer: 'Producer', wineName: 'Wine', vintage: 'Vintage', region: 'Region', country: 'Country', grape: 'Grape', style: 'Style', glassPrice: 'Glass', bottlePrice: 'Bottle',
-        businessDate: 'Date', checkId: 'Check', covers: 'Guests', itemType: 'Type', itemName: 'Item', quantity: 'Qty', netAmount: 'Net (zł)'
+        businessDate: 'Date', checkId: 'Check', covers: 'Guests', itemType: 'Type', itemName: 'Item', recommendationCode: 'Recommendation code', quantity: 'Qty', netAmount: 'Net (zł)'
       },
       uploadTitle: '1. Upload a file',
       uploadText: 'CSV, Excel (.xlsx) or PDF, up to 10 MB. Nothing is saved until you confirm.',
@@ -1364,6 +1395,19 @@ export const en = {
         resultReplaced: 'Replaced checks',
         doneText: 'The lines are saved. A newer export of the same checks replaces them, so importing a corrected file again is safe.',
         seeRate: 'See Wine Attach Rate',
+        codeNote: (checks: number, unmatched: number) => `${checks} ${checks === 1 ? 'check has' : 'checks have'} a recommendation code. ${unmatched === 0 ? 'Each one matches a recommendation of the same day.' : `${unmatched} ${unmatched === 1 ? 'code does not match' : 'codes do not match'} a recommendation of that day.`}`,
+        recommendation: {
+          title: 'Wine from a recommendation',
+          description: 'Recommendation codes issued for the business days you choose, and how many of those guests ordered the wine.',
+          ordered: (ordered: number, issued: number) => `Ordered: ${ordered} of ${issued} ${issued === 1 ? 'recommendation' : 'recommendations'}`,
+          split: (waiter: number, till: number) => `(waiter ${waiter}, till ${till}). Each recommendation counts once.`,
+          unmatched: (n: number) => `Codes on the till without a recommendation: ${n}`,
+          noneTitle: 'No data',
+          none: 'No recommendation codes were issued or imported for this period.',
+          note: 'A code shows that the guest ordered the recommended wine. It does not prove that the recommendation caused the order.',
+          invalidTitle: 'This period cannot be shown',
+          invalid: 'Choose dates up to 366 days apart, with the end not before the start.'
+        },
         attach: {
           title: 'Wine Attach Rate',
           description: 'Checks with food that also had wine, out of all checks with food, for the business days you choose.',

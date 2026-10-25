@@ -33,6 +33,7 @@ const COLUMNS: Record<ImportKind, Column[]> = {
   sales: [
     { key: 'businessDate', label: 'businessDate', width: 'w-28' }, { key: 'checkId', label: 'checkId', width: 'w-24' }, { key: 'covers', label: 'covers', width: 'w-16' },
     { key: 'itemType', label: 'itemType', width: 'w-44', kind: 'itemType' }, { key: 'itemName', label: 'itemName', width: 'w-44' },
+    { key: 'recommendationCode', label: 'recommendationCode', width: 'w-28' },
     { key: 'quantity', label: 'quantity', width: 'w-16' }, { key: 'netAmount', label: 'netAmount', width: 'w-24', kind: 'price' }
   ]
 };
@@ -216,6 +217,7 @@ function SalesSummary({ preview, locale, t }: { preview: SalesPreview; locale: L
           {sum.checks === 0 ? <p>{s.summaryEmpty}</p> : <p>{s.lines(sum.lines.food, sum.lines.wine_glass, sum.lines.wine_bottle, sum.lines.other)}</p>}
           {sum.incompleteChecks > 0 && <p className="text-brass">{s.incomplete(sum.incompleteChecks)}</p>}
           {sum.replacedChecks > 0 && <p className="font-medium">{s.replaced(sum.replacedChecks)}</p>}
+          {sum.checksWithCode > 0 && <p data-codes-note>{s.codeNote(sum.checksWithCode, sum.unmatchedCodes)}</p>}
         </div>
         <div className="min-w-0 rounded-md bg-muted px-4 py-3">
           <div className="text-sm text-muted-foreground">{s.rateLabel}</div>

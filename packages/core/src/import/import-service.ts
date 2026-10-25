@@ -17,7 +17,7 @@ import { aggregateChecks, computeSalesKpis, type SalesKpis } from '../services/s
 import { SALES_ITEM_TYPES, type SalesItemType } from '../services/sales/types';
 import type { ValueMapEntry } from './types';
 
-export type ImportServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'pairingWriteRepository' | 'salesRepository'> & {
+export type ImportServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'pairingWriteRepository' | 'salesRepository' | 'recommendationCodeRepository'> & {
   importRepository: ImportRepository;
   importFileParser: ImportFileParser;
   clock: Clock;
@@ -41,6 +41,10 @@ export interface SalesPreview {
     incompleteChecks: number;
     /** checks to save that are already saved (active) and will be replaced (Q4) */
     replacedChecks: number;
+    /** saved checks that carry a recommendation code (spec 2026-10-16-recommendation-code, R9) */
+    checksWithCode: number;
+    /** distinct (business day, code) pairs of those checks that match no issued recommendation code (Q11) */
+    unmatchedCodes: number;
   };
   /** the file's own Wine Attach Rate and KPIs, as they will count once saved */
   kpis: SalesKpis;
@@ -232,7 +236,7 @@ export class ImportService {
     const restaurant = await this.restaurant(slug);
     const job = await this.get(slug, jobId);
     if (job.kind !== 'sales') throw new ValidationError('invalid_kind', 'This is not a sales import.');
-    const { lines, checks, incomplete } = completeChecks(job.rows);
+    const { lines, checks, incomplete, checksWithCode, codes } = completeChecks(job.rows);
     const days = lines.map((l) => l.businessDate).sort();
     const from = days[0] ?? null;
     const to = days[days.length - 1] ?? null;
@@ -240,7 +244,9 @@ export class ImportService {
     return {
       summary: {
         from, to, checks: checks.length, lines: perType, incompleteChecks: incomplete,
-        replacedChecks: job.status === 'preview_ready' && checks.length ? await this.d.salesRepository.countChecks(restaurant.id, checks) : 0
+        replacedChecks: job.status === 'preview_ready' && checks.length ? await this.d.salesRepository.countChecks(restaurant.id, checks) : 0,
+        checksWithCode,
+        unmatchedCodes: codes.length ? await this.d.recommendationCodeRepository.countUnmatched(restaurant.id, codes) : 0
       },
       kpis: computeSalesKpis({ from: from ?? '', to: to ?? '' }, aggregateChecks(lines)),
       unmappedValues: unmappedValues(job.rows)

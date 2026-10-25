@@ -17,15 +17,24 @@ export const SalesRecordEntity = defineEntity({
     importJob: () => p.manyToOne(ImportJobEntity),
     businessDate: p.date(),
     checkId: p.string().length(64),
-    covers: p.integer().columnType('smallint').nullable().check('covers between 0 and 999'),
+    covers: p.integer().columnType('smallint').nullable().check('covers >= 0 and covers <= 999'),
     itemType: p.enum([...SALES_ITEM_TYPES]),
     quantity: p.decimal('number').precision(10).scale(3).check('quantity <> 0'),
     netAmount: p.decimal('number').precision(12).scale(2),
+    /** the recommendation code of the line (spec 2026-10-16-recommendation-code, R8): a code or null, never a comment */
+    recommendationCode: p.string().length(4).nullable(),
     replacedAt: p.datetime().nullable(),
     replacedByJob: () => p.manyToOne(ImportJobEntity).nullable(),
     createdAt: p.datetime().onCreate(() => new Date())
   },
-  indexes: [{ properties: ['restaurant', 'businessDate', 'checkId'] }]
+  indexes: [
+    { properties: ['restaurant', 'businessDate', 'checkId'] },
+    {
+      // the POS match of a code (R9) reads the lines that carry one; partial, so the common null is not indexed
+      name: 'sales_record_recommendation_code_idx',
+      expression: 'create index sales_record_recommendation_code_idx on sales_record (restaurant_id, business_date, recommendation_code) where recommendation_code is not null'
+    }
+  ]
 });
 
 export type SalesRecordRow = InferEntity<typeof SalesRecordEntity>;

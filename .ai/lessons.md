@@ -9,6 +9,10 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-25] [Nowy advisory czerwieni CI wszystkich PR-ów; gdy poprawka jest młodsza niż 14 dni, daj dateowany wyjątek dla nazwanych advisories](lessons/2026-10-25-audit-gate-new-advisories.md) — wyjątek w `audit-gate` wymienia advisories i wygasa najpóźniej, gdy poprawiona wersja kończy 14 dni; potem bump.
+- [2026-10-21] [W testach kontraktu każdy import ma nowe identyfikatory linii; test migracji odtwarza późniejsze migracje](lessons/2026-10-21-test-ids-and-migration-replay.md) — ponowny zapis tych samych `id` daje naruszenie klucza, które `translate()` pokazuje jako `duplicate_pairing`.
+- [2026-10-21] [`schema:check` porównuje z plikiem snapshotu nazwanym od bazy, nie z introspekcją](lessons/2026-10-21-schema-check-snapshot-per-database.md) — snapshoty `.snapshot-<baza>.json` muszą mieć postać z encji (nie znormalizowaną przez Postgresa); sprawdzaj `schema:check` dla każdej nazwy bazy.
+
 - [2026-10-19] [Axe w Vitest (jsdom) nie mierzy kontrastu: kontrast sprawdzaj z tokenów](lessons/2026-10-19-axe-in-jsdom-limits.md) — `color-contrast` wyłączony w jsdom jawnie; kontrast liczy `src/stories/contrast.ts` z `styles.css`; asercja niepustego markupu.
 - [2026-10-19] [W świeżym worktree najpierw pełna `npm install`, potem `-w <pakiet> -D`](lessons/2026-10-19-full-install-before-adding-deps.md) — instalacja z `-w` zostawia `node_modules` bez narzędzi roota (np. `vitest`).
 - [2026-10-18] [Element widoczny tylko z JavaScriptem: `useSyncExternalStore`, nie `setState` w `useEffect`](lessons/2026-10-18-script-only-ui-use-sync-external-store.md) — `useSyncExternalStore(noop, () => true, () => false)`: brak elementu w HTML i przy hydratacji, bez błędu oxlint `set-state-in-effect`.

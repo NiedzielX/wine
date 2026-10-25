@@ -654,6 +654,26 @@ export const pl = {
       openWines: 'Otwórz kartę win',
       opportunities: (n: number) => `Okazje: ${n}`,
       openOpportunities: 'Otwórz okazje',
+      sales: {
+        title: 'Sprzedaż',
+        attachRate: 'Wine Attach Rate',
+        attachDetail: (n: string, of: string) => `${n} z ${of} rachunków z jedzeniem`,
+        perGuest: 'Przychód z wina na gościa',
+        perGuestDetail: 'Rachunki z jedzeniem z liczbą gości',
+        perTable: 'Przychód z wina na stolik',
+        perTableDetail: 'Na rachunek z jedzeniem',
+        averageBottle: 'Średnia butelka',
+        averageBottleDetail: 'Cena netto sprzedanej butelki',
+        averageGlass: 'Średni kieliszek',
+        averageGlassDetail: 'Cena netto sprzedanego kieliszka',
+        noData: 'Brak danych',
+        through: (day: string) => `Dane sprzedaży do ${day}`,
+        emptyTitle: 'Wgraj eksport z POS, aby zobaczyć Wine Attach Rate',
+        emptyText: (days: number) => `Wine Attach Rate i przychód z wina liczymy ze sprzedaży z POS z ostatnich ${days} dni.`,
+        importSales: 'Importuj sprzedaż',
+        noImportAccess: 'Może go wgrać osoba z uprawnieniem do importu.',
+        latest: (day: string) => `Ostatnie dane sprzedaży: ${day}.`
+      },
       usage: {
         title: 'Korzystanie gości',
         window: (days: number, from: string, to: string) => `Ostatnie ${days} dni · ${from} – ${to}`,
@@ -971,6 +991,15 @@ export const pl = {
           'Wyszukiwania kelnera: ekran obsługi, dla dania lub całego stołu. Nigdy nie liczą się jako sesje gości.'
         ]
       },
+      salesKpis: {
+        summary: 'Jak liczymy sprzedaż?',
+        points: (k: UsageExplainFacts) => [
+          `Sprzedaż z eksportów POS z ostatnich ${k.days} pełnych dni do wczoraj, w porównaniu z ${k.days} dniami wcześniej.`,
+          'Wine Attach Rate: rachunki z jedzeniem, na których było też wino, spośród wszystkich rachunków z jedzeniem. Rachunki barowe z samym winem liczą się do przychodu z wina, nie do wskaźnika.',
+          `Poniżej ${k.minSample} rachunków z jedzeniem w którymkolwiek okresie zmiana nie jest pokazywana.`,
+          'Kwoty netto. Przychód na gościa korzysta z kolumny gości w eksporcie. Sesji gości w aplikacji nigdy nie dzielimy przez rachunki.'
+        ]
+      },
       performance: {
         summary: 'Co liczy ta tabela?',
         points: (k: UsageExplainFacts) => [
@@ -1151,7 +1180,7 @@ export const pl = {
         tasting_note_pl: 'Notatka degustacyjna (PL)', tasting_note_en: 'Notatka degustacyjna (EN)', region_pl: 'Region (PL)', region_en: 'Region (EN)', country_pl: 'Kraj (PL)', country_en: 'Kraj (EN)',
         category: 'Kategoria', name: 'Nazwa', description: 'Opis', price: 'Cena (zł)',
         producer: 'Producent', wineName: 'Wino', vintage: 'Rocznik', region: 'Region', country: 'Kraj', grape: 'Szczep', style: 'Styl', glassPrice: 'Kieliszek', bottlePrice: 'Butelka',
-        businessDate: 'Data', checkId: 'Rachunek', covers: 'Goście', itemType: 'Typ', itemName: 'Pozycja', quantity: 'Ilość', netAmount: 'Netto (zł)'
+        businessDate: 'Data', checkId: 'Rachunek', covers: 'Goście', itemType: 'Typ', itemName: 'Pozycja', recommendationCode: 'Kod polecenia', quantity: 'Ilość', netAmount: 'Netto (zł)'
       },
       uploadTitle: '1. Prześlij plik',
       uploadText: 'CSV, Excel (.xlsx) lub PDF, do 10 MB. Nic nie zostanie zapisane, dopóki nie potwierdzisz.',
@@ -1231,6 +1260,19 @@ export const pl = {
         resultReplaced: 'Zastąpione rachunki',
         doneText: 'Pozycje są zapisane. Nowszy eksport tych samych rachunków je zastępuje, więc ponowny import poprawionego pliku jest bezpieczny.',
         seeRate: 'Zobacz Wine Attach Rate',
+        codeNote: (checks: number, unmatched: number) => `${checks} ${plural(checks, 'rachunek ma kod polecenia', 'rachunki mają kod polecenia', 'rachunków ma kod polecenia')}. ${unmatched === 0 ? 'Każdy pasuje do polecenia z tego dnia.' : `${unmatched} ${plural(unmatched, 'kod nie pasuje', 'kody nie pasują', 'kodów nie pasuje')} do poleceń z tego dnia.`}`,
+        recommendation: {
+          title: 'Wino z polecenia',
+          description: 'Kody poleceń wydane w wybranych dniach biznesowych i to, ile z nich zamówiono.',
+          ordered: (ordered: number, issued: number) => `Zamówione: ${ordered} z ${issued} ${issued === 1 ? 'polecenia' : 'poleceń'}`,
+          split: (waiter: number, till: number) => `(kelner ${waiter}, kasa ${till}). Każde polecenie liczy się raz.`,
+          unmatched: (n: number) => `Kody w kasie bez polecenia: ${n}`,
+          noneTitle: 'Brak danych',
+          none: 'W tym okresie nie wydano ani nie zaimportowano kodów poleceń.',
+          note: 'Kod pokazuje, że gość zamówił polecane wino. Nie dowodzi, że zrobiło to polecenie.',
+          invalidTitle: 'Tego okresu nie można pokazać',
+          invalid: 'Wybierz daty oddalone najwyżej o 366 dni, z końcem nie przed początkiem.'
+        },
         attach: {
           title: 'Wine Attach Rate',
           description: 'Rachunki z jedzeniem, na których było też wino, spośród wszystkich rachunków z jedzeniem, w wybranych dniach.',

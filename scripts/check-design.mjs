@@ -13,8 +13,9 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const guestDir = join(root, 'packages/app/src/app/(guest)');
 const css = readFileSync(join(guestDir, 'guest.css'), 'utf8');
 
-/** baselines measured on 2026-10-19; lower them when the screens get simpler */
-const BASELINE = { hex: 8, textSizes: 7, radii: 4 };
+/** baselines measured on 2026-10-19; lower them when the screens get simpler.
+ * hex: 1 is the theme-color metadata in (guest)/layout.tsx, which needs a literal value. */
+const BASELINE = { hex: 1, textSizes: 7, radii: 4 };
 
 const failures = [];
 
@@ -31,6 +32,22 @@ for (const name of TEXT_TOKENS) {
   }
 }
 
+// 1b. panel text tokens (packages/ui/src/styles.css), light and dark theme
+const panelCss = readFileSync(join(root, 'packages/ui/src/styles.css'), 'utf8');
+const [lightBlock, darkBlock] = panelCss.split(/^\.dark\s*\{/m);
+const themes = {
+  light: { block: lightBlock, pairs: [['foreground', 'background'], ['muted-foreground', 'background'], ['muted-foreground', 'card'], ['primary', 'background'], ['accent-foreground', 'accent'], ['sage', 'card'], ['brass', 'card'], ['destructive', 'card']] },
+  dark: { block: darkBlock ?? '', pairs: [['foreground', 'background'], ['muted-foreground', 'background'], ['muted-foreground', 'card'], ['primary', 'background'], ['sage', 'card'], ['brass', 'card']] }
+};
+for (const [theme, { block, pairs }] of Object.entries(themes)) {
+  const vars = Object.fromEntries([...block.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6})/g)].map((m) => [m[1], m[2]]));
+  for (const [fg, bg] of pairs) {
+    if (!vars[fg] || !vars[bg]) { failures.push(`panel ${theme}: token --${fg} or --${bg} missing in styles.css`); continue; }
+    const ratio = contrast(vars[fg], vars[bg]);
+    if (ratio < 4.5) failures.push(`panel ${theme}: --${fg} on --${bg} is ${ratio.toFixed(2)}:1 (need 4.5:1)`);
+  }
+}
+
 // 2. raw values in guest screens (everything under (guest) except the theme file)
 const sources = [];
 const walk = (dir) => {
@@ -42,6 +59,9 @@ const walk = (dir) => {
 };
 walk(guestDir);
 const all = sources.join('\n');
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+for (const file of sources) { if (EMOJI.test(file)) failures.push('guest screen contains an emoji glyph (use an icon from the single set)'); }
+if (/\bshadow-(?:sm|md|lg|xl|2xl)\b/.test(all)) failures.push('guest screens use a shadow utility (flat surfaces with a 1px line; only overlays such as the filter sheet may use an arbitrary shadow, docs/DESIGN_SYSTEM.md §3)');
 const distinct = (re) => new Set([...all.matchAll(re)].map((m) => m[0])).size;
 const measured = {
   hex: distinct(/#[0-9a-fA-F]{6}\b/g),
@@ -50,6 +70,20 @@ const measured = {
 };
 for (const key of Object.keys(BASELINE)) {
   if (measured[key] > BASELINE[key]) failures.push(`${key}: ${measured[key]} distinct values, baseline ${BASELINE[key]} (use a token or a role)`);
+}
+
+// 3. text colour on a tinted background in the same class list (e.g. `bg-brass-soft … text-brass`)
+const colourNames = Object.keys(tokens);
+const pairs = [];
+for (const m of all.matchAll(/["'`]([^"'`\n]*)["'`]/g)) {
+  const words = m[1].split(/\s+/);
+  const bgs = words.filter((w) => w.startsWith('bg-')).map((w) => w.slice(3)).filter((n) => colourNames.includes(n));
+  const texts = words.filter((w) => w.startsWith('text-')).map((w) => w.slice(5)).filter((n) => colourNames.includes(n));
+  for (const bg of bgs) for (const text of texts) pairs.push([text, bg]);
+}
+for (const [text, bg] of new Set(pairs.map((p) => p.join('\u0000')).map((s) => s.split('\u0000')))) {
+  const ratio = contrast(tokens[text], tokens[bg]);
+  if (ratio < 4.5) failures.push(`contrast: text-${text} on bg-${bg} is ${ratio.toFixed(2)}:1 (need 4.5:1)`);
 }
 
 if (failures.length) {

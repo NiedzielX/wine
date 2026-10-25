@@ -8,12 +8,15 @@ export interface KpiDelta {
 
 /**
  * One dashboard tile (A1): a label, a value and a detail line, optionally the change against the previous window
- * (spec 2026-10-15-kpi-dashboard, UI). No colours of meaning: a rise is not "good" by itself. `lead` = the highlighted tile.
+ * (spec 2026-10-15-kpi-dashboard, UI). No colours of meaning: a rise is not "good" by itself. `lead` = the highlighted tile;
+ * `className` places the tile in its grid (e.g. a span).
  */
-export function Kpi({ label, value, detail, delta, lead = false }: { label: string; value: string; detail: string; delta?: KpiDelta; lead?: boolean }) {
+export function Kpi({ label, value, detail, delta, lead = false, className = '', ...data }: {
+  label: string; value: string; detail: string; delta?: KpiDelta; lead?: boolean; className?: string; [data: `data-${string}`]: string | undefined;
+}) {
   const muted = lead ? 'text-primary-foreground/80' : 'text-muted-foreground';
   return (
-    <Card className={`min-w-0 ${lead ? 'border-transparent bg-primary text-primary-foreground' : ''}`}>
+    <Card {...data} className={`min-w-0 ${lead ? 'border-transparent bg-primary text-primary-foreground' : ''} ${className}`.trim()}>
       <CardHeader>
         <CardDescription className={lead ? 'text-primary-foreground/80' : undefined}>{label}</CardDescription>
         <CardTitle className="font-serif text-4xl font-normal tabular-nums">{value}</CardTitle>

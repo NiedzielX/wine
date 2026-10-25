@@ -138,6 +138,24 @@ with open('sales-pos-1250.csv', 'w', newline='', encoding='cp1250') as f:
     w.writerow(SALES_HEADER)
     w.writerows(SALES_ROWS)
 
+# sales-pos-codes.csv (spec 2026-10-16-recommendation-code, phase 3, AC9): a till comment column (Uwagi) with a guest's
+# name and an allergy next to a recommendation code; an item cell that is a code alone; an item cell with a code inside
+# words (not a code); a comment with a code-like token (a table number). Only the codes may reach the database.
+CODES_HEADER = ['Data', 'Nr rachunku', 'Kategoria', 'Pozycja', 'Ilość', 'Kwota netto', 'Uwagi']
+CODES_ROWS = [
+    ['14.10.2026', '301', 'Kuchnia', 'Kaczka', '2', '207,41', 'Pan Kowalski, alergia, W7K'],
+    ['14.10.2026', '301', 'Wino butelka', 'Morgon 2021', '1', '166,67', ''],
+    ['14.10.2026', '302', 'Kuchnia', 'W3M', '1', '35,19', ''],
+    ['14.10.2026', '303', 'Wino butelka', 'Wino W7K butelka', '1', '180,00', ''],
+    ['14.10.2026', '304', 'Kuchnia', 'Sałatka', '1', '30,00', 'stolik A4K'],
+    ['15.10.2026', '305', 'Kuchnia', 'Sandacz', '1', '91,05', 'Ola, bez glutenu'],
+    ['15.10.2026', '305', 'Wino kieliszek', 'Riesling trocken', '1', '48,15', 'kod: h4n'],
+]
+with open('sales-pos-codes.csv', 'w', newline='', encoding='utf-8') as f:
+    w = csv.writer(f, delimiter=';')
+    w.writerow(CODES_HEADER)
+    w.writerows(CODES_ROWS)
+
 # sales-pos.xlsx: English and Polish headers, real date cells (serial day numbers), a gross column that must not be
 # read as net, and 40 lines of the category "Wina białe" the import does not know (one decision maps them all).
 import datetime

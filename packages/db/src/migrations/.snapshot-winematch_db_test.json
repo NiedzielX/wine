@@ -3096,6 +3096,23 @@
           "enumItems": [],
           "mappedType": "decimal"
         },
+        "recommendation_code": {
+          "name": "recommendation_code",
+          "type": "varchar(4)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 4,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
         "replaced_at": {
           "name": "replaced_at",
           "type": "timestamptz(6)",
@@ -3163,6 +3180,19 @@
           "columnNames": [
             "restaurant_id",
             "business_date",
+            "recommendation_code"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "sales_record_recommendation_code_idx",
+          "primary": false,
+          "unique": false,
+          "where": "recommendation_code IS NOT NULL"
+        },
+        {
+          "columnNames": [
+            "restaurant_id",
+            "business_date",
             "check_id"
           ],
           "composite": true,
@@ -3175,8 +3205,8 @@
       "checks": [
         {
           "name": "sales_record_covers_check",
-          "expression": "(covers >= 0) AND (covers <= 999)",
-          "definition": "CHECK (((covers >= 0) AND (covers <= 999)))",
+          "expression": "covers >= 0 and covers <= 999",
+          "definition": "check (covers >= 0 and covers <= 999)",
           "columnName": "covers"
         },
         {

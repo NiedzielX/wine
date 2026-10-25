@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@wine-match/ui';
+import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, StatusIcon } from '@wine-match/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -24,7 +24,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 function Item({ ok, title, children, href, action }: { ok: boolean; title: string; children?: React.ReactNode; href?: string; action?: string }) {
   return (
     <div className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-start gap-3 border-b px-6 py-4 last:border-b-0">
-      <span aria-hidden="true" className={ok ? 'text-sage' : 'text-brass'}>{ok ? '✓' : '!'}</span>
+      <span className="grid h-5 place-items-center"><StatusIcon done={ok} /></span>
       <div className="min-w-0 text-sm"><b className="font-medium">{title}</b>{children && <div className="mt-0.5 text-muted-foreground">{children}</div>}</div>
       {href && action && !ok && <Button asChild size="sm" variant="outline"><Link href={href}>{action}</Link></Button>}
     </div>
