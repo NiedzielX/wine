@@ -23,11 +23,11 @@ Issue #90 (z PR #88): `itemName` z pliku sprzedaży trafiał do `import_job.rows
 - `npm test` (wszystkie pakiety): 565 + 49 + 62 + 353 + 10 testów, bez błędów.
 - `npm run test:db` z lokalnym PostgreSQL 16 (`TEST_DATABASE_URL`, bez Dockera): 102 testy zielone.
 - `npm run build`: zielone (exit 0).
-- Nie sprawdzono ekranu podglądu importu przy 390 px i 1440 px w przeglądarce (zmiana to usunięcie jednej kolumny; testy jednostkowe panelu przechodzą).
+- Podgląd importu (A13) w przeglądarce (Chromium, `next start`, `DATA_SOURCE=memory`, konto demo, plik `sales-pos.csv`): przy 390 px i 1440 px brak poziomego przewijania strony (`scrollWidth` = `clientWidth`), brak nagłówka „Item”, 13 wierszy w tabeli. Jedyny wpis w konsoli: 404 zasobu (przy 390 px, przy pierwszym ładowaniu), niezwiązany ze zmianą.
 
 ## Wynik
 Poprawka gotowa na gałęzi `fix/issue-90-pos-item-name`, bez PR. Brak migracji (schemat się nie zmienia).
-Dług techniczny: sprawdzić podgląd importu w przeglądarce przy 390 px i 1440 px (nie zrobione).
+Dług techniczny: brak.
 
 ## Lekcje
 Patrz `.ai/lessons/2026-10-25-import-preview-reads-saved-rows.md`.
