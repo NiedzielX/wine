@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-10-25] [Podgląd importu czyta zapisane wiersze, więc pola niedozwolone do zapisu nie wchodzą do wiersza](lessons/2026-10-25-import-preview-reads-saved-rows.md) — nazwa pozycji POS jest tylko rozpoznawana przy mapowaniu, nigdy nie trafia do `import_job.rows`.
 - [2026-10-21] [W testach kontraktu każdy import ma nowe identyfikatory linii; test migracji odtwarza późniejsze migracje](lessons/2026-10-21-test-ids-and-migration-replay.md) — ponowny zapis tych samych `id` daje naruszenie klucza, które `translate()` pokazuje jako `duplicate_pairing`.
 - [2026-10-21] [`schema:check` porównuje z plikiem snapshotu nazwanym od bazy, nie z introspekcją](lessons/2026-10-21-schema-check-snapshot-per-database.md) — snapshoty `.snapshot-<baza>.json` muszą mieć postać z encji (nie znormalizowaną przez Postgresa); sprawdzaj `schema:check` dla każdej nazwy bazy.
 

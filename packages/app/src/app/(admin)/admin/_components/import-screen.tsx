@@ -32,7 +32,7 @@ const COLUMNS: Record<ImportKind, Column[]> = {
   // spec 2026-10-15-pos-sales-import-attach-rate, A13: Guests and Item only when the file has them
   sales: [
     { key: 'businessDate', label: 'businessDate', width: 'w-28' }, { key: 'checkId', label: 'checkId', width: 'w-24' }, { key: 'covers', label: 'covers', width: 'w-16' },
-    { key: 'itemType', label: 'itemType', width: 'w-44', kind: 'itemType' }, { key: 'itemName', label: 'itemName', width: 'w-44' },
+    { key: 'itemType', label: 'itemType', width: 'w-44', kind: 'itemType' },
     { key: 'recommendationCode', label: 'recommendationCode', width: 'w-28' },
     { key: 'quantity', label: 'quantity', width: 'w-16' }, { key: 'netAmount', label: 'netAmount', width: 'w-24', kind: 'price' }
   ]
