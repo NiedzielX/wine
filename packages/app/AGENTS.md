@@ -1,6 +1,6 @@
 # packages/app — AGENTS.md
 
-Zasady ogólne: `../../AGENTS.md` (§1.2–1.4 i §7). Ekrany: `../../docs/SCREEN_SPECIFICATION.md`, API: `../../docs/API_SPECIFICATION.md`.
+Zasady ogólne: `../../AGENTS.md` (§1.2–1.4 i §7). Ekrany: `../../docs/SCREEN_SPECIFICATION.md`, API: `../../docs/API_SPECIFICATION.md`. Szczegóły architektury: `../../.ai/docs/architecture-rules.md`.
 
 **Co tu jest:** Next.js App Router w `src/app` z grupami tras `(guest)` (gość, `/r/[slug]/...`) i `(admin)` (panel, `/admin/...`), route handlery REST w `src/app/api/v1`, kod tylko serwerowy w `src/server` (kontener Awilix, zakres żądania, parsowanie parametrów).
 

@@ -1,6 +1,6 @@
 # packages/ui — AGENTS.md
 
-Zasady ogólne: `../../AGENTS.md` (§1.2 i §1.4).
+Zasady ogólne: `../../AGENTS.md` (§1.2 i §1.4). Szczegóły architektury: `../../.ai/docs/architecture-rules.md`.
 
 **Co tu jest:** komponenty shadcn/ui (`src/components`, styl new-york-v4), komponenty marki Wine Match (`src/brand`, np. `MatchGlass`), `cn` (`src/lib/utils.ts`), motyw panelu (`src/styles.css`), konfiguracja shadcn (`components.json`).
 
