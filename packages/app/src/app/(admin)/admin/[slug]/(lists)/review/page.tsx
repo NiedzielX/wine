@@ -60,12 +60,12 @@ export default async function ReviewPage({ params, searchParams }: Props) {
         <div className="grid gap-4">
           {groups.map((g) => (
             <Card key={g.dish.id} className="gap-0 py-0">
-              <CardHeader className="flex flex-row items-center justify-between gap-3 border-b bg-muted/50 py-3">
+              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b bg-muted/50 py-3">
                 <div className="min-w-0">
                   <CardTitle className="font-serif text-lg font-medium">{g.dish.name}</CardTitle>
                   <p className="text-xs text-muted-foreground">{t.admin.categories[g.dish.category] ?? g.dish.category}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {!g.hasPrimary && <Badge variant="outline">{m.noPrimary}</Badge>}
                   {decide && <ActionButton action={approveAllPairings} fields={{ ...common, dishId: g.dish.id }}>{m.approveDish}</ActionButton>}
                   <Button asChild variant="outline" size="sm"><Link href={`/admin/${slug}/pairings/${g.dish.id}`}>{m.openPairings}</Link></Button>

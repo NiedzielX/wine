@@ -19,7 +19,8 @@
     "seed": "mikro-orm seeder:run --class=DemoSeeder",
     "schema:check": "mikro-orm migration:check",
     "test": "vitest run --coverage",
-    "user:create": "tsx scripts/create-user.ts"
+    "user:create": "tsx scripts/create-user.ts",
+    "restaurant:create": "tsx scripts/create-restaurant.ts"
   },
   "dependencies": {
     "@mikro-orm/core": "7.2.2",
