@@ -21,18 +21,6 @@ const ACCEPTED = [
     advisory: 'GHSA-vfj7-8cjw-p6xm',
     reason: 'unreachable: awilix glob loading is not used (container.ts registers every dependency explicitly)',
     expires: '2027-01-15'
-  },
-  {
-    // testcontainers → undici 7.30.0, a dependency of the test harness (packages/testkit), never shipped. All eight are
-    // fixed in undici >= 7.30.1 (published 2026-10-15T14:18Z), eligible under the 14-day rule from 2026-10-29T14:18Z.
-    // The last five were published after 2026-10-25 and have the same fix, so the exception names them too.
-    packages: ['undici'],
-    advisory: [
-      'GHSA-4qv8-2p9j-2685', 'GHSA-f72v-6w45-q472', 'GHSA-xjj6-f33q-929c', 'GHSA-4w7w-5xrc-9h26',
-      'GHSA-2m5v-pch6-74hx', 'GHSA-qrxm-fqhp-jwvm', 'GHSA-9fm3-97px-rjf6', 'GHSA-55wc-3pg8-jfw6'
-    ],
-    reason: 'temporary: test harness only, never shipped; patched undici is younger than 14 days (eligible 2026-10-29 14:18Z)',
-    expires: '2026-10-29'
   }
 ];
 
