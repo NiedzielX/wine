@@ -34,7 +34,7 @@ Wine Match: platforma B2B2C rekomendacji win dla restauracji — aplikacja gośc
 
 | Obszar | Technologia | Wersja |
 |---|---|---|
-| Aplikacja | Next.js (App Router, Turbopack), React | 16.3.7, 19.3.0 |
+| Aplikacja | Next.js (App Router, Turbopack), React | 16.4.1, 19.3.0 |
 | Język | TypeScript (natywny kompilator) | 7.0.2 |
 | Baza danych | PostgreSQL + MikroORM (migracje, seedery, pula połączeń) | PG ≥ 16, MikroORM 7.2.2 |
 | Dependency Injection | Awilix (tryb `PROXY`) | 13.0.5 |

@@ -23,20 +23,15 @@ const ACCEPTED = [
     expires: '2027-01-15'
   },
   {
-    // Fixed in next >= 16.4.1 (published 2026-10-14), which is younger than the 14 days AGENTS.md §1.1 asks for until
-    // 2026-10-28. Not deployed anywhere yet. Two of the three are unreachable here: there is no `use cache` and no
-    // SVG through the image optimizer; the Server Actions denial of service does apply, hence the short expiry.
-    packages: ['next'],
-    advisory: ['GHSA-2464-fhr4-w9xw', 'GHSA-p3m5-59mp-jv5r', 'GHSA-673q-mjm6-r5xr'],
-    reason: 'temporary: patched next is younger than 14 days (eligible 2026-10-28); no `use cache`, no SVG images; app not deployed',
-    expires: '2026-10-29'
-  },
-  {
-    // testcontainers → undici 7.30.0, a dependency of the test harness (packages/testkit), never shipped. Fixed in
-    // undici >= 7.30.1 (published 2026-10-15), eligible under the 14-day rule on 2026-10-29.
+    // testcontainers → undici 7.30.0, a dependency of the test harness (packages/testkit), never shipped. All eight are
+    // fixed in undici >= 7.30.1 (published 2026-10-15T14:18Z), eligible under the 14-day rule from 2026-10-29T14:18Z.
+    // The last five were published after 2026-10-25 and have the same fix, so the exception names them too.
     packages: ['undici'],
-    advisory: ['GHSA-4qv8-2p9j-2685', 'GHSA-f72v-6w45-q472', 'GHSA-xjj6-f33q-929c'],
-    reason: 'temporary: test harness only, never shipped; patched undici is younger than 14 days (eligible 2026-10-29)',
+    advisory: [
+      'GHSA-4qv8-2p9j-2685', 'GHSA-f72v-6w45-q472', 'GHSA-xjj6-f33q-929c', 'GHSA-4w7w-5xrc-9h26',
+      'GHSA-2m5v-pch6-74hx', 'GHSA-qrxm-fqhp-jwvm', 'GHSA-9fm3-97px-rjf6', 'GHSA-55wc-3pg8-jfw6'
+    ],
+    reason: 'temporary: test harness only, never shipped; patched undici is younger than 14 days (eligible 2026-10-29 14:18Z)',
     expires: '2026-10-29'
   }
 ];
