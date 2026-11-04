@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E15), .ai/specs/product-brief.md (D02, D07, D13, D18, A02, N01, N02, N04), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12), .ai/specs/2026-11-04-platform-admin-and-multi-venue.md (E14), .ai/specs/2026-11-04-platform-quality-and-compliance.md (E21), .ai/specs/2026-11-04-sales-demo-and-roi-calculator.md (E22), .ai/specs/2026-10-15-production-deployment.md (E11), docs/PRODUCT_CONCEPT.md §5, security-notes.md]
@@ -173,6 +173,8 @@ Kolejność pracy: F1 → F2 → F3 → F4 → F5 → F6 → F7; F5 i F6 mogą r
   - Zmienione: identyfikatory ekranów wg planu (A15 -> **A23**, G13 -> **G15**); usunięta niezgodność z E14: jedna bramka niedostępności wobec gościa (E14 `restaurantAvailability`), jedna strona G15 (HTTP 200 `noindex`) i jeden kod API 403 `restaurant_unavailable` zamiast własnej wersji; doprecyzowane pierwszeństwo statusu lokalu przed subskrypcją i różnica odczyt/zapis; nieaktualne „spec E14 nie istnieje” zastąpione uzgodnieniem; rozwiązany brak podmiotu rozliczeniowego dla lokalu bez organizacji (organizacje `single`, backfill w AC9); dopisane R13 (idempotencja Checkout, `already_subscribed`, duplikat subskrypcji, `updateQuantity` przy zmianie liczby lokali) i AC35, wpis `audit_log` dla akcji administratora (AC36), odrzucanie hurtowego importu ponad limit, uwaga o `api_access` bez przedmiotu, kolejność faz względem migracji E14 (F2 po E14 F4); AC13 oznaczone jako test od zera (przywołany `agent-guardrails` nie znaleziony w repozytorium); nazwa `billing.view` oznaczona jako spoza planu.
   - Zweryfikowane w kodzie: `restaurant.status` tylko w `db`; `VersionConflictError` ma komunikat o parowaniu (AC6 słuszne); `fromDomainError` ma `default` 400, więc 402 i nowe kody wymagają dopisania; brak wzorców `sk_`/`whsec` w `redact.ts`; `ALLOW_DEMO_DATA` i `DATA_SOURCE` w `env.ts`; istnieją `admin-i18n.test.ts` i lekcje `ssr-page-tests-with-prerender`, `schema-check-snapshot-per-database`. Niezweryfikowane (zależą od dostawcy, spec słusznie je oznacza): wersja SDK i API Stripe, minimalny odstęp `trial_end`, harmonogram ponowień, obsługa KSeF.
   - Otwarte: zgoda właściciela na trzy wyjątki Q15 (plan, sekcja 7), na zależność `stripe`, decyzja fail-open na stronach gościa przy błędzie odczytu subskrypcji (obecnie sprzeczna z „fail closed”), brak okresowego uzgadniania z dostawcą po wyczerpaniu ponowień webhooka (propozycja: polecenie operatora `billing:reconcile`, dry-run domyślnie, poza zakresem tego szkicu), retencja `billing_event`, `subscription_change` i faktur (wpis w E21 Q10, faktury: okres księgowy do potwierdzenia).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, logi przebiegu, odstępstwa od projektu.)

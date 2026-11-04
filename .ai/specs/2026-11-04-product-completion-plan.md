@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/specs/backlog.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-16-recommendation-code.md, docs/RECOMMENDATION_ENGINE.md]
@@ -134,6 +134,13 @@ Warstwa sommeliera pozostaje ponad modelem na każdym etapie. Silnik pozostaje d
 | Q17 | E22: interpretacja „+10 zł” (na gościa zamawiającego wino czy na każdego gościa; wersja literalna z `PRODUCT_CONCEPT` §5 daje inne liczby), wartości robocze kalkulatora (odsetek zamawiających 30%, 150 zł, marża 60% — bez źródła), autor treści „Jak to działa dla restauracji”, czy demo pokazuje syntetyczny wzrost odsetka wina, przybliżenie gość/rachunek | Wariant ostrożniejszy; wartości robocze oznaczone jako założenia; treść recenzuje Filip; wzrost z banerem (bezpieczniej: bez); pole „gości na rachunek” nie wchodzi. |
 | Q18 | E14: czy właściciel organizacji widzi audyt swoich lokali (O3); wpis „porty platformy bez `restaurantId`” w `AGENTS.md` §1.3 (O1, plik pod CODEOWNERS) | Bez zmian (audyt tylko staff); wpis tak, z testem izolacji. |
 | Q19 | E11 jest `approved` i należy do człowieka, więc plan go nie zmienia. Runbook wdrożenia E11 musi dostać (a) ostrzeżenie o wycofaniu po E12 F1 (stary kod ignoruje `membership.status`), (b) ostrzeżenie o wycofaniu po E14 F1 (stary kod ignoruje `restaurant.status`), (c) sprawdzenie zarezerwowanych slugów `restaurants:check-reserved` przed migracją E14 F1 | Wymaganie niesione przez E12 F1 i E14 F1 (faza nie przechodzi bez adnotacji w runbooku); właściciel decyduje o poprawce E11 (nowa wersja specyfikacji albo adnotacja w PR). |
+
+## Decyzje podjęte (2026-11-04, delegacja właściciela)
+Właściciel polecił agentowi podjąć decyzje Q1–Q19 i kontynuować prace („podejmuj sam decyzje i kontynuuj prace”). Dla każdej pozycji przyjęto **domyślną rekomendację z tabeli powyżej**. Konsekwencje:
+- Wyjątki od `AGENTS.md` z Q7 i Q18 są zatwierdzone. Każdy obowiązuje dopiero od fazy, która go używa, z mitygacjami zapisanymi w odpowiedniej specyfikacji, a wpis w `AGENTS.md` (§1.3 dla portów bez `restaurantId`) dopisuje PR tej fazy wraz z testem izolacji (plik jest pod CODEOWNERS).
+- Q19: do specyfikacji E11 dopisano sekcję „Adnotacje do runbooku (2026-11-04)” z trzema wymaganiami; E12 F1 i E14 F1 nie przechodzą bez odpowiednich adnotacji w runbooku.
+- Wszystkie specyfikacje E12–E22 mają status `approved`. Faza, która wymaga jeszcze zewnętrznej decyzji (prawnik w E21, księgowa w E15, spike OCR w E20), nie startuje, dopóki ta decyzja nie zapadnie.
+- Liczby oznaczone w specyfikacjach jako zgadnięte (delty reguł E16, prior E17, wartości robocze kalkulatora E22) pozostają propozycjami do kalibracji, nie wynikami pomiaru.
 
 ## Proces
 1. Każda specyfikacja z tego planu jest `draft`. Przed prośbą o akceptację przechodzi niezależny przegląd (AGENTS.md §3).

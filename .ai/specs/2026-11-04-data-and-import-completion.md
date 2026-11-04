@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-14-phase5-import-and-qr.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/lessons/2026-10-14-import-conventions.md, .ai/lessons/2026-10-25-import-preview-reads-saved-rows.md, .ai/runs/2026-10-25-pos-item-name-privacy.md, BACKWARD_COMPATIBILITY.md, issue #89, issue #90]
@@ -168,6 +168,8 @@ Kolejność: **F1** (najniższe ryzyko, domyka dług prywatności) → **F2** (p
 - Zależności: wybór biblioteki OCR dopiero po spiku F5 z wersją (≥ 14 dni, przypięta), `audit:gate` i akceptacją właściciela przed F6; limit pikseli rasteryzacji; zmienna `IMPORT_OCR` w BC §4.
 - Prywatność: scrub #90 sprawdza też, czy `fields.recommendationCode` w starych zadaniach nie zawiera tekstu komentarza (nieznane).
 - Otwarte: akceptacja właściciela dla zależności OCR; kolejność scalania `analytics.export` z E12; E19 musi użyć wspólnej obsługi aliasu dla `/r/{slug}/logo`; `unpdf renderPageAsImage` i binaria `@napi-rs/canvas` niezweryfikowane (F5).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po zatwierdzeniu i implementacji.)

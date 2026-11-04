@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E14), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12), .ai/specs/2026-11-04-subscriptions-and-billing.md (E15), .ai/specs/2026-11-04-platform-quality-and-compliance.md (E21), .ai/specs/implemented/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/implemented/2026-10-14-phase4-authentication.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/product-brief.md (D02, D18, N01, N03, N04), docs/USER_ROLES.md, docs/DATA_MODEL.md, .ai/lessons/2026-10-14-auth-conventions.md, .ai/lessons/2026-10-14-nextjs-duplicate-module-instanceof.md]
@@ -188,6 +188,8 @@ Kolejność pracy w fazie: port + kontrakt → pamięć → PostgreSQL → serwi
   - Zmienione: identyfikatory ekranów wg planu (przegląd grupy A15 -> **A22**; „Konto wstrzymane” nie dostaje identyfikatora, bo A16 należy do E12); niezgodność z E15 usunięta: jeden mechanizm niedostępności wobec gościa (strona G15, HTTP 200 `noindex`, API 403 `restaurant_unavailable`) zamiast 404, wprowadzony w E14 F1 i używany przez E15; poprawiona lista miejsc `findBySlug` (nieprawdziwe „cztery w RecommendationService”: są trzy w `RecommendationService`, trzy w `CatalogService`, cztery w `RecommendationCodeService`) i trzy publiczne trasy API; `expectedVersion` z `updated_at` zastąpione kolumną `status_version`; F5 podniesione do `risk-high` (zakres danych); dodane `organization.kind` (organizacje `single` dla E15), rozszerzalna whitelista audytu (E15), retencja audytu przekazana do E21 przy zachowaniu append-only dla aplikacji, mapowanie `restaurant_suspended` w `fromDomainError`, kontrola slugów przed migracją, AC26 (styk z E12), rozszerzone AC3/AC5/AC11/AC12/AC25, przypadki brzegowe (równoległe wstrzymanie, rollback obrazu).
   - Zweryfikowane w kodzie: `RESERVED_SLUGS`, brak `status` w `Restaurant` i `toRestaurant`, `RestaurantEntity.status`, `membershipsOf`, `AdminService.overview`, `SalesKpiService.getSalesKpis`, pola `foodChecks`/`foodChecksWithWine`, indeks `guest_interaction`, `auth/me`, `forbidden.tsx`. Niezweryfikowane: istnienie plików `admin-shell.tsx` i testu `create-restaurant-cli.test.ts` w opisanym kształcie (pierwszy nie otwierany, drugi istnieje).
   - Otwarte: O1 (wyjątek portów bez `restaurantId`), O2 (MFA staffu), przeniesienie lokalu z organizacji `single` do `group` (decyzja E15), plan musi dopisać G15 do E14 F1 (patrz uwagi międzygrupowe).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, log przebiegu, odstępstwa od projektu.)

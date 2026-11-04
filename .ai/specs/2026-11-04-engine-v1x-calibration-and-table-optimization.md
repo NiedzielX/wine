@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E16), .ai/specs/product-brief.md (D13, D14, D15, N01, N02, N03), .ai/specs/implemented/2026-10-16-whole-table-waiter-path.md (E08), .ai/specs/implemented/2026-10-16-how-it-works-explanations.md (E07), .ai/specs/implemented/2026-10-16-sommelier-opportunities.md (E10), .ai/lessons/2026-10-14-engine-calibration-matrix.md, docs/RECOMMENDATION_ENGINE.md, BACKWARD_COMPATIBILITY.md §7]
@@ -183,6 +183,8 @@ F1 → F2 → F3 → F4 → F5 → F6. F2–F4 są niezależne od F5, ale scalan
   - Zgadnięte liczby (muszą zostać oznaczone w PR): wszystkie delty z R1, `TABLE_PLAN_MIN_GAIN = 3`, próg S2 (1–40% par), 250 ms w AC14, progi regionów (R6 to propozycja do sommeliera).
   - Otwarte: Q12 (sommelier), Q16 (koszt planu), Q17 (zrozumiałość planu), kalibracja `STRONG_MATCH` po F2–F4. ENGINE_VERSION: tylko E16 podnosi do `1.3.0` (zgodnie z planem); rekomendacja dla produkcji: nie wydawać wersji F2–F4 osobno (Q10).
   - Międzyepikowo: E17 buduje zbiór od `1.3.0` (nazwy reguł z R1 stabilne dopiero po F4); E18 `Q13` zależy od `maxWines`/`K` (w kodzie `TABLE_PLAN_MAX_WINES`).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)

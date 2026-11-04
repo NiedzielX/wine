@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, docs/RECOMMENDATION_ENGINE.md]
@@ -162,6 +162,8 @@ Grupa E pochłania efekt pozycji, pieczęci sommeliera i etykiety „Wybór rest
   - Zmieniono: `b0` przy `λ → ∞` nie jest `logit(ȳ)` (poprawione wzór i AC6); ograniczenia pudełkowe przez zbiór aktywny zamiast rzutu psującego zbieżność; start z wygładzonym `ȳ̃` (brzegi `n_poz = 0`/`n`, separacja, kolumna zer, pusty zbiór); „hierarchia” opisana uczciwie jako ridge wokół stałego `μ`; zbiór testowy chronologiczny (CV na tych samych danych dla `λ` i metryk było optymistyczne); NDCG z normalizacją `IDCG`; ECE bez `M = 0`; założenia IPW (model pozycyjny, niezależność) wypisane; spójność R3/AC2 (test pada dla reguły bez rodziny); `tier` wiersza ekspozycji (0–2) a `usageTier` (2 wartości); rodziny reguł po E16 (`food`, `region`) i `D = 49`; `sell_priority` z E19 (fala 2 przed E17) i wykluczenie premii z `pref_adj`; cechy zbioru sommeliera tylko A–B; tolerancja AC19 ±4%; test IPW bez przycięcia.
   - Zgadnięte (oznaczone): `PRIOR_V1 = 0,5`, siatka `λ`, `c_j`, `0,5` zmiany, `|b0| ≤ 6`, `SHADOW_BAND = 8`, wszystkie progi bramek (2000 list, 300 sesji, 100 dodatnich, 10·D_eff, 0,005, ECE 0,05), `e(k) = k^(−η)` z `η ∈ {0,5; 1; 2}`, `B = 1000`.
   - Zgodność z D18, N01, N03: potwierdzona (brak łączenia restauracji, model niewidoczny dla gościa, brak LLM). Otwarte: zależność od E21 (retencja `recommendation_exposure`; plan tego nie wpisuje jako zależności), bez zmian względem pozostałych punktów „Otwarte”.
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, logi przebiegu, odstępstwa od projektu.)

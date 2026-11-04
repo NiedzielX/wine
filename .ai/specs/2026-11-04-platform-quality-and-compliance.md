@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-engineering-standards.md, .ai/lessons/2026-10-19-axe-in-jsdom-limits.md, .ai/lessons/2026-10-15-config-fails-closed-and-boot-without-env.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md, docs/USER_ROLES.md]
@@ -156,6 +156,8 @@ F3 i F4 dotykają wspólnych plików (`repositories.ts`, `container.ts`, `memory
   - Zmienione: ekran prywatności G13 -> **G14** (G13 należy do E12: logowanie PIN) we wszystkich miejscach; retencja rozszerzona z dwóch tabel do rejestru dla całej platformy (plan, ustalenie 4: opinie E18, ekspozycje E17, `import_job.rows` E20, `auth_event`/`auth_token` E12, `audit_log` E14, tabele rozliczeń E15; faktur nie usuwamy automatycznie); błędne założenie o osobnej retencji sesji skorygowane (`deleteExpiredSessions` istnieje i działa przy logowaniu); dodany R16 (anonimizacja konta osoby: E12 odsyłał do E21, a E21 do E12) z AC15; AC16 (rejestr retencji); wyjątek `wm_staff` w R12 i AC11, które inaczej blokowałyby E12; reguła `pin-login` w R7 (limit 20/10 min na IP uderzyłby w salę za jednym Wi-Fi); porty retencji tabel globalnych jawnie nazwane jako rozszerzenie wyjątku z planu (sekcja 7); HSTS ograniczone do produkcji bez `includeSubDomains`; zalecane szyfrowanie kopii; ostrzeżenie o kolejności wdrożenia `PRIVACY_CONTACT_EMAIL`; błąd „4-cyfrowy PIN” poprawiony (E12: 6 cyfr); R14 odwołuje się do aktualnej listy ekranów zamiast zamrożonego G0–G13.
   - Zweryfikowane w kodzie: brak limitera i `/api/v1/health` w kodzie (health pochodzi z E11, spec istnieje); `docs/API_SPECIFICATION.md` obiecuje 120 req/min/IP; `MAX_CODES_PER_SESSION_DAY = 30`; `color-contrast` wyłączony w `packages/ui/tests/a11y.test.tsx`; `BASELINE` w `check-design.mjs`; agent-browser 0.39.1 w `packages/testkit`; `axe-core` 4.13.0 w `packages/ui`; job `a11y` już istnieje w `ci.yml` (nowe są `restore-drill` i `perf`); `instrumentation.ts` ma tylko `register`; `guest_interaction` ma indeksy `(restaurant, createdAt)`. Niezweryfikowane: sygnatura `onRequestError` w Next 16.3, viewport w agent-browser, dostępność `pg_dump` w obrazie `migrator`.
   - Otwarte: offboarding całej restauracji (E14/E15 odsyłają tu, nic tego nie pokrywa: decyzja właściciela, osobna faza lub epik), zgoda na rozszerzenie wyjątku „tabele bez dzierżawcy” o porty retencji, wartości retencji do prawnika (zwłaszcza `audit_log` 730 i `auth_event` 400), konflikt z E17 (395 dni vs dłuższy zbiór uczący).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po akceptacji i implementacji: commity, logi przebiegów, odstępstwa od projektu.)

@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E13), .ai/specs/product-brief.md (D13, D14, D18, N01, N03, N04, R03), .ai/specs/implemented/2026-10-15-bilingual-content.md, .ai/specs/implemented/2026-10-14-phase3-sommelier-writes.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-11-04-restaurant-operations.md (E19, zależy od tego epiku), .ai/specs/2026-11-04-engine-v1x-calibration-and-table-optimization.md (E16), .ai/specs/2026-11-04-data-and-import-completion.md (E20), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12), docs/DATA_MODEL.md, docs/SCREEN_MAP.md, docs/USER_ROLES.md]
@@ -166,6 +166,8 @@ F6
 - API: ścieżki profilu zgodne z konwencją repo i `API_SPECIFICATION.md` (`?restaurant=`, `If-Match`/`ETag`), z odnotowaną zmianą opisu `PUT` (brak przeliczania `modelScore`).
 - Ryzyko: F2, F4, F6 podniesione do `risk-high` (migracje schematu, SDLC; `profiles.edit` zmienia BC §5); `go_live_at` jako `not null default now()` + backfill (BC §3); backfill F1 edytuje istniejący wiersz niezmiennej wersji: wymaga zgody właściciela.
 - Otwarte: zgoda właściciela na backfill migawki; `profiles.edit` dla owner/manager (którzy nie mają `pairings.decide`) do potwierdzenia z E12; wpis `profiles.edit` do `permissions.ts` należy do tabeli E12 (kolejność scalania z E12); zawieszenie restauracji (E14).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)

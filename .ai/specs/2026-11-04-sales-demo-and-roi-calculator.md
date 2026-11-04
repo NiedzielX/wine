@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E22, D19), .ai/specs/product-brief.md (D05, D13, D14, D18, A02, A05, N01–N04), .ai/specs/2026-10-15-production-deployment.md (R4, R5, Q10), .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-16-how-it-works-explanations.md, docs/PRODUCT_CONCEPT.md (§5, §6, §8), docs/SCREEN_MAP.md, docs/DESIGN_SYSTEM.md]
@@ -165,6 +165,8 @@ F1: (1) `roi.ts` + testy AC3–AC5 → (2) `env.ts` + testy AC1 → (3) layout i
   - Zgadnięte (każda liczba w kalkulatorze to założenie): a0 = 30%, s = 150 zł, m = 60% (robocze, bez źródła), C = 1 500, +5 pp, +10 zł, P = 790 zł (z koncepcji, niezweryfikowane), 56 dni i 30 rachunków generatora.
   - D19, N01–N03: zachowane (liczby oznaczone jako założenia, brak „AI”, brak płatnych pozycji, brak LLM). Otwarte: Q7 (interpretacja), Q15 (syntetyczny wzrost na KPI), przybliżenie gość/rachunek, trzeci layout (zgoda właściciela, plan pkt 7), działanie widoku kelnera po E12 F5.
 - **Q15 (otwarte, decyzja właściciela)** Czy demo ma pokazywać syntetyczny wzrost odsetka wina między oknami (R8)? Ryzyko: odbiorca czyta to jako wynik. Domyślnie tak, z przyklejonym banerem i opisem; bezpieczniejsza wersja to oba okna o podobnym poziomie.
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, log przebiegu, odstępstwa od projektu.)

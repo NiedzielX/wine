@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, .ai/specs/implemented/2026-10-14-phase5-import-and-qr.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-16-how-it-works-explanations.md, .ai/lessons/2026-10-14-write-path-conventions.md, docs/RECOMMENDATION_ENGINE.md, docs/DESIGN_SYSTEM.md, docs/USER_ROLES.md, docs/SCREEN_MAP.md]
@@ -203,6 +203,8 @@ Kolejność pracy: F1 przed F2 (priorytet używa `isOrderable`), F3 niezależna,
 - Zaufanie: pieczęć i „Para sommeliera” nadal wykluczone przy priorytecie (tier w `compareItems`), próg 62 nieprzekraczalny; limit 5 atomowy (wyścig).
 - Ryzyko: F1, F3, F5 podniesione do `risk-high` (migracje schematu); walidacja akcentu przed wstrzyknięciem do CSS; logo czystą funkcją w `core`; EXIF otwarte (O13).
 - Otwarte: zgoda właściciela na F5; wartości `SELL_PRIORITY_*` po `engine:matrix` i E16; `bytea` w MikroORM (O6).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, log przebiegu, odstępstwa od projektu.)

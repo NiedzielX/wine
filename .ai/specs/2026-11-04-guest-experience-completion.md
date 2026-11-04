@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E18), .ai/specs/product-brief.md (D13, D14, D15, D16, D18, N01, N02, N04, R05, R06), .ai/specs/implemented/2026-10-16-whole-table-waiter-path.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-bilingual-content.md, 2026-11-04-engine-v1x-calibration-and-table-optimization.md (E16), 2026-11-04-panel-completion.md (E13), 2026-11-04-platform-quality-and-compliance.md (E21), 2026-11-04-learning-layer-shadow-model.md (E17), 2026-11-04-restaurant-operations.md (E19), 2026-11-04-data-and-import-completion.md (E20), 2026-11-04-staff-accounts-and-roles.md (E12), BACKWARD_COMPATIBILITY.md]
@@ -229,6 +229,8 @@ Kolejność scalania wewnątrz fazy: `core` i migracja, potem UI (plan E11–E22
 - Zaufanie gościa: zakaz „free”/„gluten-free”, dopisek o śladach i krzyżowym zanieczyszczeniu, etykiety filtrów mówiące o deklaracji; import nie kasuje deklaracji.
 - Wyjątki od §1.3 dla `submitFeedback` (aktor `guest`, brak `expectedVersion`) wpisane jawnie do zgody właściciela; kaskada opinii z kodu pod retencję E21.
 - Otwarte: zgoda właściciela na `submitFeedback`; przegląd prawny zastrzeżenia o alergenach; wpływ E19 priorytetu na sekwencję i odwrócone parowanie; kolejność `schema` z E19; plan nie wymienia E13 w „Zależy od” E18 (do poprawienia w planie).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, logi przebiegów, odstępstwa od projektu.)

@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E12), .ai/specs/product-brief.md (D03, D13, D16, D19, N01, N03, N04), .ai/specs/implemented/2026-10-14-phase4-authentication.md, .ai/specs/implemented/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-production-deployment.md, .ai/lessons/2026-10-14-auth-conventions.md, docs/USER_ROLES.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md]
@@ -169,6 +169,8 @@ Trzy drzwi (layout `requireAccess`, `authorizeAction`, `handle()`) dla każdej n
   - Zmienione: identyfikatory ekranów wg planu (A16 = konto, A17 = przyjęcie zaproszenia i reset; wcześniej odwrotnie); nazwa `staff.lookup` oznaczona jako spoza planu; retencja dziennika przekazana do E21; F6 podniesione do `risk-high` (zakres danych); dopisane: blokada wierszy dla „ostatniego właściciela” (AC23), atomowe zużycie tokenu zaproszenia i `already_member` (AC24), rezerwacja slugów `accept`/`reset`/`account` (AC25), atomowy licznik bezpiecznika lokalu w `restaurant` zamiast liczenia z best-effortowego audytu (AC26), `Referrer-Policy` i POST na stronie przyjęcia tokenu, interfejs `inviteOwner` dla E14, członkowie z organizacji tylko do odczytu, sekcja przypadków brzegowych, ryzyka R-8, R-9; AC15 i AC18 przepisane na sprawdzalne (liczba wywołań `verify`, atrybuty ciasteczka zamiast „czasu zbliżonego” i „pustego nagłówka Cookie”).
   - Zweryfikowane w kodzie: `permissions.ts` (`MATRIX`, kelner `[]`), `AuthRepository` (w tym już istniejące `deleteExpiredSessions`), `AuthService.login`/`authenticate`, `NoPanelAccessError`, `DEMO_USERS` (kelner `waiter`), `staff/actions.ts` (`markCode`, `staff_view`), `RESERVED_SLUGS`, `proxy.ts` (`x-pathname` tylko `/admin`), `DEFAULT_AUTH_CONFIG`, testy `staff-code.test.ts`, `staff-table.test.ts`, `restaurant-owner-scope.test.ts`. Niezweryfikowane: brak mailera (grep po `packages/*/src`, `.env.example`, `docs` wykonany przez autora szkicu, nie powtórzony w całości), lekcje `auth-conventions` i `e2e-without-javascript` istnieją, ale ich treść nie była czytana ponownie.
   - Otwarte: Q-O1 (zgoda właściciela na `wm_staff`), Q-O2 (mailer), Q-O4 (autor akcji kelnera), uzupełnienie planu o `staff.lookup`, ustalenia E21 dla retencji `auth_event`/`auth_token` i usuwania kont (R16).
+
+- **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)

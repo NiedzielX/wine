@@ -20,6 +20,8 @@ Właściciel (2026-11-04): nie weryfikujemy założeń, budujemy pełnoprawny pr
 - Trzech niezależnych recenzentów (platforma, produkt, silnik i demo) poprawiło specyfikacje i plan w swoich grupach, a czwarty agent uzgodnił sprawy międzyepikowe.
 - Specyfikacji zatwierdzonej E11 (`2026-10-15-production-deployment.md`) i `2026-10-16-recommendation-code.md` nie edytowałem; zmiany do E11 są decyzją właściciela (Q19 w planie).
 
+- Właściciel zdelegował decyzje Q1–Q19 („podejmuj sam decyzje i kontynuuj prace”): przyjęto rekomendacje domyślne, zatwierdzono wyjątki od AGENTS.md (obowiązują od fazy, która ich używa), dopisano adnotację do E11 i ustawiono statusy specyfikacji E12–E22 na `approved`. Start implementacji: fala 0 i początek fali 1 (osobne PR-y, bez scalania).
+
 ## Weryfikacja
 - Każda specyfikacja ma sekcje szablonu: Problem, Cel i zakres, Wymagania, Kryteria akceptacji, Projekt rozwiązania, Ryzyka, Realizacja.
 - Kryteriów akceptacji w jedenastu specyfikacjach: 277.
