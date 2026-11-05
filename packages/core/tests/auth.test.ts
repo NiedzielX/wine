@@ -182,6 +182,14 @@ describe('permissions', () => {
     for (const p of ['panel.view', 'pairings.decide', 'wines.toggle', 'publish', 'settings.change'] as const) expect(can('waiter', p)).toBe(false);
   });
 
+  it('team.manage and audit.view belong to owner and manager only, staff.lookup to all four roles, and the waiter still has no dashboard (AC1)', () => {
+    const roles: Role[] = ['owner', 'manager', 'sommelier', 'waiter'];
+    expect(roles.filter((r) => can(r, 'team.manage'))).toEqual(['owner', 'manager']);
+    expect(roles.filter((r) => can(r, 'audit.view'))).toEqual(['owner', 'manager']);
+    expect(roles.filter((r) => can(r, 'staff.lookup'))).toEqual(roles);
+    expect(can('waiter', 'panel.view')).toBe(false);
+  });
+
   it('authorize returns the membership or throws ForbiddenError', () => {
     expect(authorize(principal('sommelier'), 'halka', 'pairings.decide').role).toBe('sommelier');
     expect(() => authorize(principal('manager'), 'halka', 'pairings.decide')).toThrow(ForbiddenError);

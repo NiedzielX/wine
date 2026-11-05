@@ -1,7 +1,8 @@
 import type { AuthEvent, AuthUser, Membership, MembershipStatus, SessionRecord, TeamMember } from '../auth/types';
 import type { DemoDataset } from '../demo/dataset';
 import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine } from '../domain/types';
-import { InvariantError, LastOwnerError, NotFoundError, VersionConflictError } from '../errors';
+import { assertKeepsAnOwner } from '../auth/team-rules';
+import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
 import {
   contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
@@ -403,17 +404,16 @@ export class MemoryTeamRepository implements TeamRepository {
     if (m.version !== change.expectedVersion) throw new VersionConflictError();
     const role = change.set.role ?? m.role;
     const status = change.set.status ?? m.status;
-    const wasOwner = m.role === 'owner' && m.status === 'active';
-    if (wasOwner && !(role === 'owner' && status === 'active')) {
-      const others = this.store.memberships.filter((x) => x.restaurantId === restaurantId && x.membershipId !== membershipId && x.role === 'owner' && x.status === 'active');
-      if (others.length === 0) throw new LastOwnerError();
-    }
+    const others = this.store.memberships.filter((x) => x.restaurantId === restaurantId && x.membershipId !== membershipId && x.role === 'owner' && x.status === 'active').length;
+    assertKeepsAnOwner(m, { role, status }, others);
     if (this.store.authEvents.some((e) => e.id === change.event.id)) throw new InvariantError('duplicate_event', 'The audit event already exists.');
+    if (status !== m.status) {
+      m.deactivatedAt = status === 'deactivated' ? change.at : null;
+      m.deactivatedBy = status === 'deactivated' ? change.actorUserId : null;
+    }
     m.role = role;
     m.status = status;
     m.version += 1;
-    if (status === 'deactivated' && change.set.status === 'deactivated') { m.deactivatedAt = change.at; m.deactivatedBy = change.actorUserId; }
-    if (status === 'active') { m.deactivatedAt = null; m.deactivatedBy = null; }
     this.store.authEvents.push(copy(change.event));
     return this.member(m);
   }
