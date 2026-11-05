@@ -6,15 +6,16 @@ import type { MembershipStatus, Role, TeamMember } from './types';
  * these pure functions are the hierarchy on top of it. They throw the domain error, or return when the change is allowed.
  *
  *  - nobody changes their own role or deactivates themselves;
- *  - only an owner touches an owner, and only an owner grants `owner` or `manager`;
+ *  - only an owner touches an owner or a manager, and only an owner grants `owner` or `manager`;
  *  - the last active owner is protected by the repository, atomically (a check here would race).
  */
 
 /** Roles a manager may grant: the ones below their own. */
 const MANAGER_GRANTS: readonly Role[] = ['sommelier', 'waiter'];
 
-function mayTouch(actor: TeamMember, target: TeamMember): boolean {
-  return actor.role === 'owner' || target.role !== 'owner';
+/** An owner changes anyone; a manager only the roles below manager (decided 2026-11-05: least privilege, the owner recovers). */
+function mayTouch(actor: Pick<TeamMember, 'role'>, target: Pick<TeamMember, 'role'>): boolean {
+  return actor.role === 'owner' || (target.role !== 'owner' && target.role !== 'manager');
 }
 
 export function assertMayChangeRole(actor: TeamMember, target: TeamMember, role: Role): void {
@@ -44,7 +45,7 @@ export function grantableRoles(actor: Pick<TeamMember, 'role'>): Role[] {
   return actor.role === 'owner' ? ['owner', 'manager', 'sommelier', 'waiter'] : [...MANAGER_GRANTS];
 }
 
-/** Whether the actor may change this person at all (their role or their status): not themselves, an owner only by an owner. */
+/** Whether the actor may change this person at all (their role or their status): not themselves; an owner or a manager only by an owner. */
 export function mayManageMember(actor: Pick<TeamMember, 'role' | 'userId'>, target: Pick<TeamMember, 'role' | 'userId'>): boolean {
-  return actor.userId !== target.userId && (actor.role === 'owner' || target.role !== 'owner');
+  return actor.userId !== target.userId && mayTouch(actor, target);
 }

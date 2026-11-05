@@ -1241,7 +1241,7 @@ export const en = {
       saveRole: 'Save role',
       deactivate: 'Remove access',
       reactivate: 'Restore access',
-      ownerOnly: 'Only an owner can change an owner.',
+      ownerOnly: 'Only an owner can change an owner or a General Manager.',
       yourself: 'You cannot change your own role or access.',
       roleHelp: 'A general manager can give the roles Wine Director and Waiter. Only an owner can give Owner or General Manager.',
       roleDescriptions: {

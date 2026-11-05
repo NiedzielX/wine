@@ -48,6 +48,14 @@ function build() {
   };
 }
 
+function addHalkaManager(t: ReturnType<typeof build>, key: string, name: string) {
+  const userId = `5ec0d000-0000-4000-8000-0000000000${key}`;
+  const membershipId = `5ec0d000-0000-4000-8000-0000000002${key}`;
+  t.store.users.push({ id: userId, email: `${key}@halka.test`, name, passwordHash: 'plain:x', failedAttempts: 0, lockedUntil: null, lastLoginAt: null });
+  t.store.memberships.push({ userId, membershipId, restaurantId: t.data.restaurant.id, restaurantSlug: 'halka', restaurantName: 'Halka', role: 'manager', status: 'active', version: 1, createdAt: '2026-10-01T07:40:00.000Z', deactivatedAt: null, deactivatedBy: null });
+  return { userId, membershipId, actor: { id: userId, name } as Actor };
+}
+
 function addHalkaOwner(t: ReturnType<typeof build>, key: string, name: string) {
   const userId = `5ec0d000-0000-4000-8000-0000000000${key}`;
   const membershipId = `5ec0d000-0000-4000-8000-0000000001${key}`;
@@ -96,6 +104,17 @@ describe('TeamService: who may change whom (AC3)', () => {
     expect(await t.team.changeRole('halka', t.halka.sommelierMembership, 'waiter', t.halka.manager, 1)).toMatchObject({ role: 'waiter', version: 2 });
     expect(await t.team.changeRole('halka', t.halka.sommelierMembership, 'manager', t.halka.owner, 2)).toMatchObject({ role: 'manager', version: 3 });
     expect(await t.team.changeRole('halka', t.halka.waiterMembership, 'owner', t.halka.owner, 1)).toMatchObject({ role: 'owner' });
+  });
+
+  it('a manager does not change, deactivate or reactivate a peer manager; the owner may (decided 2026-11-05)', async () => {
+    const peer = addHalkaManager(t, 'f1', 'Peer Manager');
+    await expect(t.team.changeRole('halka', peer.membershipId, 'sommelier', t.halka.manager, 1)).rejects.toMatchObject({ name: 'TeamHierarchyError' });
+    await expect(t.team.deactivate('halka', peer.membershipId, t.halka.manager, 1)).rejects.toMatchObject({ name: 'TeamHierarchyError' });
+    expect(await state(peer.membershipId)).toMatchObject({ role: 'manager', status: 'active', version: 1 });
+    expect(await t.team.deactivate('halka', peer.membershipId, t.halka.owner, 1)).toMatchObject({ status: 'deactivated' });
+    await expect(t.team.reactivate('halka', peer.membershipId, t.halka.manager, 2)).rejects.toMatchObject({ name: 'TeamHierarchyError' });
+    expect(await t.team.reactivate('halka', peer.membershipId, t.halka.owner, 2)).toMatchObject({ status: 'active' });
+    expect(await t.team.changeRole('halka', peer.membershipId, 'sommelier', t.halka.owner, 3)).toMatchObject({ role: 'sommelier' });
   });
 
   it('nobody changes their own role (an owner too)', async () => {
