@@ -9,7 +9,8 @@
  * The hook reads the text of a command, not the intent behind it: a model can still reach a secret through `python -c`,
  * `perl` or a script it wrote itself. It is one layer, next to `permissions.deny` and the sandbox (security-notes.md).
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 const BLOCKED = (reason) => `Zablokowane przez politykę zespołu: ${reason}. Nie próbuj obejść tej blokady innymi komendami.`;
 
@@ -216,4 +217,7 @@ function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) process.exit(main());
+// import.meta.url is a percent-encoded URL of the REAL path: build the URL of argv[1] the same way. A plain `file://` + path never
+// matches a path with a space, and a symlinked path (macOS /var → /private/var) differs too: the hook would silently do nothing,
+// which for a guard is failing open.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) process.exit(main());
