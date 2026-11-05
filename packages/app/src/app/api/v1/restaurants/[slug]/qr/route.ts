@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 /** GET /api/v1/restaurants/{slug}/qr?format=svg|png&size=<px>&download=1 — the guest QR code. */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
-  return handle(req, { write: false, slug, permission: 'panel.view' }, async ({ c }) => {
+  return handle(req, { route: '/api/v1/restaurants/{slug}/qr', write: false, slug, permission: 'panel.view' }, async ({ c }) => {
     const q = req.nextUrl.searchParams;
     const format = q.get('format') ?? 'svg';
     if (format !== 'svg' && format !== 'png') return apiError(422, 'validation_failed', 'format must be svg or png.', { format: 'invalid' });

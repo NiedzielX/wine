@@ -9,7 +9,7 @@ const CATEGORIES = ['Starters', 'Mains', 'Desserts'];
 /** GET /api/v1/public/restaurants/{slug}/menu — published dishes grouped by category. */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
-  return handlePublic(req, {}, async ({ c }) => {
+  return handlePublic(req, { route: '/api/v1/public/restaurants/{slug}/menu' }, async ({ c }) => {
     const menu = await c.catalogService.publishedMenu(slug);
     if (!menu) return apiError(404, 'not_found', 'Restaurant not found.');
     const coverage = await c.catalogService.pairingCoverage(menu.restaurant.id);

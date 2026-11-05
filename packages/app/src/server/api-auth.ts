@@ -7,6 +7,7 @@ import { SESSION_COOKIE, toActor } from './auth';
 import { createRequestScope, type Cradle } from './container';
 import { domainError } from './domain-errors';
 import { logger } from './logger';
+import { countUnhandledError, recordHttpRequest } from './metrics';
 
 /**
  * Door of the REST API for the dashboard: session cookie → principal, CSRF for changes, permission
@@ -61,26 +62,38 @@ type Scope = Awaited<ReturnType<typeof createRequestScope>>;
  * a domain error becomes its HTTP status and the standard error body, anything else is logged (with the
  * secrets redacted) and answered with a generic 500: never a stack trace. No route writes its own try/catch.
  */
-async function guarded(req: NextRequest, work: (scope: Scope) => Promise<NextResponse>): Promise<NextResponse> {
+async function guarded(req: NextRequest, route: string, work: (scope: Scope) => Promise<NextResponse>): Promise<NextResponse> {
+  const started = performance.now();
   const scope = await createRequestScope();
+  let res: NextResponse;
   try {
-    return await work(scope);
+    res = await work(scope);
   } catch (e) {
     const mapped = fromDomainError(e);
-    if (mapped) return mapped;
-    logger.error('api request failed', { err: e, method: req.method, path: req.nextUrl.pathname });
-    return apiError(500, 'unexpected', 'The request could not be processed.');
+    if (mapped) {
+      res = mapped;
+    } else {
+      logger.error('api request failed', { err: e, method: req.method, route });
+      countUnhandledError('route');
+      res = apiError(500, 'unexpected', 'The request could not be processed.');
+    }
   } finally {
     await scope.dispose();
   }
+  const durationMs = Math.round(performance.now() - started);
+  // one line per request: the route PATTERN (no slug or id), never the query, headers, body or IP
+  logger.info('api request', { method: req.method, route, status: res.status, durationMs });
+  recordHttpRequest(route, res.status, (performance.now() - started) / 1000);
+  return res;
 }
 
 /**
- * For routes that need no session (the guest API, sign-in). `write: true` still refuses cross-site requests.
+ * For routes that need no session (the guest API, sign-in). `route` is the route's PATTERN (`/api/v1/pairings/{id}`), used for the
+ * request log line and the metrics label: pass a literal, never the URL. `write: true` still refuses cross-site requests.
  */
-export async function handlePublic(req: NextRequest, opts: { write?: boolean }, handler: (ctx: { c: Cradle; req: NextRequest }) => Promise<NextResponse>): Promise<NextResponse> {
+export async function handlePublic(req: NextRequest, opts: { write?: boolean; route: string }, handler: (ctx: { c: Cradle; req: NextRequest }) => Promise<NextResponse>): Promise<NextResponse> {
   if (opts.write && isCrossSite(req)) return apiError(403, 'csrf', 'Cross-site requests are not allowed.');
-  return guarded(req, (scope) => handler({ c: scope.cradle, req }));
+  return guarded(req, opts.route, (scope) => handler({ c: scope.cradle, req }));
 }
 
 /**
@@ -89,9 +102,9 @@ export async function handlePublic(req: NextRequest, opts: { write?: boolean }, 
  *  - changes (`write`): 403 for cross-site requests and for a missing or wrong `X-CSRF-Token`
  *  - 403 when the caller's role in `slug` lacks `permission` (a failed check always means "no")
  */
-export async function handle(req: NextRequest, opts: { write: boolean; slug?: string; permission?: Permission }, handler: (ctx: ApiContext) => Promise<NextResponse>): Promise<NextResponse> {
+export async function handle(req: NextRequest, opts: { write: boolean; route: string; slug?: string; permission?: Permission }, handler: (ctx: ApiContext) => Promise<NextResponse>): Promise<NextResponse> {
   if (opts.write && isCrossSite(req)) return apiError(403, 'csrf', 'Cross-site requests are not allowed.');
-  return guarded(req, async (scope) => {
+  return guarded(req, opts.route, async (scope) => {
     const token = req.cookies.get(SESSION_COOKIE)?.value;
     const principal = token ? await scope.cradle.authService.authenticate(token) : null;
     if (!principal) return apiError(401, 'unauthenticated', 'Sign in first.');
