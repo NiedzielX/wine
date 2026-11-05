@@ -204,5 +204,11 @@ unset USER_PASSWORD
 - 2026-10-15 — grill: 25 questions, 3 left for owner (Q2, Q6 obejmujące #2 i #3)
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 
+## Adnotacje do runbooku (2026-11-04)
+Dopisane decyzją właściciela (plan `2026-11-04-product-completion-plan.md`, Q19). Nie zmieniają zakresu E11; wchodzą do `docs/DEPLOYMENT.md` w fazie 3 i są wymagane przez E12 F1 i E14 F1.
+- **Wycofanie po E12 F1:** stary kod ignoruje `membership.status`, więc po cofnięciu obrazu zdezaktywowani użytkownicy odzyskują dostęp; runbook mówi, że po F1 E12 poprzedni obraz wolno przywrócić tylko razem z ręczną dezaktywacją użytkowników.
+- **Wycofanie po E14 F1:** stary kod ignoruje `restaurant.status`, więc zawieszone restauracje znów działają; ta sama zasada.
+- **Przed migracją E14 F1:** polecenie `restaurants:check-reserved` sprawdza, czy żaden istniejący slug nie koliduje ze slugami zarezerwowanymi (`platform`, `org`, `accept`, `reset`, `account`).
+
 ## Realizacja
 (Uzupełnia agent po implementacji.)
