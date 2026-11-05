@@ -402,7 +402,7 @@ log "starting the built app on $BASE_URL"
 (
   cd "$ROOT/$APP_DIR"
   exec nohup env -i PATH="$PATH" HOME="${HOME:-}" NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production \
-    DATA_SOURCE=postgres DATABASE_URL="$DB_URL" AUTH_COOKIE_SECURE=false ALLOW_DEMO_DATA=true LOG_LEVEL=info \
+    DATA_SOURCE=postgres DATABASE_URL="$DB_URL" AUTH_COOKIE_SECURE=false ALLOW_LOCAL_BASE_URL=true ALLOW_DEMO_DATA=true LOG_LEVEL=info \
     node "$ROOT/$NEXT_BIN" start -H 127.0.0.1 -p "$APP_PORT"
 ) </dev/null >"$ROOT/$APP_LOG" 2>&1 &
 APP_PID=$!
@@ -448,7 +448,7 @@ fi
 # ===========================================================================
 ELAPSED=$(( $(date +%s) - START_EPOCH ))
 if [ "$BUILT" = 1 ]; then BUILD_NOTE="build ran (${BUILD_SECONDS}s)"; else BUILD_NOTE="build skipped (cache valid)"; fi
-NOTES="boot ${ELAPSED}s, ${BUILD_NOTE}. Fresh database ${DB_NAME} with the real migrations, demo data (restaurant halka) and a second restaurant (bistro-e2e) made by restaurant:create, like the e2e global-setup. Built app, DATA_SOURCE=postgres, AUTH_COOKIE_SECURE=false, ALLOW_DEMO_DATA=true. Passwords are in the credentials file (public demo values); log in as the first credential for the panel. Stop with: sh ${DOWN_SCRIPT}. Re-running the up script reuses this environment while it is healthy, younger than ${TTL_SECONDS}s and no source changed."
+NOTES="boot ${ELAPSED}s, ${BUILD_NOTE}. Fresh database ${DB_NAME} with the real migrations, demo data (restaurant halka) and a second restaurant (bistro-e2e) made by restaurant:create, like the e2e global-setup. Built app, DATA_SOURCE=postgres, AUTH_COOKIE_SECURE=false, ALLOW_LOCAL_BASE_URL=true, ALLOW_DEMO_DATA=true. Passwords are in the credentials file (public demo values); log in as the first credential for the panel. Stop with: sh ${DOWN_SCRIPT}. Re-running the up script reuses this environment while it is healthy, younger than ${TTL_SECONDS}s and no source changed."
 RUN_ID="$RUN_ID" BASE_URL="$BASE_URL" UP_SCRIPT="$UP_SCRIPT" DOWN_SCRIPT="$DOWN_SCRIPT" APP_PORT="$APP_PORT" \
 HEALTH_PATH="$HEALTH_PATH" APP_PID="$APP_PID" DB_PORT="$DB_PORT" CONTAINER="$CONTAINER" DB_SOURCE="$DB_SOURCE" \
 DB_NAME="$DB_NAME" DB_URL="$DB_URL" CRED_JSON="$CRED_JSON" CREDENTIALS_FILE="$CREDENTIALS_FILE" PLATFORM="$PLATFORM" \
