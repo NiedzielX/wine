@@ -118,10 +118,6 @@ describe('request log line and error hooks (AC2)', () => {
   it('an unexpected failure is a generic 500 without a stack, logged redacted, and counted', async () => {
     const lines: string[] = [];
     vi.spyOn(console, 'error').mockImplementation((line: string) => { lines.push(line); });
-    const { createRequestScope } = await import('@/server/container');
-    const scope = await createRequestScope();
-    vi.spyOn(scope.cradle.catalogService, 'publishedMenu').mockRejectedValueOnce(new Error('connect failed postgres://u:haslo@h/db'));
-    await scope.dispose();
     const container = await import('@/server/container');
     vi.spyOn(container, 'createRequestScope').mockResolvedValueOnce({
       cradle: { catalogService: { publishedMenu: () => Promise.reject(new Error('connect failed postgres://u:haslo@h/db')) } },
@@ -142,6 +138,7 @@ describe('request log line and error hooks (AC2)', () => {
     const lines: string[] = [];
     vi.spyOn(console, 'error').mockImplementation((line: string) => { lines.push(line); });
     const err = Object.assign(new Error('boom postgres://u:haslo@h/db'), { digest: 'd123' });
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
     await onRequestError(err, { path: '/r/halka/menu?sid=7c9e6679&diet=vegan', method: 'GET', headers: { cookie: 'wm_session=secrettoken' } }, {
       routerKind: 'App Router', routePath: '/r/[slug]/menu', routeType: 'render', renderSource: 'server-rendering', revalidateReason: undefined, renderType: 'dynamic'
     });
