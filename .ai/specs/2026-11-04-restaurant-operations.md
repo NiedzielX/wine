@@ -2,7 +2,7 @@
 status: approved
 created: 2026-11-04
 owner: Filip
-related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, .ai/specs/implemented/2026-10-14-phase5-import-and-qr.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-16-how-it-works-explanations.md, .ai/lessons/2026-10-14-write-path-conventions.md, docs/RECOMMENDATION_ENGINE.md, docs/DESIGN_SYSTEM.md, docs/USER_ROLES.md, docs/SCREEN_MAP.md]
+related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, .ai/specs/implemented/2026-10-14-phase5-import-and-qr.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-16-how-it-works-explanations.md, .ai/lessons/2026-10-14-write-path-conventions.md, docs/RECOMMENDATION_ENGINE.md, docs/DESIGN_SYSTEM.md, docs/USER_ROLES.md, docs/SCREEN_MAP.md]
 ---
 
 # Operacje restauracji: dostępność win, „wina do sprzedania”, branding, zestaw QR i powiadomienia (E19)
