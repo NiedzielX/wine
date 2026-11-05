@@ -129,6 +129,6 @@ flowchart LR
 | A10 Setup | – | – | ✓ (bez slugu) | ✓ |
 | A11 Publish | – | – | ✓ | ✓ |
 | A12 QR | – | – | ✓ | ✓ |
-| A15 Team | – | – | – | ✓ (GM nie zmienia właściciela) |
+| A15 Team | – | – | – | ✓ (GM nie zmienia właściciela ani innego GM) |
 
 W mockupie oba konta demonstracyjne mają pełny dostęp; ograniczenia ról GM dotyczą wersji produkcyjnej (wymuszane w API).

@@ -25,6 +25,7 @@ const state = () => (globalThis as unknown as { __wmNext: { cookies: Map<string,
 
 const OTHER = 'bistro-nad-wisla';
 const ids = {
+  mia: '00000000-0000-4000-8000-0000000000e6', miaMembership: '00000000-0000-4000-8000-0000000000e7',
   owner: '00000000-0000-4000-8000-0000000000e1', ownerMembership: '00000000-0000-4000-8000-0000000000e2',
   anna: '00000000-0000-4000-8000-0000000000e3', annaMembership: '00000000-0000-4000-8000-0000000000e4', otherRestaurant: '00000000-0000-4000-8000-0000000000e5',
   unknown: '00000000-0000-4000-8000-0000000000ff'
@@ -42,9 +43,10 @@ async function addPeople() {
     const template = store.users.find((u) => u.email === 'marta@halka.pl')!;     // the demo hash: the demo password
     const halka = store.memberships.find((m) => m.restaurantSlug === 'halka')!;
     store.restaurants.push({ ...store.restaurants[0], id: ids.otherRestaurant, slug: OTHER, name: 'Bistro Nad Wisłą' });
-    store.users.push({ ...template, id: ids.owner, email: 'olga@halka.test', name: 'Olga Owner' }, { ...template, id: ids.anna, email: 'anna@bistro.test', name: 'Anna Nowak' });
+    store.users.push({ ...template, id: ids.mia, email: 'mia@halka.test', name: 'Mia Manager' }, { ...template, id: ids.owner, email: 'olga@halka.test', name: 'Olga Owner' }, { ...template, id: ids.anna, email: 'anna@bistro.test', name: 'Anna Nowak' });
     const base = { status: 'active' as const, version: 1, createdAt: '2026-10-01T07:00:00.000Z', deactivatedAt: null, deactivatedBy: null };
     store.memberships.push(
+      { ...base, userId: ids.mia, membershipId: ids.miaMembership, restaurantId: halka.restaurantId, restaurantSlug: 'halka', restaurantName: 'Halka', role: 'manager', createdAt: '2026-10-01T07:30:00.000Z' },
       { ...base, userId: ids.owner, membershipId: ids.ownerMembership, restaurantId: halka.restaurantId, restaurantSlug: 'halka', restaurantName: 'Halka', role: 'owner' },
       { ...base, userId: ids.anna, membershipId: ids.annaMembership, restaurantId: ids.otherRestaurant, restaurantSlug: OTHER, restaurantName: 'Bistro Nad Wisłą', role: 'owner' }
     );
@@ -75,7 +77,7 @@ describe('GET /api/v1/restaurants/{slug}/team', () => {
       const res = await list(s);
       expect(res.status).toBe(200);
       const { members } = (await res.json()) as { members: Array<Record<string, unknown>> };
-      expect(members.map((m) => m.email).sort()).toEqual(['kelner@halka.pl', 'marta@halka.pl', 'olga@halka.test', 'tomasz@halka.pl']);
+      expect(members.map((m) => m.email).sort()).toEqual(['kelner@halka.pl', 'marta@halka.pl', 'mia@halka.test', 'olga@halka.test', 'tomasz@halka.pl']);
       expect(members.find((m) => m.email === 'marta@halka.pl')).toMatchObject({ role: 'sommelier', status: 'active', version: 1, name: 'Marta Wierzbicka' });
       expect(JSON.stringify(members)).not.toMatch(/scrypt|passwordHash|password_hash/);
     }
@@ -125,6 +127,20 @@ describe('PATCH /api/v1/restaurants/{slug}/team/{membershipId}', () => {
     expect(((await self.json()) as { error: { code: string } }).error.code).toBe('self_change');
     expect((await patch(owner, 'halka', mid('olga@halka.test'), { role: 'manager' })).status).toBe(422);
     expect(await version(manager, 'olga@halka.test')).toBe(1);
+  });
+
+  it('a manager cannot change or remove a peer manager (403 team_hierarchy); the owner can, and puts it back (decided 2026-11-05)', async () => {
+    const mia = mid('mia@halka.test');
+    const v = await version(owner, 'mia@halka.test');
+    for (const body of [{ role: 'sommelier' }, { status: 'deactivated' }]) {
+      const res = await patch(manager, 'halka', mia, body, v);
+      expect(res.status).toBe(403);
+      expect(((await res.json()) as { error: { code: string } }).error.code).toBe('team_hierarchy');
+    }
+    expect(await version(owner, 'mia@halka.test')).toBe(v);
+    expect((await patch(owner, 'halka', mia, { status: 'deactivated' }, v)).status).toBe(200);
+    expect((await patch(manager, 'halka', mia, { status: 'active' }, v + 1)).status).toBe(403);
+    expect((await patch(owner, 'halka', mia, { status: 'active' }, v + 1)).status).toBe(200);
   });
 
   it('is closed to a sommelier (403) and to the owner of another restaurant, for Halka and for a member of Halka addressed through their own slug (AC6)', async () => {
@@ -239,6 +255,10 @@ describe('A15 Team page', () => {
     expect(row(mid('olga@halka.test'))).not.toContain('name="role"');
     expect(row(mid('olga@halka.test'))).not.toContain('Remove access');
     expect(row(mid('olga@halka.test'))).toContain('Only an owner can change an owner or a General Manager.');
+    // a peer manager: read-only for a manager, with the reason
+    expect(row(mid('mia@halka.test'))).not.toContain('name="role"');
+    expect(row(mid('mia@halka.test'))).not.toContain('Remove access');
+    expect(row(mid('mia@halka.test'))).toContain('Only an owner can change an owner or a General Manager.');
     // oneself: read-only
     expect(row(mid('tomasz@halka.pl'))).not.toContain('Remove access');
     expect(row(mid('tomasz@halka.pl'))).toContain('You cannot change your own role or access.');
@@ -255,6 +275,7 @@ describe('A15 Team page', () => {
     expect(html).toContain('Zespół');
     const row = (membershipId: string) => html.split(`data-member="${membershipId}"`)[1].split('</li>')[0];
     expect(row(mid('tomasz@halka.pl'))).toContain('Odbierz dostęp');
+    expect(row(mid('mia@halka.test'))).toContain('Odbierz dostęp');
     expect(row(mid('olga@halka.test'))).not.toContain('Odbierz dostęp');
     expect(row(mid('marta@halka.pl'))).toContain('value="owner"');
     expect(row(mid('marta@halka.pl'))).toContain('value="manager"');
