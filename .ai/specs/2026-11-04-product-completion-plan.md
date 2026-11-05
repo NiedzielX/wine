@@ -148,6 +148,7 @@ Właściciel polecił agentowi podjąć decyzje Q1–Q19 i kontynuować prace (�
 3. Epiki, które mają fazy `risk-high` (E11, E12, E13, E14, E15, E16, E17, E18, E19, E20, E21, E22; bez E11b), wymagają dla tych faz QA reviewera albo wyjątku właściciela na PR, zgodnie z `SDLC.md`; kolumna „Ryzyko” w tabeli epików podaje, które fazy.
 4. Po zatwierdzeniu i odpaleniu epiku aktualizujemy `backlog.md`.
 5. **Definicja gotowości specyfikacji do akceptacji:** (a) przegląd niezależny wpisany („Przegląd niezależny 2026-11-04”); (b) każde wymaganie ma kryterium akceptacji z opisem weryfikacji; (c) fazy mają etykiety ryzyka według `SDLC.md` i są niezależnie scalane; (d) liczby zgadnięte są oznaczone jako zgadnięte; (e) decyzje właściciela są w tabeli powyżej; (f) identyfikatory ekranów i uprawnień zgodne z sekcją „Ustalenia międzyepikowe”.
+6. **Scenariusze QA:** każda faza ze zmianą widoczną w UI lub API dodaje testy integracyjne i scenariusze Markdown w `.ai/qa/{AREA}/` dla swoich kryteriów akceptacji (reguła: lokalne rozszerzenie `om-integration-tests`, PR „QA infrastructure”), w tym co najmniej jeden przypadek niestandardowy (negatywny, graniczny lub idempotentny). Faza nie jest skończona bez `npm run check:qa`.
 
 ## Ryzyka i otwarte pytania
 - **Zakres:** trzynaście pozycji (E11, E11b, E12–E22), 63 fazy w E12–E22. Kolejność fal pozwala zatrzymać się po każdej z nich z działającym produktem.
