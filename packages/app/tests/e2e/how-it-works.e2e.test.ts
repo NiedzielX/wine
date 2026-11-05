@@ -55,6 +55,7 @@ describe('"How it works" on the guest screens and G12, without JavaScript', () =
     expect(await browser.count('a[href^="/r/halka?lang=pl&sid="]')).toBe(2);
     await browser.open(`${baseUrl()}/r/no-such-place/how-it-works`);
     expect(await browser.waitForPageText('This menu isn’t available')).toBeTruthy();
+    expect((await fetch(`${baseUrl()}/r/no-such-place/how-it-works`)).status).toBe(404);
   });
 
   it('G1, G5, G6 and G9: exactly one explanation each, closed, never inside a link', async () => {
