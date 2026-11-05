@@ -38,3 +38,13 @@ export function leavesNoOwner(before: { role: Role; status: MembershipStatus }, 
 export function assertKeepsAnOwner(before: { role: Role; status: MembershipStatus }, after: { role: Role; status: MembershipStatus }, otherActiveOwners: number): void {
   if (leavesNoOwner(before, after, otherActiveOwners)) throw new LastOwnerError();
 }
+
+/** The roles the actor may grant (an owner: all; a manager: the roles below manager). For the team screen; the service still checks. */
+export function grantableRoles(actor: Pick<TeamMember, 'role'>): Role[] {
+  return actor.role === 'owner' ? ['owner', 'manager', 'sommelier', 'waiter'] : [...MANAGER_GRANTS];
+}
+
+/** Whether the actor may change this person at all (their role or their status): not themselves, an owner only by an owner. */
+export function mayManageMember(actor: Pick<TeamMember, 'role' | 'userId'>, target: Pick<TeamMember, 'role' | 'userId'>): boolean {
+  return actor.userId !== target.userId && (actor.role === 'owner' || target.role !== 'owner');
+}

@@ -576,7 +576,8 @@ export const en = {
       importMenu: 'Import menu',
       importWines: 'Import wine list',
       importSales: 'Import sales',
-      opportunities: 'Opportunities'
+      opportunities: 'Opportunities',
+      team: 'Team'
     },
     language: {
       label: 'Dashboard language'
@@ -620,6 +621,7 @@ export const en = {
       importSales: 'Import sales',
       setup: 'Setup',
       qr: 'QR code',
+      team: 'Team',
       signOut: 'Sign out'
     },
     login: {
@@ -682,7 +684,10 @@ export const en = {
         content: () => 'Content language and translations saved. Guests see them after you publish.',
         suggestion_added: () => 'Added to suggestions — approve it in “Engine suggestions”. Guests see the change only after you approve it and publish.',
         opportunity_dismissed: (days: number) => `Opportunity ignored. It comes back after ${days} days at the earliest if it still applies.`,
-        opportunity_restored: () => 'Opportunity restored.'
+        opportunity_restored: () => 'Opportunity restored.',
+        member_role_changed: () => 'Role changed. It applies on the person’s next request.',
+        member_deactivated: () => 'Access removed. The person is signed out of this restaurant at once.',
+        member_reactivated: () => 'Access restored. The person can use the dashboard again.'
       },
       errors: {
         version_conflict: 'This pairing was changed by someone else a moment ago. The page now shows the latest version, please try again.',
@@ -726,6 +731,10 @@ export const en = {
         low_match: 'This wine is a weak match for the dish.',
         opportunity_stale: 'This opportunity no longer applies.',
         opportunity_not_dismissed: 'This opportunity is not ignored.',
+        last_owner: 'A restaurant must keep at least one active owner. Make someone else an owner first.',
+        team_hierarchy: 'Your role may not change this person or grant that role. Ask an owner.',
+        self_change: 'You cannot change your own role or remove your own access.',
+        member_deactivated: 'This person’s access is removed. Restore it before changing the role.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -1217,6 +1226,30 @@ export const en = {
           `Guest names, payments and item names are not saved. Up to ${maxRows} lines per file: split larger exports by whole days.`
         ]
       }
+    },
+    team: {
+      title: 'Team',
+      description: 'Everyone with access to this restaurant. A change applies on the person’s next request: there is nothing to publish.',
+      count: (active: number, total: number) => (total === active ? `${active} people` : `${active} active of ${total}`),
+      listLabel: 'Team members',
+      lastSignIn: (when: string) => `Last sign-in: ${when}`,
+      you: 'You',
+      deactivated: 'Access removed',
+      active: 'Active',
+      deactivatedOn: (when: string) => `Access removed ${when}`,
+      roleLabel: (name: string) => `Role of ${name}`,
+      saveRole: 'Save role',
+      deactivate: 'Remove access',
+      reactivate: 'Restore access',
+      ownerOnly: 'Only an owner can change an owner.',
+      yourself: 'You cannot change your own role or access.',
+      roleHelp: 'A general manager can give the roles Wine Director and Waiter. Only an owner can give Owner or General Manager.',
+      roleDescriptions: {
+        owner: 'Everything, including the team.',
+        manager: 'Runs the restaurant and the team, does not decide pairings.',
+        sommelier: 'Decides pairings, imports and publishes.',
+        waiter: 'Uses the pairing lookup, no dashboard.'
+      } as Record<Role, string>
     },
     qr: {
       title: 'QR code',
