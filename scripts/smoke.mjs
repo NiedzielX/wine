@@ -414,7 +414,7 @@ await check('A1 dashboard with wm_lang=pl', A, { cookie: PLC, headers: { 'accept
 await check('A2 menu in Polish', `${A}/menu`, { cookie: PLC, has: ['Szukaj dań', 'Przystawki', 'Szkic, do sprawdzenia', 'Opublikowane', '<title>Menu | Panel Wine Match</title>'] });
 await check('A4 wine list in Polish: styles, prices with NBSP', `${A}/wines`, { cookie: PLC, has: ['Karta win', 'Tylko butelka', 'Czerwone', '\u00a0zł', 'Ukryj'] });
 await check('A6 pairings in Polish: roles, flash by code, Polish engine reasons', `${A}/pairings/${duck}?saved=approved`, { cookie: PLC, has: ['Parowanie zatwierdzone.', 'Zatwierdzone dla gości', 'Podstawowe', 'Najlepsza cena', 'Propozycje silnika', 'Co teraz widzą goście', 'Ustaw rolę', 'Jak gość widzi Twoje pary?', 'Gość widzi najwyżej 4 wina.'], hasNot: ['Approved for guests', 'Set role', ...OLD_LABELS] });
-await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą zmienił to parowanie'] });
+await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą to zmienił'] });
 await check('A7 review queue in Polish', `${A}/review`, { cookie: PLC, has: ['Do przeglądu', 'Zatwierdź', 'Odrzuć', 'Otwórz parowania', 'para sommeliera'], hasNot: OLD_LABELS });
 await check('A3 dish in Polish: content in the panel language', `${A}/menu/${duck}`, { cookie: PLC, has: ['Pierś z kaczki', 'Tłumaczenia', 'Zapisz tłumaczenia'] });
 await check('A6 note form in Polish has PL and EN fields', `${A}/pairings/${duck}`, { cookie: PLC, has: ['name="comment_pl"', 'name="comment_en"', 'Pinot noir i sos wiśniowy'] });
