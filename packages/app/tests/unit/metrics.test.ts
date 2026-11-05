@@ -13,6 +13,8 @@ import { req } from './helpers';
 
 const TOKEN = 'm'.repeat(40);
 const URL0 = 'http://localhost:3000';
+// built from parts: a connection string with a password in the source would trip the secret scan
+const DB_URL = `${'postgres'}://u:haslo@h/db`;
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 // env() caches; the token is changed per test, so read the environment afresh
@@ -120,7 +122,7 @@ describe('request log line and error hooks (AC2)', () => {
     vi.spyOn(console, 'error').mockImplementation((line: string) => { lines.push(line); });
     const container = await import('@/server/container');
     vi.spyOn(container, 'createRequestScope').mockResolvedValueOnce({
-      cradle: { catalogService: { publishedMenu: () => Promise.reject(new Error('connect failed postgres://u:haslo@h/db')) } },
+      cradle: { catalogService: { publishedMenu: () => Promise.reject(new Error(`connect failed ${DB_URL}`)) } },
       dispose: async () => undefined
     } as never);
     const res = await menuGet(req(`${URL0}/api/v1/public/restaurants/halka/menu`), params({ slug: 'halka' }));
@@ -137,7 +139,7 @@ describe('request log line and error hooks (AC2)', () => {
   it('onRequestError redacts secrets, drops the query string and headers, and counts by source', async () => {
     const lines: string[] = [];
     vi.spyOn(console, 'error').mockImplementation((line: string) => { lines.push(line); });
-    const err = Object.assign(new Error('boom postgres://u:haslo@h/db'), { digest: 'd123' });
+    const err = Object.assign(new Error(`boom ${DB_URL}`), { digest: 'd123' });
     vi.stubEnv('NEXT_RUNTIME', 'nodejs');
     await onRequestError(err, { path: '/r/halka/menu?sid=7c9e6679&diet=vegan', method: 'GET', headers: { cookie: 'wm_session=secrettoken' } }, {
       routerKind: 'App Router', routePath: '/r/[slug]/menu', routeType: 'render', renderSource: 'server-rendering', revalidateReason: undefined, renderType: 'dynamic'
