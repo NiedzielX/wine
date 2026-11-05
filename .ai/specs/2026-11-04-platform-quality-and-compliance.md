@@ -160,4 +160,5 @@ F3 i F4 dotykają wspólnych plików (`repositories.ts`, `container.ts`, `memory
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Realizacja
-(Uzupełnia agent po akceptacji i implementacji: commity, logi przebiegów, odstępstwa od projektu.)
+- F1 (2026-11-05, log `.ai/runs/2026-11-04-e21-f1-metrics-and-logs.md`): zaimplementowane R1-R4 (AC1-AC3), bez nowych zależności. Odstępstwa: dodatkowa metryka `unhandled_errors_total{source}` (R3: licznik błędów); `route` jest obowiązkowym polem opcji `handle()`/`handlePublic()`; `db_health_check_duration_seconds` zdefiniowana, bez próbek do czasu health z E11. Zweryfikowano: `onRequestError` w Next 16.3.8 (sygnatura w logu).
+(Pozostałe fazy: uzupełnia agent po implementacji.)
