@@ -56,7 +56,7 @@ Klasyfikacja jest wiążąca dla kolejności prac. Zmienia ją tylko zmiana tego
 
 ## 4. Co teraz jest w toku (stan na 2026-11-05)
 
-- Otwarte PR-y (2026-11-05): #103 (odświeżenie briefu), #104 (podbicie zależności), #105 (plan i specyfikacje), #106 (naprawa niestabilnego testu), #107 (infrastruktura QA) i ten. To 6, więc limit z §1 jest przekroczony: nowa implementacja czeka, aż liczba spadnie do 3 lub mniej.
+- Stan po porządkach 2026-11-05: scalono #104 (zależności), #105 (plan i specyfikacje), #106 (flaky test) i #107 (QA). Otwarte zostają #103 (odświeżenie briefu) i ten PR, czyli poniżej limitu z §1.
 - Implementacja E11 F1, E11b, E12 F1, E21 F1 jest wstrzymana na polecenie właściciela. Praca czterech agentów leży w lokalnych worktree i nie została wypchnięta.
 - **Proponowany start po decyzji właściciela:** E12 F1 (typ S) jako jedyne zadanie implementacyjne, plus najwyżej dwa niezależne zadania typu P (na przykład E22 F1 i E21 F1), plus dowolnie zadania M.
 
