@@ -25,6 +25,54 @@ export interface Membership {
   role: Role;
 }
 
+export type MembershipStatus = 'active' | 'deactivated';
+export const MEMBERSHIP_STATUSES: readonly MembershipStatus[] = ['active', 'deactivated'];
+export const ROLES: readonly Role[] = ['owner', 'manager', 'sommelier', 'waiter'];
+
+/** One person's place in a restaurant's team, as the team screen (A15) shows it. */
+export interface TeamMember {
+  membershipId: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: Role;
+  status: MembershipStatus;
+  /** for `expectedVersion`; every change of role or status raises it */
+  version: number;
+  lastLoginAt: string | null;
+  createdAt: string;
+  deactivatedAt: string | null;
+  /** user id of the person who deactivated this one */
+  deactivatedBy: string | null;
+}
+
+/** The kinds of authentication event (spec E12 R11). The table's CHECK lists the same names. */
+export const AUTH_EVENT_TYPES = [
+  'login_succeeded', 'login_failed', 'account_locked', 'logout', 'session_revoked', 'password_changed', 'reset_issued', 'reset_completed',
+  'invite_created', 'invite_revoked', 'invite_accepted', 'role_changed', 'member_deactivated', 'member_reactivated',
+  'pin_set', 'pin_login_succeeded', 'pin_login_failed', 'pin_locked', 'pin_paused', 'staff_access_changed'
+] as const;
+export type AuthEventType = (typeof AUTH_EVENT_TYPES)[number];
+
+/**
+ * The only keys an event's `meta` may carry (spec E12 R11): never a password, a PIN, a token or a stranger's
+ * full e-mail address. New phases add keys here, not ad hoc.
+ */
+export const AUTH_EVENT_META_KEYS = ['membership_id', 'from', 'to', 'role'] as const;
+export type AuthEventMeta = Partial<Record<(typeof AUTH_EVENT_META_KEYS)[number], string | number | boolean | null>>;
+
+export interface AuthEvent {
+  id: string;
+  /** null for an event that belongs to no restaurant (a sign-in) */
+  restaurantId: string | null;
+  /** user ids, deliberately without a foreign key: the trail outlives the account */
+  actorUserId: string | null;
+  subjectUserId: string | null;
+  type: AuthEventType;
+  meta: AuthEventMeta;
+  at: string;
+}
+
 export interface SessionRecord {
   id: string;
   userId: string;

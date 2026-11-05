@@ -6,7 +6,7 @@ import { DEMO_USERS, type DemoUser } from './users';
 
 export interface DemoDataset {
   /** demo accounts with their membership in the restaurant (see demo/users.ts) */
-  users: Array<DemoUser & { id: string; restaurantId: string }>;
+  users: Array<DemoUser & { id: string; membershipId: string; restaurantId: string }>;
   restaurant: Restaurant;
   dishes: Dish[];
   wines: Wine[];
@@ -59,6 +59,6 @@ export function buildDemoDataset(opts: { ids?: 'raw' | 'uuid' } = {}): DemoDatas
       updatedBy: restaurant.wineDirector, updatedAt: '2026-10-09T16:20:00.000Z'
     });
   }
-  const users = DEMO_USERS.map((u) => ({ ...u, id: map(`u_${u.key}`), restaurantId: restaurant.id }));
+  const users = DEMO_USERS.map((u) => ({ ...u, id: map(`u_${u.key}`), membershipId: map(`m_${u.key}`), restaurantId: restaurant.id }));
   return { users, restaurant, dishes, wines, pairings };
 }
