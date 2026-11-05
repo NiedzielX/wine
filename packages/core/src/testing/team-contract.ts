@@ -1,4 +1,5 @@
-import type { AuthEvent, Role } from '../auth/types';
+import { MAX_AUTH_EVENTS } from '../auth/audit-rules';
+import { AUTH_EVENT_META_KEYS, type AuthEvent, type Role } from '../auth/types';
 import type { ContractRunner } from './contract-types';
 import type { DemoDataset } from '../demo/dataset';
 import type { AuthRepository } from '../ports/auth';
@@ -49,11 +50,25 @@ export function teamContract(
     t.beforeEach(async () => { ({ team, audit, auth, dataset: ds, second } = await setup()); });
     const tomasz = () => ds.users.find((u) => u.key === 'tomasz')!;
     const marta = () => ds.users.find((u) => u.key === 'marta')!;
-    const change = (over: { expectedVersion?: number; set: { role?: Role; status?: 'active' | 'deactivated' }; restaurantId: string; actorUserId?: string; ev?: Partial<AuthEvent> }) => ({
-      expectedVersion: over.expectedVersion ?? 1, set: over.set, actorUserId: over.actorUserId ?? second.owner1.userId, at: NOW,
-      event: event(over.restaurantId, { actorUserId: over.actorUserId ?? second.owner1.userId, ...over.ev })
-    });
-    const ownersAdmitted = async () => (await team.list(second.restaurantId)).filter((m) => m.role === 'owner' && m.status === 'active');
+    type Set = { role?: Role; status?: 'active' | 'deactivated' };
+    /**
+     * A change of `target` (of the second restaurant unless `restaurantId` says otherwise) with the events the service
+     * would write. The actor is the first owner, or the second owner when the target is the first.
+     */
+    const change = (target: { userId: string; role: Role }, set: Set, over: { expectedVersion?: number; restaurantId?: string; actorUserId?: string; events?: AuthEvent[]; at?: string } = {}) => {
+      const restaurantId = over.restaurantId ?? second.restaurantId;
+      const actorUserId = over.actorUserId ?? (target.userId === second.owner1.userId ? second.owner2.userId : second.owner1.userId);
+      const at = over.at ?? NOW;
+      const events = over.events ?? [
+        ...(set.role && set.role !== target.role ? [event(restaurantId, { actorUserId, subjectUserId: target.userId, type: 'role_changed', meta: { from: target.role, to: set.role }, at })] : []),
+        ...(set.status ? [event(restaurantId, { actorUserId, subjectUserId: target.userId, type: set.status === 'deactivated' ? 'member_deactivated' : 'member_reactivated', meta: {}, at })] : []),
+        ...(set.role && set.role === target.role && !set.status ? [event(restaurantId, { actorUserId, subjectUserId: target.userId, type: 'role_changed', meta: {}, at })] : [])
+      ];
+      return { expectedVersion: over.expectedVersion ?? 1, set, actorUserId, at, events };
+    };
+    const apply = (m: SecondTeamMember, set: Set, over: Parameters<typeof change>[2] = {}) => team.applyChange(second.restaurantId, m.membershipId, change(m, set, over));
+    const activeOwners = async () => (await team.list(second.restaurantId)).filter((m) => m.role === 'owner' && m.status === 'active').length;
+    const events = async () => (await audit.list(second.restaurantId)).length;
 
     t.it('lists the team of one restaurant, oldest first, with status and version and nobody from another restaurant', async () => {
       const halka = await team.list(ds.restaurant.id);
@@ -76,103 +91,181 @@ export function teamContract(
       t.expect(await team.find(ds.restaurant.id, 'abc')).toBeNull();
       t.expect(await team.findByUser(ds.restaurant.id, 'abc')).toBeNull();
       t.expect(await team.list('abc')).toEqual([]);
-      await t.expect(team.applyChange(ds.restaurant.id, 'abc', change({ set: { role: 'waiter' }, restaurantId: ds.restaurant.id }))).rejects.toMatchObject({ name: 'NotFoundError', code: 'not_found' });
+      await t.expect(team.applyChange(second.restaurantId, 'abc', change(second.sommelier, { role: 'waiter' }))).rejects.toMatchObject({ name: 'NotFoundError', code: 'not_found' });
       t.expect(await audit.list('abc')).toEqual([]);
     });
 
     t.it('changes the role with the current version and raises the version (AC4)', async () => {
-      const changed = await team.applyChange(second.restaurantId, second.sommelier.membershipId, change({ set: { role: 'waiter' }, restaurantId: second.restaurantId }));
+      const changed = await apply(second.sommelier, { role: 'waiter' });
       t.expect(changed).toMatchObject({ membershipId: second.sommelier.membershipId, role: 'waiter', status: 'active', version: 2 });
       t.expect((await team.find(second.restaurantId, second.sommelier.membershipId))!.version).toBe(2);
-      // the next change must carry the new version
-      const again = await team.applyChange(second.restaurantId, second.sommelier.membershipId, change({ expectedVersion: 2, set: { role: 'sommelier' }, restaurantId: second.restaurantId }));
+      const again = await apply({ ...second.sommelier, role: 'waiter' }, { role: 'sommelier' }, { expectedVersion: 2 });
       t.expect(again).toMatchObject({ role: 'sommelier', version: 3 });
     });
 
     t.it('refuses a stale expected version with version_conflict and changes and records nothing (AC4)', async () => {
-      await team.applyChange(second.restaurantId, second.sommelier.membershipId, change({ set: { role: 'waiter' }, restaurantId: second.restaurantId }));
-      const events = (await audit.list(second.restaurantId)).length;
-      await t.expect(team.applyChange(second.restaurantId, second.sommelier.membershipId, change({ expectedVersion: 1, set: { role: 'manager' }, restaurantId: second.restaurantId }))).rejects.toMatchObject({ name: 'VersionConflictError', code: 'version_conflict' });
+      await apply(second.sommelier, { role: 'waiter' });
+      const before = await events();
+      await t.expect(apply({ ...second.sommelier, role: 'waiter' }, { role: 'manager' }, { expectedVersion: 1 })).rejects.toMatchObject({ name: 'VersionConflictError', code: 'version_conflict' });
       t.expect(await team.find(second.restaurantId, second.sommelier.membershipId)).toMatchObject({ role: 'waiter', version: 2 });
-      t.expect((await audit.list(second.restaurantId)).length).toBe(events);
+      t.expect(await events()).toBe(before);
     });
 
-    t.it('writes the audit event together with the change (AC5)', async () => {
-      const ev = event(second.restaurantId, { actorUserId: second.owner1.userId, subjectUserId: second.sommelier.userId, type: 'member_deactivated', meta: { membership_id: second.sommelier.membershipId, role: 'sommelier' }, at: at(5) });
-      await team.applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { status: 'deactivated' }, actorUserId: second.owner1.userId, at: at(5), event: ev });
-      t.expect(await audit.list(second.restaurantId)).toEqual([ev]);
+    t.it('writes every audit event of the change together with it, as written (AC5)', async () => {
+      const c = change(second.sommelier, { role: 'waiter', status: 'deactivated' }, { at: at(5) });
+      t.expect(c.events.map((e) => e.type)).toEqual(['role_changed', 'member_deactivated']);
+      await team.applyChange(second.restaurantId, second.sommelier.membershipId, c);
+      t.expect((await audit.list(second.restaurantId)).map((e) => e.id).sort()).toEqual(c.events.map((e) => e.id).sort());
+      t.expect((await audit.list(second.restaurantId, { type: 'role_changed' }))[0]).toEqual(c.events[0]);
     });
 
     t.it('writes no event when the change fails: a duplicate event id rolls the whole change back (AC5)', async () => {
-      const first = change({ set: { role: 'waiter' }, restaurantId: second.restaurantId });
+      const first = change(second.sommelier, { role: 'waiter' });
       await team.applyChange(second.restaurantId, second.sommelier.membershipId, first);
-      // the same event id again, with a valid new version: the event cannot be written, so the role must not change
-      await t.expect(team.applyChange(second.restaurantId, second.sommelier.membershipId, { ...change({ expectedVersion: 2, set: { role: 'manager' }, restaurantId: second.restaurantId }), event: first.event })).rejects.toBeInstanceOf(Error);
+      await t.expect(team.applyChange(second.restaurantId, second.sommelier.membershipId, { ...change({ ...second.sommelier, role: 'waiter' }, { role: 'manager' }, { expectedVersion: 2 }), events: first.events })).rejects.toBeInstanceOf(Error);
       t.expect(await team.find(second.restaurantId, second.sommelier.membershipId)).toMatchObject({ role: 'waiter', version: 2 });
-      t.expect((await audit.list(second.restaurantId)).length).toBe(1);
+      t.expect(await events()).toBe(1);
     });
 
     t.it('deactivates and reactivates: stamps who and when, and the account loses and regains access to the restaurant at once (AC2)', async () => {
       t.expect((await auth.membershipsOf(second.manager.userId)).map((m) => m.restaurantId)).toEqual([second.restaurantId]);
-      const off = await team.applyChange(second.restaurantId, second.manager.membershipId, change({ set: { status: 'deactivated' }, restaurantId: second.restaurantId }));
+      const off = await apply(second.manager, { status: 'deactivated' });
       t.expect(off).toMatchObject({ status: 'deactivated', version: 2, deactivatedAt: NOW, deactivatedBy: second.owner1.userId });
       t.expect(await auth.membershipsOf(second.manager.userId)).toEqual([]);
       t.expect((await team.list(second.restaurantId)).find((m) => m.userId === second.manager.userId)).toMatchObject({ status: 'deactivated' });
-      const on = await team.applyChange(second.restaurantId, second.manager.membershipId, change({ expectedVersion: 2, set: { status: 'active' }, restaurantId: second.restaurantId }));
+      const on = await apply(second.manager, { status: 'active' }, { expectedVersion: 2 });
       t.expect(on).toMatchObject({ status: 'active', version: 3, deactivatedAt: null, deactivatedBy: null });
       t.expect((await auth.membershipsOf(second.manager.userId)).map((m) => m.role)).toEqual(['manager']);
     });
 
-    t.it('keeps at least one active owner: demoting or deactivating the last one is refused with last_owner (AC23)', async () => {
-      await team.applyChange(second.restaurantId, second.owner2.membershipId, change({ set: { role: 'manager' }, restaurantId: second.restaurantId }));
-      t.expect((await ownersAdmitted()).length).toBe(1);
-      await t.expect(team.applyChange(second.restaurantId, second.owner1.membershipId, change({ set: { role: 'manager' }, restaurantId: second.restaurantId }))).rejects.toMatchObject({ name: 'LastOwnerError', code: 'last_owner' });
-      await t.expect(team.applyChange(second.restaurantId, second.owner1.membershipId, change({ set: { status: 'deactivated' }, restaurantId: second.restaurantId }))).rejects.toMatchObject({ code: 'last_owner' });
+    t.it('keeps at least one active owner: the last one cannot be demoted or deactivated, even by an actor decided on stale rows (AC23)', async () => {
+      await apply(second.owner2, { role: 'manager' });
+      t.expect(await activeOwners()).toBe(1);
+      // owner2 is a manager now: a request decided before that (the race) must not take the last owner away
+      await t.expect(apply(second.owner1, { role: 'manager' })).rejects.toMatchObject({ name: 'LastOwnerError', code: 'last_owner' });
+      await t.expect(apply(second.owner1, { status: 'deactivated' })).rejects.toMatchObject({ code: 'last_owner' });
       t.expect(await team.find(second.restaurantId, second.owner1.membershipId)).toMatchObject({ role: 'owner', status: 'active', version: 1 });
-      // a change that keeps the owner owner is not a "last owner" matter
-      t.expect(await team.applyChange(second.restaurantId, second.owner1.membershipId, change({ set: { role: 'owner' }, restaurantId: second.restaurantId }))).toMatchObject({ role: 'owner' });
+      t.expect(await apply(second.owner1, { role: 'owner' })).toMatchObject({ role: 'owner' });
     });
 
-    t.it('lets two owners go one after the other only until one is left, and a deactivated owner does not count (AC23)', async () => {
-      await team.applyChange(second.restaurantId, second.owner2.membershipId, change({ set: { status: 'deactivated' }, restaurantId: second.restaurantId }));
-      await t.expect(team.applyChange(second.restaurantId, second.owner1.membershipId, change({ set: { role: 'sommelier' }, restaurantId: second.restaurantId }))).rejects.toMatchObject({ code: 'last_owner' });
-      // reactivating the other owner makes the demotion possible again
-      await team.applyChange(second.restaurantId, second.owner2.membershipId, change({ expectedVersion: 2, set: { status: 'active' }, restaurantId: second.restaurantId }));
-      t.expect(await team.applyChange(second.restaurantId, second.owner1.membershipId, change({ set: { role: 'sommelier' }, restaurantId: second.restaurantId }))).toMatchObject({ role: 'sommelier' });
+    t.it('a deactivated owner does not count as an owner, and reactivating one makes a demotion possible again (AC23)', async () => {
+      await apply(second.owner2, { status: 'deactivated' });
+      await t.expect(apply(second.owner1, { role: 'sommelier' })).rejects.toMatchObject({ code: 'last_owner' });
+      await apply({ ...second.owner2 }, { status: 'active' }, { expectedVersion: 2, actorUserId: second.owner1.userId });
+      t.expect(await apply(second.owner1, { role: 'sommelier' })).toMatchObject({ role: 'sommelier' });
+    });
+
+    t.it('re-checks the actor against the stored rows when it applies: a deactivated actor, a role without team.manage, a manager and an owner, oneself, another restaurant (TOCTOU)', async () => {
+      const refused = async (run: Promise<unknown>, name: string) => { await t.expect(run).rejects.toMatchObject({ name }); };
+      // a role without team.manage
+      await refused(apply(second.manager, { role: 'waiter' }, { actorUserId: second.sommelier.userId }), 'ForbiddenError');
+      // a manager changing an owner, and granting manager
+      await refused(apply(second.owner1, { role: 'sommelier' }, { actorUserId: second.manager.userId }), 'TeamHierarchyError');
+      await refused(apply(second.sommelier, { role: 'manager' }, { actorUserId: second.manager.userId }), 'TeamHierarchyError');
+      // oneself
+      await refused(apply(second.manager, { status: 'deactivated' }, { actorUserId: second.manager.userId }), 'SelfChangeError');
+      // a person of another restaurant (Halka's manager) acting here
+      await refused(apply(second.sommelier, { role: 'waiter' }, { actorUserId: tomasz().id }), 'ForbiddenError');
+      t.expect(await events()).toBe(0);
+      // the actor was active when the service looked, and is deactivated now
+      await apply(second.owner2, { status: 'deactivated' });
+      t.expect(await events()).toBe(1);
+      await refused(apply(second.sommelier, { role: 'waiter' }, { actorUserId: second.owner2.userId }), 'ForbiddenError');
+      t.expect(await events()).toBe(1);
+      t.expect(await team.find(second.restaurantId, second.sommelier.membershipId)).toMatchObject({ role: 'sommelier', status: 'active', version: 1 });
+      t.expect(await team.find(second.restaurantId, second.manager.membershipId)).toMatchObject({ status: 'active', version: 1 });
     });
 
     t.it('never reads or changes another restaurant’s team, and writes no event for it (AC6)', async () => {
-      // a membership of the second restaurant addressed through Halka (and the other way round) is "not found"
-      await t.expect(team.applyChange(ds.restaurant.id, second.manager.membershipId, change({ set: { role: 'waiter' }, restaurantId: ds.restaurant.id }))).rejects.toMatchObject({ name: 'NotFoundError' });
-      await t.expect(team.applyChange(second.restaurantId, tomasz().membershipId, change({ set: { status: 'deactivated' }, restaurantId: second.restaurantId }))).rejects.toMatchObject({ name: 'NotFoundError' });
+      await t.expect(team.applyChange(ds.restaurant.id, second.manager.membershipId, change(second.manager, { role: 'waiter' }, { restaurantId: ds.restaurant.id }))).rejects.toMatchObject({ name: 'NotFoundError' });
+      await t.expect(team.applyChange(second.restaurantId, tomasz().membershipId, change({ userId: tomasz().id, role: 'manager' }, { status: 'deactivated' }))).rejects.toMatchObject({ name: 'NotFoundError' });
       t.expect(await team.find(second.restaurantId, second.manager.membershipId)).toMatchObject({ role: 'manager', status: 'active', version: 1 });
       t.expect(await team.find(ds.restaurant.id, tomasz().membershipId)).toMatchObject({ role: 'manager', status: 'active', version: 1 });
       t.expect(await audit.list(ds.restaurant.id)).toEqual([]);
       t.expect(await audit.list(second.restaurantId)).toEqual([]);
     });
 
-    t.it('lists events of one restaurant only, newest first, filtered by type, person and time, and pages', async () => {
+    t.it('refuses events that do not belong to the change: wrong restaurant, wrong actor, wrong subject, none, unknown or secret-bearing meta, and changes nothing', async () => {
+      const ok = change(second.sommelier, { role: 'waiter' });
+      const [good] = ok.events;
+      const bad = async (events: AuthEvent[], code: string) => {
+        await t.expect(team.applyChange(second.restaurantId, second.sommelier.membershipId, { ...ok, events })).rejects.toMatchObject({ code });
+        t.expect(await team.find(second.restaurantId, second.sommelier.membershipId)).toMatchObject({ role: 'sommelier', version: 1 });
+        t.expect(await events_()).toBe(0);
+      };
+      const events_ = events;
+      await bad([{ ...good, restaurantId: ds.restaurant.id }], 'event_restaurant_mismatch');
+      await bad([{ ...good, restaurantId: null }], 'event_restaurant_mismatch');
+      await bad([{ ...good, actorUserId: second.owner2.userId }], 'event_actor_mismatch');
+      await bad([{ ...good, subjectUserId: second.manager.userId }], 'event_subject_mismatch');
+      await bad([], 'invalid_event');
+      await bad([good, { ...good }], 'duplicate_event');
+      await bad([{ ...good, meta: { password: 'x' } as unknown as AuthEvent['meta'] }], 'invalid_event_meta');
+      await bad([{ ...good, meta: { from: 'stranger@example.com' } }], 'invalid_event_meta');
+      await bad([{ ...good, meta: { to: 'x'.repeat(200) } }], 'invalid_event_meta');
+      await bad([{ ...good, type: 'nonsense' as AuthEvent['type'] }], 'invalid_event');
+    });
+
+    t.it('stores only allowed meta, and reads back exactly what was stored', async () => {
+      const e = event(second.restaurantId, { actorUserId: second.owner1.userId, subjectUserId: second.manager.userId, meta: { membership_id: second.manager.membershipId, from: 'manager', to: 'waiter', role: 'waiter' } });
+      await audit.record(second.restaurantId, e);
+      const stored = (await audit.list(second.restaurantId))[0];
+      t.expect(stored).toEqual(e);
+      t.expect(Object.keys(stored.meta).sort()).toEqual([...AUTH_EVENT_META_KEYS].sort());
+      // an event with a key outside the list, or a secret-looking value, is never stored
+      await t.expect(audit.record(second.restaurantId, event(second.restaurantId, { meta: { token: 'abc' } as unknown as AuthEvent['meta'] }))).rejects.toMatchObject({ code: 'invalid_event_meta' });
+      await t.expect(audit.record(second.restaurantId, event(second.restaurantId, { meta: { to: 'someone@example.com' } }))).rejects.toMatchObject({ code: 'invalid_event_meta' });
+      t.expect((await audit.list(second.restaurantId)).length).toBe(1);
+    });
+
+    t.it('record refuses an event whose restaurant is not the one given', async () => {
+      await t.expect(audit.record(ds.restaurant.id, event(second.restaurantId))).rejects.toMatchObject({ code: 'event_restaurant_mismatch' });
+      await t.expect(audit.record(null, event(second.restaurantId))).rejects.toMatchObject({ code: 'event_restaurant_mismatch' });
+      await t.expect(audit.record(second.restaurantId, event(null))).rejects.toMatchObject({ code: 'event_restaurant_mismatch' });
+      t.expect(await audit.list(second.restaurantId)).toEqual([]);
+      t.expect(await audit.list(ds.restaurant.id)).toEqual([]);
+    });
+
+    t.it('lists events of one restaurant only, newest first, filtered by type and person', async () => {
       const mk = (restaurantId: string | null, type: AuthEvent['type'], ms: number, subject: string | null) => event(restaurantId, { type, at: at(ms), subjectUserId: subject, actorUserId: second.owner1.userId });
       const a = mk(second.restaurantId, 'role_changed', 10, second.manager.userId);
       const b = mk(second.restaurantId, 'member_deactivated', 20, second.sommelier.userId);
       const c = mk(second.restaurantId, 'role_changed', 30, second.sommelier.userId);
       const foreign = mk(ds.restaurant.id, 'role_changed', 40, tomasz().id);
       const noRestaurant = mk(null, 'login_succeeded', 50, second.owner1.userId);
-      for (const e of [a, b, c, foreign, noRestaurant]) await audit.record(e);
+      for (const e of [a, b, c, foreign, noRestaurant]) await audit.record(e.restaurantId, e);
       t.expect((await audit.list(second.restaurantId)).map((e) => e.id)).toEqual([c.id, b.id, a.id]);
       t.expect((await audit.list(ds.restaurant.id)).map((e) => e.id)).toEqual([foreign.id]);
       t.expect((await audit.list(second.restaurantId, { type: 'role_changed' })).map((e) => e.id)).toEqual([c.id, a.id]);
       t.expect((await audit.list(second.restaurantId, { subjectUserId: second.sommelier.userId })).map((e) => e.id)).toEqual([c.id, b.id]);
-      t.expect((await audit.list(second.restaurantId, { before: at(30) })).map((e) => e.id)).toEqual([b.id, a.id]);
       t.expect((await audit.list(second.restaurantId, { limit: 1 })).map((e) => e.id)).toEqual([c.id]);
-      // a stored event reads back as written, including its meta
-      t.expect((await audit.list(second.restaurantId, { limit: 1 }))[0]).toEqual(c);
+    });
+
+    t.it('pages by (time, id): equal timestamps are neither skipped nor repeated, and the page size is capped', async () => {
+      const same = [1, 2, 3, 4, 5].map(() => event(second.restaurantId, { at: at(100), actorUserId: second.owner1.userId }));
+      const older = event(second.restaurantId, { at: at(50) });
+      for (const e of [...same, older]) await audit.record(second.restaurantId, e);
+      const seen: string[] = [];
+      let before: { at: string; id: string } | undefined;
+      for (let guard = 0; guard < 10; guard++) {
+        const page = await audit.list(second.restaurantId, { limit: 2, before });
+        if (page.length === 0) break;
+        seen.push(...page.map((e) => e.id));
+        before = { at: page[page.length - 1].at, id: page[page.length - 1].id };
+      }
+      t.expect(seen).toEqual([...same.map((e) => e.id).sort().reverse(), older.id]);
+      t.expect(new Set(seen).size).toBe(6);
+      // a zero or negative limit still returns one row, and a huge limit is capped
+      t.expect((await audit.list(second.restaurantId, { limit: 0 })).length).toBe(1);
+      t.expect((await audit.list(second.restaurantId, { limit: -3 })).length).toBe(1);
+      for (let i = 0; i < MAX_AUTH_EVENTS; i++) await audit.record(second.restaurantId, event(second.restaurantId, { at: at(200 + i) }));
+      t.expect((await audit.list(second.restaurantId, { limit: 1_000_000 })).length).toBe(MAX_AUTH_EVENTS);
     });
 
     t.it('refuses to record the same event twice', async () => {
       const e = event(second.restaurantId);
-      await audit.record(e);
-      await t.expect(audit.record(e)).rejects.toBeInstanceOf(Error);
+      await audit.record(second.restaurantId, e);
+      await t.expect(audit.record(second.restaurantId, e)).rejects.toBeInstanceOf(Error);
       t.expect((await audit.list(second.restaurantId)).length).toBe(1);
     });
   });

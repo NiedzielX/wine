@@ -694,8 +694,8 @@ run('PostgreSQL', () => {
   describe('team on PostgreSQL (spec E12 F1: concurrency, rollback, migration)', () => {
     beforeEach(async () => { await resetData(orm); });
     const teamOf = () => new PgTeamRepository({ em: orm.em.fork() });
-    const ev = (second: SecondRestaurant, subject: string, n: number): AuthEvent => ({
-      id: `5ec0d000-0000-4000-8000-${String(700_000_000_000 + n)}`, restaurantId: second.restaurantId, actorUserId: second.owner1.userId, subjectUserId: subject, type: 'role_changed', meta: {}, at: '2026-11-05T10:00:00.000Z'
+    const ev = (second: SecondRestaurant, subject: string, n: number, actor = second.owner1.userId): AuthEvent => ({
+      id: `5ec0d000-0000-4000-8000-${String(700_000_000_000 + n)}`, restaurantId: second.restaurantId, actorUserId: actor, subjectUserId: subject, type: 'role_changed', meta: {}, at: '2026-11-05T10:00:00.000Z'
     });
     const activeOwners = async (second: SecondRestaurant) => (await teamOf().list(second.restaurantId)).filter((m) => m.role === 'owner' && m.status === 'active');
 
@@ -706,8 +706,8 @@ run('PostgreSQL', () => {
         const a = new PgTeamRepository({ em: orm.em.fork() });
         const b = new PgTeamRepository({ em: orm.em.fork() });
         const results = await Promise.allSettled([
-          a.applyChange(second.restaurantId, second.owner1.membershipId, { expectedVersion: 1, set: { role: 'manager' }, actorUserId: second.owner2.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.owner1.userId, round * 2 + 1) }),
-          b.applyChange(second.restaurantId, second.owner2.membershipId, { expectedVersion: 1, set: round % 2 ? { status: 'deactivated' } : { role: 'sommelier' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.owner2.userId, round * 2 + 2) })
+          a.applyChange(second.restaurantId, second.owner1.membershipId, { expectedVersion: 1, set: { role: 'manager' }, actorUserId: second.owner2.userId, at: '2026-11-05T10:00:00.000Z', events: [ev(second, second.owner1.userId, round * 2 + 1, second.owner2.userId)] }),
+          b.applyChange(second.restaurantId, second.owner2.membershipId, { expectedVersion: 1, set: round % 2 ? { status: 'deactivated' } : { role: 'sommelier' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', events: [ev(second, second.owner2.userId, round * 2 + 2, second.owner1.userId)] })
         ]);
         expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
         const refused = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
@@ -721,21 +721,47 @@ run('PostgreSQL', () => {
     it('two sessions change the same person with the same version: one wins, the other gets version_conflict (AC4)', async () => {
       const second = await seedSecondRestaurant(orm);
       const results = await Promise.allSettled([
-        teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'waiter' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.sommelier.userId, 101) }),
-        teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'manager' }, actorUserId: second.owner2.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.sommelier.userId, 102) })
+        teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'waiter' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', events: [ev(second, second.sommelier.userId, 101, second.owner1.userId)] }),
+        teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'manager' }, actorUserId: second.owner2.userId, at: '2026-11-05T10:00:00.000Z', events: [ev(second, second.sommelier.userId, 102, second.owner2.userId)] })
       ]);
       expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
       expect((results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason).toMatchObject({ code: 'version_conflict' });
       expect((await teamOf().find(second.restaurantId, second.sommelier.membershipId))!.version).toBe(2);
     });
 
-    it('an event the database refuses (an unknown restaurant) rolls the change back: no new role, no new version, no event (AC5)', async () => {
+    it('a second event the database refuses rolls the change back, including the first event: no new role, no new version, no event (AC5)', async () => {
       const second = await seedSecondRestaurant(orm);
-      const bad = { ...ev(second, second.sommelier.userId, 201), restaurantId: '5ec0d000-0000-4000-8000-00000000dead' };
-      await expect(teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'waiter' }, actorUserId: second.owner1.userId, at: bad.at, event: bad })).rejects.toBeInstanceOf(Error);
+      const existing = ev(second, second.manager.userId, 201);
+      await new PgAuthAuditRepository({ em: orm.em.fork() }).record(second.restaurantId, existing);
+      // two events for one change: the first is fine, the second repeats the id of a stored event, so the table refuses it
+      const fresh = ev(second, second.sommelier.userId, 202);
+      await expect(teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'waiter' }, actorUserId: second.owner1.userId, at: fresh.at, events: [fresh, { ...existing, subjectUserId: second.sommelier.userId }] })).rejects.toBeInstanceOf(Error);
       expect(await teamOf().find(second.restaurantId, second.sommelier.membershipId)).toMatchObject({ role: 'sommelier', version: 1, status: 'active' });
       const n = await orm.em.getConnection().execute<Array<{ n: string }>>('select count(*)::text as n from auth_event');
-      expect(n[0].n).toBe('0');
+      expect(n[0].n).toBe('1');
+    });
+
+    it('an actor deactivated while the change waits for the lock is refused inside the transaction, and the change is not applied (TOCTOU, two connections)', async () => {
+      for (let round = 0; round < 8; round++) {
+        await resetData(orm);
+        const second = await seedSecondRestaurant(orm);
+        const results = await Promise.allSettled([
+          // owner1 removes owner2's access ...
+          teamOf().applyChange(second.restaurantId, second.owner2.membershipId, { expectedVersion: 1, set: { status: 'deactivated' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', events: [{ ...ev(second, second.owner2.userId, round * 10 + 1), type: 'member_deactivated' }] }),
+          // ... while owner2, who passed the service's check a moment ago, removes the sommelier's
+          teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { status: 'deactivated' }, actorUserId: second.owner2.userId, at: '2026-11-05T10:00:00.000Z', events: [{ ...ev(second, second.sommelier.userId, round * 10 + 2, second.owner2.userId), type: 'member_deactivated' }] })
+        ]);
+        expect(results[0].status).toBe('fulfilled');
+        const sommelier = await teamOf().find(second.restaurantId, second.sommelier.membershipId);
+        if (results[1].status === 'rejected') {
+          // owner2 lost the race: the refusal is the actor check, and nothing of its change is left
+          expect((results[1] as PromiseRejectedResult).reason).toMatchObject({ name: 'ForbiddenError' });
+          expect(sommelier).toMatchObject({ status: 'active', version: 1 });
+        } else {
+          // owner2 won: the sommelier is deactivated by an actor who was still active at that moment
+          expect(sommelier).toMatchObject({ status: 'deactivated', version: 2, deactivatedBy: second.owner2.userId });
+        }
+      }
     });
 
     it('a deactivated person keeps the session but has no restaurant on the next request, and gets it back after reactivation, through the real services (AC2)', async () => {
@@ -760,7 +786,7 @@ run('PostgreSQL', () => {
 
     it('the migration adds the columns and the table, and down removes them again (AC22 up/down)', async () => {
       const second = await seedSecondRestaurant(orm);
-      await teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { status: 'deactivated' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.sommelier.userId, 301) });
+      await teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { status: 'deactivated' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', events: [ev(second, second.sommelier.userId, 301, second.owner1.userId)] });
       const conn = orm.em.getConnection();
       const columns = async () => (await conn.execute<Array<{ column_name: string }>>("select column_name from information_schema.columns where table_name = 'membership' and column_name in ('status', 'version', 'deactivated_at', 'deactivated_by') order by column_name")).map((c) => c.column_name);
       const tableExists = async () => (await conn.execute<Array<{ n: string }>>("select count(*)::text as n from information_schema.tables where table_name = 'auth_event'"))[0].n === '1';

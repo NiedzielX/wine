@@ -1,8 +1,9 @@
 import type { AuthEvent, AuthUser, Membership, MembershipStatus, SessionRecord, TeamMember } from '../auth/types';
 import type { DemoDataset } from '../demo/dataset';
 import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine } from '../domain/types';
-import { assertKeepsAnOwner } from '../auth/team-rules';
-import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
+import { assertChangeEvents, assertValidAuthEvent, authEventLimit } from '../auth/audit-rules';
+import { assertChangeAllowed, assertKeepsAnOwner } from '../auth/team-rules';
+import { ForbiddenError, InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
 import {
   contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
@@ -401,12 +402,18 @@ export class MemoryTeamRepository implements TeamRepository {
   async applyChange(restaurantId: string, membershipId: string, change: TeamChange) {
     const m = this.store.memberships.find((x) => x.restaurantId === restaurantId && x.membershipId === membershipId);
     if (!m) throw new NotFoundError('Team member');
-    if (m.version !== change.expectedVersion) throw new VersionConflictError();
     const role = change.set.role ?? m.role;
     const status = change.set.status ?? m.status;
     const others = this.store.memberships.filter((x) => x.restaurantId === restaurantId && x.membershipId !== membershipId && x.role === 'owner' && x.status === 'active').length;
+    // first: a request decided on stale rows must never take the last owner away, whoever the actor is now (AC23)
     assertKeepsAnOwner(m, { role, status }, others);
-    if (this.store.authEvents.some((e) => e.id === change.event.id)) throw new InvariantError('duplicate_event', 'The audit event already exists.');
+    // the actor, from the rows as they are now: the service decided on rows it read earlier
+    const actor = this.store.memberships.find((x) => x.restaurantId === restaurantId && x.userId === change.actorUserId);
+    if (!actor) throw new ForbiddenError();
+    assertChangeAllowed(actor, this.member(m), change.set);
+    if (m.version !== change.expectedVersion) throw new VersionConflictError();
+    assertChangeEvents(restaurantId, change.actorUserId, m.userId, change.events);
+    if (change.events.some((e) => this.store.authEvents.some((x) => x.id === e.id))) throw new InvariantError('duplicate_event', 'The audit event already exists.');
     if (status !== m.status) {
       m.deactivatedAt = status === 'deactivated' ? change.at : null;
       m.deactivatedBy = status === 'deactivated' ? change.actorUserId : null;
@@ -414,7 +421,7 @@ export class MemoryTeamRepository implements TeamRepository {
     m.role = role;
     m.status = status;
     m.version += 1;
-    this.store.authEvents.push(copy(change.event));
+    for (const e of change.events) this.store.authEvents.push(copy(e));
     return this.member(m);
   }
 }
@@ -422,17 +429,20 @@ export class MemoryTeamRepository implements TeamRepository {
 export class MemoryAuthAuditRepository implements AuthAuditRepository {
   constructor(private readonly store: MemoryStore) {}
 
-  async record(event: AuthEvent) {
+  async record(restaurantId: string | null, event: AuthEvent) {
+    assertValidAuthEvent(restaurantId, event);
     if (this.store.authEvents.some((e) => e.id === event.id)) throw new InvariantError('duplicate_event', 'The audit event already exists.');
     this.store.authEvents.push(copy(event));
   }
 
   async list(restaurantId: string, filter: AuthEventFilter = {}) {
+    const { before } = filter;
+    // the listing order is (at, id) descending; a page continues strictly after the cursor in that order
     const rows = this.store.authEvents
       .filter((e) => e.restaurantId === restaurantId && (!filter.type || e.type === filter.type) && (!filter.subjectUserId || e.subjectUserId === filter.subjectUserId)
-        && (!filter.before || e.at < filter.before))
+        && (!before || e.at < before.at || (e.at === before.at && e.id < before.id)))
       .sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
-    return copy(rows.slice(0, filter.limit ?? 100));
+    return copy(rows.slice(0, authEventLimit(filter.limit)));
   }
 }
 

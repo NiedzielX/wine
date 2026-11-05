@@ -150,7 +150,7 @@ describe('team management on PostgreSQL', () => {
     const mHtml = (await (await get(`/admin/${slug}/team`, await manager())).text()).replace(/<!-- -->/g, '');
     const mOwnerRow = mHtml.split('data-member="').slice(1).map((r) => r.split('</li>')[0]).find((r) => r.includes(NEW_RESTAURANT.ownerEmail))!;
     expect(mOwnerRow).not.toContain('name="role"');
-    expect(mOwnerRow).toContain('Only an owner can change an owner.');
+    expect(mOwnerRow).toContain('Only an owner can change an owner or a General Manager.');
     // the Wine Director has no team entry in the sidebar and a 403 on the page
     expect((await (await get(`/admin/${slug}`, await sommelier())).text())).not.toContain(`/admin/${slug}/team`);
     expect((await get(`/admin/${slug}`, o).then((r) => r.text()))).toContain(`/admin/${slug}/team`);

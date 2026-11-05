@@ -1,12 +1,12 @@
 import { ForbiddenError, NotFoundError } from '../errors';
-import type { AuthEvent, AuthEventMeta, AuthEventType, Actor, MembershipStatus, Role, TeamMember } from './types';
+import type { AuthEvent, Actor, MembershipStatus, Role, TeamMember } from './types';
 import type { Repositories } from '../ports/repositories';
 import type { AuthEventFilter } from '../ports/team';
 import type { Clock, IdGenerator } from '../ports/runtime';
 import { parseWith } from '../validators/parse';
 import { teamChangeSchema, type TeamChangeInput } from '../validators/team/team-change.schema';
 import { can } from './permissions';
-import { assertMayChangeRole, assertMayChangeStatus } from './team-rules';
+import { assertChangeAllowed } from './team-rules';
 
 export type TeamServiceDeps = Pick<Repositories, 'restaurantRepository' | 'teamRepository' | 'authAuditRepository'> & { clock: Clock; idGenerator: IdGenerator };
 
@@ -45,19 +45,17 @@ export class TeamService {
     const status: MembershipStatus = parsed.status ?? target.status;
     const roleChanges = role !== target.role;
     const statusChanges = status !== target.status;
-    if (roleChanges) assertMayChangeRole(me, target, role);
-    if (statusChanges) assertMayChangeStatus(me, target, status);
     if (!roleChanges && !statusChanges) return target;
+    assertChangeAllowed(me, target, { role, status });
 
     const now = this.d.clock.now().toISOString();
-    // one event per change; a request that changes both writes the more serious one (status), the role goes in its meta
-    const type: AuthEventType = statusChanges ? (status === 'deactivated' ? 'member_deactivated' : 'member_reactivated') : 'role_changed';
-    const meta: AuthEventMeta = { membership_id: target.membershipId };
-    if (roleChanges) { meta.from = target.role; meta.to = role; }
-    else meta.role = target.role;
-    const event: AuthEvent = { id: this.d.idGenerator.uuid(), restaurantId, actorUserId: actor.id, subjectUserId: target.userId, type, meta, at: now };
+    // one event per change: a role change and a status change in one request are two events, so the trail reads the same either way
+    const base = { restaurantId, actorUserId: actor.id, subjectUserId: target.userId, at: now };
+    const events: AuthEvent[] = [];
+    if (roleChanges) events.push({ ...base, id: this.d.idGenerator.uuid(), type: 'role_changed', meta: { membership_id: target.membershipId, from: target.role, to: role } });
+    if (statusChanges) events.push({ ...base, id: this.d.idGenerator.uuid(), type: status === 'deactivated' ? 'member_deactivated' : 'member_reactivated', meta: { membership_id: target.membershipId, role } });
     return this.d.teamRepository.applyChange(restaurantId, membershipId, {
-      expectedVersion, set: { ...(roleChanges ? { role } : {}), ...(statusChanges ? { status } : {}) }, actorUserId: actor.id, at: now, event
+      expectedVersion, set: { ...(roleChanges ? { role } : {}), ...(statusChanges ? { status } : {}) }, actorUserId: actor.id, at: now, events
     });
   }
 

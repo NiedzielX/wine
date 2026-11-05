@@ -160,6 +160,22 @@ describe('TeamService: who may change whom (AC3)', () => {
     expect(JSON.stringify(events)).not.toMatch(/@|password|token|pin/i);
   });
 
+  it('a request that changes the role and the status writes two events, one per change (decided 2026-11-05)', async () => {
+    const m = await t.team.change('halka', t.halka.waiterMembership, { role: 'sommelier', status: 'deactivated' }, t.halka.owner, 1);
+    expect(m).toMatchObject({ role: 'sommelier', status: 'deactivated', version: 2 });
+    const events = await t.team.events('halka', t.halka.owner);
+    expect(events.map((e) => e.type).sort()).toEqual(['member_deactivated', 'role_changed']);
+    expect(events.find((e) => e.type === 'role_changed')!.meta).toMatchObject({ from: 'waiter', to: 'sommelier' });
+    expect(events.every((e) => e.subjectUserId === t.halka.waiter.id && e.actorUserId === t.halka.owner.id)).toBe(true);
+  });
+
+  it('a stale version says so in neutral words, not about pairings', async () => {
+    await t.team.changeRole('halka', t.halka.sommelierMembership, 'waiter', t.halka.owner, 1);
+    const e = await t.team.changeRole('halka', t.halka.sommelierMembership, 'sommelier', t.halka.owner, 1).catch((x) => x);
+    expect(e.code).toBe('version_conflict');
+    expect(e.message).not.toMatch(/pairing/i);
+  });
+
   it('the audit list needs audit.view', async () => {
     await expect(t.team.events('halka', t.halka.sommelier)).rejects.toMatchObject({ name: 'ForbiddenError' });
     await expect(t.team.events('halka', t.halka.waiter)).rejects.toMatchObject({ name: 'ForbiddenError' });

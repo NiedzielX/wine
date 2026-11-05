@@ -50,7 +50,7 @@ export class NoPanelAccessError extends DomainError {
 /** The record was changed by someone else since the caller read it. */
 export class VersionConflictError extends DomainError {
   constructor() {
-    super('version_conflict', 'This pairing was changed by someone else a moment ago. Reload to see the latest version.');
+    super('version_conflict', 'This item was changed by someone else a moment ago. Reload to see the latest version.');
     this.name = 'VersionConflictError';
   }
 }

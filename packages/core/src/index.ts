@@ -14,6 +14,7 @@ export * from './auth/types';
 export * from './auth/permissions';
 export * from './auth/auth-service';
 export * from './auth/team-rules';
+export * from './auth/audit-rules';
 export * from './auth/team-service';
 export * from './ports/team';
 export * from './engine/scoring';

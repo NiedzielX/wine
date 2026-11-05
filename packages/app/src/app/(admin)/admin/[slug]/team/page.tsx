@@ -8,6 +8,7 @@ import { Flash } from '../../_components/flash';
 import { first, formatDateTime } from '../../_components/format';
 import { changeMemberRole, deactivateMember, reactivateMember } from '../team-actions';
 import { requireAccess } from '@/server/auth';
+import { isDomainError } from '@/server/domain-errors';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
@@ -32,7 +33,11 @@ export default async function TeamPage({ params, searchParams }: Props) {
   const { locale, t } = await getI18n();
   const m = t.admin.team;
   const scope = await getRequestScope();
-  const members = await scope.cradle.teamService.list(slug, access.actor);
+  // the service reads the stored membership: a person deactivated between the layout check and here gets a 403, not a 500
+  const members = await scope.cradle.teamService.list(slug, access.actor).catch((e: unknown) => {
+    if (isDomainError(e, 'forbidden')) forbidden();
+    throw e;
+  });
   const me = members.find((x) => x.userId === access.actor.id);
   if (!me) forbidden();
   const activeCount = members.filter((x) => x.status === 'active').length;

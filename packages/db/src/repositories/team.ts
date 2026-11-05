@@ -1,12 +1,20 @@
 import { UniqueConstraintViolationException } from '@mikro-orm/core';
 import type { EntityManager } from '@mikro-orm/postgresql';
 import {
-  InvariantError, NotFoundError, VersionConflictError, assertKeepsAnOwner,
+  ForbiddenError, InvariantError, NotFoundError, VersionConflictError, assertChangeAllowed, assertChangeEvents, assertKeepsAnOwner, assertValidAuthEvent, authEventLimit,
   type AuthAuditRepository, type AuthEvent, type AuthEventFilter, type AuthEventMeta, type AuthEventType, type MembershipStatus, type Role, type TeamChange, type TeamMember, type TeamRepository
 } from '@wine-match/core';
 import { isUuid } from './ids';
 
 interface Deps { em: EntityManager }
+
+interface LockedRow { id: string; user_id: string; role: Role; status: MembershipStatus; version: number }
+
+/** The locked row as the hierarchy rules read a person (they need only role, status and ids). */
+const asMember = (r: LockedRow): TeamMember => ({
+  membershipId: r.id, userId: r.user_id, name: '', email: '', role: r.role, status: r.status, version: Number(r.version),
+  lastLoginAt: null, createdAt: '', deactivatedAt: null, deactivatedBy: null
+});
 
 interface MemberRow {
   membership_id: string; user_id: string; name: string; email: string; role: Role; status: MembershipStatus; version: number;
@@ -71,19 +79,26 @@ export class PgTeamRepository implements TeamRepository {
     if (!isUuid(restaurantId) || !isUuid(membershipId)) throw new NotFoundError('Team member');
     try {
       return await this.em.transactional(async (em) => {
-        const locked = await em.execute<Array<{ id: string; role: Role; status: MembershipStatus; version: number }>>(
-          `select id, role, status, version from membership where restaurant_id = ? and (role = 'owner' or id = ?) order by id for update`,
-          [restaurantId, membershipId]
+        // the owners, the actor and the target in one statement, ordered by id: two changes take the locks in the same order
+        const locked = await em.execute<LockedRow[]>(
+          `select id, user_id, role, status, version from membership where restaurant_id = ? and (role = 'owner' or id = ? or user_id = ?) order by id for update`,
+          [restaurantId, membershipId, change.actorUserId]
         );
         const target = locked.find((r) => r.id === membershipId);
         if (!target) throw new NotFoundError('Team member');
-        if (Number(target.version) !== change.expectedVersion) throw new VersionConflictError();
         const role = change.set.role ?? target.role;
         const status = change.set.status ?? target.status;
         const otherOwners = locked.filter((r) => r.id !== membershipId && r.role === 'owner' && r.status === 'active').length;
+        // first: a request decided on stale rows must never take the last owner away, whoever the actor is now (AC23)
         assertKeepsAnOwner(target, { role, status }, otherOwners);
+        // the actor as locked now: the service decided on rows it read before the transaction
+        const actor = locked.find((r) => r.user_id === change.actorUserId);
+        if (!actor) throw new ForbiddenError();
+        assertChangeAllowed(asMember(actor), asMember(target), change.set);
+        if (Number(target.version) !== change.expectedVersion) throw new VersionConflictError();
+        assertChangeEvents(restaurantId, change.actorUserId, target.user_id, change.events);
 
-        await insertAuthEvent(em, change.event);
+        for (const e of change.events) await insertAuthEvent(em, e);
         const statusChanges = status !== target.status;
         await em.execute(
           `update membership set role = ?, status = ?, version = version + 1,
@@ -113,7 +128,8 @@ export class PgAuthAuditRepository implements AuthAuditRepository {
   private readonly em: EntityManager;
   constructor({ em }: Deps) { this.em = em; }
 
-  async record(event: AuthEvent) {
+  async record(restaurantId: string | null, event: AuthEvent) {
+    assertValidAuthEvent(restaurantId, event);
     await insertAuthEvent(this.em, event);
   }
 
@@ -126,8 +142,13 @@ export class PgAuthAuditRepository implements AuthAuditRepository {
       if (!isUuid(filter.subjectUserId)) return [];
       where.push('subject_user_id = ?'); params.push(filter.subjectUserId);
     }
-    if (filter.before) { where.push('at < ?::timestamptz'); params.push(new Date(filter.before)); }
-    params.push(filter.limit ?? 100);
+    // the listing order is (at, id) descending; a page continues strictly after the cursor in that order
+    if (filter.before) {
+      if (!isUuid(filter.before.id)) return [];
+      where.push('(at < ?::timestamptz or (at = ?::timestamptz and id < ?::uuid))');
+      params.push(new Date(filter.before.at), new Date(filter.before.at), filter.before.id);
+    }
+    params.push(authEventLimit(filter.limit));
     const rows = await this.em.getConnection().execute<EventRow[]>(
       `select id, restaurant_id, actor_user_id, subject_user_id, type, meta, at from auth_event where ${where.join(' and ')} order by at desc, id desc limit ?`, params
     );

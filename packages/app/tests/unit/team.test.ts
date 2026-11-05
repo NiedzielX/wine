@@ -238,7 +238,7 @@ describe('A15 Team page', () => {
     // the owner: read-only for a manager, with the reason
     expect(row(mid('olga@halka.test'))).not.toContain('name="role"');
     expect(row(mid('olga@halka.test'))).not.toContain('Remove access');
-    expect(row(mid('olga@halka.test'))).toContain('Only an owner can change an owner.');
+    expect(row(mid('olga@halka.test'))).toContain('Only an owner can change an owner or a General Manager.');
     // oneself: read-only
     expect(row(mid('tomasz@halka.pl'))).not.toContain('Remove access');
     expect(row(mid('tomasz@halka.pl'))).toContain('You cannot change your own role or access.');

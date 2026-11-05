@@ -690,7 +690,7 @@ export const en = {
         member_reactivated: () => 'Access restored. The person can use the dashboard again.'
       },
       errors: {
-        version_conflict: 'This pairing was changed by someone else a moment ago. The page now shows the latest version, please try again.',
+        version_conflict: 'This was changed by someone else a moment ago. The page now shows the latest version, please try again.',
         forbidden: 'You don’t have permission to do that.',
         comment_too_long: 'The note can have at most 140 characters.',
         already_paired: 'This wine is already paired with the dish.',

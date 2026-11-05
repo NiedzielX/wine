@@ -569,7 +569,7 @@ export const pl = {
         member_reactivated: () => 'Dostęp przywrócony. Osoba może znów korzystać z panelu.'
       },
       errors: {
-        version_conflict: 'Ktoś przed chwilą zmienił to parowanie. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
+        version_conflict: 'Ktoś przed chwilą to zmienił. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
         forbidden: 'Nie masz uprawnień do tej czynności.',
         comment_too_long: 'Notatka może mieć najwyżej 140 znaków.',
         already_paired: 'To wino jest już sparowane z tym daniem.',
