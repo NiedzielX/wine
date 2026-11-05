@@ -41,7 +41,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     cwd: appDir,
     readyPath: '/api/v1/public/restaurants/halka/menu',
     logFile: `${appDir}/test-results/e2e-app.log`,
-    env: { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: databaseUrl, AUTH_COOKIE_SECURE: 'false', LOG_LEVEL: 'info', METRICS_TOKEN: E2E_METRICS_TOKEN }
+    env: { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: databaseUrl, AUTH_COOKIE_SECURE: 'false', ALLOW_LOCAL_BASE_URL: 'true', LOG_LEVEL: 'info', METRICS_TOKEN: E2E_METRICS_TOKEN }
   });
   project.provide('e2e', { baseUrl: app.url, appLogs: '', databaseUrl });
 

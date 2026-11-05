@@ -4,22 +4,34 @@
  *   npm run build && npm start        (in one terminal)
  *   npm run smoke                     (default http://localhost:3000, restaurant "halka")
  *   npm run smoke -- http://localhost:3101 halka
+ *   npm run smoke -- --production https://wine.example.com my-restaurant
  * Works against both data sources; ids are discovered through the API, nothing is hard-coded.
+ *
+ * The FULL run signs in with a demo account and CHANGES data (it switches a wine's `active` flag back and forth and creates
+ * cancelled imports): run it against a trial instance, never a real installation. `--production` is the check for a real
+ * installation: GET requests only, no sign-in, nothing that depends on the menu's content (spec 2026-10-15-production-deployment, R6).
+ * Both modes send `X-Wine-Match-Synthetic: 1` on every request (R7).
  */
-const base = (process.argv[2] ?? 'http://localhost:3000').replace(/\/$/, '');
-const slug = process.argv[3] ?? 'halka';
+import { syntheticFetch } from './lib/synthetic-fetch.mjs';
+
+const flags = process.argv.slice(2).filter((a) => a.startsWith('--'));
+const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const PRODUCTION = flags.includes('--production');
+const unknownFlags = flags.filter((f) => f !== '--production');
+if (unknownFlags.length) {
+  console.error(`Unknown option ${unknownFlags.join(', ')}. Usage: node scripts/smoke.mjs [--production] [url] [slug]`);
+  process.exit(2);
+}
+const base = (positional[0] ?? 'http://localhost:3000').replace(/\/$/, '');
+const slug = positional[1] ?? 'halka';
 const EMAIL = process.env.SMOKE_EMAIL ?? 'marta@halka.pl';      // demo accounts only: see .env.example
 const PASSWORD = process.env.SMOKE_PASSWORD ?? 'demo-halka-2026';
 let failures = 0;
 let SESSION = '';   // cookie of the signed-in sommelier, used for dashboard requests
 
-/**
- * Every request of the smoke test is our own traffic: it carries `x-wine-match-synthetic: 1`, so the guest pages render
- * as usual but record no usage events (spec 2026-10-15-guest-usage-events, Q14). Set here once, for every fetch.
- */
-const SYNTHETIC = { 'x-wine-match-synthetic': '1' };
-const realFetch = globalThis.fetch;
-globalThis.fetch = (url, init = {}) => realFetch(url, { ...init, headers: { ...SYNTHETIC, ...(init.headers ?? {}) } });
+/** Every request of the smoke test is synthetic traffic (R7) and, with --production, a GET (R6): see lib/synthetic-fetch.mjs. */
+const sent = [];
+globalThis.fetch = syntheticFetch({ getOnly: PRODUCTION, sent });
 
 async function check(name, path, { status = 200, has = [], hasNot = [], method = 'GET', body, redirect = 'follow', cookie, headers = {}, location } = {}) {
   const useCookie = cookie ?? (path.startsWith('/admin') ? SESSION : '');
@@ -52,6 +64,42 @@ async function apiLogin(email, password) {
   const text = await res.text();
   const setCookie = res.headers.getSetCookie?.() ?? [];
   return { res, text, body: (() => { try { return JSON.parse(text); } catch { return {}; } })(), setCookie, cookie: setCookie.map((c) => c.split(';')[0]).join('; ') };
+}
+
+/**
+ * `--production` (R6): what can be checked on a real installation without signing in, writing or knowing the menu.
+ * Needs DEMO_RESTAURANT_SLUG on the server to be the pilot's slug, otherwise `/` does not reach the restaurant.
+ */
+async function productionSmoke() {
+  console.log(`Production smoke of ${base} for "${slug}" (GET only, no sign-in)`);
+  const health = await check('health: the app can serve and the database answers', '/api/v1/health', { has: ['"status":"ok"'] });
+  expect('health is never cached', /no-store/.test(health.res.headers.get('cache-control') ?? ''), health.res.headers.get('cache-control'));
+  const root = await fetch(`${base}/`, { redirect: 'follow' });
+  await root.arrayBuffer();
+  expect('/ ends on the restaurant page (set DEMO_RESTAURANT_SLUG to this slug)', root.status === 200 && new URL(root.url).pathname.startsWith(`/r/${slug}`), `${root.status} ${root.url}`);
+  await check('guest start page', `/r/${slug}`, { has: ['<html'] });
+  const menu = await check('public menu API', `/api/v1/public/restaurants/${slug}/menu`, { has: [`"slug":"${slug}"`] });
+  let body = null;
+  try { body = JSON.parse(menu.text); } catch { /* reported below */ }
+  const dishes = Array.isArray(body?.categories) ? body.categories.flatMap((c) => (Array.isArray(c?.dishes) ? c.dishes : null)) : null;
+  expect('public menu API has the documented shape (restaurant, categories with dishes)', body?.restaurant?.slug === slug && dishes !== null && !dishes.includes(null) && dishes.every((d) => typeof d?.id === 'string' && typeof d?.name === 'string' && typeof d?.price === 'number'), menu.text.slice(0, 200));
+  await check('sign-in page', '/admin/login', { cookie: '', has: ['<form'] });
+  await check('a session route without a session is 401', '/api/v1/auth/me', { status: 401, has: ['unauthenticated'] });
+  const hdr = (await fetch(`${base}/r/${slug}`)).headers;
+  expect('security headers: nosniff and a referrer policy', hdr.get('x-content-type-options') === 'nosniff' && !!hdr.get('referrer-policy'), `${hdr.get('x-content-type-options')} / ${hdr.get('referrer-policy')}`);
+  const adminHdr = (await fetch(`${base}/admin/login`)).headers;
+  expect('dashboard responses are never cached or framed', /no-store/.test(adminHdr.get('cache-control') ?? '') && adminHdr.get('x-frame-options') === 'DENY', `${adminHdr.get('cache-control')} / ${adminHdr.get('x-frame-options')}`);
+  expect('every request was a GET (and carried the synthetic header)', sent.length > 0 && sent.every((r) => r.method === 'GET'), JSON.stringify(sent.filter((r) => r.method !== 'GET')));
+  console.log(failures ? `\n${failures} check(s) failed` : '\nAll production smoke checks passed');
+  process.exit(failures ? 1 : 0);
+}
+if (PRODUCTION) {
+  try {
+    await productionSmoke();
+  } catch (error) {
+    console.log(`FAIL     production smoke could not finish: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 }
 
 // discover ids through the public API

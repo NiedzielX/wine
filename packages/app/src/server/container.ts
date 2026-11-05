@@ -138,8 +138,9 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
 /** Root container, created once per process (cached on globalThis for Next.js dev reloads). */
 export function getContainer(): Promise<AwilixContainer<Cradle>> {
   const pending = (globalForDi.__wineMatchContainer ??= buildContainer());
-  // A build that fails (the database was down when the first request came) is NOT remembered: the next request builds again,
-  // so the process recovers when the database does, without a restart (spec 2026-10-15-production-deployment, R3 and Q5).
+  // A build that fails is NOT remembered: the next request builds again instead of answering with the old failure for the life of
+  // the process (spec 2026-10-15-production-deployment, R3 and Q5). MikroORM.init itself does not connect, so a database that is down
+  // shows at the first query, not here; recovery of the connection is the pool's (see PgSystemHealth tests); this covers every other build failure.
   pending.catch(() => {
     if (globalForDi.__wineMatchContainer === pending) delete globalForDi.__wineMatchContainer;
   });

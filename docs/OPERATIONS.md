@@ -1,6 +1,6 @@
 # Eksploatacja: monitoring i runbook (E21 F1)
 
-Wine Match nie używa zewnętrznego SaaS do monitoringu (spec `2026-11-04-platform-quality-and-compliance`, Q1). Operator ma trzy źródła: `GET /api/v1/health` (po wdrożeniu E11), metryki w formacie Prometheus i logi na stdout (JSON, jedna linia na wpis, sekrety zredagowane). Dalsze fazy E21 dopiszą tu kopie i limity żądań.
+Wine Match nie używa zewnętrznego SaaS do monitoringu (spec `2026-11-04-platform-quality-and-compliance`, Q1). Operator ma trzy źródła: `GET /api/v1/health`, metryki w formacie Prometheus i logi na stdout (JSON, jedna linia na wpis, sekrety zredagowane). Dalsze fazy E21 dopiszą tu kopie i limity żądań.
 
 ## Metryki
 
@@ -13,12 +13,12 @@ Wine Match nie używa zewnętrznego SaaS do monitoringu (spec `2026-11-04-platfo
 | `guest_code_issue_total{result}` | wydanie kodu polecenia: `issued`, `declined` (serwis zwrócił brak kodu: dzienny limit sesji, nieznane lub nieaktywne wino, za dużo dań, wyczerpana przestrzeń kodów; serwis nie rozróżnia tych przypadków), `timeout` (przekroczone 1,5 s), `error` (wyjątek, zwykle baza), `rate_limited` (wypełnia F3) |
 | `usage_event_write_failed_total` | nieudane zapisy zdarzeń użycia (strona gościa działa dalej) |
 | `rate_limit_denied_total{rule}` | odmowy limitu żądań (**brak emitera do czasu fazy F3**: seria jest pusta) |
-| `db_health_check_duration_seconds` | czas sprawdzenia bazy w health (**brak emitera do czasu E11**: seria jest pusta) |
+| `db_health_check_duration_seconds` | czas sprawdzenia bazy przez `GET /api/v1/health` (tylko `DATA_SOURCE=postgres`; w trybie `memory` seria jest pusta). Przy niedostępnej bazie mierzy czas do odpowiedzi „unreachable” (do 2 s) |
 | `unhandled_errors_total{source}` | błędy z `onRequestError` (`render`, `route`, `action`, `proxy`) i procesu (`unhandledRejection`, `uncaughtException`) |
 
 ## Logi: wymóg dla reverse proxy
 
-Dziennik dostępowy proxy **musi obcinać query string**: `sid=`, `diet=` i `without=` mogą ujawniać dane o zdrowiu (diety, alergeny). To wymóg, nie opcja; dotyczy też alertów z adresem URL. Format JSON, retencja 30 dni. Aplikacja sama loguje każde żądanie API jako jeden wiersz `api request` (metoda, wzorzec trasy, status, czas; przy nieoczekiwanym błędzie poziom `error` z zredagowanym `err` w tym samym wierszu), bez query, nagłówków i IP; strony gościa i panelu loguje tylko proxy. Endpoint metryk działa bez bazy i nie jest logowany.
+Dziennik dostępowy proxy **musi obcinać query string**: `sid=`, `diet=` i `without=` mogą ujawniać dane o zdrowiu (diety, alergeny). To wymóg, nie opcja; dotyczy też alertów z adresem URL. Format JSON, retencja 30 dni. Aplikacja sama loguje każde żądanie API jako jeden wiersz `api request` (metoda, wzorzec trasy, status, czas; przy nieoczekiwanym błędzie poziom `error` z zredagowanym `err` w tym samym wierszu), bez query, nagłówków i IP; strony gościa i panelu loguje tylko proxy. Endpoint metryk działa bez bazy i nie jest logowany. `GET /api/v1/health` jest logowany i liczony jak każde żądanie API (wzorzec `/api/v1/health`); przy niedostępnej bazie jego 503 wchodzi do wskaźnika 5xx, co jest zamierzone: baza nie działa. Uptime checker nie musi wysyłać zapytań częściej niż co 30 s.
 
 ## Alerty
 
