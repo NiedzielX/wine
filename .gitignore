@@ -22,3 +22,7 @@ playwright-report
 .ai/qa/test-env.json
 .ai/qa/test-env.env
 storybook-static
+.ai/qa/test-env-build-cache.json
+.ai/qa/test-env-app.log
+.ai/qa/test-env.lock/
+.ai/qa/.test-env-credentials.*.json

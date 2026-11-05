@@ -34,3 +34,18 @@ Przeniesione z `AGENTS.md` §7 bez zmiany treści.
 
 - **Wykluczenia z raportu pokrycia są jawne, w konfiguracji każdego pakietu** (`vitest.config.ts`), z uzasadnieniem: pliki stron i komponentów React (`app/src/app/**.tsx`, pokrywa je E2E), kod shadcn/ui, pakiet `mockups` (prototyp do wycofania), wspólne zestawy testów (`core/src/testing`), repozytoria i encje (pokrywa je `test:db`). Nowe wykluczenie wymaga zgody właściciela.
 - **Gdzie piszemy testy:** `core/tests/` (logika domeny), `db/tests/` (bez bazy: `*.test.ts`; z bazą: `*.integration.test.ts`), `app/tests/unit/` (trasy API, akcje, serwer), `app/tests/e2e/` (przeglądarka), `ui/tests/`, `testkit/tests/` (narzędzia testowe i skrypty repozytorium: hook agenta, skaner sekretów, `check:context`).
+
+## Środowisko testowe
+
+Jedna komenda stawia jednorazowe środowisko do testów ręcznych i agentowych (skill `om-prepare-test-env`, skrypty POSIX `sh`).
+
+| Polecenie | Do czego |
+|---|---|
+| `npm run test-env:up` (`sh .ai/scripts/test-env-up.sh`) | stawia środowisko albo podłącza się do działającego; wypisuje `TEST_ENV_BASE_URL=…` i zapisuje deskryptor `.ai/qa/test-env.json` |
+| `npm run test-env:down` (`sh .ai/scripts/test-env-down.sh`) | zatrzymuje dokładnie to, co uruchomił `up` (aplikację, kontener albo bazę); można uruchomić dwa razy |
+
+- **Co powstaje:** świeża baza PostgreSQL z prawdziwymi migracjami, dane demo (`halka`) i druga restauracja `bistro-e2e` z polecenia operatora (jak w `packages/app/tests/e2e/global-setup.ts`), potem ZBUDOWANA aplikacja na wolnym porcie `127.0.0.1` z `DATA_SOURCE=postgres`, `AUTH_COOKIE_SECURE=false`, `ALLOW_DEMO_DATA=true`.
+- **Baza:** gdy działa Docker, kontener `postgres:16` na losowym porcie (`wm-qa-pg-<runId>`); w przeciwnym razie nowa baza `winematch_qa_<runId>` na serwerze z `TEST_DATABASE_URL` (ta sama zmienna musi być ustawiona przy `down`, który usuwa tę bazę i nie rusza innych). Wynik mówi, którą drogą poszło: `TEST_ENV_DATABASE=docker|TEST_DATABASE_URL`.
+- **Szybka ścieżka:** `npm run build` tylko gdy zmieniły się źródła (cache `.ai/qa/test-env-build-cache.json`, wymuszenie: `--force-rebuild`). Drugie `up` używa działającego środowiska (żywy proces, sondy HTTP, logowanie kontem demo, wiek ≤ `TEST_ENV_CACHE_TTL_SECONDS`, domyślnie 600 s, brak nowszych źródeł); `--force` stawia od nowa.
+- **Dane logowania:** deskryptor wskazuje zmienne (`TEST_SOMMELIER_PASSWORD` …) w gitignorowanym `.ai/qa/test-env.env`; wartości to publiczne hasła demo, nie przepisuj ich do plików śledzonych.
+- **Stan lokalny, poza gitem:** `.ai/qa/test-env.json`, `test-env.env`, `test-env-build-cache.json`, `test-env-app.log`, `test-env.lock/`.
