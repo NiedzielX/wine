@@ -27,14 +27,14 @@ Implement Phase 1 (R3, R4, R5, R6, R7) of the approved spec. Owner delegated ope
 - `npm test`: core 603/603, db 73/73, ui 62/62, app 392/392, testkit 146/146 (przed ostatnią poprawką testu `health-postgres`, który po niej przeszedł osobno: 8/8).
 - `npm run test:db`: 125/125 (w tym `seed-guard.integration.test.ts` 7, `system-health.integration.test.ts` 4).
 - `npm run build`: exit 0. `npm run boot:check`: wszystkie przypadki ok (w tym nowe R4 i health 503 bez sekretu).
-- `npm run test:e2e`: 6 plików przechodzi (w tym nowe `health.e2e.test.ts`, 3 testy: 200, 503 i powrót bez restartu, `smoke --production` bez zdarzeń gościa); 11 plików wymagających przeglądarki padło wyłącznie na `spawn agent-browser ENOENT` (agent-browser nie jest zainstalowany; żadnej asercji nie nieudało się samej).
+- `npm run test:e2e`: 6 plików przechodzi (w tym nowe `health.e2e.test.ts`, 3 testy: 200, 503 i powrót bez restartu, `smoke --production` bez zdarzeń gościa); 11 plików wymagających przeglądarki padło wyłącznie na `spawn agent-browser ENOENT` (agent-browser nie jest zainstalowany; żadna asercja nie padła).
 - `npm run smoke` na `next start`: `DATA_SOURCE=memory` (`ALLOW_DEMO_DATA`, `ALLOW_LOCAL_BASE_URL`) exit 0; `DATA_SOURCE=postgres` (świeża baza, migracje + seed) exit 0, 265 sprawdzeń ok. `npm run smoke -- --production http://127.0.0.1:<port> halka` na obu: „All production smoke checks passed”.
 - `npm run check:context`: 0 błędów (9 ostrzeżeń o rozmiarze cudzych specyfikacji). `npm run check:qa`: 68 scenariuszy. `npm run secrets:scan`: bez nowych znalezisk (po zbudowaniu adresu z części).
 - `npm run verify:regression -- packages/core/tests/env.test.ts packages/app/tests/unit/gaps.test.ts packages/db/tests/seed-guard.integration.test.ts packages/testkit/tests/smoke-script.test.ts packages/db/tests/system-health.integration.test.ts packages/app/tests/unit/health-postgres.test.ts`: BEFORE FAIL, AFTER PASS, verdict OK. Uczciwie: czerwone przed zmianą są odmowy R4 (22 z 34 w `env.test.ts`), start-up i health (10 w pozostałych testach app) oraz 4 odmowy seeda, w tym `npm run db:seed` z `NODE_ENV=production` kończące się kodem 0 na kodzie sprzed zmiany; `smoke-script.test.ts` i `system-health.*` są czerwone tylko dlatego, że brakuje modułu.
 - Nie zweryfikowane: `schema:check` (schemat bazy nie zmieniony), przeglądarkowe testy e2e, job CI `image` i obraz (Faza 2), `npm run audit:gate` (bez zmiany zależności).
 
 ## Wynik
-Faza 1 gotowa: AC4 i AC5 spełnione i odhaczone; AC2, AC7, AC8 mają kod i testy, ale ich pełne brzmienie wymaga obrazu i jobu `image` (Faza 2); AC1, AC3, AC6 i R1, R2, R8, R9 czekają na Fazy 2-3. Spec zostaje `in-progress`. Dług i pytania: odmowa seeda poza produkcją (pytanie do właściciela), `AGENTS.md` §1.1 ma już poprawną wersję `next`, `GET /api/v1/health` liczy 503 do wskaźnika 5xx (zamierzone, w `OPERATIONS.md`).
+Faza 1 gotowa: AC4 i AC5 spełnione i odhaczone; AC2, AC7, AC8 mają kod i testy, ale ich pełne brzmienie wymaga obrazu i jobu `image` (Faza 2); AC1, AC3, AC6 i R1, R2, R8, R9 czekają na Fazy 2-3. Spec zostaje `in-progress`. Dług i pytania: odmowa seeda poza produkcją (pytanie do właściciela), `GET /api/v1/health` liczy 503 do wskaźnika 5xx (zamierzone, w `OPERATIONS.md`).
 
 ## Lekcje
 - [`2026-11-05-mikroorm-init-does-not-connect`](../lessons/2026-11-05-mikroorm-init-does-not-connect.md)
