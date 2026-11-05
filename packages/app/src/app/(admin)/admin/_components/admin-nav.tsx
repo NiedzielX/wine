@@ -8,12 +8,12 @@ import { Fragment } from 'react';
 /** Ready-made texts from the dictionary (a client component gets texts, not dictionary functions). */
 export interface NavLabels {
   label: string; dashboard: string; menu: string; wines: string; pairings: string; review: string; opportunities: string; publish: string;
-  restaurant: string; importMenu: string; importWines: string; importSales: string; setup: string; qr: string;
+  restaurant: string; importMenu: string; importWines: string; importSales: string; setup: string; qr: string; team: string;
 }
-interface Props { slug: string; reviewCount: number; publishCount: number; labels: NavLabels }
+interface Props { slug: string; reviewCount: number; publishCount: number; labels: NavLabels; /** the team entry shows only for `team.manage` (the page checks again) */ canManageTeam?: boolean }
 
 /** Sidebar navigation of the dashboard. Client component only for the active-link state. */
-export function AdminNav({ slug, reviewCount, publishCount, labels: l }: Props) {
+export function AdminNav({ slug, reviewCount, publishCount, labels: l, canManageTeam = false }: Props) {
   const pathname = usePathname();
   const base = `/admin/${slug}`;
   const items: Array<{ href: string; label: string; exact?: boolean; count?: number; group?: string }> = [
@@ -29,7 +29,8 @@ export function AdminNav({ slug, reviewCount, publishCount, labels: l }: Props) 
     { href: `${base}/import/wines`, label: l.importWines },
     { href: `${base}/import/sales`, label: l.importSales },
     { href: `${base}/setup`, label: l.setup },
-    { href: `${base}/qr`, label: l.qr }
+    { href: `${base}/qr`, label: l.qr },
+    ...(canManageTeam ? [{ href: `${base}/team`, label: l.team }] : [])
   ];
   return (
     <nav aria-label={l.label} className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">

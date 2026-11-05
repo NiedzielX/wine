@@ -50,8 +50,32 @@ export class NoPanelAccessError extends DomainError {
 /** The record was changed by someone else since the caller read it. */
 export class VersionConflictError extends DomainError {
   constructor() {
-    super('version_conflict', 'This pairing was changed by someone else a moment ago. Reload to see the latest version.');
+    super('version_conflict', 'This item was changed by someone else a moment ago. Reload to see the latest version.');
     this.name = 'VersionConflictError';
+  }
+}
+
+/** The change would leave the restaurant without an active owner (spec E12 F1, Q7, AC23). */
+export class LastOwnerError extends DomainError {
+  constructor() {
+    super('last_owner', 'A restaurant must keep at least one active owner.');
+    this.name = 'LastOwnerError';
+  }
+}
+
+/** The caller's role may not do this to that person or grant that role (a manager and an owner, spec E12 Q7). */
+export class TeamHierarchyError extends DomainError {
+  constructor(message = 'Your role may not change this person or grant this role.') {
+    super('team_hierarchy', message);
+    this.name = 'TeamHierarchyError';
+  }
+}
+
+/** Nobody changes their own role or deactivates themselves (spec E12 Q7). */
+export class SelfChangeError extends DomainError {
+  constructor() {
+    super('self_change', 'You cannot change your own role or deactivate yourself.');
+    this.name = 'SelfChangeError';
   }
 }
 

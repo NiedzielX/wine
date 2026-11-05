@@ -2,7 +2,7 @@
 status: in-progress
 created: 2026-11-04
 owner: Filip
-related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-engineering-standards.md, .ai/lessons/2026-10-19-axe-in-jsdom-limits.md, .ai/lessons/2026-10-15-config-fails-closed-and-boot-without-env.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md, docs/USER_ROLES.md]
+related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-engineering-standards.md, .ai/lessons/2026-10-19-axe-in-jsdom-limits.md, .ai/lessons/2026-10-15-config-fails-closed-and-boot-without-env.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md, docs/USER_ROLES.md]
 ---
 
 # Jakość platformy i zgodność: monitoring, kopie, limity żądań, dostępność, wydajność, RODO (E21)

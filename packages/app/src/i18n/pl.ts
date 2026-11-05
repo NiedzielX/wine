@@ -1,4 +1,4 @@
-import type { EngineFacts } from '@wine-match/core';
+import type { EngineFacts, Role } from '@wine-match/core';
 import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, TableQuantityText, UsageExplainFacts, WineExplainContext } from './en';
 
 /** Polish plural: 1 wino, 2–4 wina (but 12–14 win), 5+ win. */
@@ -455,7 +455,8 @@ export const pl = {
       importMenu: 'Import menu',
       importWines: 'Import karty win',
       importSales: 'Import sprzedaży',
-      opportunities: 'Okazje'
+      opportunities: 'Okazje',
+      team: 'Zespół'
     },
     language: {
       label: 'Język panelu'
@@ -499,6 +500,7 @@ export const pl = {
       importSales: 'Import sprzedaży',
       setup: 'Ustawienia',
       qr: 'Kod QR',
+      team: 'Zespół',
       signOut: 'Wyloguj'
     },
     login: {
@@ -561,10 +563,13 @@ export const pl = {
         content: () => 'Język treści i tłumaczenia zapisane. Goście zobaczą je po publikacji.',
         suggestion_added: () => 'Dodano do propozycji — zatwierdź je w „Propozycjach silnika”. Goście zobaczą zmianę dopiero po zatwierdzeniu i publikacji.',
         opportunity_dismissed: (days: number) => `Okazja zignorowana. Wróci najwcześniej po ${days} dniach, jeśli nadal będzie aktualna.`,
-        opportunity_restored: () => 'Okazja przywrócona.'
+        opportunity_restored: () => 'Okazja przywrócona.',
+        member_role_changed: () => 'Rola zmieniona. Działa od kolejnego żądania tej osoby.',
+        member_deactivated: () => 'Dostęp odebrany. Osoba zostaje od razu wylogowana z tej restauracji.',
+        member_reactivated: () => 'Dostęp przywrócony. Osoba może znów korzystać z panelu.'
       },
       errors: {
-        version_conflict: 'Ktoś przed chwilą zmienił to parowanie. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
+        version_conflict: 'Ktoś przed chwilą to zmienił. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
         forbidden: 'Nie masz uprawnień do tej czynności.',
         comment_too_long: 'Notatka może mieć najwyżej 140 znaków.',
         already_paired: 'To wino jest już sparowane z tym daniem.',
@@ -605,6 +610,10 @@ export const pl = {
         low_match: 'To wino słabo pasuje do dania.',
         opportunity_stale: 'Ta okazja jest już nieaktualna.',
         opportunity_not_dismissed: 'Ta okazja nie jest zignorowana.',
+        last_owner: 'Restauracja musi mieć co najmniej jednego aktywnego właściciela. Najpierw ustaw kogoś innego jako właściciela.',
+        team_hierarchy: 'Twoja rola nie pozwala zmienić tej osoby ani nadać tej roli. Poproś właściciela.',
+        self_change: 'Nie możesz zmienić własnej roli ani odebrać sobie dostępu.',
+        member_deactivated: 'Dostęp tej osoby jest odebrany. Przywróć go przed zmianą roli.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
     },
@@ -1082,6 +1091,30 @@ export const pl = {
           `Nazwiska gości, płatności i nazwy pozycji nie są zapisywane. Do ${maxRows} pozycji w pliku: większe eksporty dziel po całych dniach.`
         ]
       }
+    },
+    team: {
+      title: 'Zespół',
+      description: 'Wszyscy, którzy mają dostęp do tej restauracji. Zmiana działa od kolejnego żądania tej osoby: nie ma czego publikować.',
+      count: (active: number, total: number) => (total === active ? `Osób: ${active}` : `Aktywnych ${active} z ${total}`),
+      listLabel: 'Członkowie zespołu',
+      lastSignIn: (when: string) => `Ostatnie logowanie: ${when}`,
+      you: 'To Ty',
+      deactivated: 'Dostęp odebrany',
+      active: 'Aktywny',
+      deactivatedOn: (when: string) => `Dostęp odebrany ${when}`,
+      roleLabel: (name: string) => `Rola: ${name}`,
+      saveRole: 'Zapisz rolę',
+      deactivate: 'Odbierz dostęp',
+      reactivate: 'Przywróć dostęp',
+      ownerOnly: 'Właściciela i General Managera może zmienić tylko właściciel.',
+      yourself: 'Nie możesz zmienić własnej roli ani dostępu.',
+      roleHelp: 'General Manager może nadać role Wine Director i Kelner. Rolę Właściciel lub General Manager nadaje tylko właściciel.',
+      roleDescriptions: {
+        owner: 'Wszystko, także zespół.',
+        manager: 'Prowadzi restaurację i zespół, nie rozstrzyga parowań.',
+        sommelier: 'Rozstrzyga parowania, importuje i publikuje.',
+        waiter: 'Korzysta z podpowiedzi win, bez panelu.'
+      } as Record<Role, string>
     },
     qr: {
       title: 'Kod QR',

@@ -1,7 +1,10 @@
-import type { AuthUser, Membership, SessionRecord } from '../auth/types';
+import type { AuthEvent, AuthUser, Membership, MembershipStatus, SessionRecord, TeamMember } from '../auth/types';
 import type { DemoDataset } from '../demo/dataset';
 import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine } from '../domain/types';
-import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
+import { assertChangeEvents, assertValidAuthEvent, authEventLimit } from '../auth/audit-rules';
+import { assertChangeAllowed, assertKeepsAnOwner } from '../auth/team-rules';
+import { ForbiddenError, InvariantError, NotFoundError, VersionConflictError } from '../errors';
+import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
 import {
   contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
   type ContentSnapshot, type DishTranslations, type WineTranslations
@@ -25,6 +28,17 @@ const isReviewed = (p: Pairing) => p.status === 'approved' || p.status === 'modi
 const publishable = (p: Pairing) => isReviewed(p) || p.status === 'rejected';
 const copy = <T>(x: T): T => structuredClone(x);
 
+/** A membership as the store keeps it: the principal's view plus the team fields (spec E12 R2). */
+export interface StoredMembership extends Membership {
+  userId: string;
+  membershipId: string;
+  status: MembershipStatus;
+  version: number;
+  createdAt: string;
+  deactivatedAt: string | null;
+  deactivatedBy: string | null;
+}
+
 interface StoredCode { restaurantId: string; id: string; record: RecommendationCodeRecord; confirmedBy: string | null }
 
 /** A sales line as `sales_record` keeps it: the line plus its restaurant, its import and when it was replaced. */
@@ -44,7 +58,9 @@ export class MemoryStore {
   readonly versions = new Map<string, StoredVersion[]>();
   readonly decisions: Array<DecisionRecord & { restaurantId: string }> = [];
   readonly users: AuthUser[] = [];
-  readonly memberships: Array<Membership & { userId: string }> = [];
+  readonly memberships: StoredMembership[] = [];
+  /** the authentication trail, oldest first */
+  readonly authEvents: AuthEvent[] = [];
   readonly sessions: SessionRecord[] = [];
   readonly importJobs: ImportJob[] = [];
   /** ignored opportunities per restaurant, keyed by the opportunity key (a client-chosen string: a Map, never a plain object) */
@@ -65,7 +81,10 @@ export class MemoryStore {
       s.wines.set(id, copy(d.wines));
       for (const u of d.users) {
         s.users.push({ id: u.id, email: u.email, name: u.name, passwordHash: u.passwordHash, failedAttempts: 0, lockedUntil: null, lastLoginAt: null });
-        s.memberships.push({ userId: u.id, restaurantId: id, restaurantSlug: d.restaurant.slug, restaurantName: d.restaurant.name, role: u.role });
+        s.memberships.push({
+          userId: u.id, membershipId: u.membershipId, restaurantId: id, restaurantSlug: d.restaurant.slug, restaurantName: d.restaurant.name, role: u.role,
+          status: 'active', version: 1, createdAt: '2026-10-01T08:00:00.000Z', deactivatedAt: null, deactivatedBy: null
+        });
       }
       const pairings = copy(d.pairings).map((p) => ({ ...p, version: 1 }));
       s.pairings.set(id, pairings);
@@ -304,7 +323,9 @@ export class MemoryAuthRepository implements AuthRepository {
   }
 
   async membershipsOf(userId: string): Promise<Membership[]> {
-    return this.store.memberships.filter((m) => m.userId === userId).map(({ userId: _u, ...m }) => copy(m));
+    // only active memberships grant access: a deactivated person loses it on the next request (spec E12 R2)
+    return this.store.memberships.filter((m) => m.userId === userId && m.status === 'active')
+      .map((m) => ({ restaurantId: m.restaurantId, restaurantSlug: m.restaurantSlug, restaurantName: m.restaurantName, role: m.role }));
   }
 
   async registerFailedLogin(userId: string, input: { maxAttempts: number; lockMs: number; now: string }) {
@@ -347,6 +368,81 @@ export class MemoryAuthRepository implements AuthRepository {
     const keep = this.store.sessions.filter((s) => Date.parse(s.expiresAt) > Date.parse(now));
     this.store.sessions.splice(0, before, ...keep);
     return before - keep.length;
+  }
+}
+
+export class MemoryTeamRepository implements TeamRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  private member(m: StoredMembership): TeamMember {
+    const u = this.store.users.find((x) => x.id === m.userId)!;
+    return {
+      membershipId: m.membershipId, userId: m.userId, name: u.name, email: u.email, role: m.role, status: m.status, version: m.version,
+      lastLoginAt: u.lastLoginAt, createdAt: m.createdAt, deactivatedAt: m.deactivatedAt, deactivatedBy: m.deactivatedBy
+    };
+  }
+
+  async list(restaurantId: string) {
+    return this.store.memberships.filter((m) => m.restaurantId === restaurantId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.membershipId.localeCompare(b.membershipId))
+      .map((m) => this.member(m));
+  }
+
+  async find(restaurantId: string, membershipId: string) {
+    const m = this.store.memberships.find((x) => x.restaurantId === restaurantId && x.membershipId === membershipId);
+    return m ? this.member(m) : null;
+  }
+
+  async findByUser(restaurantId: string, userId: string) {
+    const m = this.store.memberships.find((x) => x.restaurantId === restaurantId && x.userId === userId);
+    return m ? this.member(m) : null;
+  }
+
+  /** One synchronous block, so it is atomic like the database transaction: every check runs before the first write. */
+  async applyChange(restaurantId: string, membershipId: string, change: TeamChange) {
+    const m = this.store.memberships.find((x) => x.restaurantId === restaurantId && x.membershipId === membershipId);
+    if (!m) throw new NotFoundError('Team member');
+    const role = change.set.role ?? m.role;
+    const status = change.set.status ?? m.status;
+    const others = this.store.memberships.filter((x) => x.restaurantId === restaurantId && x.membershipId !== membershipId && x.role === 'owner' && x.status === 'active').length;
+    // first: a request decided on stale rows must never take the last owner away, whoever the actor is now (AC23)
+    assertKeepsAnOwner(m, { role, status }, others);
+    // the actor, from the rows as they are now: the service decided on rows it read earlier
+    const actor = this.store.memberships.find((x) => x.restaurantId === restaurantId && x.userId === change.actorUserId);
+    if (!actor) throw new ForbiddenError();
+    assertChangeAllowed(actor, this.member(m), change.set);
+    if (m.version !== change.expectedVersion) throw new VersionConflictError();
+    assertChangeEvents(restaurantId, change.actorUserId, m.userId, change.events);
+    if (change.events.some((e) => this.store.authEvents.some((x) => x.id === e.id))) throw new InvariantError('duplicate_event', 'The audit event already exists.');
+    if (status !== m.status) {
+      m.deactivatedAt = status === 'deactivated' ? change.at : null;
+      m.deactivatedBy = status === 'deactivated' ? change.actorUserId : null;
+    }
+    m.role = role;
+    m.status = status;
+    m.version += 1;
+    for (const e of change.events) this.store.authEvents.push(copy(e));
+    return this.member(m);
+  }
+}
+
+export class MemoryAuthAuditRepository implements AuthAuditRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async record(restaurantId: string | null, event: AuthEvent) {
+    assertValidAuthEvent(restaurantId, event);
+    if (this.store.authEvents.some((e) => e.id === event.id)) throw new InvariantError('duplicate_event', 'The audit event already exists.');
+    this.store.authEvents.push(copy(event));
+  }
+
+  async list(restaurantId: string, filter: AuthEventFilter = {}) {
+    const { before } = filter;
+    // the listing order is (at, id) descending; a page continues strictly after the cursor in that order
+    const rows = this.store.authEvents
+      .filter((e) => e.restaurantId === restaurantId && (!filter.type || e.type === filter.type) && (!filter.subjectUserId || e.subjectUserId === filter.subjectUserId)
+        && (!before || e.at < before.at || (e.at === before.at && e.id < before.id)))
+      .sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
+    return copy(rows.slice(0, authEventLimit(filter.limit)));
   }
 }
 
@@ -730,6 +826,8 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
     guestInteractionRepository: new MemoryGuestInteractionRepository(store),
     recommendationCodeRepository: new MemoryRecommendationCodeRepository(store),
-    salesRepository: new MemorySalesRepository(store)
+    salesRepository: new MemorySalesRepository(store),
+    teamRepository: new MemoryTeamRepository(store),
+    authAuditRepository: new MemoryAuthAuditRepository(store)
   };
 }

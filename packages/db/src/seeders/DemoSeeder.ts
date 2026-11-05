@@ -58,7 +58,7 @@ export class DemoSeeder extends Seeder {
     // demo accounts (DEMO DATA ONLY: the password is public, see core/src/demo/users.ts)
     for (const u of users) {
       const user = em.create(UserEntity, { id: u.id, email: u.email, name: u.name, passwordHash: u.passwordHash });
-      em.create(MembershipEntity, { id: demoUuid(`m_${u.key}`), user, restaurant: r, role: u.role });
+      em.create(MembershipEntity, { id: u.membershipId, user, restaurant: r, role: u.role });
     }
 
     // version 1: the state the demo restaurant was published in (guests read the latest version)

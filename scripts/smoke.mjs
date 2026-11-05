@@ -314,6 +314,13 @@ await check('GM can hide and show wines', wineUrl, { method: 'PATCH', body: { ac
 await check('GM sees the publish screen with a working button', `/admin/${slug}/publish`, { cookie: GM, has: ['Publish changes'], hasNot: ['Your role cannot publish'] });
 await check('a session of one user does not open another restaurant', `/admin/nope`, { cookie: GM, status: 403 });
 
+// --- team (E12 F1, A15): the general manager manages it, the Wine Director does not
+await check('GM sees A15 Team with the people of the restaurant', `/admin/${slug}/team`, { cookie: GM, has: ['Team', 'Marta Wierzbicka', 'Tomasz Lis', 'Save role'], hasNot: ['scrypt'] });
+await check('the Wine Director has no access to A15 Team', `/admin/${slug}/team`, { status: 403 });
+await check('GM reads the team over the API', `/api/v1/restaurants/${slug}/team`, { cookie: GM, has: ['"members"', '"version"'], hasNot: ['password'] });
+await check('the Wine Director cannot read the team over the API', `/api/v1/restaurants/${slug}/team`, { cookie: SESSION, status: 403 });
+await check('no session: A15 Team goes to sign-in', `/admin/${slug}/team`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });
+
 // --- import, QR and setup (Phase 5). Nothing here changes the catalog: every import is cancelled.
 for (const path of ['/import/menu', '/import/wines', '/import/sales', '/setup', '/qr']) {
   await check(`no session: ${path} is not reachable`, `/admin/${slug}${path}`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });
@@ -465,7 +472,7 @@ await check('A1 dashboard with wm_lang=pl', A, { cookie: PLC, headers: { 'accept
 await check('A2 menu in Polish', `${A}/menu`, { cookie: PLC, has: ['Szukaj dań', 'Przystawki', 'Szkic, do sprawdzenia', 'Opublikowane', '<title>Menu | Panel Wine Match</title>'] });
 await check('A4 wine list in Polish: styles, prices with NBSP', `${A}/wines`, { cookie: PLC, has: ['Karta win', 'Tylko butelka', 'Czerwone', '\u00a0zł', 'Ukryj'] });
 await check('A6 pairings in Polish: roles, flash by code, Polish engine reasons', `${A}/pairings/${duck}?saved=approved`, { cookie: PLC, has: ['Parowanie zatwierdzone.', 'Zatwierdzone dla gości', 'Podstawowe', 'Najlepsza cena', 'Propozycje silnika', 'Co teraz widzą goście', 'Ustaw rolę', 'Jak gość widzi Twoje pary?', 'Gość widzi najwyżej 4 wina.'], hasNot: ['Approved for guests', 'Set role', ...OLD_LABELS] });
-await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą zmienił to parowanie'] });
+await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą to zmienił'] });
 await check('A7 review queue in Polish', `${A}/review`, { cookie: PLC, has: ['Do przeglądu', 'Zatwierdź', 'Odrzuć', 'Otwórz parowania', 'para sommeliera'], hasNot: OLD_LABELS });
 await check('A3 dish in Polish: content in the panel language', `${A}/menu/${duck}`, { cookie: PLC, has: ['Pierś z kaczki', 'Tłumaczenia', 'Zapisz tłumaczenia'] });
 await check('A6 note form in Polish has PL and EN fields', `${A}/pairings/${duck}`, { cookie: PLC, has: ['name="comment_pl"', 'name="comment_en"', 'Pinot noir i sos wiśniowy'] });

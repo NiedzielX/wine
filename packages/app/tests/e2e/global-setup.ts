@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createDatabase, startBuiltApp, startTestDatabase } from '@wine-match/testkit';
 import type { TestProject } from 'vitest/node';
-import { NEW_RESTAURANT } from './new-restaurant';
+import { NEW_RESTAURANT, NEW_RESTAURANT_TEAM } from './new-restaurant';
 import { E2E_METRICS_TOKEN } from './observability';
 
 const appDir = fileURLToPath(new URL('../..', import.meta.url));
@@ -36,6 +36,10 @@ export default async function setup(project: TestProject): Promise<() => Promise
     '--name', NEW_RESTAURANT.name, '--slug', NEW_RESTAURANT.slug, '--address', NEW_RESTAURANT.address, '--city', NEW_RESTAURANT.city,
     '--wine-director', NEW_RESTAURANT.wineDirector, '--owner-email', NEW_RESTAURANT.ownerEmail, '--owner-name', NEW_RESTAURANT.ownerName
   ], { USER_PASSWORD: NEW_RESTAURANT.password });
+  // a general manager and a Wine Director in that restaurant, for the team screen (spec E12 F1)
+  for (const person of [NEW_RESTAURANT_TEAM.manager, NEW_RESTAURANT_TEAM.sommelier]) {
+    await dbScript('user:create', databaseUrl, ['--email', person.email, '--name', person.name, '--role', person.role, '--restaurant', NEW_RESTAURANT.slug], { USER_PASSWORD: NEW_RESTAURANT_TEAM.password });
+  }
 
   const app = await startBuiltApp({
     cwd: appDir,

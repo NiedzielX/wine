@@ -213,7 +213,7 @@ unset USER_PASSWORD
 
 ## Adnotacje do runbooku (2026-11-04)
 Dopisane decyzją właściciela (plan `2026-11-04-product-completion-plan.md`, Q19). Nie zmieniają zakresu E11; wchodzą do `docs/DEPLOYMENT.md` w fazie 3 i są wymagane przez E12 F1 i E14 F1.
-- **Wycofanie po E12 F1:** stary kod ignoruje `membership.status`, więc po cofnięciu obrazu zdezaktywowani użytkownicy odzyskują dostęp; runbook mówi, że po F1 E12 poprzedni obraz wolno przywrócić tylko razem z ręczną dezaktywacją użytkowników.
+- **Wycofanie po E12 F1:** stary kod ignoruje `membership.status`, więc po cofnięciu obrazu zdezaktywowani użytkownicy odzyskują dostęp; runbook mówi, że po F1 E12 poprzedni obraz wolno przywrócić tylko razem z ręczną dezaktywacją użytkowników. Konkretnie: przed cofnięciem aplikacji do kodu sprzed F1, gdy migracja zostaje zastosowana, przywróć stan dostępu (usuń membership zdezaktywowanych) albo unieważnij sesje, bo stary kod ignoruje `status`. Dezaktywacja działa w czasie żądania (sesja zostaje w bazie), a reaktywacja z założenia ożywia stare sesje osoby; jeśli ma wymagać nowego logowania, usuń jej sesje.
 - **Wycofanie po E14 F1:** stary kod ignoruje `restaurant.status`, więc zawieszone restauracje znów działają; ta sama zasada.
 - **Przed migracją E14 F1:** polecenie `restaurants:check-reserved` sprawdza, czy żaden istniejący slug nie koliduje ze slugami zarezerwowanymi (`platform`, `org`, `accept`, `reset`, `account`).
 

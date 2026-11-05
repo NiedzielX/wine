@@ -11,6 +11,7 @@ export * from './repositories';
 export { PgSystemHealth, HEALTH_TIMEOUT_MS } from './repositories/system-health';
 export { PgAuthRepository } from './repositories/auth';
 export { PgImportRepository } from './repositories/import';
+export { PgAuthAuditRepository, PgTeamRepository } from './repositories/team';
 
 import type { EntityManager, MikroORM } from '@mikro-orm/postgresql';
 /** What @wine-match/db adds to the DI container when DATA_SOURCE=postgres. */
