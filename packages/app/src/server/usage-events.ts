@@ -2,6 +2,7 @@ import type { GuestSessionRef, UsageEvent, UsageEventService } from '@wine-match
 import { headers } from 'next/headers';
 import { after } from 'next/server';
 import { logger } from './logger';
+import { countUsageWriteFailed } from './metrics';
 import { PREFETCH_HEADER } from './prefetch';
 
 /**
@@ -60,6 +61,7 @@ export async function trackUsage(
     try {
       await service.record(target, session, events);
     } catch (error) {
+      countUsageWriteFailed();
       // the session id is anonymous; no IP, user agent or guest text is logged
       logger.warn('usage event not recorded', {
         names: events.map((e) => e.name), restaurantId: target.id, sessionId: session.id,

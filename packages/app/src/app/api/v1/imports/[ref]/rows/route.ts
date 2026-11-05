@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ ref: stri
   const { ref } = await ctx.params;
   const slug = req.nextUrl.searchParams.get('restaurant') ?? '';
   if (!slug) return apiError(422, 'validation_failed', 'Query parameter "restaurant" is required.', { restaurant: 'required' });
-  return handle(req, { write: true, slug, permission: 'import.manage' }, async ({ c }) => {
+  return handle(req, { route: '/api/v1/imports/{ref}/rows', write: true, slug, permission: 'import.manage' }, async ({ c }) => {
     const { rows, valueMap } = await parseBody(req, rowEditsSchema);
     return NextResponse.json(importJson(await c.importService.updateRows(slug, ref, rows, valueMap ?? [])));
   });

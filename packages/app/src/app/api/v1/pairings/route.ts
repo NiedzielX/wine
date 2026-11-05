@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get('restaurant') ?? '';
   if (!slug) return apiError(422, 'validation_failed', 'Query parameter "restaurant" is required.', { restaurant: 'required' });
-  return handle(req, { write: true, slug, permission: 'pairings.decide' }, async ({ c, actor }) => {
+  return handle(req, { route: '/api/v1/pairings', write: true, slug, permission: 'pairings.decide' }, async ({ c, actor }) => {
     const input = await parseBody(req, pairingCreateSchema);
     await c.sommelierService.addManual(slug, input, actor);
     // the pairing was just stored, so it is in the list

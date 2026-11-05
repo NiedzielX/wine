@@ -76,7 +76,7 @@ const e = await run({ DATA_SOURCE: 'postgres', DATABASE_URL: 'postgres://wine:To
 expect('configured for postgres with the database down: the server still starts', e.stillRunning && e.response !== null, `exit ${e.exitCode}\n${e.log.slice(-300)}`);
 expect('…a request fails with a generic 500', e.response?.status === 500 && /"code":"unexpected"/.test(e.response.body), `${e.response?.status} ${e.response?.body}`);
 expect('…the client gets no stack trace and no connection details', !/ at |node_modules|127\.0\.0\.1|TopSecretPw9/.test(e.response?.body ?? ''), e.response?.body);
-expect('…the failure is logged, with the password redacted', /"msg":"api request failed"/.test(e.log) && !e.log.includes('TopSecretPw9'), `password in log: ${e.log.includes('TopSecretPw9')}`);
+expect("…the failure is logged as the one error-level request line, with the password redacted", /"level":"error"[^\n]*"msg":"api request"[^\n]*"status":500/.test(e.log) && !e.log.includes("TopSecretPw9"), `password in log: ${e.log.includes("TopSecretPw9")}\n${e.log.slice(-300)}`);
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll boot checks passed');
 process.exit(failures ? 1 : 0);
