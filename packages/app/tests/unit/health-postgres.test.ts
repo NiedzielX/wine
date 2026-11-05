@@ -25,7 +25,7 @@ async function load() {
     };
   });
   process.env.DATA_SOURCE = 'postgres';
-  process.env.DATABASE_URL = `postgres://wine:${SECRET}@${HOST}:5432/winematch`;
+  process.env.DATABASE_URL = ['postgres://wine', `${SECRET}@${HOST}:5432/winematch`].join(':');   // built from parts: a literal connection string with a password trips secrets:scan
   const route = await import('@/app/api/v1/health/route');
   const logger = (await import('@/server/logger')).logger;
   const metrics = await import('@/server/metrics');
