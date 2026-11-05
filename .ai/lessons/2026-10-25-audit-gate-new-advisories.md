@@ -1,6 +1,6 @@
 ---
 date: 2026-10-25
-updated:
+updated: 2026-10-29
 area: build
 status: active
 source: .ai/runs/2026-10-25-audit-gate-next-zod-undici.md
@@ -23,3 +23,6 @@ promoted:
 
 ## Jak sprawdzić
 `npm run audit:gate` przechodzi; po usunięciu jednego identyfikatora z wyjątku kończy się kodem 1 z komunikatem „is not covered by the accepted exception”.
+
+## Aktualizacja 2026-10-29
+Przed użyciem poprawionej wersji sprawdź jej dokładną godzinę publikacji (`npm view <pkg> time`), nie samą datę: `undici` 7.30.1 miało 13 dni 17 godzin w dniu wygaśnięcia wyjątku. Nowe advisories dla tego samego pakietu, z tą samą poprawką, dopisz do nazwanego wyjątku z tym samym terminem zamiast przedłużać go dla wszystkiego.
