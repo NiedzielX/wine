@@ -5,6 +5,7 @@ import {
 import { DishEntity, ImportJobEntity, PairingEntity, RestaurantEntity, SalesRecordEntity, WineEntity } from '../entities';
 import { toImportJob } from '../mappers';
 import { translate } from './errors';
+import { isUuid } from './ids';
 
 interface Deps { em: EntityManager }
 
@@ -22,6 +23,7 @@ export class PgImportRepository implements ImportRepository {
   }
 
   async find(restaurantId: string, jobId: string) {
+    if (!isUuid(jobId)) return null;
     const j = await this.em.findOne(ImportJobEntity, { id: jobId, restaurant: restaurantId });
     return j ? toImportJob(j) : null;
   }
@@ -33,16 +35,19 @@ export class PgImportRepository implements ImportRepository {
 
   /** A conditional UPDATE: it only touches a job that is still open. */
   async saveRows(restaurantId: string, jobId: string, rows: ImportRow[]) {
+    if (!isUuid(jobId)) return false;
     const n = await this.em.nativeUpdate(ImportJobEntity, { id: jobId, restaurant: restaurantId, status: 'preview_ready' }, { rows });
     return n > 0;
   }
 
   async cancel(restaurantId: string, jobId: string) {
+    if (!isUuid(jobId)) return false;
     const n = await this.em.nativeUpdate(ImportJobEntity, { id: jobId, restaurant: restaurantId, status: 'preview_ready' }, { status: 'cancelled' });
     return n > 0;
   }
 
   async confirm(restaurantId: string, jobId: string, plan: ImportPlan, at: string) {
+    if (!isUuid(jobId)) throw new NotFoundError('Import');
     try {
       return await this.em.transactional(async (em) => {
         // the row lock makes a double click wait, then find the job closed
