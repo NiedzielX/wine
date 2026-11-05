@@ -199,7 +199,8 @@ describe('every response path leaves one log line and one counter sample (AC2, r
     vi.spyOn(logger, 'error').mockImplementation(keep('error'));
     return lines;
   };
-  const sample = (route: string, cls: string) => new RegExp(`http_requests_total\\{group="${route.replace(/[.*+?^${}()|[\]\\]/g, '\\route.replace(/[{}]/g, '\\$&')')}",status_class="${cls}"\\} (\\d+)`).exec(renderMetrics())?.[1];
+  const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sample = (route: string, cls: string) => new RegExp(`http_requests_total\\{group="${escapeRegExp(route)}",status_class="${cls}"\\} (\\d+)`).exec(renderMetrics())?.[1];
 
   it('a cross-site write refused before the scope is opened is logged and counted as 4xx', async () => {
     const lines = infoOrError();
