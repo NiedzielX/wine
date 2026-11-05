@@ -43,6 +43,7 @@
     "check:design": "node scripts/check-design.mjs",
     "check:context": "node scripts/check-context.mjs",
     "check:qa": "node scripts/check-qa-scenarios.mjs",
+    "verify:regression": "node scripts/verify-regression.mjs",
     "test-env:up": "sh .ai/scripts/test-env-up.sh",
     "test-env:down": "sh .ai/scripts/test-env-down.sh"
   },
