@@ -256,6 +256,13 @@ await check('GM can hide and show wines', wineUrl, { method: 'PATCH', body: { ac
 await check('GM sees the publish screen with a working button', `/admin/${slug}/publish`, { cookie: GM, has: ['Publish changes'], hasNot: ['Your role cannot publish'] });
 await check('a session of one user does not open another restaurant', `/admin/nope`, { cookie: GM, status: 403 });
 
+// --- team (E12 F1, A15): the general manager manages it, the Wine Director does not
+await check('GM sees A15 Team with the people of the restaurant', `/admin/${slug}/team`, { cookie: GM, has: ['Team', 'Marta Wierzbicka', 'Tomasz Lis', 'Save role'], hasNot: ['scrypt'] });
+await check('the Wine Director has no access to A15 Team', `/admin/${slug}/team`, { status: 403 });
+await check('GM reads the team over the API', `/api/v1/restaurants/${slug}/team`, { cookie: GM, has: ['"members"', '"version"'], hasNot: ['password'] });
+await check('the Wine Director cannot read the team over the API', `/api/v1/restaurants/${slug}/team`, { cookie: SESSION, status: 403 });
+await check('no session: A15 Team goes to sign-in', `/admin/${slug}/team`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });
+
 // --- import, QR and setup (Phase 5). Nothing here changes the catalog: every import is cancelled.
 for (const path of ['/import/menu', '/import/wines', '/import/sales', '/setup', '/qr']) {
   await check(`no session: ${path} is not reachable`, `/admin/${slug}${path}`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });

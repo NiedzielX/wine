@@ -576,3 +576,24 @@ Spec `2026-10-16-sommelier-opportunities` (E10, D17), fazy 2, 3 (S4) i 4 (S5). S
 | Permissions | widzi każdy z dostępem do panelu (`requireAccess`); akcje `authorizeAction(slug, 'pairings.decide')` (tylko Sommelier); GM / Owner bez przycisków, z „View only” |
 | API | brak tras HTTP: akcje serwerowe `addOpportunitySuggestion`, `dismissOpportunity`, `restoreOpportunity`, istniejąca `approvePairing` (S5; `pairingId`, `version`) (`?saved=` / `?error=`, `revalidatePath(..., 'layout')`, `safeBack`) |
 | Układ | 390 i 1440 px bez poziomego przewijania (`min-w-0` w wierszach) |
+
+## A15 Team — `/admin/{slug}/team`
+
+Spec `2026-11-04-staff-accounts-and-roles` (E12), faza 1. Identyfikatory ekranów E12: G13, A15–A18 (plan `2026-11-04-product-completion-plan`).
+
+| Pole | Opis |
+|---|---|
+| Cel | Właściciel i GM wiedzą, kto ma dostęp do restauracji, i mogą zmienić rolę albo odebrać dostęp osobie, która odeszła |
+| Użytkownik | Owner, GM (`team.manage`) |
+| Funkcje | lista osób (imię, e-mail, rola, status, ostatnie logowanie; „You” przy sobie); przy osobie: wybór roli + „Save role”, „Remove access” albo „Restore access”. Pola pokazują tylko to, na co pozwala hierarchia: GM nie widzi pól dla właściciela („Only an owner can change an owner.”) i nie ma na liście ról `owner` ani `manager`; przy sobie brak pól („You cannot change your own role or access.”). Dezaktywowana osoba zostaje na liście („Access removed …”) i można ją przywrócić; zmiana działa od jej następnego żądania, nie ma czego publikować |
+| Dane wejściowe | `TeamService.list(slug, actor)` (osoby z `version`) |
+| Dane wyjściowe | akcje serwerowe `changeMemberRole`, `deactivateMember`, `reactivateMember` (`[slug]/team-actions.ts`: `membershipId`, `version`, `role`) → `TeamService`; zdarzenie `auth_event` w tej samej transakcji |
+| Loading | brak (strona poza `(lists)`, bez `loading.tsx`, działa bez JavaScriptu: zwykłe formularze) |
+| Empty | nie dotyczy: lista zawiera co najmniej oglądającego |
+| Error | brak `team.manage` → 403; flash błędów po kodzie: `last_owner`, `team_hierarchy`, `self_change`, `member_deactivated`, `version_conflict`, `forbidden` |
+| Success | flash: „Role changed. It applies on the person’s next request.”, „Access removed. The person is signed out of this restaurant at once.”, „Access restored. The person can use the dashboard again.” |
+| Permissions | `requireAccess` + `team.manage` (strona), `authorizeAction(slug, 'team.manage')` (akcje), `handle()` (API); wpis „Team” w nawigacji tylko z `team.manage` |
+| API | `GET /restaurants/{slug}/team`, `PATCH /restaurants/{slug}/team/{membershipId}` (`If-Match`) |
+| Układ | 390 i 1440 px bez poziomego przewijania (wiersze to karty, `min-w-0`, `break-words`) |
+| Później | zaproszenia (F2), odblokowanie PIN-u i kelner z PIN-em (F5), dziennik A18 (F6) |
+

@@ -77,7 +77,8 @@ Data
 Go live
  ├─ A10 Setup checklist (onboarding) ............. /admin/setup
  ├─ A11 Publish .................................. /admin/publish
- └─ A12 QR generation ............................ /admin/qr
+ ├─ A12 QR generation ............................ /admin/qr
+ └─ A15 Team (Zespół) ............................ /admin/team   (owner, GM; E12 F1)
 Guest view
  └─ link do G0 (nowa karta)
 ```
@@ -128,5 +129,6 @@ flowchart LR
 | A10 Setup | – | – | ✓ (bez slugu) | ✓ |
 | A11 Publish | – | – | ✓ | ✓ |
 | A12 QR | – | – | ✓ | ✓ |
+| A15 Team | – | – | – | ✓ (GM nie zmienia właściciela) |
 
 W mockupie oba konta demonstracyjne mają pełny dostęp; ograniczenia ról GM dotyczą wersji produkcyjnej (wymuszane w API).

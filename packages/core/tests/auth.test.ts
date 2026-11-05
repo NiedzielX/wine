@@ -210,9 +210,9 @@ authContract('memory', async () => {
 
 describe('error names', () => {
   it('are fixed strings: production builds minify class names, and the app recognises errors by name', async () => {
-    const { NotFoundError, ValidationError, VersionConflictError, InvariantError, ForbiddenError, InvalidCredentialsError, NoPanelAccessError } = await import('../src/errors');
+    const { NotFoundError, ValidationError, VersionConflictError, InvariantError, ForbiddenError, InvalidCredentialsError, NoPanelAccessError, LastOwnerError, TeamHierarchyError, SelfChangeError } = await import('../src/errors');
     const { TableNeedsTwoDishesError } = await import('../src/services/guest/recommendation-service');
-    const names = [new NotFoundError('x'), new ValidationError('c', 'm'), new VersionConflictError(), new InvariantError('c', 'm'), new ForbiddenError(), new InvalidCredentialsError(), new NoPanelAccessError(), new TableNeedsTwoDishesError()].map((e) => e.name);
-    expect(names).toEqual(['NotFoundError', 'ValidationError', 'VersionConflictError', 'InvariantError', 'ForbiddenError', 'InvalidCredentialsError', 'NoPanelAccessError', 'TableNeedsTwoDishesError']);
+    const names = [new NotFoundError('x'), new ValidationError('c', 'm'), new VersionConflictError(), new InvariantError('c', 'm'), new ForbiddenError(), new InvalidCredentialsError(), new NoPanelAccessError(), new TableNeedsTwoDishesError(), new LastOwnerError(), new TeamHierarchyError(), new SelfChangeError()].map((e) => e.name);
+    expect(names).toEqual(['NotFoundError', 'ValidationError', 'VersionConflictError', 'InvariantError', 'ForbiddenError', 'InvalidCredentialsError', 'NoPanelAccessError', 'TableNeedsTwoDishesError', 'LastOwnerError', 'TeamHierarchyError', 'SelfChangeError']);
   });
 });
