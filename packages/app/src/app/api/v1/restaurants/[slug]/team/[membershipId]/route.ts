@@ -15,7 +15,7 @@ type Ctx = { params: Promise<{ slug: string; membershipId: string }> };
  */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { slug, membershipId } = await ctx.params;
-  return handle(req, { write: true, slug, permission: 'team.manage' }, async ({ c, actor }) => {
+  return handle(req, { route: '/api/v1/restaurants/{slug}/team/{membershipId}', write: true, slug, permission: 'team.manage' }, async ({ c, actor }) => {
     const version = ifMatch(req);
     if (version === undefined) return apiError(428, 'precondition_required', 'Send the version you read in the If-Match header.');
     if (version === null) return apiError(400, 'invalid_if_match', 'If-Match must be the member version, e.g. "3".');
