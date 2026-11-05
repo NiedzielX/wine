@@ -20,8 +20,8 @@ describe('health check', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
     const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ status: 'ok', dataSource: 'postgres', checks: { database: 'ok' } });
-    expect(text).not.toMatch(/halka|winematch|127\.0\.0\.1|version/i);
+    expect(JSON.parse(text)).toEqual({ status: 'ok', checks: { database: 'ok' } });
+    expect(text).not.toMatch(/halka|winematch|127\.0\.0\.1|version|postgres|memory|dataSource/i);
   });
 
   it('answers 503 with no connection detail while the database is down and 200 again when it is back, without a restart', async () => {
@@ -38,20 +38,24 @@ describe('health check', () => {
       env: { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: viaRelay.toString(), AUTH_COOKIE_SECURE: 'false', PUBLIC_BASE_URL: 'https://wine.example.test', LOG_LEVEL: 'info' }
     });
     try {
+      // the answer is reused for a short while (HEALTH_CACHE_MS = 2 s): wait it out after every change, so the test is deterministic
+      const expire = () => new Promise((resolve) => setTimeout(resolve, 2_300));
       const health = async () => { const res = await fetch(`${app.url}/api/v1/health`); return { status: res.status, text: await res.text() }; };
       const before = await health();
       expect(before.status).toBe(200);
 
       await relay.stop();
+      await expire();
       const down = await health();
       expect(down.status).toBe(503);
-      expect(JSON.parse(down.text)).toEqual({ status: 'unavailable', dataSource: 'postgres', checks: { database: 'unreachable' } });
+      expect(JSON.parse(down.text)).toEqual({ status: 'unavailable', checks: { database: 'unreachable' } });
       for (const secret of [relay.host, String(relay.port), real.username, real.pathname.slice(1), 'ECONNREFUSED', 'ECONNRESET', 'password']) {
         expect(down.text).not.toContain(secret);
       }
       expect(app.logs()).not.toContain(real.password || 'no-password-in-this-url');
 
       await relay.start();
+      await expire();
       const back = await health();
       expect(back.status).toBe(200);
       expect(JSON.parse(back.text).checks.database).toBe('ok');

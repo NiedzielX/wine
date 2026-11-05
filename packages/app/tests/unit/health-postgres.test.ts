@@ -29,24 +29,29 @@ async function load() {
   const route = await import('@/app/api/v1/health/route');
   const logger = (await import('@/server/logger')).logger;
   const metrics = await import('@/server/metrics');
-  return { GET: route.GET, logger, metrics, container: await import('@/server/container') };
+  return { GET: route.GET, logger, metrics, container: await import('@/server/container'), health: await import('@/server/health') };
 }
 
 const URL0 = 'http://localhost:3000/api/v1/health';
 
 describe('GET /api/v1/health with DATA_SOURCE=postgres', () => {
+  const saved = { DATA_SOURCE: process.env.DATA_SOURCE, DATABASE_URL: process.env.DATABASE_URL };
   beforeEach(() => {
     // the container is cached on globalThis (it survives vi.resetModules), like in a real process: start every test without one
     delete (globalThis as { __wineMatchContainer?: unknown }).__wineMatchContainer;
+    delete (globalThis as { __wineMatchHealth?: unknown }).__wineMatchHealth;
     state.initFailures = 0; state.execute = async () => [{ '?column?': 1 }];
   });
-  afterEach(() => { vi.doUnmock('@wine-match/db'); });
+  afterEach(() => {
+    vi.doUnmock('@wine-match/db');
+    for (const [key, value] of Object.entries(saved)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  });
 
   it('answers 200 when the database answers, and times the check', async () => {
     const { GET, metrics } = await load();
     const res = await GET(req(URL0));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: 'ok', dataSource: 'postgres', checks: { database: 'ok' } });
+    expect(await res.json()).toEqual({ status: 'ok', checks: { database: 'ok' } });
     expect(metrics.renderMetrics()).toMatch(/db_health_check_duration_seconds_count 1/);
   });
 
@@ -57,14 +62,14 @@ describe('GET /api/v1/health with DATA_SOURCE=postgres', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('cache-control')).toBe('no-store');
     const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ status: 'unavailable', dataSource: 'postgres', checks: { database: 'unreachable' } });
+    expect(JSON.parse(text)).toEqual({ status: 'unavailable', checks: { database: 'unreachable' } });
     expect(text).not.toContain(SECRET);
     expect(text).not.toContain(HOST);
   });
 
   it('answers 503 (not 500) when the container cannot be built, logs the reason redacted, and recovers on the next request without a restart', async () => {
     state.initFailures = 1;
-    const { GET, logger } = await load();
+    const { GET, logger, health } = await load();
     const error = vi.spyOn(logger, 'error');
     const down = await GET(req(URL0));
     expect(down.status).toBe(503);
@@ -74,10 +79,36 @@ describe('GET /api/v1/health with DATA_SOURCE=postgres', () => {
     expect(JSON.parse(body).checks.database).toBe('unreachable');
     expect(JSON.stringify(error.mock.calls)).not.toContain(SECRET);
 
+    health.resetHealthCache();         // the 503 above is reused for a short while; a recovery shows once that has passed
     const up = await GET(req(URL0));   // same module graph = same process: the rejected build was not remembered
     expect(up.status).toBe(200);
     expect(await up.json()).toMatchObject({ status: 'ok', checks: { database: 'ok' } });
     error.mockRestore();
+  });
+
+  it('concurrent hits on a database that hangs cause ONE query and one error log line, and the 503 is reused until the cache expires', async () => {
+    let queries = 0;
+    state.execute = () => { queries++; return new Promise(() => undefined); };   // never answers: PgSystemHealth gives up after its own limit
+    const { GET, logger, health, container } = await load();
+    await (await container.createRequestScope()).dispose();   // build the container with real timers (password hasher) before the clock is faked
+    const error = vi.spyOn(logger, 'error');
+    vi.useFakeTimers();
+    try {
+      const hits = Promise.all(Array.from({ length: 8 }, () => GET(req(URL0))));
+      await vi.advanceTimersByTimeAsync(2500);
+      const answers = await hits;
+      expect(answers.map((r) => r.status)).toEqual(Array(8).fill(503));
+      expect(queries).toBe(1);
+      expect(error.mock.calls.filter((c) => String(c[0]).startsWith('health check failed'))).toHaveLength(1);
+      expect((await GET(req(URL0))).status).toBe(503);   // inside the cache window: no new query
+      expect(queries).toBe(1);
+      state.execute = async () => [{ '?column?': 1 }];
+      await vi.advanceTimersByTimeAsync(health.HEALTH_CACHE_MS + 1);
+      expect((await GET(req(URL0))).status).toBe(200);     // the database is back: visible once the cache has expired
+    } finally {
+      vi.useRealTimers();
+      error.mockRestore();
+    }
   });
 
   it('a rejected container build is not cached: the first call throws, the second builds from scratch', async () => {

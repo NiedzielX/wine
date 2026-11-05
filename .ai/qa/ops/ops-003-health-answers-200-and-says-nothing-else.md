@@ -28,8 +28,8 @@ An uptime checker asks whether the app can serve and learns nothing else about t
 ## Then
 
 1. The answer is 200 and is marked as not cacheable.
-2. The body is exactly: status "ok", data source "postgres", database check "ok".
-3. The body contains no restaurant name, database name, host or version.
+2. The body is exactly: status "ok" and database check "ok" (no data source either).
+3. The body contains no restaurant name, database name, host, data source or version.
 
 ## Edge cases covered
 

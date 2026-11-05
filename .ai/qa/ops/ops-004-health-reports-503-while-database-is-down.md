@@ -31,7 +31,7 @@ While the database is unreachable the health check says 503 without any connecti
 ## Then
 
 1. The first answer is 200.
-2. The second answer is 503 with status "unavailable" and database check "unreachable".
+2. The second answer (after the short reuse window of the previous one has passed) is 503 with status "unavailable" and database check "unreachable".
 3. The 503 body contains no host, port, user name, database name or driver message.
 4. The third answer is 200 with database check "ok", from the same process.
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { HEALTH_CACHE_MS, checkHealth, resetHealthCache } from '@/server/health';
 import { GET } from '@/app/api/v1/health/route';
 import { logger } from '@/server/logger';
 import { renderMetrics, resetMetrics } from '@/server/metrics';
@@ -11,13 +12,13 @@ import { req } from './helpers';
 const URL0 = 'http://localhost:3000/api/v1/health';
 
 describe('GET /api/v1/health with the in-memory data source', () => {
-  beforeEach(() => resetMetrics());
+  beforeEach(() => { resetMetrics(); resetHealthCache(); });
 
-  it('answers 200 with the status, the data source and a skipped database check, never cached', async () => {
+  it('answers 200 with the status and a skipped database check, never cached', async () => {
     const res = await GET(req(URL0));
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
-    expect(await res.json()).toEqual({ status: 'ok', dataSource: 'memory', checks: { database: 'skipped' } });
+    expect(await res.json()).toEqual({ status: 'ok', checks: { database: 'skipped' } });
   });
 
   it('needs no session and no cookie, and leaves one log line and one metrics sample under the route pattern', async () => {
@@ -30,6 +31,27 @@ describe('GET /api/v1/health with the in-memory data source', () => {
     expect(JSON.stringify(lines[0][1])).not.toContain('secret-marker');
     expect(renderMetrics()).toContain('http_requests_total{group="/api/v1/health",status_class="2xx"} 1');
     info.mockRestore();
+  });
+
+  it('does not tell an anonymous caller which data source it runs on', async () => {
+    expect(JSON.stringify(await (await GET(req(URL0))).json())).not.toMatch(/memory|postgres|dataSource/);
+  });
+
+  it('shares one check between concurrent requests and reuses the answer until the cache expires (injectable clock)', async () => {
+    let clock = 1_000;
+    const opts = { now: () => clock };
+    const container = await import('@/server/container');
+    const scope = vi.spyOn(container, 'createRequestScope');
+    const all = await Promise.all([checkHealth(opts), checkHealth(opts), checkHealth(opts), checkHealth(opts)]);
+    expect(all.every((r) => r.status === 'ok')).toBe(true);
+    expect(scope).toHaveBeenCalledTimes(1);
+    clock += HEALTH_CACHE_MS - 1;
+    await checkHealth(opts);
+    expect(scope).toHaveBeenCalledTimes(1);
+    clock += 1;
+    await checkHealth(opts);
+    expect(scope).toHaveBeenCalledTimes(2);
+    scope.mockRestore();
   });
 
   it('does not time a database check when there is no database', async () => {

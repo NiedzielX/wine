@@ -201,11 +201,12 @@ describe('start-up checks (spec 2026-10-15-production-deployment, R4)', () => {
 
   /** Runs checkStartup() on a fresh module graph with exactly this environment; returns what was logged and whether the process was told to exit. */
   async function start(vars: Record<string, string>) {
-    const before = { ...process.env };
+    const KEYS = ['NODE_ENV', 'DATA_SOURCE', 'DATABASE_URL', 'AUTH_COOKIE_SECURE', 'PUBLIC_BASE_URL', 'ALLOW_LOCAL_BASE_URL', 'ALLOW_DEMO_DATA'];
+    const before = Object.fromEntries(KEYS.map((key) => [key, process.env[key]]));
     const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     try {
       vi.resetModules();
-      for (const key of ['NODE_ENV', 'DATA_SOURCE', 'DATABASE_URL', 'AUTH_COOKIE_SECURE', 'PUBLIC_BASE_URL', 'ALLOW_LOCAL_BASE_URL', 'ALLOW_DEMO_DATA']) delete process.env[key];
+      for (const key of KEYS) delete process.env[key];
       Object.assign(process.env, vars);
       const { checkStartup } = await import('@/server/startup');
       const { logger: fresh } = await import('@/server/logger');
@@ -214,7 +215,8 @@ describe('start-up checks (spec 2026-10-15-production-deployment, R4)', () => {
       checkStartup();
       return { warnings: warn.mock.calls.map((c) => String(c[0])), errors: error.mock.calls.map((c) => String(c[0])), exited: exit.mock.calls.map((c) => c[0]) };
     } finally {
-      process.env = before;
+      // restore the keys one by one: `process.env = …` would replace the real environment object with a plain one
+      for (const key of KEYS) { if (before[key] === undefined) delete process.env[key]; else process.env[key] = before[key]; }
       exit.mockRestore();
     }
   }
