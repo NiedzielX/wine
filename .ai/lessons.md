@@ -11,6 +11,8 @@ Format linii (najnowsze na górze):
 
 - [2026-11-05] [W transakcji MikroORM `em.getConnection().execute` omija transakcję](lessons/2026-11-05-pg-execute-inside-transaction.md) — surowe zapytania w `em.transactional` idą przez `em.execute`; blokadę udowadniaj dwoma połączeniami i mutacją.
 - [2026-11-05] [Wiersz `MemoryStore.memberships` bez `status` nie daje dostępu](lessons/2026-11-05-memory-store-rows-need-team-fields.md) — test dopisujący członkostwo podaje pełny `StoredMembership` (status, version, createdAt…), bo vitest nie sprawdza typów.
+- [2026-11-05] [onRequestError dostaje pełny URL z query i nagłówki](lessons/2026-11-05-on-request-error-carries-query-and-cookies.md) — loguj tylko metodę, ścieżkę bez query i wzorzec trasy; w teście ustaw NEXT_RUNTIME=nodejs.
+- [2026-11-05] [Niezaznaczone AC nie znaczy niezaimplementowane](lessons/2026-11-05-unticked-acs-audit-before-building.md) — zmapuj każde AC na test i uruchom go, zanim zaplanujesz „domknięcie”; kto dokłada test, zaznacza AC w tym samym PR-ze.
 - [2026-11-05] [Strażnik „uruchom main tylko wprost” a ścieżki](lessons/2026-11-05-script-main-guard-vs-paths.md) — porównuj import.meta.url z pathToFileURL(realpathSync(argv[1])); doklejone file:// wyłącza skrypt przy spacji (hook blokujący komendy przestawał działać).
 - [2026-11-05] [Id z URL nie jest UUID-em](lessons/2026-11-05-url-ids-vs-uuid-columns.md) — wyszukiwanie po id z URL-a zwraca „nie znaleziono”, nie błąd bazy (22P02 → 500); przypięte w repositoryContract.
 - [2026-11-05] [Test nie wpisuje na sztywno wartości, które generator losowych id może wyprodukować](lessons/2026-11-05-hand-picked-values-vs-random-ids.md) — flake z losowym kodem polecenia kolidującym z literałem w teście; wstrzyknij generator, który omija literały.

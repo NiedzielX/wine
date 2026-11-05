@@ -19,6 +19,8 @@ export interface AppEnv {
   publicBaseUrlIsDefault: boolean;
   logLevel: LogLevel;
   demoRestaurantSlug: string;
+  /** bearer token for GET /api/v1/metrics; null = the endpoint is disabled (404) */
+  metricsToken: string | null;
 }
 
 export class ConfigError extends Error {
@@ -39,6 +41,7 @@ const schema = z.object({
   PUBLIC_BASE_URL: optional(z.url({ protocol: /^https?$/, error: 'must be an http(s) address such as https://wine.example.com' })),
   ALLOW_DEMO_DATA: optional(z.enum(['true', 'false'], { error: 'must be "true" or "false"' })),
   LOG_LEVEL: optional(z.enum(['debug', 'info', 'warn', 'error'], { error: 'must be debug, info, warn or error' })),
+  METRICS_TOKEN: optional(z.string().min(32, { error: 'must be at least 32 characters (or leave it unset to disable GET /api/v1/metrics)' })),
   DEMO_RESTAURANT_SLUG: optional(z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: 'must be a lower-case address name' }))
 });
 
@@ -70,6 +73,7 @@ export function parseEnv(raw: Record<string, string | undefined>): AppEnv {
     publicBaseUrl: base ? `${base[1].toLowerCase()}${base[2].replace(/\/+$/, '')}` : 'http://localhost:3000',
     publicBaseUrlIsDefault: !base,
     logLevel: e.LOG_LEVEL ?? (isProduction ? 'info' : 'debug'),
-    demoRestaurantSlug: e.DEMO_RESTAURANT_SLUG ?? 'halka'
+    demoRestaurantSlug: e.DEMO_RESTAURANT_SLUG ?? 'halka',
+    metricsToken: e.METRICS_TOKEN ?? null
   };
 }

@@ -1,6 +1,7 @@
 import type { IssueCodeInput, IssuedCode, RecommendationCodeService } from '@wine-match/core';
 import { headers } from 'next/headers';
 import { logger } from './logger';
+import { countCodeIssue } from './metrics';
 import { shouldRecord } from './usage-events';
 
 /**
@@ -20,12 +21,19 @@ export async function issueCodeForPage(
 ): Promise<IssuedCode | null> {
   if (!shouldRecord(await headers())) return null;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // set only by the timer, so `timeout` is exactly "the 1.5 s budget ran out"; any other rejection is `error`
+  let timedOut = false;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`timed out after ${ISSUE_TIMEOUT_MS} ms`)), ISSUE_TIMEOUT_MS);
+    timer = setTimeout(() => { timedOut = true; reject(new Error(`timed out after ${ISSUE_TIMEOUT_MS} ms`)); }, ISSUE_TIMEOUT_MS);
   });
   try {
-    return await Promise.race([services.recommendationCodeService.issue(restaurant.slug, input), timeout]);
+    const issued = await Promise.race([services.recommendationCodeService.issue(restaurant.slug, input), timeout]);
+    // null: the service declined (daily session limit R13, unknown or inactive wine, too many dishes, code space exhausted);
+    // the service does not say which, so one label: `declined`
+    countCodeIssue(issued ? 'issued' : 'declined');
+    return issued;
   } catch (error) {
+    countCodeIssue(timedOut ? 'timeout' : 'error');
     // the session id is anonymous, but it is not needed here: the restaurant is enough to find the cause
     logger.warn('recommendation code not issued', { restaurantId: restaurant.id, error: error instanceof Error ? error.message : String(error) });
     return null;

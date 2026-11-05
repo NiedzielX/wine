@@ -4,7 +4,7 @@ area: guest
 title: "Direct wine choice drops foreign table ids"
 status: automated
 spec:
-  path: .ai/specs/2026-10-16-recommendation-code.md
+  path: .ai/specs/implemented/2026-10-16-recommendation-code.md
   ac: ["AC5"]
 test:
   file: packages/app/tests/e2e/recommendation-code.e2e.test.ts

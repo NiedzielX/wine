@@ -15,7 +15,7 @@ describe('development', () => {
   it('an empty environment is a working demo setup', () => {
     expect(parseEnv({})).toEqual({
       nodeEnv: 'development', isProduction: false, dataSource: 'memory', databaseUrl: null, secureCookies: false, publicBaseUrl: 'http://localhost:3000',
-      publicBaseUrlIsDefault: true, logLevel: 'debug', demoRestaurantSlug: 'halka'
+      publicBaseUrlIsDefault: true, logLevel: 'debug', demoRestaurantSlug: 'halka', metricsToken: null
     });
   });
 
@@ -82,5 +82,14 @@ describe('cookies and the public address', () => {
   it('the demo restaurant slug must look like an address name', () => {
     expect(parseEnv({ DEMO_RESTAURANT_SLUG: 'my-place' }).demoRestaurantSlug).toBe('my-place');
     expect(fails({ DEMO_RESTAURANT_SLUG: 'My Place' })[0]).toMatch(/DEMO_RESTAURANT_SLUG/);
+  });
+});
+
+describe('metrics token', () => {
+  it('is optional (null = endpoint disabled), blank counts as unset, and a short token is refused', () => {
+    expect(parseEnv({}).metricsToken).toBeNull();
+    expect(parseEnv({ METRICS_TOKEN: '  ' }).metricsToken).toBeNull();
+    expect(parseEnv({ METRICS_TOKEN: 'x'.repeat(32) }).metricsToken).toBe('x'.repeat(32));
+    expect(fails({ METRICS_TOKEN: 'short' })[0]).toMatch(/METRICS_TOKEN: must be at least 32 characters/);
   });
 });

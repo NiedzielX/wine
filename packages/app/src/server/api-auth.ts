@@ -7,6 +7,7 @@ import { SESSION_COOKIE, toActor } from './auth';
 import { createRequestScope, type Cradle } from './container';
 import { domainError } from './domain-errors';
 import { logger } from './logger';
+import { countUnhandledError, recordHttpRequest } from './metrics';
 
 /**
  * Door of the REST API for the dashboard: session cookie → principal, CSRF for changes, permission
@@ -60,30 +61,54 @@ export interface ApiContext {
 type Scope = Awaited<ReturnType<typeof createRequestScope>>;
 
 /**
- * Runs a route's work inside a request scope and is the ONLY place that turns a failure into a response:
- * a domain error becomes its HTTP status and the standard error body, anything else is logged (with the
- * secrets redacted) and answered with a generic 500: never a stack trace. No route writes its own try/catch.
+ * Turns whatever a route does into a response and is the ONLY place that maps a failure: a domain error becomes its
+ * HTTP status and the standard error body, anything else is answered with a generic 500 (never a stack trace). Every
+ * response path, including the early 401/403 and a failure to open the request scope (database down), leaves exactly
+ * ONE `api request` log line (`error` level with the redacted `err` on an unexpected failure, so there is no second
+ * line) and ONE `http_requests_total` sample. The route PATTERN is logged, never the URL, query, headers, body or IP.
  */
-async function guarded(req: NextRequest, work: (scope: Scope) => Promise<NextResponse>): Promise<NextResponse> {
+async function instrumented(req: NextRequest, route: string, run: () => Promise<NextResponse>): Promise<NextResponse> {
+  const started = performance.now();
+  let res: NextResponse;
+  let failure: unknown;
+  try {
+    res = await run();
+  } catch (e) {
+    const mapped = fromDomainError(e);
+    if (mapped) {
+      res = mapped;
+    } else {
+      failure = e;
+      countUnhandledError('route');
+      res = apiError(500, 'unexpected', 'The request could not be processed.');
+    }
+  }
+  const seconds = (performance.now() - started) / 1000;
+  const line = { method: req.method, route, status: res.status, durationMs: Math.round(seconds * 1000) };
+  if (failure === undefined) logger.info('api request', line);
+  else logger.error('api request', { ...line, err: failure });
+  recordHttpRequest(route, res.status, seconds);
+  return res;
+}
+
+async function withScope(work: (scope: Scope) => Promise<NextResponse>): Promise<NextResponse> {
   const scope = await createRequestScope();
   try {
     return await work(scope);
-  } catch (e) {
-    const mapped = fromDomainError(e);
-    if (mapped) return mapped;
-    logger.error('api request failed', { err: e, method: req.method, path: req.nextUrl.pathname });
-    return apiError(500, 'unexpected', 'The request could not be processed.');
   } finally {
     await scope.dispose();
   }
 }
 
 /**
- * For routes that need no session (the guest API, sign-in). `write: true` still refuses cross-site requests.
+ * For routes that need no session (the guest API, sign-in). `route` is the route's PATTERN (`/api/v1/pairings/{id}`), used for the
+ * request log line and the metrics label: pass a literal, never the URL. `write: true` still refuses cross-site requests.
  */
-export async function handlePublic(req: NextRequest, opts: { write?: boolean }, handler: (ctx: { c: Cradle; req: NextRequest }) => Promise<NextResponse>): Promise<NextResponse> {
-  if (opts.write && isCrossSite(req)) return apiError(403, 'csrf', 'Cross-site requests are not allowed.');
-  return guarded(req, (scope) => handler({ c: scope.cradle, req }));
+export async function handlePublic(req: NextRequest, opts: { write?: boolean; route: string }, handler: (ctx: { c: Cradle; req: NextRequest }) => Promise<NextResponse>): Promise<NextResponse> {
+  return instrumented(req, opts.route, async () => {
+    if (opts.write && isCrossSite(req)) return apiError(403, 'csrf', 'Cross-site requests are not allowed.');
+    return withScope((scope) => handler({ c: scope.cradle, req }));
+  });
 }
 
 /**
@@ -92,9 +117,12 @@ export async function handlePublic(req: NextRequest, opts: { write?: boolean }, 
  *  - changes (`write`): 403 for cross-site requests and for a missing or wrong `X-CSRF-Token`
  *  - 403 when the caller's role in `slug` lacks `permission` (a failed check always means "no")
  */
-export async function handle(req: NextRequest, opts: { write: boolean; slug?: string; permission?: Permission }, handler: (ctx: ApiContext) => Promise<NextResponse>): Promise<NextResponse> {
-  if (opts.write && isCrossSite(req)) return apiError(403, 'csrf', 'Cross-site requests are not allowed.');
-  return guarded(req, async (scope) => {
+export async function handle(req: NextRequest, opts: { write: boolean; route: string; slug?: string; permission?: Permission }, handler: (ctx: ApiContext) => Promise<NextResponse>): Promise<NextResponse> {
+  return instrumented(req, opts.route, async () => {
+    if (opts.write && isCrossSite(req)) return apiError(403, 'csrf', 'Cross-site requests are not allowed.');
+    return withScope((scope) => authenticated(scope));
+  });
+  async function authenticated(scope: Scope): Promise<NextResponse> {
     const token = req.cookies.get(SESSION_COOKIE)?.value;
     const principal = token ? await scope.cradle.authService.authenticate(token) : null;
     if (!principal) return apiError(401, 'unauthenticated', 'Sign in first.');
@@ -103,7 +131,7 @@ export async function handle(req: NextRequest, opts: { write: boolean; slug?: st
     }
     if (opts.slug && opts.permission) authorize(principal, opts.slug, opts.permission);
     return handler({ principal, actor: toActor(principal), c: scope.cradle, req });
-  });
+  }
 }
 
 export { isCrossSite };

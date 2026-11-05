@@ -279,6 +279,32 @@ describe('G11: the recommendation code for the bottle (E09 Q19)', () => {
   });
 });
 
+describe('G11: the limit of codes per waiter session (E09 R13, AC13)', () => {
+  const today = () => serviceDay(new Date());
+  const hex = (n: number) => n.toString(16).padStart(12, '0');
+
+  it('the 301st recommendation of one staff session gets no code, and the screen says so instead of leaving a gap', async () => {
+    const sid = '9f607182-93a4-4fb0-8cc2-3d4e5f607182';
+    const result = await forTable(SIX);
+    const wineId = result.items[0].wine.id;
+    // 300 distinct staff choices, written straight to the store (four-character codes: they cannot collide with the three-character ones other tests draw)
+    const letters = 'ACDEFGHJKLMNPRTUVWXY';
+    for (let i = 0; i < 300; i++) {
+      const status = await codes.tryIssue(restaurantId, {
+        id: `00000000-0000-4000-8000-${hex(0x500 + i)}`, code: `${letters[i % 20]}${(i % 8) + 2}${letters[Math.floor(i / 20) % 20]}${Math.floor(i / 160) + 2}`,
+        serviceDay: today(), sessionId: sid, source: 'staff', context: 'direct', wineId, dishIds: [`00000000-0000-4000-8000-${hex(0x900 + i)}`], serving: 'bottle',
+        menuVersion: null, tier: null, engineVersion: 'wm-test', issuedAt: new Date().toISOString()
+      });
+      expect(status.status).toBe('created');
+    }
+    expect(await codes.countBySession(restaurantId, today(), sid)).toBe(300);
+    const html = await g11({ dishes: SIX.join(','), sid });
+    expect(html).toContain('data-recommendation-code="none"');
+    expect(html).toContain('No code for this one — order as usual.');
+    expect(await codes.countBySession(restaurantId, today(), sid)).toBe(300);
+  });
+});
+
 describe('G11: staff_table_lookup (R13, AC12)', () => {
   const everything = { from: new Date(0), to: new Date('2100-01-01') };
   const list = async (sid: string) => { await settle(); return events.listBySession(restaurantId, sid); };

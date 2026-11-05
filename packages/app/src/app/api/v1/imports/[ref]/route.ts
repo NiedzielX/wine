@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const slug = slugOf(req);
   if (!slug) return needRestaurant();
   if (ref !== 'menu' && ref !== 'wines' && ref !== 'sales') return apiError(404, 'not_found', 'Upload to /imports/menu, /imports/wines or /imports/sales.');
-  return handle(req, { write: true, slug, permission: 'import.manage' }, async ({ c, actor }) => {
+  return handle(req, { route: '/api/v1/imports/{ref}', write: true, slug, permission: 'import.manage' }, async ({ c, actor }) => {
     const file = await readUpload(req, IMPORT_LIMITS.maxBytes);
     return NextResponse.json(importJson(await c.importService.upload(slug, ref, file, actor)), { status: 201 });
   });
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const { ref } = await ctx.params;
   const slug = slugOf(req);
   if (!slug) return needRestaurant();
-  return handle(req, { write: false, slug, permission: 'import.manage' }, async ({ c }) => NextResponse.json(importJson(await c.importService.get(slug, ref))));
+  return handle(req, { route: '/api/v1/imports/{ref}', write: false, slug, permission: 'import.manage' }, async ({ c }) => NextResponse.json(importJson(await c.importService.get(slug, ref))));
 }
 
 /** DELETE /api/v1/imports/{id}?restaurant={slug} — cancels an open import; nothing was changed. */
@@ -39,7 +39,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { ref } = await ctx.params;
   const slug = slugOf(req);
   if (!slug) return needRestaurant();
-  return handle(req, { write: true, slug, permission: 'import.manage' }, async ({ c }) => {
+  return handle(req, { route: '/api/v1/imports/{ref}', write: true, slug, permission: 'import.manage' }, async ({ c }) => {
     await c.importService.cancel(slug, ref);
     return new NextResponse(null, { status: 204 });
   });
