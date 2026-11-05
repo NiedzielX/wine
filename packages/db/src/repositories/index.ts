@@ -14,6 +14,7 @@ import {
   type PublishedSnapshot, type PublishedVersionRow
 } from '../entities';
 import { translate } from './errors';
+import { isUuid } from './ids';
 import { toRecommendationCode, type RecommendationCodeSqlRow } from '../mappers';
 import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairing, toPublishedPairing, toRestaurant, toWine } from '../mappers';
 
@@ -25,14 +26,6 @@ import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairi
 interface Deps { em: EntityManager }
 
 const PUBLISHABLE = ['approved', 'modified', 'rejected'] as const;
-
-/**
- * Ids reach the repositories from URLs (guest pages, public API). PostgreSQL rejects a value that is not a UUID in a
- * uuid column with a driver error (`22P02`), which the app would turn into a 500; the memory repositories simply
- * find nothing. An id that is not a UUID cannot exist, so the lookups below treat it as unknown, like the memory ones.
- */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isUuid = (id: string): boolean => UUID.test(id);
 
 export class PgRestaurantRepository implements RestaurantRepository {
   private readonly em: EntityManager;
@@ -222,6 +215,7 @@ export class PgWineWriteRepository implements WineWriteRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async setActive(restaurantId: string, wineId: string, active: boolean) {
+    if (!isUuid(wineId)) return null;
     const w = await this.em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null });
     if (!w) return null;
     w.active = active;
