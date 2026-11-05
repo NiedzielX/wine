@@ -133,6 +133,19 @@ describe('G8: the code for the waiter (AC5, AC13)', () => {
   });
 });
 
+describe('G8 when the write fails (R4, AC6)', () => {
+  it('a repository that throws or hangs leaves G8 whole: a page, the unavailable line and a warning, no code', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const issue = vi.spyOn(repo, 'tryIssue').mockRejectedValue(new Error('connection refused'));
+    const html = await render(wine, { dish: duck, serving: 'bottle', sid: '8d4f5e60-7182-4d9e-9fa0-2b3c4d5e6f70' });
+    expect(issue).toHaveBeenCalled();
+    expect(html).toContain('data-recommendation-code="none"');
+    expect(html).toContain('Code unavailable — name the wine to your waiter.');
+    expect(html).toContain('Show this to your waiter.');
+    expect(warn).toHaveBeenCalledWith('recommendation code not issued', expect.objectContaining({ error: 'connection refused' }));
+  });
+});
+
 describe('issueCodeForPage (R4, AC6)', () => {
   const restaurant = () => ({ id: restaurantId, slug: 'halka' });
   const input = () => ({ session: { id: SID, isNew: false, source: 'link' as const }, source: 'guest' as const, wineId: wine, serving: 'bottle' as const, dishIds: [] });
