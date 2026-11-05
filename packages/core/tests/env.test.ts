@@ -134,6 +134,40 @@ describe('cookies and the public address', () => {
     expect(fails({ PUBLIC_BASE_URL: 'ftp://example.com' })[0]).toMatch(/PUBLIC_BASE_URL/);
   });
 
+  describe('the stored address is the parsed, checked one (review of PR #120)', () => {
+    const prod = { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: 'postgres://u:p@h/db' };
+
+    it.each([
+      ['HTTPS://wine.example.com', 'https://wine.example.com'],
+      ['Https://Wine.Example.COM/', 'https://wine.example.com'],
+      ['https://wine。example。com', 'https://wine.example.com'],
+      ['https://wine.example.com./app//', 'https://wine.example.com/app'],
+      ['https://wine.example.com:443/', 'https://wine.example.com'],
+      ['https://wine.example.com:8443/x?a=1#f', 'https://wine.example.com:8443/x']
+    ])('production stores %s as %s and it is not the default address', (raw, stored) => {
+      expect(parseEnv({ ...prod, PUBLIC_BASE_URL: raw })).toMatchObject({ publicBaseUrl: stored, publicBaseUrlIsDefault: false });
+    });
+
+    it.each([
+      ['userinfo', 'https://user:pw@wine.example.com'],
+      ['userinfo without a password', 'https://user@wine.example.com'],
+      ['a backslash that the parser reads as a slash', 'https://wine.example.com\\@localhost'],
+      ['a backslash alone', 'https://wine.example.com\\path'],
+      ['white space', 'https://wine.example.com/ a'],
+      ['an @ in the path', 'https://wine.example.com/@x']
+    ])('refuses %s in every environment, even with ALLOW_LOCAL_BASE_URL', (_label, raw) => {
+      for (const extra of [prod, { ...prod, ALLOW_LOCAL_BASE_URL: 'true' }, {}]) expect(fails({ ...extra, PUBLIC_BASE_URL: raw })[0]).toMatch(/PUBLIC_BASE_URL/);
+    });
+
+    it.each(['.invalid', '.localdomain', '.intranet', '.corp', '.local', '.localhost'])('production refuses a %s host', (suffix) => {
+      expect(fails({ ...prod, PUBLIC_BASE_URL: `https://wine${suffix}` })[0]).toMatch(/local host/);
+    });
+
+    it('.test stays allowed: the spec and the e2e suite use https://wine.example.test as a public address', () => {
+      expect(parseEnv({ ...prod, PUBLIC_BASE_URL: 'https://wine.example.test' }).publicBaseUrl).toBe('https://wine.example.test');
+    });
+  });
+
   it('the demo restaurant slug must look like an address name', () => {
     expect(parseEnv({ DEMO_RESTAURANT_SLUG: 'my-place' }).demoRestaurantSlug).toBe('my-place');
     expect(fails({ DEMO_RESTAURANT_SLUG: 'My Place' })[0]).toMatch(/DEMO_RESTAURANT_SLUG/);
