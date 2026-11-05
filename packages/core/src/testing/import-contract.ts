@@ -54,6 +54,16 @@ export function importContract(name: string, setup: () => Promise<{ repos: Repos
       t.expect(await repos.importRepository.find(rid(), uuid())).toBeNull();
     });
 
+    t.it('treats a job id that is not a UUID as unknown: nothing found, nothing changed, confirm says not found', async () => {
+      // the id is a path segment of /api/v1/imports/{ref}: a typo must not become a database error
+      for (const id of ['abc', '', "' or 1=1 --"]) {
+        t.expect(await repos.importRepository.find(rid(), id)).toBeNull();
+        t.expect(await repos.importRepository.cancel(rid(), id)).toBe(false);
+        t.expect(await repos.importRepository.saveRows(rid(), id, rows())).toBe(false);
+        await t.expect(repos.importRepository.confirm(rid(), id, plan(), AT)).rejects.toBeInstanceOf(NotFoundError);
+      }
+    });
+
     t.it('lists the newest jobs first and only those of the restaurant', async () => {
       const a = job({ createdAt: '2026-10-14T10:00:00.000Z' });
       const b = job({ createdAt: '2026-10-14T11:00:00.000Z' });
