@@ -2,7 +2,7 @@
 status: approved
 created: 2026-11-04
 owner: Filip
-related: [.ai/specs/2026-11-04-product-completion-plan.md (E13), .ai/specs/product-brief.md (D13, D14, D18, N01, N03, N04, R03), .ai/specs/implemented/2026-10-15-bilingual-content.md, .ai/specs/implemented/2026-10-14-phase3-sommelier-writes.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-11-04-restaurant-operations.md (E19, zależy od tego epiku), .ai/specs/2026-11-04-engine-v1x-calibration-and-table-optimization.md (E16), .ai/specs/2026-11-04-data-and-import-completion.md (E20), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12), docs/DATA_MODEL.md, docs/SCREEN_MAP.md, docs/USER_ROLES.md]
+related: [.ai/specs/2026-11-04-product-completion-plan.md (E13), .ai/specs/product-brief.md (D13, D14, D18, N01, N03, N04, R03), .ai/specs/implemented/2026-10-15-bilingual-content.md, .ai/specs/implemented/2026-10-14-phase3-sommelier-writes.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-11-04-restaurant-operations.md (E19, zależy od tego epiku), .ai/specs/2026-11-04-engine-v1x-calibration-and-table-optimization.md (E16), .ai/specs/2026-11-04-data-and-import-completion.md (E20), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12), docs/DATA_MODEL.md, docs/SCREEN_MAP.md, docs/USER_ROLES.md]
 ---
 
 # Dokończenie panelu: edycja profili, historia publikacji i publikacje zaplanowane (E13)

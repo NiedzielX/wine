@@ -2,7 +2,7 @@
 status: approved
 created: 2026-11-04
 owner: Filip
-related: [.ai/specs/2026-11-04-product-completion-plan.md (E18), .ai/specs/product-brief.md (D13, D14, D15, D16, D18, N01, N02, N04, R05, R06), .ai/specs/implemented/2026-10-16-whole-table-waiter-path.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-bilingual-content.md, 2026-11-04-engine-v1x-calibration-and-table-optimization.md (E16), 2026-11-04-panel-completion.md (E13), 2026-11-04-platform-quality-and-compliance.md (E21), 2026-11-04-learning-layer-shadow-model.md (E17), 2026-11-04-restaurant-operations.md (E19), 2026-11-04-data-and-import-completion.md (E20), 2026-11-04-staff-accounts-and-roles.md (E12), BACKWARD_COMPATIBILITY.md]
+related: [.ai/specs/2026-11-04-product-completion-plan.md (E18), .ai/specs/product-brief.md (D13, D14, D15, D16, D18, N01, N02, N04, R05, R06), .ai/specs/implemented/2026-10-16-whole-table-waiter-path.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-bilingual-content.md, 2026-11-04-engine-v1x-calibration-and-table-optimization.md (E16), 2026-11-04-panel-completion.md (E13), 2026-11-04-platform-quality-and-compliance.md (E21), 2026-11-04-learning-layer-shadow-model.md (E17), 2026-11-04-restaurant-operations.md (E19), 2026-11-04-data-and-import-completion.md (E20), 2026-11-04-staff-accounts-and-roles.md (E12), BACKWARD_COMPATIBILITY.md]
 ---
 
 # Doświadczenie gościa: menu degustacyjne, odwrócone parowanie, diety i alergeny, opinia po posiłku, ulubione (E18)

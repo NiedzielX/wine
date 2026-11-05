@@ -2,7 +2,7 @@
 status: implemented
 created: 2026-10-16
 owner: Filip
-related: [.ai/specs/product-brief.md (D03, D13, D14, D15, D16, D17, D18), .ai/specs/2026-10-15-guest-usage-events.md (E02), .ai/specs/2026-10-16-how-it-works-explanations.md (E07), .ai/specs/2026-10-16-recommendation-code.md (E09), .ai/specs/2026-10-16-sommelier-opportunities.md (E10), .ai/specs/2026-10-15-kpi-dashboard.md (E04), .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md, .ai/runs/2026-10-16-positioning-table-specs.md]
+related: [.ai/specs/product-brief.md (D03, D13, D14, D15, D16, D17, D18), .ai/specs/2026-10-15-guest-usage-events.md (E02), .ai/specs/2026-10-16-how-it-works-explanations.md (E07), .ai/specs/implemented/2026-10-16-recommendation-code.md (E09), .ai/specs/2026-10-16-sommelier-opportunities.md (E10), .ai/specs/2026-10-15-kpi-dashboard.md (E04), .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md, .ai/runs/2026-10-16-positioning-table-specs.md]
 ---
 
 # „Cały stół”: funkcja wyróżniająca i ścieżka kelnera (E08)
