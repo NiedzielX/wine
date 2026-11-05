@@ -8,6 +8,7 @@ export { ormConfig } from './config';
 export { getOrm, closeOrm } from './orm';
 export * from './mappers';
 export * from './repositories';
+export { PgSystemHealth, HEALTH_TIMEOUT_MS } from './repositories/system-health';
 export { PgAuthRepository } from './repositories/auth';
 export { PgImportRepository } from './repositories/import';
 

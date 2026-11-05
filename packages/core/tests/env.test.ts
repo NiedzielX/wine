@@ -124,7 +124,7 @@ describe('production fails closed', () => {
 describe('cookies and the public address', () => {
   it('AUTH_COOKIE_SECURE overrides the default both ways', () => {
     expect(parseEnv({ AUTH_COOKIE_SECURE: 'true' }).secureCookies).toBe(true);
-    expect(parseEnv({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true', AUTH_COOKIE_SECURE: 'false', ...base }).secureCookies).toBe(false);
+    expect(parseEnv({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true', AUTH_COOKIE_SECURE: 'false', PUBLIC_BASE_URL: 'https://wine.example.com' }).secureCookies).toBe(false);
   });
 
   it('PUBLIC_BASE_URL is normalised (no trailing slash, no path garbage) and must be http(s)', () => {

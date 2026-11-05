@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-progress
 created: 2026-10-15
 owner: Filip
 related: [issue #23, #24, #25, .ai/specs/product-brief.md, .ai/specs/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md]

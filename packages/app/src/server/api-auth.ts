@@ -109,6 +109,15 @@ export async function handlePublic(req: NextRequest, opts: { write?: boolean; ro
 }
 
 /**
+ * For the one route that must not need a request scope: the health check. Opening a scope builds the container and with it
+ * the database pool, and a failure there is exactly what the check has to report as 503 instead of a generic 500. Same log
+ * line and metrics sample as every other API request; the handler must not throw (a failure it cannot answer is a 500).
+ */
+export async function handleUnscoped(req: NextRequest, opts: { route: string }, handler: () => Promise<NextResponse>): Promise<NextResponse> {
+  return instrumented(req, opts.route, handler);
+}
+
+/**
  * For routes of the dashboard: a signed-in caller.
  *  - 401 without a valid session
  *  - changes (`write`): 403 for cross-site requests and for a missing or wrong `X-CSRF-Token`

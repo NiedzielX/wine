@@ -2,9 +2,9 @@ import { asClass, asFunction, asValue, createContainer, InjectionMode, type Awil
 import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
-  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
+  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, MemorySystemHealth, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
   SommelierService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
-  type PasswordHasher, type Repositories, type SessionTokens
+  type PasswordHasher, type Repositories, type SessionTokens, type SystemHealth
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
 import { env } from './env';
@@ -42,6 +42,8 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   recommendationCodeService: RecommendationCodeService;
   salesKpiService: SalesKpiService;
   logger: Logger;
+  /** whether the database answers (GET /api/v1/health) */
+  systemHealth: SystemHealth;
 }
 
 export type DataSource = 'memory' | 'postgres';
@@ -105,7 +107,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped(),
       guestInteractionRepository: asClass(db.PgGuestInteractionRepository).scoped(),
       recommendationCodeRepository: asClass(db.PgRecommendationCodeRepository).scoped(),
-      salesRepository: asClass(db.PgSalesRepository).scoped()
+      salesRepository: asClass(db.PgSalesRepository).scoped(),
+      systemHealth: asClass(db.PgSystemHealth).scoped()
     });
   } else {
     const store = MemoryStore.from(buildDemoDataset({ ids: 'uuid' }));
@@ -125,7 +128,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       opportunityDismissalRepository: asValue(repos.opportunityDismissalRepository),
       guestInteractionRepository: asValue(repos.guestInteractionRepository),
       recommendationCodeRepository: asValue(repos.recommendationCodeRepository),
-      salesRepository: asValue(repos.salesRepository)
+      salesRepository: asValue(repos.salesRepository),
+      systemHealth: asValue<SystemHealth>(new MemorySystemHealth())
     });
   }
   return container;
@@ -133,8 +137,13 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
 
 /** Root container, created once per process (cached on globalThis for Next.js dev reloads). */
 export function getContainer(): Promise<AwilixContainer<Cradle>> {
-  globalForDi.__wineMatchContainer ??= buildContainer();
-  return globalForDi.__wineMatchContainer;
+  const pending = (globalForDi.__wineMatchContainer ??= buildContainer());
+  // A build that fails (the database was down when the first request came) is NOT remembered: the next request builds again,
+  // so the process recovers when the database does, without a restart (spec 2026-10-15-production-deployment, R3 and Q5).
+  pending.catch(() => {
+    if (globalForDi.__wineMatchContainer === pending) delete globalForDi.__wineMatchContainer;
+  });
+  return pending;
 }
 
 /** A fresh request scope. Resolve services from it, never from the root container. */
