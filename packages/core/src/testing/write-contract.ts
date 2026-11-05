@@ -242,6 +242,8 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect((await repos.wineRepository.findById(rid(), wine.id))!.active).toBe(false);
       t.expect((await repos.wineWriteRepository.setActive(rid(), wine.id, true))!.active).toBe(true);
       t.expect(await repos.wineWriteRepository.setActive(rid(), '66666666-6666-4666-8666-666666666666', true)).toBeNull();
+      // an id from the URL that is not a UUID is an unknown wine, not a database error
+      t.expect(await repos.wineWriteRepository.setActive(rid(), 'abc', true)).toBeNull();
       await repos.restaurantWriteRepository.updateSettings(rid(), { showUnreviewed: false, showScores: true });
       t.expect((await repos.restaurantRepository.findBySlug(ds.restaurant.slug))!.settings).toEqual({ showUnreviewed: false, showScores: true });
     });
