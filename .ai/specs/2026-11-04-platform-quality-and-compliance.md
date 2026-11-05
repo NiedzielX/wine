@@ -60,7 +60,7 @@ Dowieźć mierzalny, powtarzalny poziom jakości operacyjnej i zgodności dla po
 
 ## Kryteria akceptacji
 - [ ] AC1 (R1) Bez `METRICS_TOKEN` `GET /api/v1/metrics` daje 404; z tokenem bez nagłówka 401; z poprawnym tokenem 200 i wszystkie nazwy z R1; żadna etykieta nie zawiera sluga ani UUID. *Test jednostkowy tras (`app/tests/unit`), `next build`.*
-- [ ] AC2 (R2, R3) Żądanie API kończy się jednym wierszem logu bez query i nagłówków; wymuszony błąd z `postgres://u:haslo@h/db` w komunikacie jest zredagowany w `onRequestError`; odpowiedź 500 nie zawiera stosu. *Test jednostkowy + `boot:check`.*
+- [ ] AC2 (R2, R3) Żądanie API kończy się jednym wierszem logu bez query i nagłówków; wymuszony błąd, w którego komunikacie jest adres połączenia z bazą z hasłem (schemat `postgres`, użytkownik, hasło, host), jest zredagowany w `onRequestError`; odpowiedź 500 nie zawiera stosu. *Test jednostkowy + `boot:check`.*
 - [ ] AC3 (R4) `docs/OPERATIONS.md` istnieje, każdy alert ma próg i działanie; `npm run check:context` zielony. *Przegląd + polecenie.*
 - [ ] AC4 (R5, R6) `restore-drill` w CI: kopia z seeda odtwarza się do nowej bazy, `migration:pending` jest pusty, liczby wierszy `restaurant`, `dish`, `wine`, `pairing`, `guest_interaction`, `recommendation_code` zgadzają się z oryginałem; skrypt przy błędzie `pg_dump` kończy się kodem ≠ 0 i nie zostawia pustego pliku. *CI job + test skryptu z fałszywym `pg_dump`.*
 - [ ] AC5 (R7) Kontrakt `RateLimiter` (pamięć i PostgreSQL): N-te+1 trafienie w oknie jest odrzucone z poprawnym `retryAfterSeconds`; nowe okno resetuje; dwa klucze są niezależne; współbieżne trafienia z dwóch połączeń liczą się razem. *`test:db` + testy jednostkowe.*
