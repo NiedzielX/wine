@@ -94,6 +94,15 @@ describe('smoke --production', () => {
     expect(output).not.toMatch(/\n\s+at /);
   });
 
+  it.each(['../admin', 'a/b', 'Pilot', 'a b', 'a?x=1', ''])('refuses the slug %j before any request is made (exit 2)', async (badSlug) => {
+    const { server, seen, start } = installation();
+    running = server;
+    const { code, output } = await smoke(['--production', await start(), badSlug]);
+    expect(code).toBe(2);
+    expect(output).toContain('is not a restaurant slug');
+    expect(seen).toHaveLength(0);
+  });
+
   it('refuses an option it does not know (exit 2)', async () => {
     const { code, output } = await smoke(['--prod', 'http://127.0.0.1:1', 'pilot']);
     expect(code).toBe(2);

@@ -24,6 +24,10 @@ if (unknownFlags.length) {
 }
 const base = (positional[0] ?? 'http://localhost:3000').replace(/\/$/, '');
 const slug = positional[1] ?? 'halka';
+if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
+  console.error(`"${slug}" is not a restaurant slug (lower-case letters, digits and single hyphens). Usage: node scripts/smoke.mjs [--production] [url] [slug]`);
+  process.exit(2);
+}
 const EMAIL = process.env.SMOKE_EMAIL ?? 'marta@halka.pl';      // demo accounts only: see .env.example
 const PASSWORD = process.env.SMOKE_PASSWORD ?? 'demo-halka-2026';
 let failures = 0;
@@ -85,9 +89,13 @@ async function productionSmoke() {
   expect('public menu API has the documented shape (restaurant, categories with dishes)', body?.restaurant?.slug === slug && dishes !== null && !dishes.includes(null) && dishes.every((d) => typeof d?.id === 'string' && typeof d?.name === 'string' && typeof d?.price === 'number'), menu.text.slice(0, 200));
   await check('sign-in page', '/admin/login', { cookie: '', has: ['<form'] });
   await check('a session route without a session is 401', '/api/v1/auth/me', { status: 401, has: ['unauthenticated'] });
-  const hdr = (await fetch(`${base}/r/${slug}`)).headers;
+  const hdrRes = await fetch(`${base}/r/${slug}`);
+  await hdrRes.body?.cancel();
+  const hdr = hdrRes.headers;
   expect('security headers: nosniff and a referrer policy', hdr.get('x-content-type-options') === 'nosniff' && !!hdr.get('referrer-policy'), `${hdr.get('x-content-type-options')} / ${hdr.get('referrer-policy')}`);
-  const adminHdr = (await fetch(`${base}/admin/login`)).headers;
+  const adminRes = await fetch(`${base}/admin/login`);
+  await adminRes.body?.cancel();
+  const adminHdr = adminRes.headers;
   expect('dashboard responses are never cached or framed', /no-store/.test(adminHdr.get('cache-control') ?? '') && adminHdr.get('x-frame-options') === 'DENY', `${adminHdr.get('cache-control')} / ${adminHdr.get('x-frame-options')}`);
   expect('every request was a GET (and carried the synthetic header)', sent.length > 0 && sent.every((r) => r.method === 'GET'), JSON.stringify(sent.filter((r) => r.method !== 'GET')));
   console.log(failures ? `\n${failures} check(s) failed` : '\nAll production smoke checks passed');
@@ -259,7 +267,9 @@ await check('no session: API list pairings', `/api/v1/restaurants/${slug}/pairin
 await check('no session: API change a wine', `/api/v1/wines/${wine}?restaurant=${slug}`, { method: 'PATCH', body: { active: false }, status: 401 });
 await check('API me with a session', '/api/v1/auth/me', { cookie: SESSION, has: ['csrfToken', slug] });
 
-const hdr = (await fetch(`${base}/admin/login`)).headers;
+const hdrRes = await fetch(`${base}/admin/login`);
+await hdrRes.body?.cancel();
+const hdr = hdrRes.headers;
 expect('dashboard responses are never cached or framed', /no-store/.test(hdr.get('cache-control') ?? '') && hdr.get('x-frame-options') === 'DENY', `${hdr.get('cache-control')} / ${hdr.get('x-frame-options')}`);
 expect('every response has nosniff', (await fetch(`${base}/r/${slug}`)).headers.get('x-content-type-options') === 'nosniff');
 
