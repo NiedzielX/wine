@@ -23,6 +23,7 @@ Czytaj tyle, ile wymaga zadanie; §1.2–§1.6 (pełne: `.ai/docs/architecture-r
 | testy, CI, skrypty | `.ai/docs/commands.md` |
 | nowa specyfikacja, log, lekcja | `.ai/docs/process-templates.md` (specyfikację czytaj od sekcji Wymagania, Kryteria akceptacji, Realizacja) |
 | standardy kodu | `.ai/docs/engineering-standards.md` |
+| planowanie pracy równoległej, kolejność zadań | `.ai/docs/parallel-work.md` |
 | agent, skille, MCP, sekrety | `security-notes.md` |
 <!-- routing:end -->
 
@@ -226,6 +227,7 @@ Praca nie jest skończona, dopóki jej działania nie udowodnisz. „Powinno dzi
 ## 8. Praca równoległa, pod-agenci i powtarzalne czynności
 
 - **Równoległe sesje** prowadź w osobnych `git worktree` na osobnych gałęziach: jedna specyfikacja = jeden worktree. Każda sesja ma własny log w `.ai/runs/`; dwie sesje nie edytują tej samej specyfikacji. Przy konflikcie w `.ai/lessons.md` zachowaj linie z obu stron.
+- **Limit pracy w toku:** najwyżej 3 otwarte PR-y czekające na review właściciela; zadania dzielą się na I, S, P, M i tylko typ M idzie szeroko. Zasady i klasyfikacja zadań: `.ai/docs/parallel-work.md`.
 - **Pod-agentów** używaj do eksploracji kodu, wyszukiwania w dokumentacji, przeglądu planu i weryfikacji, żeby główny kontekst pozostał czysty. Agent główny scala ich wyniki i zapisuje je w swoim logu przebiegu.
 - **Kiedy pod-agent, kiedy nie:** pod-agent daje jakość i oszczędza uwagę agenta głównego, ale zwiększa łączny koszt tokenów (startuje z pustym oknem). Używaj go do researchu, przeglądu, weryfikacji i prac, które da się zrównoleglić; nie do małej zmiany w jednym pliku. Brief zawiera cel, pliki do przeczytania i to, co już wykluczono.
 - **Czynność wykonywaną częściej niż raz dziennie albo w każdym przebiegu** zamień w skrypt `npm run …` lub komendę agenta zapisaną w repozytorium (`.claude/commands/`) i opisz ją w lekcji. Przykład: `npm run engine:matrix`.
