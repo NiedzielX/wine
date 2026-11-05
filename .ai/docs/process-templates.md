@@ -27,6 +27,8 @@ Ponumerowane (R1, R2…), testowalne.
 ## Kryteria akceptacji
 - [ ] AC1 …   (każde sprawdzalne testem lub opisanym krokiem w UI)
 
+Każde AC dotyczące zachowania widocznego w UI lub API ma scenariusz w `.ai/qa/{AREA}/` (konwencja i szablon: `.ai/qa/README.md`) i test integracyjny w `packages/app/tests/e2e/`. W specyfikacji podaj identyfikatory scenariuszy przy AC albo w „Projekcie rozwiązania”.
+
 ## Projekt rozwiązania
 Pliki, moduły, zmiany w modelu danych / API / regułach silnika, wpływ na ekrany (ID z docs/SCREEN_MAP.md).
 

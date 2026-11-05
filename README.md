@@ -89,7 +89,9 @@ Ciasteczko sesji jest w produkcji `Secure`. Żeby uruchomić build produkcyjny l
 
 **Konfiguracja jest walidowana przy starcie** (`packages/core/src/config/env.ts`) i zawodzi zamykająco: błędna lub brakująca wartość zatrzymuje serwer (kod 1) z komunikatem wymieniającym każdy problem, zamiast po cichu uruchomić dane demo. W produkcji (`npm start`, `NODE_ENV=production`) **`DATA_SOURCE` musi być ustawione jawnie**, a `DATA_SOURCE=memory` (dane demo i konta z publicznym hasłem) wymaga świadomego `ALLOW_DEMO_DATA=true`. Żeby lokalnie uruchomić zbudowaną aplikację na danych demo: `DATA_SOURCE=memory ALLOW_DEMO_DATA=true AUTH_COOKIE_SECURE=false npm start`. `npm run build` nie potrzebuje ani środowiska, ani bazy.
 
-**Logi** to jedna linia JSON na wpis (`LOG_LEVEL`), z redakcją sekretów: kluczy (`password`, `token`, `cookie`, `authorization`, `hash`, …) oraz wzorców w tekście błędów (skrót hasła, JWT, `Bearer`, ciasteczko sesji, adres bazy z hasłem). Klient nigdy nie dostaje śladu stosu.
+**Logi** to jedna linia JSON na wpis (`LOG_LEVEL`), z redakcją sekretów: kluczy (`password`, `token`, `cookie`, `authorization`, `hash`, …) oraz wzorców w tekście błędów (skrót hasła, JWT, `Bearer`, ciasteczko sesji, adres bazy z hasłem). Klient nigdy nie dostaje śladu stosu. Każde żądanie API zostawia jeden wiersz `api request` (metoda, wzorzec trasy, status, czas; bez query, nagłówków i IP), a błędy serwera (`onRequestError`, `unhandledRejection`, `uncaughtException`) są logowane z redakcją i liczone.
+
+**Metryki:** ustaw `METRICS_TOKEN` (min. 32 znaki, np. `openssl rand -hex 32`), a `GET /api/v1/metrics` z `Authorization: Bearer <token>` zwróci metryki procesu w formacie Prometheus; bez tokenu endpoint odpowiada 404. Alerty i runbook: [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
 Konfiguracja jest w jednym pliku `.env` w katalogu głównym; aplikacja, CLI migracji i testy bazy wczytują go same, a zmienne ustawione w środowisku mają pierwszeństwo.
 

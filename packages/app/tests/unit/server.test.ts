@@ -70,33 +70,33 @@ describe('the request guard: sessions, CSRF, cross-site, permissions, bodies', (
   });
 
   it('a public route answers a cross-site write with 403 and runs a read normally; a thrown error becomes its status or a generic 500', async () => {
-    const blocked = await handlePublic(req('http://localhost/x', { 'sec-fetch-site': 'cross-site' }), { write: true }, async () => new Response('never') as never);
+    const blocked = await handlePublic(req('http://localhost/x', { 'sec-fetch-site': 'cross-site' }), { write: true, route: '/x' }, async () => new Response('never') as never);
     expect(blocked.status).toBe(403);
-    const ok = await handlePublic(req('http://localhost/x'), {}, async () => apiError(200, 'ok', 'fine'));
+    const ok = await handlePublic(req('http://localhost/x'), { route: '/x' }, async () => apiError(200, 'ok', 'fine'));
     expect(ok.status).toBe(200);
-    const mapped = await handlePublic(req('http://localhost/x'), {}, async () => { throw new NotFoundError('Dish'); });
+    const mapped = await handlePublic(req('http://localhost/x'), { route: '/x' }, async () => { throw new NotFoundError('Dish'); });
     expect(mapped.status).toBe(404);
-    const boom = await handlePublic(req('http://localhost/x'), {}, async () => { throw new Error('secret=abc database down'); });
+    const boom = await handlePublic(req('http://localhost/x'), { route: '/x' }, async () => { throw new Error('secret=abc database down'); });
     expect(boom.status).toBe(500);
     const text = await boom.text();
     expect(text).not.toContain('secret');
   });
 
   it('a protected route: no session is 401; a wrong CSRF token is 403; a missing role is 403; a good request runs', async () => {
-    const anon = await handle(req('http://localhost/x'), { write: false }, async () => apiError(200, 'ok', 'x'));
+    const anon = await handle(req('http://localhost/x'), { write: false, route: '/x' }, async () => apiError(200, 'ok', 'x'));
     expect(anon.status).toBe(401);
     const session = await loginAs('marta@halka.pl');
-    const wrongCsrf = await handle(jsonReq('http://localhost/x', {}, 'POST', { cookie: session.cookie, 'x-csrf-token': 'nope' }), { write: true }, async () => apiError(200, 'ok', 'x'));
+    const wrongCsrf = await handle(jsonReq('http://localhost/x', {}, 'POST', { cookie: session.cookie, 'x-csrf-token': 'nope' }), { write: true, route: '/x' }, async () => apiError(200, 'ok', 'x'));
     expect(wrongCsrf.status).toBe(403);
-    const noRole = await handle(req('http://localhost/x', { cookie: session.cookie }), { write: false, slug: 'halka', permission: 'pairings.decide' }, async () => apiError(200, 'ok', 'x'));
+    const noRole = await handle(req('http://localhost/x', { cookie: session.cookie }), { write: false, route: '/x', slug: 'halka', permission: 'pairings.decide' }, async () => apiError(200, 'ok', 'x'));
     expect(noRole.status).toBe(200);
     const gm = await loginAs('tomasz@halka.pl');
-    const forbidden = await handle(req('http://localhost/x', { cookie: gm.cookie }), { write: false, slug: 'halka', permission: 'pairings.decide' }, async () => apiError(200, 'ok', 'x'));
+    const forbidden = await handle(req('http://localhost/x', { cookie: gm.cookie }), { write: false, route: '/x', slug: 'halka', permission: 'pairings.decide' }, async () => apiError(200, 'ok', 'x'));
     expect(forbidden.status).toBe(403);
-    const good = await handle(jsonReq('http://localhost/x', {}, 'POST', { cookie: session.cookie, 'x-csrf-token': session.csrf }), { write: true, slug: 'halka', permission: 'pairings.decide' }, async ({ actor, principal }) => apiError(200, 'ok', `${actor.name}|${principal.user.email}`));
+    const good = await handle(jsonReq('http://localhost/x', {}, 'POST', { cookie: session.cookie, 'x-csrf-token': session.csrf }), { write: true, route: '/x', slug: 'halka', permission: 'pairings.decide' }, async ({ actor, principal }) => apiError(200, 'ok', `${actor.name}|${principal.user.email}`));
     expect(good.status).toBe(200);
     expect(await good.text()).toContain('Marta Wierzbicka|marta@halka.pl');
-    const cross = await handle(req('http://localhost/x', { cookie: session.cookie, 'sec-fetch-site': 'cross-site' }), { write: true }, async () => apiError(200, 'ok', 'x'));
+    const cross = await handle(req('http://localhost/x', { cookie: session.cookie, 'sec-fetch-site': 'cross-site' }), { write: true, route: '/x' }, async () => apiError(200, 'ok', 'x'));
     expect(cross.status).toBe(403);
   });
 

@@ -9,7 +9,7 @@ const STATUSES = ['suggested', 'approved', 'modified', 'rejected'] as const;
 /** GET /api/v1/restaurants/{slug}/pairings?dishId=&status= — current pairings, including unpublished changes. */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
-  return handle(req, { write: false, slug, permission: 'panel.view' }, async ({ c }) => {
+  return handle(req, { route: '/api/v1/restaurants/{slug}/pairings', write: false, slug, permission: 'panel.view' }, async ({ c }) => {
     const q = req.nextUrl.searchParams;
     const status = q.get('status');
     if (status && !STATUSES.includes(status as (typeof STATUSES)[number])) return apiError(422, 'validation_failed', 'Unknown status.', { status: 'invalid' });
