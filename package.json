@@ -48,7 +48,7 @@
     "test-env:down": "sh .ai/scripts/test-env-down.sh"
   },
   "devDependencies": {
-    "@types/node": "22.20.4",
+    "@types/node": "26.6.5",
     "@vitest/coverage-v8": "5.0.2",
     "oxlint": "1.86.0",
     "tsx": "4.23.15",
