@@ -38,10 +38,13 @@ export function fromDomainError(e: unknown): NextResponse | null {
   switch (d.name) {
     case 'InvalidCredentialsError': return apiError(401, d.code, d.message);
     case 'NoPanelAccessError':
+    case 'TeamHierarchyError':
     case 'ForbiddenError': return apiError(403, d.code, d.message);
     case 'NotFoundError': return apiError(404, d.code, d.message);
     case 'VersionConflictError':
+    case 'LastOwnerError':
     case 'InvariantError': return apiError(409, d.code, d.message);
+    case 'SelfChangeError':
     case 'ValidationError':
     case 'TableNeedsTwoDishesError': return apiError(422, d.code, d.message, d.fields);
     default: return apiError(400, d.code, d.message);
@@ -182,6 +185,12 @@ export async function readUpload(req: NextRequest, maxBytes: number): Promise<{ 
 export const pairingJson = (p: { id: string; dishId: string; wineId: string; status: string; role: string | null; rank: number | null; comment: string | null; modelScore: number; source: string; dirty: boolean; version?: number; updatedBy: string; updatedAt: string }) => ({
   id: p.id, dishId: p.dishId, wineId: p.wineId, status: p.status, role: p.role, rank: p.rank, comment: p.comment, modelScore: p.modelScore,
   source: p.source, dirty: p.dirty, version: p.version ?? null, updatedBy: p.updatedBy, updatedAt: p.updatedAt
+});
+
+/** The JSON shape of a team member in the API (spec E12 R3). Never a password hash, a PIN or a token. */
+export const teamMemberJson = (m: import('@wine-match/core').TeamMember) => ({
+  membershipId: m.membershipId, userId: m.userId, name: m.name, email: m.email, role: m.role, status: m.status, version: m.version,
+  lastLoginAt: m.lastLoginAt, createdAt: m.createdAt, deactivatedAt: m.deactivatedAt, deactivatedBy: m.deactivatedBy
 });
 
 /** The JSON shape of an import job in the API (the file itself is never stored or returned). */

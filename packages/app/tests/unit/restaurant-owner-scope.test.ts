@@ -24,7 +24,8 @@ async function newOwner(): Promise<{ cookie: string; token: string; csrf: string
     const id = '00000000-0000-4000-8000-0000000000a1';
     if (!store.users.some((u) => u.id === id)) {
       store.users.push({ ...template, id, email: 'anna@example.com', name: 'Anna Nowak' });
-      store.memberships.push({ userId: id, restaurantId: '00000000-0000-4000-8000-0000000000b1', restaurantSlug: NEW_SLUG, restaurantName: 'Bistro Nad Wisłą', role: 'owner' });
+      store.memberships.push({ userId: id, restaurantId: '00000000-0000-4000-8000-0000000000b1', restaurantSlug: NEW_SLUG, restaurantName: 'Bistro Nad Wisłą', role: 'owner',
+        membershipId: '00000000-0000-4000-8000-0000000000c1', status: 'active', version: 1, createdAt: '2026-10-20T08:00:00.000Z', deactivatedAt: null, deactivatedBy: null });
     }
   } finally {
     await scope.dispose();

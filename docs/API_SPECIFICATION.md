@@ -14,7 +14,7 @@ Bazowy URL: `https://api.winematch.app/v1` (w aplikacji Next.js: `/api/v1`, rout
 | Paginacja | `?limit=50&cursor=…`; odpowiedź `{data: [], nextCursor}` |
 | Błędy | `{"error": {"code": "validation_failed", "message": "Price must be a positive number.", "fields": {"price": "must_be_positive"}}}` |
 | Kody | 200, 201, 204, 400, 401, 403, 404, 409, 413 (plik), 415 (format), 422 (walidacja), 429, 500 |
-| Stan | zaimplementowane: endpointy publiczne (`GET /dishes/{id}/recommendations`, `POST /recommendations/table`, `GET /public/restaurants/{slug}/menu`) oraz API panelu (Faza 4): `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `GET /restaurants/{slug}/pairings`, `POST /pairings`, `PATCH /pairings/{id}`, `DELETE /pairings/{id}`, `POST /restaurants/{slug}/pairings/bulk-decision`, `PATCH /wines/{id}`, `POST /restaurants/{slug}/publish`. Pozostałe endpointy to kontrakt docelowy |
+| Stan | zaimplementowane: endpointy publiczne (`GET /dishes/{id}/recommendations`, `POST /recommendations/table`, `GET /public/restaurants/{slug}/menu`) oraz API panelu (Faza 4): `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `GET /restaurants/{slug}/pairings`, `POST /pairings`, `PATCH /pairings/{id}`, `DELETE /pairings/{id}`, `POST /restaurants/{slug}/pairings/bulk-decision`, `PATCH /wines/{id}`, `POST /restaurants/{slug}/publish`, a od E12 F1 `GET /restaurants/{slug}/team` i `PATCH /restaurants/{slug}/team/{membershipId}`. Pozostałe endpointy to kontrakt docelowy |
 | Treści dwujęzyczne | od 2026-10-15 (spec `2026-10-15-bilingual-content`) dania, wina, notatki sommeliera i restauracja mają tłumaczenia PL/EN, ale **`/api/v1` zwraca teksty bazowe, jak dotąd** (bez `translations`, parametr `lang` jest ignorowany); tłumaczenia w API — osobna specyfikacja |
 | Import i QR (Faza 5) | `POST /imports/menu` i `POST /imports/wines` (multipart, pole `file`; 201 z podglądem wierszy, kontrolami i notatkami), `GET /imports/{id}`, `PATCH /imports/{id}/rows` (`{rows:[{rowNumber, fields?, include?}]}`), `POST /imports/{id}/confirm` (200 `{created, updated, skipped, suggestions}`, jednorazowo), `DELETE /imports/{id}` (anuluje), `GET /restaurants/{slug}/qr?format=svg\|png&size=&download=1`, publicznie `GET /import-samples/menu\|wines\|sales`; `POST /imports/sales` (pozycje rachunków z POS, CSV/XLSX, `valueMap`, `replaced` — patrz „Imports”); restauracja przez `?restaurant={slug}`; wymaga uprawnienia `import.manage` (Sommelier, GM, Owner). Błędy pliku: 422 z kodem (`unsupported_format`, `legacy_xls`, `format_mismatch`, `corrupt_file`, `scanned_pdf`, `file_too_large`, `too_many_rows`, `empty_file`, `no_rows`, `no_header` — tylko sprzedaż, `no_complete_checks`); zamknięte zadanie: 422 `job_closed`. Typ pliku wykrywany po zawartości |
 | Odstępstwa Fazy 4 | restauracja w ścieżce lub w `?restaurant=` to **slug** (nie UUID); `PATCH /pairings/{id}` przyjmuje **jedną** zmianę na żądanie (`status`, `role` albo `comment`) i wymaga `If-Match` (brak → 428, niezgodna wersja → 409); `rank` i `PUT /dishes/{id}/pairings/order`, `/pairings/generate` oraz klucze API nie są jeszcze zaimplementowane; limit prób logowania jest per konto, nie per adres IP |
@@ -35,6 +35,17 @@ Uprawnienia: **P** publiczny, **W** waiter, **S** sommelier, **M** owner/manager
 | POST | `/auth/logout` | S M | `204` |
 | GET | `/auth/me` | S M | bieżący użytkownik i rola w lokalu |
 | POST | `/auth/password-reset` | P | `{email}` → `202` (zawsze, bez ujawniania kont) |
+
+### Zespół restauracji (E12 F1)
+
+Wymagają uprawnienia `team.manage` (owner, manager) w lokalu `{slug}`; zapisy: sesja, `X-CSRF-Token`, `If-Match`. Hierarchię (Q7) egzekwuje serwis, nie macierz uprawnień.
+
+| Metoda | Ścieżka | Rola | Opis |
+|---|---|---|---|
+| GET | `/restaurants/{slug}/team` | O M | `200 {members[]}`: każdy z `membershipId`, `userId`, `name`, `email`, `role`, `status` (`active` / `deactivated`), `version`, `lastLoginAt`, `createdAt`, `deactivatedAt`, `deactivatedBy`; nigdy skrót hasła |
+| PATCH | `/restaurants/{slug}/team/{membershipId}` | O M | nagłówek `If-Match: "<version>"` wymagany (428 bez niego, 400 gdy nie liczba); ciało `{role?, status?}` (co najmniej jedno; `strictObject`); `200` z osobą i nowym `ETag`. Błędy: `403 team_hierarchy` (manager zmienia właściciela lub innego managera albo nadaje `owner`/`manager`), `422 self_change` (własna rola lub dezaktywacja), `409 last_owner` (ostatni aktywny właściciel), `409 version_conflict`, `422 member_deactivated` (zmiana roli osoby bez dostępu), `404` (osoba spoza lokalu, także id niebędące UUID-em), `403` bez `team.manage` |
+
+Dezaktywacja działa od następnego żądania osoby (sesja zostaje, ale `GET /auth/me` nie zwraca już tego lokalu, a API i panel odpowiadają 403); reaktywacja przywraca dostęp bez nowego logowania. Zaproszenia, konto, sesje, reset hasła, PIN kelnera i dziennik (A18) to kolejne fazy E12.
 
 ---
 

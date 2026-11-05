@@ -29,6 +29,7 @@ A test without a scenario, or a scenario without a test, fails `node scripts/che
 | `kpi` | Dashboard indicators: guest usage, pairing performance, sales and attach rate |
 | `usage` | Usage events written by the guest and staff paths |
 | `restaurant` | The restaurant created by the operator command and its isolation |
+| `team` | Team and access: roles, deactivation, who may change whom (E12) |
 | `ops` | Operator-facing behaviour of the running app: metrics endpoint, request log |
 | `import` | Reserved for menu, wine and sales import (no end-to-end test yet) |
 

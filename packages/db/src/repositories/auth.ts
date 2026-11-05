@@ -1,5 +1,6 @@
 import type { EntityManager } from '@mikro-orm/postgresql';
 import type { AuthRepository, AuthUser, Membership, SessionRecord } from '@wine-match/core';
+import { isUuid } from './ids';
 import { MembershipEntity, SessionEntity, UserEntity, type UserRow } from '../entities';
 
 interface Deps { em: EntityManager }
@@ -19,7 +20,9 @@ export class PgAuthRepository implements AuthRepository {
   }
 
   async membershipsOf(userId: string): Promise<Membership[]> {
-    const rows = await this.em.find(MembershipEntity, { user: userId }, { populate: ['restaurant'], orderBy: { createdAt: 'asc' } });
+    if (!isUuid(userId)) return [];
+    // only active memberships grant access: a deactivated person loses it on the next request (spec E12 R2)
+    const rows = await this.em.find(MembershipEntity, { user: userId, status: 'active' }, { populate: ['restaurant'], orderBy: { createdAt: 'asc' } });
     return rows.map((m) => ({ restaurantId: m.restaurant.id, restaurantSlug: m.restaurant.slug, restaurantName: m.restaurant.name, role: m.role }));
   }
 
