@@ -46,8 +46,8 @@ function npmSeed(url: string, env: Record<string, string>): Promise<{ code: numb
   });
 }
 
-const seeder = (env: Record<string, string | undefined>) => new DemoSeeder(env);
-const runSeeder = (url: string, env: Record<string, string | undefined>) => withOrm(url, (orm) => seeder(env).run(orm.em.fork()));
+const warnings: string[] = [];
+const runSeeder = (url: string, env: Record<string, string | undefined>) => withOrm(url, (orm) => new DemoSeeder(env, (m) => { warnings.push(m); }).run(orm.em.fork()));
 
 async function addPilotRestaurant(url: string): Promise<void> {
   vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -76,6 +76,43 @@ describe('npm run db:seed in production (AC8)', () => {
   });
 });
 
+describe('npm run db:seed by environment name (review of PR #120)', () => {
+  it.each(['Production', 'PRODUCTION', ' production ', 'prod', 'staging', 'prodution'])('NODE_ENV=%j without ALLOW_DEMO_DATA fails and writes nothing', async (name) => {
+    const url = await migrated('winematch_seed_name');
+    const { code, output } = await npmSeed(url, { NODE_ENV: name });
+    expect(code).not.toBe(0);
+    expect(output).toMatch(/Refusing/);
+    expect(await counts(url)).toEqual({ restaurants: 0, users: 0, memberships: 0, dishes: 0 });
+  });
+
+  it.each(['staging', 'Production'])('NODE_ENV=%s with ALLOW_DEMO_DATA=true still refuses a database with another restaurant', async (name) => {
+    const url = await migrated('winematch_seed_name_pilot');
+    await addPilotRestaurant(url);
+    const before = await counts(url);
+    const { code, output } = await npmSeed(url, { NODE_ENV: name, ALLOW_DEMO_DATA: 'true' });
+    expect(code).not.toBe(0);
+    expect(output).toMatch(/real installation/);
+    expect(await counts(url)).toEqual(before);
+  });
+
+  it.each(['development', 'test'])('NODE_ENV=%s is allowed, silently, next to another restaurant', async (name) => {
+    const url = await migrated('winematch_seed_name_dev');
+    await addPilotRestaurant(url);
+    const { code, output } = await npmSeed(url, { NODE_ENV: name });
+    expect(code).toBe(0);
+    expect(output).not.toMatch(/Warning: NODE_ENV/);
+    expect((await counts(url)).restaurants).toBe(2);
+  });
+
+  it('NODE_ENV unset is allowed but warns that the guard cannot tell the environment', async () => {
+    const url = await migrated('winematch_seed_unset');
+    const { code, output } = await npmSeed(url, {});
+    expect(code).toBe(0);
+    expect(output).toMatch(/Warning: NODE_ENV is not set/);
+    expect((await counts(url)).restaurants).toBe(1);
+  });
+});
+
 describe('DemoSeeder guard', () => {
   it('refuses in production without ALLOW_DEMO_DATA, before any write', async () => {
     const url = await migrated('winematch_seed_prod');
@@ -87,7 +124,9 @@ describe('DemoSeeder guard', () => {
     const url = await migrated('winematch_seed_exact');
     for (const allow of ['TRUE', 'yes', '1', ' ', '']) await expect(runSeeder(url, { NODE_ENV: 'production', ALLOW_DEMO_DATA: allow })).rejects.toThrow(/Refusing/);
     expect((await counts(url)).restaurants).toBe(0);
-    await runSeeder(url, { NODE_ENV: ' ', ALLOW_DEMO_DATA: '' });   // a blank NODE_ENV is not production
+    warnings.length = 0;
+    await runSeeder(url, { NODE_ENV: ' ', ALLOW_DEMO_DATA: '' });   // a blank NODE_ENV: allowed, with a warning
+    expect(warnings).toHaveLength(1);
     expect((await counts(url)).restaurants).toBe(1);
   });
 

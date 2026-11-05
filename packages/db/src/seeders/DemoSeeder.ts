@@ -11,14 +11,14 @@ import { DishEntity, MembershipEntity, PairingEntity, PublishedVersionEntity, Re
  * Refuses to run in production (see `assertSeedAllowed`) before it writes anything.
  */
 export class DemoSeeder extends Seeder {
-  constructor(private readonly environment: Record<string, string | undefined> = process.env) {
+  constructor(private readonly environment: Record<string, string | undefined> = process.env, private readonly warn?: (message: string) => void) {
     super();
   }
 
   async run(em: EntityManager): Promise<void> {
     const data = buildDemoDataset({ ids: 'uuid' });
     const { restaurant, dishes, wines, pairings, users } = data;
-    await assertSeedAllowed(em, restaurant.slug, this.environment);
+    await assertSeedAllowed(em, restaurant.slug, this.environment, this.warn);
     if (await em.count(RestaurantEntity, { slug: restaurant.slug })) {
       await fillTranslations(em, data);
       return;
