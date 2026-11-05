@@ -29,13 +29,14 @@ describe('home page and the guest path', () => {
     expect(page).toContain('Duck breast');
   });
 
-  it('the table result relaxes a budget no bottle meets: a notice and the closest bottles, with "n of m" (whole-table spec, AC15)', async () => {
+  it('the table result relaxes a budget no bottle meets: a notice and the closest bottles, and the "works with" count (whole-table spec, AC15)', async () => {
     const menu = (await (await fetch(`${baseUrl()}/api/v1/public/restaurants/halka/menu`)).json()) as { categories: Array<{ dishes: Array<{ id: string; name: string }> }> };
     const id = (name: string) => menu.categories.flatMap((c) => c.dishes).find((d) => d.name === name)!.id;
     const dishes = ['Beef tartare', 'Wild mushroom risotto', 'Duck breast', 'Pike-perch'].map(id).join(',');
     await browser.open(`${baseUrl()}/r/halka/table/result?dishes=${dishes}&styles=red&maxPrice=200`);
-    const page = await browser.waitForPageText('Nothing matches under 200 zł');
+    const page = await browser.waitForPageText('Nothing matches under 200 zł. These are the closest options.');
     expect(page).not.toContain('No bottle fits these filters');
+    expect(page).toMatch(/Works with (all 4|\d+ of 4) dishes\./);
     expect(page).toMatch(/Works with|Not a strong match/);
     expect(await browser.count('details[data-explain="tableResult"]')).toBe(1);
   });

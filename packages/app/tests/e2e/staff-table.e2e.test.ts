@@ -77,6 +77,8 @@ describe('G11 without JavaScript: the lookup, the code, "Choose this one" (AC12,
   it('G11 without dishes or with one dish records nothing and issues no code', async () => {
     const sid = '0e2e0000-0000-4000-8000-0000000000b1';
     const form = await get(`/r/halka/staff/table?sid=${sid}`);
+    expect(form.html).toContain('Show the bottle');
+    expect(form.html).not.toContain('This bottle:');
     const dish = /name="dish"[^>]* value="([^"]+)"/.exec(form.html)![1];
     expect((await get(`/r/halka/staff/table?sid=${sid}&dish=${dish}`)).html).toContain('Tick at least two dishes.');
     await new Promise((r) => setTimeout(r, 1_000));
@@ -122,10 +124,15 @@ describe('G11 in a browser without JavaScript: five taps, 48 px tiles, no sidewa
   });
 
   it('1440 px: the same answer in the 720 px column, no sideways scroll', async () => {
+    const menu = (await (await fetch(`${baseUrl()}/api/v1/public/restaurants/halka/menu`)).json()) as { categories: Array<{ dishes: Array<{ id: string; name: string }> }> };
+    const id = (name: string) => menu.categories.flatMap((c) => c.dishes).find((d) => d.name === name)!.id;
+    const dishes = ['Beef tartare', 'Wild mushroom risotto', 'Duck breast', 'Pike-perch'].map(id).join(',');
     await browser.run('set', 'viewport', '1440', '900');
-    await browser.run('reload');
-    await browser.waitForPageText('This bottle:');
+    await browser.open(`${baseUrl()}/r/halka/staff/table?dishes=${dishes}&lang=en`);
+    const page = await browser.waitForPageText('This bottle:');
+    expect(page).toContain('Works with all 4 dishes.');
     expect(await evalJs('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
+    expect(await evalJs('document.querySelector("main").getBoundingClientRect().width')).toBeLessThanOrEqual(720);
   });
 });
 

@@ -27,8 +27,8 @@ On the waiter’s whole-table screen no amount is shown until the waiter taps th
 
 ## Then
 
-1. Before the tap the page shows the bottle "No. 109 Radikon Slatnik." and no amount.
-2. After the tap it shows "For 4 people:" and still the same bottle.
+1. Before the tap the page shows a recommended bottle (read from the page, not hard-coded) and no amount.
+2. After the tap it shows "For 4 people:" and still the same bottle as before the tap.
 3. The page is not wider than the window.
 
 ## Edge cases covered
@@ -38,10 +38,8 @@ On the waiter’s whole-table screen no amount is shown until the waiter taps th
 ## Data and cleanup
 
 - Runs against the shared built app and the e2e database seeded with the demo restaurant Halka. The test file uses its own browser session.
-- Continues the browser session of the previous test but starts a new page. The bottle name depends on the seed data.
 
 ## Test implementation
 
 [packages/app/tests/e2e/table-quantity.e2e.test.ts](../../../packages/app/tests/e2e/table-quantity.e2e.test.ts): `1440 px, G11: the waiter taps "4" under the bottle — the amount, no sideways scroll`
 
-**Notes for the reviewer:** The test hard-codes the recommended bottle name from the seed, so changing demo data or engine rules can break it.

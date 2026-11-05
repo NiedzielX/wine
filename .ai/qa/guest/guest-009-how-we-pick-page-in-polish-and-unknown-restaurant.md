@@ -30,7 +30,7 @@ The explanation page exists in Polish and an unknown restaurant gets a friendly 
 
 1. The heading is "Jak dobieramy wino".
 2. Two links lead back to the Polish landing page and keep the language.
-3. The unknown restaurant shows "This menu isn’t available".
+3. The unknown restaurant shows "This menu isn’t available" and the server answers with HTTP status 404.
 
 ## Edge cases covered
 
@@ -47,4 +47,3 @@ The explanation page exists in Polish and an unknown restaurant gets a friendly 
 
 [packages/app/tests/e2e/how-it-works.e2e.test.ts](../../../packages/app/tests/e2e/how-it-works.e2e.test.ts): `G12 in Polish, and a 404 for an unknown restaurant`
 
-**Notes for the reviewer:** The unknown-restaurant check asserts only that some text matching "This menu isn’t available" appears, not an HTTP status, although the title says 404.

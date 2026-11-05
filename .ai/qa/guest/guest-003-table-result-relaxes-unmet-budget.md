@@ -8,7 +8,7 @@ spec:
   ac: ["AC15"]
 test:
   file: packages/app/tests/e2e/home.e2e.test.ts
-  it: "the table result relaxes a budget no bottle meets: a notice and the closest bottles, with \"n of m\" (whole-table spec, AC15)"
+  it: "the table result relaxes a budget no bottle meets: a notice and the closest bottles, and the \"works with\" count (whole-table spec, AC15)"
 ---
 
 # guest-003-table-result-relaxes-unmet-budget: Table result relaxes unmet budget
@@ -27,9 +27,9 @@ When no bottle meets the budget the table result says so and shows the closest b
 
 ## Then
 
-1. The page shows the notice "Nothing matches under 200 zł".
+1. The page shows the notice "Nothing matches under 200 zł. These are the closest options."
 2. The page does not say "No bottle fits these filters".
-3. Bottles are shown with a "Works with" or "Not a strong match" label.
+3. Bottles are shown with a "Works with" or "Not a strong match" label, and the top bottle says "Works with all 4 dishes." or "Works with n of 4 dishes."
 4. The page has exactly one explanation block for the table result.
 
 ## Edge cases covered
@@ -43,6 +43,5 @@ When no bottle meets the budget the table result says so and shows the closest b
 
 ## Test implementation
 
-[packages/app/tests/e2e/home.e2e.test.ts](../../../packages/app/tests/e2e/home.e2e.test.ts): `the table result relaxes a budget no bottle meets: a notice and the closest bottles, with "n of m" (whole-table spec, AC15)`
+[packages/app/tests/e2e/home.e2e.test.ts](../../../packages/app/tests/e2e/home.e2e.test.ts): `the table result relaxes a budget no bottle meets: a notice and the closest bottles, and the "works with" count (whole-table spec, AC15)`
 
-**Notes for the reviewer:** The test name mentions an "n of m" count, but the test does not assert it. Only the notice, the labels and the explanation block are checked.

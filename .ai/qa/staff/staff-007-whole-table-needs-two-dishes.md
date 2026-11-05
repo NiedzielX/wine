@@ -27,7 +27,7 @@ The whole-table lookup with no dish or with only one dish records nothing and is
 
 ## Then
 
-1. The page says "Tick at least two dishes."
+1. With no dishes the page is the form ("Show the bottle") and shows no bottle; with one dish it says "Tick at least two dishes."
 2. After a wait, no usage event and no code exist for the session.
 
 ## Edge cases covered
@@ -43,4 +43,3 @@ The whole-table lookup with no dish or with only one dish records nothing and is
 
 [packages/app/tests/e2e/staff-table.e2e.test.ts](../../../packages/app/tests/e2e/staff-table.e2e.test.ts): `G11 without dishes or with one dish records nothing and issues no code`
 
-**Notes for the reviewer:** The test asserts the message for the one-dish case only; the zero-dish page is only opened, its text is not asserted.
