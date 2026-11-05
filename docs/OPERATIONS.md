@@ -8,17 +8,17 @@ Wine Match nie używa zewnętrznego SaaS do monitoringu (spec `2026-11-04-platfo
 
 | Metryka | Znaczenie |
 |---|---|
-| `http_requests_total{group,status_class}` | żądania API według wzorca trasy i klasy statusu |
+| `http_requests_total{group,status_class}` | żądania API według wzorca trasy i klasy statusu; liczone jest każde żądanie, także odrzucone przed logiką (403 CSRF, 401) i takie, w którym nie udało się otworzyć zakresu żądania (baza nie działa, 5xx). Scrape `/api/v1/metrics` nie jest liczony ani logowany, żeby nie zaniżał wskaźnika 5xx |
 | `http_request_duration_seconds` | histogram czasu żądań API |
-| `guest_code_issue_total{result}` | wydanie kodu polecenia: `issued`, `timeout`, `limit`, `rate_limited`, `error` |
+| `guest_code_issue_total{result}` | wydanie kodu polecenia: `issued`, `declined` (serwis zwrócił brak kodu: dzienny limit sesji, nieznane lub nieaktywne wino, za dużo dań, wyczerpana przestrzeń kodów; serwis nie rozróżnia tych przypadków), `timeout` (przekroczone 1,5 s), `error` (wyjątek, zwykle baza), `rate_limited` (wypełnia F3) |
 | `usage_event_write_failed_total` | nieudane zapisy zdarzeń użycia (strona gościa działa dalej) |
-| `rate_limit_denied_total{rule}` | odmowy limitu żądań (wypełnia faza F3) |
-| `db_health_check_duration_seconds` | czas sprawdzenia bazy w health (wypełnia E11) |
+| `rate_limit_denied_total{rule}` | odmowy limitu żądań (**brak emitera do czasu fazy F3**: seria jest pusta) |
+| `db_health_check_duration_seconds` | czas sprawdzenia bazy w health (**brak emitera do czasu E11**: seria jest pusta) |
 | `unhandled_errors_total{source}` | błędy z `onRequestError` (`render`, `route`, `action`, `proxy`) i procesu (`unhandledRejection`, `uncaughtException`) |
 
 ## Logi: wymóg dla reverse proxy
 
-Dziennik dostępowy proxy **musi obcinać query string**: `sid=`, `diet=` i `without=` mogą ujawniać dane o zdrowiu (diety, alergeny). To wymóg, nie opcja; dotyczy też alertów z adresem URL. Format JSON, retencja 30 dni. Aplikacja sama loguje żądania API bez query (wiersz `api request`), a strony gościa i panelu tylko proxy.
+Dziennik dostępowy proxy **musi obcinać query string**: `sid=`, `diet=` i `without=` mogą ujawniać dane o zdrowiu (diety, alergeny). To wymóg, nie opcja; dotyczy też alertów z adresem URL. Format JSON, retencja 30 dni. Aplikacja sama loguje każde żądanie API jako jeden wiersz `api request` (metoda, wzorzec trasy, status, czas; przy nieoczekiwanym błędzie poziom `error` z zredagowanym `err` w tym samym wierszu), bez query, nagłówków i IP; strony gościa i panelu loguje tylko proxy. Endpoint metryk działa bez bazy i nie jest logowany.
 
 ## Alerty
 
@@ -26,7 +26,7 @@ Dziennik dostępowy proxy **musi obcinać query string**: `sid=`, `diet=` i `wit
 |---|---|---|
 | Aplikacja nie żyje | uptime check na `GET /api/v1/health` nie przechodzi przez 2 kolejne próby (1 min) | sprawdź kontener i logi startu (`checkStartup` kończy proces kodem 1 przy błędnej konfiguracji), połączenie z bazą, ostatnie wdrożenie; w razie wdrożenia wróć do poprzedniego obrazu |
 | Wskaźnik 5xx | suma `http_requests_total{status_class="5xx"}` / suma wszystkich > 2% przez 5 minut | przeszukaj logi po `api request failed` i `request error` (digest, trasa), sprawdź bazę i ostatnie wdrożenie |
-| Błędy procesu | `increase(unhandled_errors_total{source=~"unhandled.*|uncaught.*"}[10m]) > 0` | proces działa dalej, ale stan jest niepewny: przeczytaj log, zrestartuj repliki po kolei |
+| Błędy procesu | `increase(unhandled_errors_total{source=~"unhandled.*|uncaught.*"}[10m]) > 0` | proces działa dalej (handlery tylko logują i liczą), ale po `uncaughtException` stan procesu jest nieokreślony: przeczytaj log i zrestartuj repliki po kolei. `unhandledRejection` nie zabija już procesu (zmiana domyślnego zachowania Node, zamierzona) |
 | Zapis zdarzeń gościa | `increase(usage_event_write_failed_total[10m]) > 0` | sprawdź bazę i miejsce na dysku; KPI będą niepełne |
 | Brak kopii starszej niż 26 h | wymaga F2 (kopie) | po wdrożeniu F2: sprawdź zadanie kopii, miejsce na dysku, dostęp do bazy |
 

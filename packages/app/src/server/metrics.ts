@@ -7,7 +7,7 @@
 
 const BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 
-export type CodeIssueResult = 'issued' | 'timeout' | 'limit' | 'rate_limited' | 'error';
+export type CodeIssueResult = 'issued' | 'declined' | 'timeout' | 'rate_limited' | 'error';
 export type UnhandledSource = 'render' | 'route' | 'action' | 'proxy' | 'unhandledRejection' | 'uncaughtException' | 'unknown';
 
 interface Histogram { buckets: number[]; sum: number; count: number }

@@ -21,14 +21,16 @@ export async function issueCodeForPage(
 ): Promise<IssuedCode | null> {
   if (!shouldRecord(await headers())) return null;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // set only by the timer, so `timeout` is exactly "the 1.5 s budget ran out"; any other rejection is `error`
   let timedOut = false;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => { timedOut = true; reject(new Error(`timed out after ${ISSUE_TIMEOUT_MS} ms`)); }, ISSUE_TIMEOUT_MS);
   });
   try {
     const issued = await Promise.race([services.recommendationCodeService.issue(restaurant.slug, input), timeout]);
-    // null: the service declined (the per-session daily limit R13, or input it does not accept)
-    countCodeIssue(issued ? 'issued' : 'limit');
+    // null: the service declined (daily session limit R13, unknown or inactive wine, too many dishes, code space exhausted);
+    // the service does not say which, so one label: `declined`
+    countCodeIssue(issued ? 'issued' : 'declined');
     return issued;
   } catch (error) {
     countCodeIssue(timedOut ? 'timeout' : 'error');

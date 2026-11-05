@@ -34,3 +34,8 @@ Przejęcie po przerwanym przebiegu: commit WIP, merge origin/main bez konfliktó
 ## Dług i uwagi
 - `observeDbHealthCheck` i `rate_limit_denied_total` nie mają jeszcze wywołań: czekają na health (E11) i F3.
 - Wydanie kodu: wynik `rate_limited` w `CodeIssueResult` dla F3.
+
+## Poprawki po review niezależnym (2026-11-05)
+Zakres: `instrumented()` w `api-auth.ts` obejmuje każdą ścieżkę (wczesne 403 CSRF, 401, błąd `createRequestScope`/`dispose`): jeden wiersz `api request` i jedna próbka `http_requests_total`; błąd nieoczekiwany to ten sam wiersz na poziomie `error` z `err` (bez drugiego wiersza `api request failed`). `/api/v1/metrics` bez `handlePublic`: bez zakresu, bez bazy, bez logu i licznika (scrape nie zaniża wskaźnika 5xx). Etykieta `limit` zastąpiona przez `declined` (serwis nie odróżnia limitu od odrzuconego wejścia), `timedOut` opisany. Komentarz w `request-errors.ts`: po `uncaughtException` stan procesu jest nieokreślony (runbook restartuje repliki); **nasz listener `unhandledRejection` zmienia domyślne zachowanie Node (crash przy nieobsłużonym odrzuceniu) na log-i-kontynuuj: zamierzone.**
+- Brak emiterów: `db_health_check_duration_seconds` (czeka na health E11) i `rate_limit_denied_total` (czeka na F3) nie mają jeszcze żadnych wywołań; seria jest pusta.
+- RED na kodzie sprzed poprawek (ac11914, `git stash` plików src): 7 testów padło (500 jednym wierszem, 403 CSRF, 500 w gałęzi błędu, awaria zakresu, awaria dispose, metryki przy padającym `createRequestScope`, etykiety wyniku kodu). Testy handlerów procesu i etykiet były już zielone: to uzupełnienie pokrycia (finding 3), nie dowód błędu.

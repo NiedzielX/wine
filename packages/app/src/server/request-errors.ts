@@ -42,7 +42,10 @@ const g = globalThis as unknown as { __wineMatchProcessHandlers?: boolean };
 
 /**
  * Registers the process-level handlers once. Like Next.js' own `uncaughtException` handler they only log and count: they
- * do not exit, so the process behaves as before.
+ * do not exit, so the process behaves as before for exceptions. NOTE: after an `uncaughtException` the state of the
+ * process is undefined; the runbook (docs/OPERATIONS.md) restarts replicas after such an alert. NOTE 2: a listener for
+ * `unhandledRejection` replaces Node's default of crashing on an unhandled rejection with log-and-continue (intended:
+ * a guest page must not go down for a stray rejection; the counter and the alert make it visible).
  */
 export function registerProcessHandlers(): void {
   if (g.__wineMatchProcessHandlers) return;

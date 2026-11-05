@@ -4,6 +4,8 @@ import { GET as metricsGet } from '@/app/api/v1/metrics/route';
 import { GET as menuGet } from '@/app/api/v1/public/restaurants/[slug]/menu/route';
 import { GET as meGet } from '@/app/api/v1/auth/me/route';
 import { logger } from '@/server/logger';
+import { handle, handlePublic } from '@/server/api-auth';
+import { countRateLimitDenied } from '@/server/metrics';
 import { countCodeIssue, labelValue, observeDbHealthCheck, recordHttpRequest, renderMetrics, resetMetrics, statusClass } from '@/server/metrics';
 import { onRequestError, register } from '@/instrumentation';
 import { registerProcessHandlers, reportProcessError } from '@/server/request-errors';
@@ -131,7 +133,9 @@ describe('request log line and error hooks (AC2)', () => {
     expect(body).toContain('unexpected');
     expect(body).not.toMatch(/haslo|stack|\bat /);
     expect(lines.join('\n')).not.toContain('haslo');
-    expect(lines.join('\n')).toContain('api request failed');
+    expect(lines.join('\n')).toContain('api request');
+    expect(lines.join('\n')).not.toContain('api request failed');
+    expect(lines.filter((l) => l.includes('/api/v1/public/restaurants/{slug}/menu'))).toHaveLength(1); // one line, not an access line plus an error line
     expect(renderMetrics()).toContain('http_requests_total{group="/api/v1/public/restaurants/{slug}/menu",status_class="5xx"} 1');
     expect(renderMetrics()).toContain('unhandled_errors_total{source="route"} 1');
   });
@@ -181,5 +185,120 @@ describe('request log line and error hooks (AC2)', () => {
       else process.env.NEXT_RUNTIME = before;
     }
     expect(lines).toEqual([]);
+  });
+});
+
+const apiOk = () => new Response('ok') as never;
+
+describe('every response path leaves one log line and one counter sample (AC2, review finding 1)', () => {
+  /** Every `api request` line, whatever its level (the unit suite runs with LOG_LEVEL=error, so spy on the logger itself). */
+  const infoOrError = () => {
+    const lines: Record<string, unknown>[] = [];
+    const keep = (level: string) => (msg: string, fields?: Record<string, unknown>) => { if (msg === 'api request') lines.push({ level, ...fields }); };
+    vi.spyOn(logger, 'info').mockImplementation(keep('info'));
+    vi.spyOn(logger, 'error').mockImplementation(keep('error'));
+    return lines;
+  };
+  const sample = (route: string, cls: string) => new RegExp(`http_requests_total\\{group="${route.replace(/[{}]/g, '\\$&')}",status_class="${cls}"\\} (\\d+)`).exec(renderMetrics())?.[1];
+
+  it('a cross-site write refused before the scope is opened is logged and counted as 4xx', async () => {
+    const lines = infoOrError();
+    const res = await handlePublic(req(`${URL0}/api/v1/x?sid=secret`, { 'sec-fetch-site': 'cross-site' }), { write: true, route: '/api/v1/x' }, async () => new Response('never') as never);
+    expect(res.status).toBe(403);
+    const res2 = await handle(req(`${URL0}/api/v1/y`, { 'sec-fetch-site': 'cross-site' }), { write: true, route: '/api/v1/y' }, async () => new Response('never') as never);
+    expect(res2.status).toBe(403);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatchObject({ method: 'GET', route: '/api/v1/x', status: 403 });
+    expect(sample('/api/v1/x', '4xx')).toBe('1');
+    expect(sample('/api/v1/y', '4xx')).toBe('1');
+  });
+
+  it('an unexpected failure is ONE line at error level carrying the redacted error, and a 5xx sample', async () => {
+    const lines = infoOrError();
+    const res = await handlePublic(req(`${URL0}/api/v1/z`), { route: '/api/v1/z' }, async () => { throw new Error(`down ${DB_URL}`); });
+    expect(res.status).toBe(500);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ level: 'error', route: '/api/v1/z', status: 500 });
+    expect(lines[0].err).toBeInstanceOf(Error); // the logger redacts `err`; the line carries it as a field, never a second line
+    expect(sample('/api/v1/z', '5xx')).toBe('1');
+  });
+
+  it('a failure to open the request scope (database down) is a generic 500, one line and a 5xx sample', async () => {
+    const lines = infoOrError();
+    const container = await import('@/server/container');
+    vi.spyOn(container, 'createRequestScope').mockRejectedValueOnce(new Error(`connect ECONNREFUSED ${DB_URL}`));
+    const res = await handlePublic(req(`${URL0}/api/v1/db`), { route: '/api/v1/db' }, async () => new Response('never') as never);
+    expect(res.status).toBe(500);
+    expect(await res.text()).not.toMatch(/ECONNREFUSED|haslo/);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ route: '/api/v1/db', status: 500 });
+    expect(sample('/api/v1/db', '5xx')).toBe('1');
+  });
+
+  it('a failing scope dispose is counted too, not lost', async () => {
+    const lines = infoOrError();
+    const container = await import('@/server/container');
+    vi.spyOn(container, 'createRequestScope').mockResolvedValueOnce({ cradle: {}, dispose: () => Promise.reject(new Error('dispose failed')) } as never);
+    const res = await handlePublic(req(`${URL0}/api/v1/d`), { route: '/api/v1/d' }, async () => apiOk());
+    expect(res.status).toBe(500);
+    expect(lines).toHaveLength(1);
+    expect(sample('/api/v1/d', '5xx')).toBe('1');
+  });
+});
+
+describe('GET /api/v1/metrics needs no request scope (review finding 2)', () => {
+  it('answers 200 with a valid token while createRequestScope throws, and is neither logged nor counted', async () => {
+    state.token = TOKEN;
+    const container = await import('@/server/container');
+    const scope = vi.spyOn(container, 'createRequestScope').mockRejectedValue(new Error('database down'));
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect((await get({ authorization: `Bearer ${TOKEN}` })).status).toBe(200);
+    expect((await get()).status).toBe(401);
+    state.token = undefined;
+    expect((await get()).status).toBe(404);
+    expect(scope).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+    expect(renderMetrics()).not.toContain('/api/v1/metrics');
+  });
+});
+
+describe('process handlers and label hygiene (review finding 3)', () => {
+  it('register() in the Node.js runtime installs both handlers once, and firing them logs and counts without exiting', async () => {
+    const g = globalThis as unknown as { __wineMatchProcessHandlers?: boolean };
+    delete g.__wineMatchProcessHandlers;
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+    const before = { r: process.listeners('unhandledRejection'), e: process.listeners('uncaughtException') };
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    const lines: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((l: string) => { lines.push(l); });
+    try {
+      await register();
+      await register();
+      const added = { r: process.listeners('unhandledRejection').filter((l) => !before.r.includes(l)), e: process.listeners('uncaughtException').filter((l) => !before.e.includes(l)) };
+      expect(added.r).toHaveLength(1);
+      expect(added.e).toHaveLength(1);
+      (added.r[0] as (r: unknown) => void)(new Error('rejected'));
+      (added.e[0] as (e: unknown) => void)(new Error('thrown'));
+      expect(renderMetrics()).toContain('unhandled_errors_total{source="unhandledRejection"} 1');
+      expect(renderMetrics()).toContain('unhandled_errors_total{source="uncaughtException"} 1');
+      expect(lines.some((l) => l.includes('uncaughtException'))).toBe(true);
+      expect(exit).not.toHaveBeenCalled();
+      for (const l of added.r) process.off('unhandledRejection', l as never);
+      for (const l of added.e) process.off('uncaughtException', l as never);
+    } finally {
+      delete g.__wineMatchProcessHandlers;
+    }
+  });
+
+  it('rate_limit_denied_total sanitizes the rule label, and no label across several routes holds a slug or UUID', () => {
+    countRateLimitDenied('public-api');
+    countRateLimitDenied('bad"rule\n7c9e6679-7425-40de-944b-e07fc1f90ae7');
+    for (const route of ['/api/v1/pairings/{id}', '/api/v1/restaurants/{slug}/publish', '/api/v1/auth/login', `/api/v1/pairings/7c9e6679-7425-40de-944b-e07fc1f90ae7`]) recordHttpRequest(route, 200, 0.01);
+    const text = renderMetrics();
+    expect(text).toContain('rate_limit_denied_total{rule="public-api"} 1');
+    expect(text).toContain('rate_limit_denied_total{rule="bad_rule_{id}"} 1');
+    const labels = [...text.matchAll(/\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g)].map((m) => m[1]).join(' ');
+    expect(labels).not.toMatch(UUID_RE);
+    expect(labels).not.toContain('halka');
   });
 });
