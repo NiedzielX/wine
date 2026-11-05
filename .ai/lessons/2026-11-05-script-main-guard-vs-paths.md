@@ -18,5 +18,7 @@ Strażnik `if (import.meta.url === \`file://${process.argv[1]}\`) process.exit(m
 ## Reguła
 W skrypcie ESM porównuj `import.meta.url` z `pathToFileURL(realpathSync(process.argv[1])).href`, nigdy z doklejonym `file://`. Skrypt, który jest zabezpieczeniem, ma test, który uruchamia go z katalogu ze spacją, `%` i znakami spoza ASCII (zwykle ścieżka CI ich nie ma, więc zwykły test nic nie wykryje), i oczekuje blokady, nie braku odpowiedzi.
 
+Przy zabezpieczeniu sam warunek też ma być „fail closed”: błąd, brak `argv[1]` albo wątpliwość oznaczają „uruchom `main()`”, nie „pomiń”.
+
 ## Jak sprawdzić
 `packages/testkit/tests/agent-guardrails.test.ts`, blok „the PreToolUse hook runs wherever the repository lives” (trzy katalogi, kopia hooka w katalogu tymczasowym). Dowód „czerwony przed, zielony po”: `npm run verify:regression -- packages/testkit/tests/agent-guardrails.test.ts`.

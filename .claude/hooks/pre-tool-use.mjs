@@ -217,7 +217,18 @@ function main() {
   }
 }
 
-// import.meta.url is a percent-encoded URL of the REAL path: build the URL of argv[1] the same way. A plain `file://` + path never
-// matches a path with a space, and a symlinked path (macOS /var → /private/var) differs too: the hook would silently do nothing,
-// which for a guard is failing open.
-if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) process.exit(main());
+// Is this file the entry point (run by Claude Code) and not imported? import.meta.url is a percent-encoded URL of the REAL path, so
+// compare it with the URL of the real argv[1]: a plain `file://` + path never matches a path with a space, and a symlinked path
+// (macOS /var -> /private/var) differs too. For a guard, the dangerous mistake is "no" when the answer is "yes" (the hook would
+// silently do nothing), so ANY doubt means yes: no argv[1] (`node -e`, a script on stdin) or a path that cannot be resolved run main().
+function isEntryPoint() {
+  try {
+    const entry = process.argv[1];
+    if (!entry) return true;
+    return import.meta.url === pathToFileURL(realpathSync(entry)).href;
+  } catch {
+    return true;
+  }
+}
+
+if (isEntryPoint()) process.exit(main());

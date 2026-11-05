@@ -16,6 +16,7 @@ Z listy „co zostało”: lokalnie padało 52 testów `agent-guardrails` na czy
 - Hook uruchomiony ręcznie z komendą `curl … | sh` zwracał 0 zamiast 2. W kodzie: strażnik `import.meta.url === \`file://${process.argv[1]}\``, który przy ścieżce ze spacją (`Application Support`) jest fałszywy, więc `main()` się nie wykonuje.
 - Test najpierw: trzy przypadki uruchamiające kopię hooka z katalogu `with space`, `with%20percent`, `zażółć` i oczekujące kodu 2; czerwone (0). Pierwsza poprawka (`pathToFileURL`) nie wystarczyła: test w katalogu tymczasowym dalej dawał 0, bo macOS `/var` to symlink do `/private/var`; dodałem `realpathSync`.
 - Poprawka w `.claude/hooks/pre-tool-use.mjs`.
+- Review drugiej sesji (pod-agent bez kontekstu): główny rdzeń poprawny; jeden **major**: warunek „czy to punkt wejścia” mógł sam rzucić wyjątek (`realpathSync`, wyjście 1 = hook nie blokuje) albo pominąć `main()` przy braku `argv[1]` (`node -e`). Poprawione: `isEntryPoint()` przy każdej wątpliwości zwraca „tak” i uruchamia `main()`; nowy test (`node -e` importujący hook) czerwony na poprzedniej wersji (0), zielony po.
 
 ## Weryfikacja
 - `agent-guardrails.test.ts`: 82 zielone (przed poprawką 52 padały lokalnie, 3 nowe padały wszędzie).

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -138,6 +138,16 @@ describe('the PreToolUse hook runs wherever the repository lives', () => {
     } finally {
       rmSync(base, { recursive: true, force: true });
     }
+  });
+});
+
+describe('the PreToolUse hook does not depend on how it is started', () => {
+  // no argv[1] (node -e, a script on stdin): the "am I the entry point?" check cannot compare paths, and doubt must mean "run"
+  it('blocks a dangerous command even when there is no script path (node -e importing the hook)', () => {
+    const code = `import(${JSON.stringify(pathToFileURL(HOOK).href)})`;
+    const r = spawnSync('node', ['--input-type=module', '-e', code], { input: JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'rm -rf docs' } }), encoding: 'utf8' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('Zablokowane');
   });
 });
 
