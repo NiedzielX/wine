@@ -26,6 +26,14 @@ interface Deps { em: EntityManager }
 
 const PUBLISHABLE = ['approved', 'modified', 'rejected'] as const;
 
+/**
+ * Ids reach the repositories from URLs (guest pages, public API). PostgreSQL rejects a value that is not a UUID in a
+ * uuid column with a driver error (`22P02`), which the app would turn into a 500; the memory repositories simply
+ * find nothing. An id that is not a UUID cannot exist, so the lookups below treat it as unknown, like the memory ones.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (id: string): boolean => UUID.test(id);
+
 export class PgRestaurantRepository implements RestaurantRepository {
   private readonly em: EntityManager;
   constructor({ em }: Deps) { this.em = em; }
@@ -41,6 +49,7 @@ export class PgDishRepository implements DishRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async findById(restaurantId: string, dishId: string) {
+    if (!isUuid(dishId)) return null;
     const d = await this.em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null });
     return d ? toDish(d) : null;
   }
@@ -60,6 +69,7 @@ export class PgWineRepository implements WineRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async findById(restaurantId: string, wineId: string) {
+    if (!isUuid(wineId)) return null;
     const w = await this.em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null });
     return w ? toWine(w) : null;
   }
@@ -87,6 +97,7 @@ export class PgPairingRepository implements PairingRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async findById(restaurantId: string, pairingId: string) {
+    if (!isUuid(pairingId)) return null;
     const p = await this.em.findOne(PairingEntity, { id: pairingId, restaurant: restaurantId });
     return p ? toPairing(p) : null;
   }
@@ -97,6 +108,7 @@ export class PgPairingRepository implements PairingRepository {
   }
 
   async listByDish(restaurantId: string, dishId: string) {
+    if (!isUuid(dishId)) return [];
     const rows = await this.em.find(PairingEntity, { restaurant: restaurantId, dish: dishId }, { orderBy: { id: 'asc' } });
     return rows.map(toPairing);
   }
