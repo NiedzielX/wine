@@ -1,7 +1,7 @@
 import { Migrator } from '@mikro-orm/migrations';
 import { MikroORM } from '@mikro-orm/postgresql';
 import {
-  AdminService, AuthService, RecommendationCodeService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset,
+  AdminService, AuthService, RecommendationCodeService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset, teamContract, SECOND_RESTAURANT, TeamService, type SecondRestaurant, type AuthEvent,
   createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, type Repositories
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
@@ -15,7 +15,9 @@ import { Migration20261018125821_recommendation_code } from '../src/migrations/M
 import { Migration20261016152214_opportunity_dismissal } from '../src/migrations/Migration20261016152214_opportunity_dismissal';
 import { Migration20261019064652_sales_record } from '../src/migrations/Migration20261019064652_sales_record';
 import { Migration20261021190119_sales_record_recommendation_code } from '../src/migrations/Migration20261021190119_sales_record_recommendation_code';
-import { PairingEntity } from '../src/entities';
+import { Migration20261105160730_team_status_and_auth_event } from '../src/migrations/Migration20261105160730_team_status_and_auth_event';
+import { MembershipEntity, PairingEntity, UserEntity } from '../src/entities';
+import { PgAuthAuditRepository, PgTeamRepository } from '../src/repositories/team';
 import { PgAuthRepository } from '../src/repositories/auth';
 import { PgImportRepository } from '../src/repositories/import';
 import { NodeImportFileParser } from '../src/import';
@@ -49,8 +51,22 @@ async function freshDatabase(name = 'winematch_db_test'): Promise<MikroORM> {
 
 /** Empties every table and loads the demo data again: each write test starts from the same state. */
 async function resetData(orm: MikroORM): Promise<void> {
-  await orm.em.getConnection().execute('truncate table sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await orm.em.getConnection().execute('truncate table auth_event, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
   await new DemoSeeder().run(orm.em.fork());
+}
+
+/** The second restaurant of the team contract: two owners, a manager and a sommelier (the memory setup adds the same people). */
+async function seedSecondRestaurant(orm: MikroORM): Promise<SecondRestaurant> {
+  const em = orm.em.fork();
+  const r = em.create(RestaurantEntity, { id: SECOND_RESTAURANT.id, slug: SECOND_RESTAURANT.slug, name: SECOND_RESTAURANT.name, tagline: '', address: 'x', city: 'y', wineDirector: 'z', status: 'active', settings: { showUnreviewed: true, showScores: true } });
+  let i = 0;
+  for (const m of SECOND_RESTAURANT.members) {
+    const user = em.create(UserEntity, { id: m.userId, email: m.email, name: m.name, passwordHash: 'scrypt$unused' });
+    em.create(MembershipEntity, { id: m.membershipId, user, restaurant: r, role: m.role, createdAt: new Date(Date.parse('2026-10-02T08:00:00.000Z') + ++i * 1000) });
+  }
+  await em.flush();
+  const [owner1, owner2, manager, sommelier] = SECOND_RESTAURANT.members;
+  return { restaurantId: SECOND_RESTAURANT.id, owner1, owner2, manager, sommelier };
 }
 
 /** Repositories over a fresh EntityManager fork, as the DI container builds them per request. */
@@ -70,7 +86,9 @@ function pgRepos(orm: MikroORM): Repositories {
     opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em }),
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),
     recommendationCodeRepository: new PgRecommendationCodeRepository({ em }),
-    salesRepository: new PgSalesRepository({ em })
+    salesRepository: new PgSalesRepository({ em }),
+    teamRepository: new PgTeamRepository({ em }),
+    authAuditRepository: new PgAuthAuditRepository({ em })
   };
 }
 
@@ -144,6 +162,13 @@ run('PostgreSQL', () => {
 
   // The next contracts reset the data before every test, so they come after the read-only checks.
   importContract('postgres', async () => { await resetData(orm); return { repos: pgRepos(orm), dataset: ds }; }, { describe, it, expect, beforeEach });
+
+  teamContract('postgres', async () => {
+    await resetData(orm);
+    const second = await seedSecondRestaurant(orm);
+    const em = orm.em.fork();
+    return { team: new PgTeamRepository({ em }), audit: new PgAuthAuditRepository({ em }), auth: new PgAuthRepository({ em }), dataset: ds, second };
+  }, { describe, it, expect, beforeEach });
 
   // Write contract last: it resets the data before every test.
   writeContract('postgres', async () => { await resetData(orm); return { repos: pgRepos(orm), dataset: ds }; }, { describe, it, expect, beforeEach });
@@ -664,6 +689,101 @@ run('PostgreSQL', () => {
       expect(await index()).toEqual([]);
       await run('up');
       expect(await column()).toEqual([shape]);
+    });
+  });
+  describe('team on PostgreSQL (spec E12 F1: concurrency, rollback, migration)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const teamOf = () => new PgTeamRepository({ em: orm.em.fork() });
+    const ev = (second: SecondRestaurant, subject: string, n: number): AuthEvent => ({
+      id: `5ec0d000-0000-4000-8000-${String(700_000_000_000 + n)}`, restaurantId: second.restaurantId, actorUserId: second.owner1.userId, subjectUserId: subject, type: 'role_changed', meta: {}, at: '2026-11-05T10:00:00.000Z'
+    });
+    const activeOwners = async (second: SecondRestaurant) => (await teamOf().list(second.restaurantId)).filter((m) => m.role === 'owner' && m.status === 'active');
+
+    it('two owners demoting each other at the same moment: one succeeds, the other is refused with last_owner, an owner stays (AC23, two connections)', async () => {
+      for (let round = 0; round < 8; round++) {
+        await resetData(orm);
+        const second = await seedSecondRestaurant(orm);
+        const a = new PgTeamRepository({ em: orm.em.fork() });
+        const b = new PgTeamRepository({ em: orm.em.fork() });
+        const results = await Promise.allSettled([
+          a.applyChange(second.restaurantId, second.owner1.membershipId, { expectedVersion: 1, set: { role: 'manager' }, actorUserId: second.owner2.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.owner1.userId, round * 2 + 1) }),
+          b.applyChange(second.restaurantId, second.owner2.membershipId, { expectedVersion: 1, set: round % 2 ? { status: 'deactivated' } : { role: 'sommelier' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.owner2.userId, round * 2 + 2) })
+        ]);
+        expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+        const refused = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+        expect(refused.reason).toMatchObject({ name: 'LastOwnerError', code: 'last_owner' });
+        expect(await activeOwners(second)).toHaveLength(1);
+        // and exactly one event was written: the refused change left no trace
+        expect(await new PgAuthAuditRepository({ em: orm.em.fork() }).list(second.restaurantId)).toHaveLength(1);
+      }
+    });
+
+    it('two sessions change the same person with the same version: one wins, the other gets version_conflict (AC4)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const results = await Promise.allSettled([
+        teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'waiter' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.sommelier.userId, 101) }),
+        teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'manager' }, actorUserId: second.owner2.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.sommelier.userId, 102) })
+      ]);
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect((results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason).toMatchObject({ code: 'version_conflict' });
+      expect((await teamOf().find(second.restaurantId, second.sommelier.membershipId))!.version).toBe(2);
+    });
+
+    it('an event the database refuses (an unknown restaurant) rolls the change back: no new role, no new version, no event (AC5)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const bad = { ...ev(second, second.sommelier.userId, 201), restaurantId: '5ec0d000-0000-4000-8000-00000000dead' };
+      await expect(teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { role: 'waiter' }, actorUserId: second.owner1.userId, at: bad.at, event: bad })).rejects.toBeInstanceOf(Error);
+      expect(await teamOf().find(second.restaurantId, second.sommelier.membershipId)).toMatchObject({ role: 'sommelier', version: 1, status: 'active' });
+      const n = await orm.em.getConnection().execute<Array<{ n: string }>>('select count(*)::text as n from auth_event');
+      expect(n[0].n).toBe('0');
+    });
+
+    it('a deactivated person keeps the session but has no restaurant on the next request, and gets it back after reactivation, through the real services (AC2)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const repos = pgRepos(orm);
+      const clock = { now: () => new Date('2026-11-05T10:00:00.000Z') };
+      let seq = 0;
+      const idGenerator = { uuid: () => `5ec0d000-0000-4000-8000-${String(600_000_000_000 + ++seq)}` };
+      const team = new TeamService({ ...repos, clock, idGenerator });
+      const tokens = new NodeSessionTokens();
+      const auth = new AuthService({ authRepository: new PgAuthRepository({ em: orm.em.fork() }), passwordHasher: await ScryptPasswordHasher.create(), sessionTokens: tokens, clock, idGenerator, authConfig: DEFAULT_AUTH_CONFIG });
+      const { token, hash } = tokens.generate();
+      await new PgAuthRepository({ em: orm.em.fork() }).createSession({ id: idGenerator.uuid(), userId: second.manager.userId, tokenHash: hash, csrfToken: 'd'.repeat(64), createdAt: '2026-11-05T09:00:00.000Z', expiresAt: '2026-11-05T21:00:00.000Z' });
+      const roles = async () => (await auth.authenticate(token))!.memberships.map((m) => m.role);
+      const owner = { id: second.owner1.userId, name: 'First Owner' };
+      expect(await roles()).toEqual(['manager']);
+      await team.deactivate(SECOND_RESTAURANT.slug, second.manager.membershipId, owner, 1);
+      expect(await roles()).toEqual([]);
+      await team.reactivate(SECOND_RESTAURANT.slug, second.manager.membershipId, owner, 2);
+      expect(await roles()).toEqual(['manager']);
+    });
+
+    it('the migration adds the columns and the table, and down removes them again (AC22 up/down)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      await teamOf().applyChange(second.restaurantId, second.sommelier.membershipId, { expectedVersion: 1, set: { status: 'deactivated' }, actorUserId: second.owner1.userId, at: '2026-11-05T10:00:00.000Z', event: ev(second, second.sommelier.userId, 301) });
+      const conn = orm.em.getConnection();
+      const columns = async () => (await conn.execute<Array<{ column_name: string }>>("select column_name from information_schema.columns where table_name = 'membership' and column_name in ('status', 'version', 'deactivated_at', 'deactivated_by') order by column_name")).map((c) => c.column_name);
+      const tableExists = async () => (await conn.execute<Array<{ n: string }>>("select count(*)::text as n from information_schema.tables where table_name = 'auth_event'"))[0].n === '1';
+      expect(await columns()).toEqual(['deactivated_at', 'deactivated_by', 'status', 'version']);
+      expect(await tableExists()).toBe(true);
+      const migration = new Migration20261105160730_team_status_and_auth_event(orm.em.getDriver(), orm.config);
+      const run = async (fn: 'up' | 'down') => {
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      await run('down');
+      expect(await columns()).toEqual([]);
+      expect(await tableExists()).toBe(false);
+      // the memberships stay; up gives them the defaults again (active, version 1)
+      await run('up');
+      expect(await columns()).toEqual(['deactivated_at', 'deactivated_by', 'status', 'version']);
+      expect(await tableExists()).toBe(true);
+      const rows = await conn.execute<Array<{ status: string; version: number }>>("select distinct status, version from membership");
+      expect(rows).toEqual([{ status: 'active', version: 1 }]);
+      // the status check and the type check are back
+      await expect(conn.execute("update membership set status = 'gone'")).rejects.toThrow(/membership_status_check/);
+      await expect(conn.execute("insert into auth_event (id, type, at) values ('5ec0d000-0000-4000-8000-000000000999', 'nonsense', now())")).rejects.toThrow(/auth_event_type_check/);
     });
   });
 });
