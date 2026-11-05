@@ -43,6 +43,8 @@ jobs:
         run: npm run lint
       - name: Package boundaries
         run: npm run check:boundaries
+      - name: QA scenarios linked to the e2e tests
+        run: npm run check:qa
       - name: Typecheck
         run: npm run typecheck
       - name: Dependency audit (high and critical block; exceptions are listed and dated)

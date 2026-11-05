@@ -9,6 +9,8 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-05] [Id z URL nie jest UUID-em](lessons/2026-11-05-url-ids-vs-uuid-columns.md) — wyszukiwanie po id z URL-a zwraca „nie znaleziono”, nie błąd bazy (22P02 → 500); przypięte w repositoryContract.
+- [2026-11-05] [Test nie wpisuje na sztywno wartości, które generator losowych id może wyprodukować](lessons/2026-11-05-hand-picked-values-vs-random-ids.md) — flake z losowym kodem polecenia kolidującym z literałem w teście; wstrzyknij generator, który omija literały.
 - [2026-10-25] [Plik wczytywany w każdej sesji ma budżet; szczegóły idą do plików czytanych na żądanie](lessons/2026-10-25-context-budget-and-routing.md) — root `AGENTS.md` + `AGENTS.md` pakietu mieszczą się w 32 KiB (limit Codexa), numeracja sekcji się nie zmienia, pilnuje tego `npm run check:context`.
 - [2026-10-25] [Podgląd importu czyta zapisane wiersze, więc pola niedozwolone do zapisu nie wchodzą do wiersza](lessons/2026-10-25-import-preview-reads-saved-rows.md) — nazwa pozycji POS jest tylko rozpoznawana przy mapowaniu, nigdy nie trafia do `import_job.rows`.
 - [2026-10-25] [Konfiguracja agenta w repo: `deny` nie blokuje basha, sandbox na Linuksie ma prywatny localhost, hook zawodzi zamykająco](lessons/2026-10-25-agent-config-in-repo.md) — buduj granice warstwami (deny, hook w Node, sandbox), wylicz sekrety w `deny`, nie włączaj sandboxa we wspólnym pliku bez testu.

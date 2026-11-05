@@ -1,6 +1,7 @@
-import { serviceDay, type RecommendationCodeInput, type RecommendationCodeRepository, type RecommendationCodeService } from '@wine-match/core';
+import { codeFromUuid, RecommendationCodeService, serviceDay, type RecommendationCodeInput, type RecommendationCodeRepository } from '@wine-match/core';
 import { createElement, type FunctionComponent } from 'react';
 import { prerender } from 'react-dom/static';
+import { randomUUID } from 'node:crypto';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { markCode } from '@/app/(guest)/r/[slug]/staff/actions';
 import StaffPage from '@/app/(guest)/r/[slug]/staff/page';
@@ -69,6 +70,19 @@ let duck = { id: '', name: '' };
 let menuDishes: Array<{ id: string; name: string }> = [];
 let wine = { id: '', title: '', bottleSize: 0 };
 
+/**
+ * Codes this file stores or probes by hand. A guest code is derived from a random UUID, so the real generator could
+ * issue one of them for another test of the same restaurant and day and turn "unknown code" into a found one
+ * (a rare flake, seen on CI). The service under test therefore draws UUIDs that never map to these codes.
+ */
+const HAND_PICKED_CODES = new Set(['C3C', 'D4D', 'E5E', 'F6F', 'G7G', 'H8H', 'J9J', 'X9X']);
+function uuidAvoidingHandPickedCodes(): string {
+  for (;;) {
+    const uuid = randomUUID();
+    if (!HAND_PICKED_CODES.has(codeFromUuid(uuid, 3))) return uuid;
+  }
+}
+
 const today = () => serviceDay(new Date());
 const yesterday = () => serviceDay(new Date(Date.now() - 86_400_000));
 let n = 0;
@@ -90,7 +104,11 @@ async function issue(dishIds: string[] = [duck.id], sid = crypto.randomUUID()): 
 
 beforeAll(async () => {
   const c = (await createRequestScope()).cradle;
-  service = c.recommendationCodeService;
+  service = new RecommendationCodeService({
+    restaurantRepository: c.restaurantRepository, wineRepository: c.wineRepository, dishRepository: c.dishRepository,
+    recommendationCodeRepository: c.recommendationCodeRepository, clock: c.clock, logger: c.logger,
+    idGenerator: { uuid: uuidAvoidingHandPickedCodes }
+  });
   repo = c.recommendationCodeRepository;
   const menu = (await c.catalogService.publishedMenu('halka'))!;
   restaurantId = menu.restaurant.id;
@@ -107,6 +125,10 @@ afterEach(async () => {
 });
 
 describe('G9: "Order from a code" (R6, AC7, AC8)', () => {
+  it('the test service never issues a code this file picks by hand (no flake from random UUIDs)', () => {
+    for (let i = 0; i < 20_000; i++) expect(HAND_PICKED_CODES.has(codeFromUuid(uuidAvoidingHandPickedCodes(), 3))).toBe(false);
+  });
+
   it('without a code: a GET form for the code that carries the staff session and the language, above the dish choice', async () => {
     const html = await g9({ sid: SID, lang: 'pl' }, 'pl');
     const s = section(html);
