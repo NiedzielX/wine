@@ -1,17 +1,24 @@
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { Seeder } from '@mikro-orm/seeder';
 import { ENGINE_VERSION, buildDemoDataset, contentSnapshot, demoUuid, pairingScore, type DemoDataset } from '@wine-match/core';
+import { assertSeedAllowed } from './seed-guard';
 import { DishEntity, MembershipEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, UserEntity, WineEntity, type PublishedSnapshot } from '../entities';
 
 /**
  * Loads the Halka demo restaurant (same data and ids as DATA_SOURCE=memory).
  * Idempotent: if the restaurant already exists it only fills the Polish translations that are still missing
  * (spec 2026-10-15-bilingual-content, R9) and changes nothing else.
+ * Refuses to run in production (see `assertSeedAllowed`) before it writes anything.
  */
 export class DemoSeeder extends Seeder {
+  constructor(private readonly environment: Record<string, string | undefined> = process.env, private readonly warn?: (message: string) => void) {
+    super();
+  }
+
   async run(em: EntityManager): Promise<void> {
     const data = buildDemoDataset({ ids: 'uuid' });
     const { restaurant, dishes, wines, pairings, users } = data;
+    await assertSeedAllowed(em, restaurant.slug, this.environment, this.warn);
     if (await em.count(RestaurantEntity, { slug: restaurant.slug })) {
       await fillTranslations(em, data);
       return;
