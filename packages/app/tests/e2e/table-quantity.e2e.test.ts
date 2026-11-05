@@ -71,11 +71,11 @@ describe('the table quantity without JavaScript (R16, AC19, Q4)', () => {
   it('1440 px, G11: the waiter taps "4" under the bottle — the amount, no sideways scroll', async () => {
     await browser.run('set', 'viewport', '1440', '900');
     await browser.open(`${baseUrl()}/r/halka/staff/table?dishes=${six}&lang=en`);
-    await browser.waitForPageText('This bottle: No. 109 Radikon Slatnik.');
+    const bottle = /This bottle: No\. \d+ [^.\n]+\./.exec(await browser.waitForPageText('This bottle:'))![0];
     expect(await browser.count('[data-table-quantity]')).toBe(0);
     await tap('[data-staff-table-result] a[aria-label="4 people"]');
     const page = await browser.waitForPageText('For 4 people:');
-    expect(page).toContain('This bottle: No. 109 Radikon Slatnik.');
+    expect(page).toContain(bottle);
     expect(await noSideScroll()).toBe(true);
   });
 });

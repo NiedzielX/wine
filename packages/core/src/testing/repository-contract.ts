@@ -36,6 +36,16 @@ export function repositoryContract(
       t.expect(await repos.dishRepository.findById('00000000-0000-4000-8000-000000000000', duck.id)).toBeNull();
     });
 
+    t.it('treats an id that is not a UUID as unknown: null or empty, never a database error', async () => {
+      // a typo, a cut-off link or a scraper reaches the repositories through the public pages and the public API
+      for (const id of ['abc', '123', '', "' or 1=1 --", '00000000-0000-4000-8000-00000000000g']) {
+        t.expect(await repos.dishRepository.findById(ds.restaurant.id, id)).toBeNull();
+        t.expect(await repos.wineRepository.findById(ds.restaurant.id, id)).toBeNull();
+        t.expect(await repos.pairingRepository.findById(ds.restaurant.id, id)).toBeNull();
+        t.expect(await repos.pairingRepository.listByDish(ds.restaurant.id, id)).toEqual([]);
+      }
+    });
+
     t.it('filters dishes by status', async () => {
       const published = await repos.dishRepository.listByRestaurant(ds.restaurant.id, { statuses: ['published'] });
       t.expect(published.length).toBe(ds.dishes.filter((d) => d.status === 'published').length);

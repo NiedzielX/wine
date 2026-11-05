@@ -14,6 +14,7 @@ import {
   type PublishedSnapshot, type PublishedVersionRow
 } from '../entities';
 import { translate } from './errors';
+import { isUuid } from './ids';
 import { toRecommendationCode, type RecommendationCodeSqlRow } from '../mappers';
 import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairing, toPublishedPairing, toRestaurant, toWine } from '../mappers';
 
@@ -41,6 +42,7 @@ export class PgDishRepository implements DishRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async findById(restaurantId: string, dishId: string) {
+    if (!isUuid(dishId)) return null;
     const d = await this.em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null });
     return d ? toDish(d) : null;
   }
@@ -60,6 +62,7 @@ export class PgWineRepository implements WineRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async findById(restaurantId: string, wineId: string) {
+    if (!isUuid(wineId)) return null;
     const w = await this.em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null });
     return w ? toWine(w) : null;
   }
@@ -87,6 +90,7 @@ export class PgPairingRepository implements PairingRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async findById(restaurantId: string, pairingId: string) {
+    if (!isUuid(pairingId)) return null;
     const p = await this.em.findOne(PairingEntity, { id: pairingId, restaurant: restaurantId });
     return p ? toPairing(p) : null;
   }
@@ -97,6 +101,7 @@ export class PgPairingRepository implements PairingRepository {
   }
 
   async listByDish(restaurantId: string, dishId: string) {
+    if (!isUuid(dishId)) return [];
     const rows = await this.em.find(PairingEntity, { restaurant: restaurantId, dish: dishId }, { orderBy: { id: 'asc' } });
     return rows.map(toPairing);
   }
@@ -210,6 +215,7 @@ export class PgWineWriteRepository implements WineWriteRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async setActive(restaurantId: string, wineId: string, active: boolean) {
+    if (!isUuid(wineId)) return null;
     const w = await this.em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null });
     if (!w) return null;
     w.active = active;
