@@ -39,3 +39,12 @@ Faza 1 gotowa: AC4 i AC5 spełnione i odhaczone; AC2, AC7, AC8 mają kod i testy
 ## Lekcje
 - [`2026-11-05-mikroorm-init-does-not-connect`](../lessons/2026-11-05-mikroorm-init-does-not-connect.md)
 - [`2026-11-05-fail-closed-breaks-local-production-starts`](../lessons/2026-11-05-fail-closed-breaks-local-production-starts.md)
+
+## Review PR #120 (2026-11-05): zmiany po review niezależnej sesji
+Decyzje właściciela (delegat, 2026-11-05): seeder chroni każde niepuste `NODE_ENV` inne niż `development` i `test`, przy nieustawionym ostrzega i działa; drugi warunek R5 tylko w środowiskach chronionych (lokalne `restaurant:create` + `db:seed` działa).
+- MAJOR 1: potwierdzone czerwone (`HTTPS://...` zapisywało `http://localhost:3000`). Zapisywany adres pochodzi teraz wyłącznie z sparsowanego `URL` (protokół, host bez końcowej kropki, port, ścieżka bez końcowego `/`); `@`, backslash, białe znaki i znaki sterujące odrzucane w każdym środowisku (to obejmuje `https://wine.example.com\@localhost` i userinfo, MINOR 3). Nowe sufiksy `.invalid`, `.localdomain`, `.intranet`, `.corp`; `.test` zostaje, bo spec (AC3) i e2e używają `wine.example.test`.
+- MAJOR 2: czerwone (`Production`, `prod`, `staging`, brak ostrzeżenia przy nieustawionym); zielone testy z prawdziwym `npm run db:seed`.
+- MINOR 4: jedno współdzielone sprawdzenie i bufor 2 s (`server/health.ts`, wstrzykiwany zegar); test: 8 równoległych żądań, jedno zapytanie, jeden wiersz błędu, powrót widoczny po wygaśnięciu bufora. Statement timeout dla `select 1` nie ustawiony (sterownik daje go tylko na sesję lub w transakcji); ogranicza 2 s w `PgSystemHealth`. E2e 200 -> 503 -> 200 czeka 2,3 s po każdej zmianie.
+- MINOR 5: `dataSource` usunięte z odpowiedzi (jest w logu przy awarii). MINOR 6: `gaps.test.ts` przywraca klucze zamiast podmieniać `process.env`; `health-postgres.test.ts` przywraca `DATA_SOURCE`/`DATABASE_URL`; `smoke.mjs` anuluje ciała odpowiedzi sond nagłówków i waliduje slug (exit 2, zero żądań). NITS: README poprawione, notatka o Compose bez `ALLOW_LOCAL_BASE_URL` / `AUTH_COOKIE_SECURE=false` w specyfikacji (Faza 2).
+- Czerwone przed poprawką (kod z `1fcddac`, nowe testy): env 15 z 53, seed-guard 9 z 18, health 9 z 11, smoke-script 6 z 19.
+- Bramka po poprawkach: lint i typecheck czyste; `npm test` core 622, db 73, ui 62, app 395, testkit 152; `test:db` 136; `build` ok; `boot:check` ok; e2e: 6 plików ok (w tym `health`), 11 tylko `agent-browser ENOENT`; `smoke` i `smoke --production` na `memory` i `postgres` ok; `check:context`, `check:qa`, `secrets:scan` czyste.
