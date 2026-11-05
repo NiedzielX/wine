@@ -2,7 +2,7 @@
 status: implemented
 created: 2026-10-16
 owner: Filip
-related: [.ai/specs/product-brief.md, .ai/specs/2026-10-16-how-it-works-explanations.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/lessons/2026-10-14-write-path-conventions.md]
+related: [.ai/specs/product-brief.md, .ai/specs/2026-10-16-how-it-works-explanations.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/lessons/2026-10-14-write-path-conventions.md]
 ---
 
 # Okazje w panelu sommeliera (E10)

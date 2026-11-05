@@ -2,7 +2,7 @@
 status: approved
 created: 2026-11-04
 owner: Filip
-related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, docs/RECOMMENDATION_ENGINE.md]
+related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, docs/RECOMMENDATION_ENGINE.md]
 ---
 
 # Warstwa uczenia: zbiór danych, model cieniowy, ocena offline (E17)
