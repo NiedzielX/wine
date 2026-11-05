@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createDatabase, startBuiltApp, startTestDatabase } from '@wine-match/testkit';
 import type { TestProject } from 'vitest/node';
 import { NEW_RESTAURANT } from './new-restaurant';
+import { E2E_METRICS_TOKEN } from './observability';
 
 const appDir = fileURLToPath(new URL('../..', import.meta.url));
 const rootDir = fileURLToPath(new URL('../../../..', import.meta.url));
@@ -40,7 +41,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     cwd: appDir,
     readyPath: '/api/v1/public/restaurants/halka/menu',
     logFile: `${appDir}/test-results/e2e-app.log`,
-    env: { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: databaseUrl, AUTH_COOKIE_SECURE: 'false', LOG_LEVEL: 'info' }
+    env: { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: databaseUrl, AUTH_COOKIE_SECURE: 'false', LOG_LEVEL: 'info', METRICS_TOKEN: E2E_METRICS_TOKEN }
   });
   project.provide('e2e', { baseUrl: app.url, appLogs: '', databaseUrl });
 
