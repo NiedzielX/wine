@@ -4,7 +4,7 @@ area: guest
 title: "No code for inactive wine 404 or synthetic traffic"
 status: automated
 spec:
-  path: .ai/specs/2026-10-16-recommendation-code.md
+  path: .ai/specs/implemented/2026-10-16-recommendation-code.md
   ac: ["AC6"]
 test:
   file: packages/app/tests/e2e/recommendation-code.e2e.test.ts
