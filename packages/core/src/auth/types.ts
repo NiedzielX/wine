@@ -58,7 +58,7 @@ export type AuthEventType = (typeof AUTH_EVENT_TYPES)[number];
  * The only keys an event's `meta` may carry (spec E12 R11): never a password, a PIN, a token or a stranger's
  * full e-mail address. New phases add keys here, not ad hoc.
  */
-export const AUTH_EVENT_META_KEYS = ['membership_id', 'from', 'to', 'role'] as const;
+export const AUTH_EVENT_META_KEYS = ['membership_id', 'from', 'to', 'role', 'invitation_id'] as const;
 export type AuthEventMeta = Partial<Record<(typeof AUTH_EVENT_META_KEYS)[number], string | number | boolean | null>>;
 
 export interface AuthEvent {
@@ -71,6 +71,28 @@ export interface AuthEvent {
   type: AuthEventType;
   meta: AuthEventMeta;
   at: string;
+}
+
+/** The roles an invitation can carry (spec E12 R4): a waiter has no link, the owner or manager makes them in A15 (R9, F5). */
+export const INVITABLE_ROLES: readonly Role[] = ['owner', 'manager', 'sommelier'];
+/** How long an invitation link works (spec E12 Q6). */
+export const INVITATION_HOURS = 72;
+
+/**
+ * A pending invitation as A15 lists it: not accepted, not revoked (it may have expired: the list says so). The token
+ * is never part of it: only its SHA-256 is stored, and the plain token is shown once, to the person who invited.
+ */
+export interface Invitation {
+  id: string;
+  restaurantId: string;
+  /** lower-case */
+  email: string;
+  role: Role;
+  /** user id of the inviter (a member, or the platform account for `inviteOwner`) */
+  createdBy: string;
+  createdByName: string | null;
+  createdAt: string;
+  expiresAt: string;
 }
 
 export interface SessionRecord {
