@@ -41,3 +41,11 @@ export function assertChangeEvents(restaurantId: string, actorUserId: string, su
     if (e.subjectUserId !== subjectUserId) throw new InvariantError('event_subject_mismatch', 'The event names another person than the one changed.');
   }
 }
+
+/** The event of an invitation change: this type, this restaurant, this actor, naming this invitation, valid for the trail. */
+export function assertInvitationEvent(restaurantId: string, e: AuthEvent, type: 'invite_created' | 'invite_revoked', actorUserId: string, invitationId: string): void {
+  assertValidAuthEvent(restaurantId, e);
+  if (e.type !== type) throw new InvariantError('invalid_event', `The event must be ${type}.`);
+  if (e.actorUserId !== actorUserId) throw new InvariantError('event_actor_mismatch', 'The event names another actor than the change.');
+  if (e.meta.invitation_id !== invitationId) throw new InvariantError('invalid_event', 'The event names another invitation.');
+}

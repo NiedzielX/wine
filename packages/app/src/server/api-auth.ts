@@ -40,9 +40,11 @@ export function fromDomainError(e: unknown): NextResponse | null {
     case 'NoPanelAccessError':
     case 'TeamHierarchyError':
     case 'ForbiddenError': return apiError(403, d.code, d.message);
+    case 'InvalidTokenError':
     case 'NotFoundError': return apiError(404, d.code, d.message);
     case 'VersionConflictError':
     case 'LastOwnerError':
+    case 'AlreadyMemberError':
     case 'InvariantError': return apiError(409, d.code, d.message);
     case 'SelfChangeError':
     case 'ValidationError':

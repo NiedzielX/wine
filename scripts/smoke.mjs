@@ -360,6 +360,20 @@ await check('GM reads the team over the API', `/api/v1/restaurants/${slug}/team`
 await check('the Wine Director cannot read the team over the API', `/api/v1/restaurants/${slug}/team`, { cookie: SESSION, status: 403 });
 await check('no session: A15 Team goes to sign-in', `/admin/${slug}/team`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });
 
+// --- invitations (E12 F2): A15 invites and lists, A17 accepts; a dead link is one 404 page. The smoke makes one invitation and cancels it again.
+const invUrl = `/api/v1/restaurants/${slug}/invitations`;
+await check('GM sees the invite form and the pending list on A15', `/admin/${slug}/team`, { cookie: GM, has: ['Invite someone', 'Create invitation link', 'Pending invitations'], hasNot: ['accept?token='] });
+const made = await check('GM invites a Wine Director over the API and gets the link once', invUrl, { method: 'POST', body: { email: 'smoke-invite@smoke.example', role: 'sommelier' }, headers: gmw, status: 201, has: ['/admin/accept?token='] });
+const madeBody = JSON.parse(made.text || '{}');
+await check('the invitation list shows the address and never the link', invUrl, { cookie: GM, has: ['smoke-invite@smoke.example'], hasNot: ['accept?token=', '"token"'] });
+await check('GM cannot invite a manager', invUrl, { method: 'POST', body: { email: 'smoke-manager@smoke.example', role: 'manager' }, headers: gmw, status: 403, has: ['team_hierarchy'] });
+await check('the Wine Director cannot read the invitations', invUrl, { cookie: SESSION, status: 403 });
+await check('the link opens the accept page A17 without signing in', new URL(madeBody.link ?? 'http://x/').pathname + new URL(madeBody.link ?? 'http://x/').search, { cookie: '', has: ['Join the team', 'smoke-invite@smoke.example', 'Create account and join'] });
+await check('GM cancels the invitation', `${invUrl}/${madeBody.id}`, { method: 'DELETE', headers: gmw, status: 204 });
+await check('a cancelled link is the one "not valid" page', new URL(madeBody.link ?? 'http://x/').pathname + new URL(madeBody.link ?? 'http://x/').search, { cookie: '', status: 404, has: ['This link is not valid any more'] });
+await check('an unknown link is the same page', '/admin/accept?token=smoke-not-a-real-link-0000', { cookie: '', status: 404, has: ['This link is not valid any more'] });
+await check('no token is a 404 too', '/admin/accept', { cookie: '', status: 404 });
+
 // --- import, QR and setup (Phase 5). Nothing here changes the catalog: every import is cancelled.
 for (const path of ['/import/menu', '/import/wines', '/import/sales', '/setup', '/qr']) {
   await check(`no session: ${path} is not reachable`, `/admin/${slug}${path}`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });

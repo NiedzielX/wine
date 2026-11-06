@@ -595,7 +595,24 @@ Spec `2026-11-04-staff-accounts-and-roles` (E12), faza 1. Identyfikatory ekranó
 | Permissions | `requireAccess` + `team.manage` (strona), `authorizeAction(slug, 'team.manage')` (akcje), `handle()` (API); wpis „Team” w nawigacji tylko z `team.manage` |
 | API | `GET /restaurants/{slug}/team`, `PATCH /restaurants/{slug}/team/{membershipId}` (`If-Match`) |
 | Układ | 390 i 1440 px bez poziomego przewijania (wiersze to karty, `min-w-0`, `break-words`) |
-| Później | zaproszenia (F2), odblokowanie PIN-u i kelner z PIN-em (F5), dziennik A18 (F6) |
+| Zaproszenia (F2) | karta „Invite someone” (adres e-mail, rola dozwolona przez hierarchię; manager widzi tylko Wine Director) i lista „Pending invitations” (adres, rola, kto zaprosił, ważność, „Cancel invitation”; manager nie cofa zaproszeń właściciela ani managera). Formularz to `useActionState`: odpowiedź na POST (także bez JavaScriptu) zawiera link zaproszenia **raz** (pole tylko do odczytu); nie trafia do adresu, ciasteczka ani dziennika, a odświeżenie strony go nie pokazuje. Akcje `inviteMember`, `revokeInvitation`. Błędy: `already_member`, `team_hierarchy`, `validation_failed`, `forbidden`, `invitation_conflict` |
+| Później | odblokowanie PIN-u i kelner z PIN-em (F5), dziennik A18 (F6) |
+
+## A17 Przyjęcie zaproszenia — `/admin/accept?token=`
+
+Spec `2026-11-04-staff-accounts-and-roles` (E12), faza 2. Tryb resetu hasła (`/admin/reset`) dojdzie w F4.
+
+| Pole | Opis |
+|---|---|
+| Cel | Osoba z linkiem dołącza do zespołu restauracji z rolą z zaproszenia |
+| Użytkownik | każdy z linkiem (publiczny, bez `requireAccess`); strona poza `[slug]` i `(lists)` |
+| Funkcje | GET tylko wyświetla formularz (nic nie zużywa): nowa osoba podaje imię i hasło (min. 12 znaków) → konto, członkostwo i od razu sesja; osoba z kontem tego adresu musi być zalogowana na nie (bez sesji: link do zwykłego `/admin/login` bez tokenu w adresie, po zalogowaniu otwiera link jeszcze raz; inne konto: „Sign out”). Gdy po założeniu konta logowanie się nie uda, osoba trafia na `/admin/login?notice=account_created` (konto istnieje, link jest zużyty, tokenu nie ma w adresie), a sesja innej osoby w tej przeglądarce zostaje i dostaje tylko członkostwo, hasło się nie zmienia |
+| Dane wejściowe | `InvitationService.offer(token)` (restauracja, rola, adres, czy konto istnieje) |
+| Dane wyjściowe | akcja serwerowa `acceptInvitation` (`accept-actions.ts`; pola `token`, `name`, `password`) → `InvitationService.accept` (jedna transakcja) → przekierowanie do `/admin/{slug}` |
+| Error | błędy walidacji z powodem (`name_required`, `password_too_short`, `password_too_long`) i `sign_in_required`, `wrong_account`, `account_exists`, `already_member` w adresie (`?error=`, token zostaje, link działa dalej); **link, którego nie można użyć, to jedna strona „This link is not valid any more” z kodem 404**, a akcja przekierowuje na `/admin/accept?error=invalid_token` bez tokenu |
+| Nagłówki | `Referrer-Policy: no-referrer`, `Cache-Control: private, no-store`, `<meta name="referrer">`, `noindex`; token jest w formularzu (własny link osoby) i w żadnym `href` ani `src` |
+| Permissions | publiczna; każde zużycie sprawdza token, ważność, cofnięcie i prawa zapraszającego atomowo w repozytorium |
+| Układ | jedna karta, 390 i 1440 px bez poziomego przewijania; formularz działa bez JavaScriptu |
 
 ## DM2 Return calculator — `/demo/roi?customers=&attachRate=&wineSpend=&margin=&attachChange=&spendChange=&planPrice=`
 

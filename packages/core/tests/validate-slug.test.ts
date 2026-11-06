@@ -25,3 +25,14 @@ describe('validateSlug', () => {
     expect(validateSlug('Admin')).toBe('invalid');
   });
 });
+
+describe('reserved slugs of the dashboard routes beside [slug] (spec E12 F2, AC25)', () => {
+  it.each(['accept', 'reset', 'account'])('%s is reserved', (slug) => {
+    expect(validateSlug(slug)).toBe('reserved');
+    expect(RESERVED_SLUGS).toContain(slug);
+  });
+
+  it('a name that only contains one of them is fine', () => {
+    for (const slug of ['accept-bistro', 'the-account', 'reset2', 'accepted']) expect(validateSlug(slug)).toBeNull();
+  });
+});
