@@ -1,0 +1,22 @@
+/*
+ * Print layout of the showcase (spec 2026-11-04-sales-demo-and-roi-calculator, R5): A4, smaller type, a white page.
+ * What hides on paper is hidden with Tailwind's `print:hidden` on the element itself.
+ */
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  html {
+    font-size: 11px;
+  }
+  body {
+    background: #fff;
+  }
+  /* keep a step of the formula and a table row on one page */
+  li,
+  tr {
+    break-inside: avoid;
+  }
+}

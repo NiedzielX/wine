@@ -91,6 +91,8 @@ Ciasteczko sesji jest w produkcji `Secure`. Żeby uruchomić build produkcyjny l
 
 **Logi** to jedna linia JSON na wpis (`LOG_LEVEL`), z redakcją sekretów: kluczy (`password`, `token`, `cookie`, `authorization`, `hash`, …) oraz wzorców w tekście błędów (skrót hasła, JWT, `Bearer`, ciasteczko sesji, adres bazy z hasłem). Klient nigdy nie dostaje śladu stosu. Każde żądanie API zostawia jeden wiersz `api request` (metoda, wzorzec trasy, status, czas; bez query, nagłówków i IP), a błędy serwera (`onRequestError`, `unhandledRejection`, `uncaughtException`) są logowane z redakcją i liczone.
 
+**Strony sprzedażowe (E22):** `SHOWCASE_MODE=calculator` włącza publiczny kalkulator zwrotu dla restauracji (`/demo/roi`, wersja do druku `/demo/roi/summary`; bez logowania, bez zapisów, `noindex`; każda liczba to założenie zespołu, nie pomiar). Bez zmiennej (`off`) adresy `/demo/*` odpowiadają 404; inna wartość zatrzymuje start. Kalkulator nie czyta danych, więc może działać na każdym `DATA_SOURCE`. Sprawdzenie uruchomionej instancji: `npm run smoke -- --showcase http://localhost:3000`. Odsłony: jedna linia logu `showcase_view` z samą nazwą strony (`grep showcase_view | wc -l`).
+
 **Metryki:** ustaw `METRICS_TOKEN` (min. 32 znaki, np. `openssl rand -hex 32`), a `GET /api/v1/metrics` z `Authorization: Bearer <token>` zwróci metryki procesu w formacie Prometheus; bez tokenu endpoint odpowiada 404. Alerty i runbook: [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
 Konfiguracja jest w jednym pliku `.env` w katalogu głównym; aplikacja, CLI migracji i testy bazy wczytują go same, a zmienne ustawione w środowisku mają pierwszeństwo.

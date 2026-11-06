@@ -9,6 +9,7 @@ export * from './i18n/content';
 export * from './logging/logger';
 export * from './logging/redact';
 export * from './config/env';
+export * from './showcase';
 export * from './validators';
 export * from './auth/types';
 export * from './auth/permissions';
