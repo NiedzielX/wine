@@ -9,7 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
-- [2026-11-06] [Liczby z adresu: iloczyny przed dzieleniem, sześć miejsc po przecinku](lessons/2026-11-06-calculator-numbers-from-urls.md) — czyść wynik do 14 cyfr znaczących, zaokrąglaj wejście do 6 miejsc (brak `1e-7` w linkach), „NaN/undefined” sprawdzaj na tekście bez skryptów.
+- [2026-11-06] [Liczby z adresu](lessons/2026-11-06-calculator-numbers-from-urls.md) — mnóż przed dzieleniem, czyść do 14 cyfr, wejście do 6 miejsc po przecinku.
 - [2026-11-05] [`MikroORM.init` nie łączy się z bazą, a po `close()` łączy się sam](lessons/2026-11-05-mikroorm-init-does-not-connect.md) — „baza leży” sprawdzaj `select 1` z limitem czasu i testuj przekaźnikiem TCP, nie zamknięciem ORM.
 - [2026-11-05] [Zaostrzenie „produkcja zawodzi zamykająco” psuje lokalne starty produkcji](lessons/2026-11-05-fail-closed-breaks-local-production-starts.md) — grep po `NODE_ENV=production`/`next start` i jawny wyjątek w e2e, boot:check, test-env-up i README w tym samym PR-ze.
 - [2026-11-05] [W transakcji MikroORM `em.getConnection().execute` omija transakcję](lessons/2026-11-05-pg-execute-inside-transaction.md) — surowe zapytania w `em.transactional` idą przez `em.execute`; blokadę udowadniaj dwoma połączeniami i mutacją.
