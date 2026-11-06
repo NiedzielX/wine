@@ -158,6 +158,9 @@ describe('invitations on PostgreSQL, without JavaScript', () => {
     const knownPage = await html(await get(pathOf(known.link)));
     expect(knownPage).toContain('already has an account');
     expect(knownPage).not.toContain('type="password"');
+    // the way to sign in carries no token: not in `next`, not anywhere in the address
+    expect(knownPage).toContain('href="/admin/login"');
+    expect(knownPage).not.toMatch(/href="\/admin\/login\?/);
 
     // a forged post: the form of a new-account link with this token put in and a password to take over the account
     const newcomerPage = await html(await get(pathOf(unknown.link)));
@@ -168,6 +171,14 @@ describe('invitations on PostgreSQL, without JavaScript', () => {
     expect(refused.headers.get('location')).toBe(`/admin/accept?token=${tokenOf(known.link)}&error=sign_in_required`);
     expect(await hashOf('tomasz@halka.pl')).toBe(before);
     expect(await membersOf('tomasz@halka.pl')).toEqual([]);
+
+    // signed in as ANOTHER account (the manager of Bistro E2E): the same forged post is refused with wrong_account and changes nothing
+    const marek = await manager();
+    const wrong = await post('/admin/accept', forged, {}, marek);
+    expect(wrong.status).toBe(303);
+    expect(wrong.headers.get('location')).toBe(`/admin/accept?token=${tokenOf(known.link)}&error=wrong_account`);
+    expect(await membersOf('tomasz@halka.pl')).toEqual([]);
+    expect(await hashOf('tomasz@halka.pl')).toBe(before);
 
     // signed in as Tomasz: the page offers a plain "join", the post adds the membership and nothing else
     const tomasz = await signIn('tomasz@halka.pl', DEMO_PASSWORD);
@@ -182,7 +193,6 @@ describe('invitations on PostgreSQL, without JavaScript', () => {
     expect(await membersOf('tomasz@halka.pl')).toEqual([{ role: 'sommelier', status: 'active' }]);
     await signIn('tomasz@halka.pl', DEMO_PASSWORD);                              // the old password still works
     // another signed-in account is told so and nothing changes
-    const marek = await manager();
     const wrongPage = await html(await get(pathOf(unknown.link), marek));
     expect(wrongPage).not.toContain('You are signed in with another account');   // the invitee has no account: the form is for a new one
     expect((await sql('select 1 from app_user where email = $1', [mail('unknown')])).length).toBe(0);

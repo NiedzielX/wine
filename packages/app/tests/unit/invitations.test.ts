@@ -1,7 +1,8 @@
 import { MIN_PASSWORD_LENGTH, type MemoryStore } from '@wine-match/core';
 import { createElement, type FunctionComponent } from 'react';
 import { prerender } from 'react-dom/static';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { AuthService, InvalidCredentialsError, InvitationService } from '@wine-match/core';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { DELETE as invitationDelete } from '@/app/api/v1/restaurants/[slug]/invitations/[invitationId]/route';
 import { GET as invitationList, POST as invitationCreate } from '@/app/api/v1/restaurants/[slug]/invitations/route';
 import TeamPage from '@/app/(admin)/admin/[slug]/team/page';
@@ -325,7 +326,10 @@ describe('A17: opening and accepting a link', () => {
     as(null);
     const signedOut = await render({ token });
     expect(signedOut).toContain('already has an account');
-    expect(signedOut).toContain(`/admin/login?next=${encodeURIComponent(`/admin/accept?token=${token}`)}`.replace(/&/g, '&amp;'));
+    // the way to sign in carries NO token (not in `next`, not anywhere): the person opens the link again afterwards
+    expect(signedOut).toContain('href="/admin/login"');
+    expect(signedOut).not.toMatch(/\/admin\/login\?[^"]*/);
+    expect(signedOut).toContain('open this link again');
     expect(signedOut).not.toContain('type="password"');
     // a password in a forged post for an existing account is ignored; without a session the post is refused
     expect(await accept(token, { name: 'Mallory', password: 'mallory-chosen-passphrase' })).toBe(`/admin/accept?token=${token}&error=sign_in_required`);
@@ -369,6 +373,102 @@ describe('A17: opening and accepting a link', () => {
     await expect(render({ token })).rejects.toBeInstanceOf(state().NotFoundSignal);
     expect(await accept(token, { name: 'O', password: PASSWORD })).toBe('/admin/accept?error=invalid_token');
     expect(store.users.some((u) => u.email === 'orphan@example.test')).toBe(false);
+  });
+});
+
+describe('review fixes: sign-in failure after accept, existing member, logging, expiry in the list', () => {
+  const form = (fields: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(fields)) f.append(k, v); return f; };
+  async function redirectOf(run: () => Promise<unknown>): Promise<string> {
+    try { await run(); } catch (e) { if (e instanceof state().RedirectSignal) return e.url; throw e; }
+    throw new Error('expected a redirect');
+  }
+  const offerOf = async (token: string) => { const scope = await createRequestScope(); try { return await scope.cradle.invitationService.offer(token); } finally { await scope.dispose(); } };
+
+  it('major 3: when the sign-in after the account was made fails, the person lands on the sign-in page with a notice and no token in the address; the account exists and the link cannot be used again', async () => {
+    const made = await issue(owner, 'login-fails@example.test', 'sommelier');
+    const token = tokenOf(made.link);
+    as(sommelier);                                       // another person's session is on this browser: it must survive a failed sign-in
+    const spy = vi.spyOn(AuthService.prototype, 'login').mockRejectedValueOnce(new InvalidCredentialsError());
+    try {
+      const url = await redirectOf(() => acceptInvitation(form({ token, name: 'Lena Login', password: PASSWORD })));
+      expect(url).toBe('/admin/login?notice=account_created');
+      expect(url).not.toContain(token);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(store.users.some((u) => u.email === 'login-fails@example.test')).toBe(true);
+    expect(store.memberships.filter((m) => store.users.find((u) => u.id === m.userId)?.email === 'login-fails@example.test')).toHaveLength(1);
+    expect(await offerOf(token)).toBeNull();
+    as(null);
+    expect(await redirectOf(() => acceptInvitation(form({ token, name: 'Again', password: PASSWORD })))).toBe('/admin/accept?error=invalid_token');
+    // and the account signs in with the password that was chosen
+    const scope = await createRequestScope();
+    expect((await scope.cradle.authService.login('login-fails@example.test', PASSWORD)).principal.user.name).toBe('Lena Login');
+    await scope.dispose();
+  });
+
+  it('the old session survives a failed sign-in, and is ended only when the new one exists', async () => {
+    const made = await issue(owner, 'session-swap@example.test', 'sommelier');
+    const own = await loginAs('marta@halka.pl');          // a session of its own: the test ends it
+    as(own);
+    const before = state().cookies.get(SESSION_COOKIE);
+    const spy = vi.spyOn(AuthService.prototype, 'login').mockRejectedValueOnce(new InvalidCredentialsError());
+    try { await redirectOf(() => acceptInvitation(form({ token: tokenOf(made.link), name: 'S', password: PASSWORD }))); } finally { spy.mockRestore(); }
+    expect(state().cookies.get(SESSION_COOKIE)).toBe(before);
+    const scope = await createRequestScope();
+    expect(await scope.cradle.authService.authenticate(before!)).not.toBeNull();
+    await scope.dispose();
+    const second = await issue(owner, 'session-swap2@example.test', 'sommelier');
+    expect(await redirectOf(() => acceptInvitation(form({ token: tokenOf(second.link), name: 'S2', password: PASSWORD })))).toBe('/admin/halka');
+    expect(state().cookies.get(SESSION_COOKIE)).not.toBe(before);
+    const scope2 = await createRequestScope();
+    expect(await scope2.cradle.authService.authenticate(before!)).toBeNull();
+    await scope2.dispose();
+    as(null);
+  });
+
+  it('a person who is already in the team gets already_member from the action and the link stays unused', async () => {
+    // Carla has an account (another restaurant); she is invited to Halka, then joins Halka by another path before she uses the link
+    const template = store.users.find((u) => u.email === 'marta@halka.pl')!;
+    const carla = '00000000-0000-4000-8000-0000000000f2';
+    store.users.push({ ...template, id: carla, email: 'carla@bistro.test', name: 'Carla' });
+    store.memberships.push({ userId: carla, membershipId: '00000000-0000-4000-8000-0000000000f3', restaurantId: ids.otherRestaurant, restaurantSlug: OTHER, restaurantName: 'Bistro Nad Wisłą', role: 'sommelier', status: 'active', version: 1, createdAt: '2026-10-02T07:00:00.000Z', deactivatedAt: null, deactivatedBy: null });
+    const made = await issue(owner, 'carla@bistro.test', 'sommelier');
+    store.memberships.push({ userId: carla, membershipId: '00000000-0000-4000-8000-0000000000f1', restaurantId: store.memberships.find((m) => m.restaurantSlug === 'halka')!.restaurantId, restaurantSlug: 'halka', restaurantName: 'Halka', role: 'waiter', status: 'active', version: 1, createdAt: '2026-10-02T07:00:00.000Z', deactivatedAt: null, deactivatedBy: null });
+    const carlaSession = await loginAs('carla@bistro.test');
+    as(carlaSession);
+    const token = tokenOf(made.link);
+    expect(await redirectOf(() => acceptInvitation(form({ token })))).toBe(`/admin/accept?token=${token}&error=already_member`);
+    expect(await offerOf(token)).not.toBeNull();
+    as(null);
+  });
+
+  it('minor 5: an unexpected driver error on accept logs neither the address, the password hash nor the password', async () => {
+    const made = await issue(owner, 'driver-error@example.test', 'sommelier');
+    const lines: string[] = [];
+    const sink = vi.spyOn(console, 'error').mockImplementation((line: unknown) => { lines.push(String(line)); });
+    const driver = vi.spyOn(InvitationService.prototype, 'accept').mockRejectedValueOnce(
+      Object.assign(new Error(`insert into "app_user" ("id", "email", "name", "password_hash") values ('1', 'driver-error@example.test', 'Dee', 'scrypt$32768$8$3$QUJDREVGR0g=$QUJDREVGR0hJSktMTU5PUA==') - duplicate key`), { code: '23505' })
+    );
+    try {
+      as(null);
+      expect(await redirectOf(() => acceptInvitation(form({ token: tokenOf(made.link), name: 'Dee', password: PASSWORD })))).toContain('error=unexpected');
+    } finally {
+      driver.mockRestore();
+      sink.mockRestore();
+    }
+    const logged = lines.join('\n');
+    expect(logged).toContain('accepting an invitation failed unexpectedly');
+    for (const secret of ['driver-error@example.test', 'scrypt$32768', 'QUJDREVGR0g', PASSWORD, tokenOf(made.link)]) expect(logged, secret).not.toContain(secret);
+  });
+
+  it('nit 9: the list marks an expired invitation by the application clock', async () => {
+    const made = await issue(owner, 'expired-flag@example.test', 'sommelier');
+    store.invitations.find((i) => i.id === made.id)!.expiresAt = new Date(Date.now() - 1000).toISOString();
+    const row = ((await (await list(owner)).json()) as { invitations: Array<{ id: string; expired: boolean }> }).invitations.find((i) => i.id === made.id)!;
+    expect(row.expired).toBe(true);
+    const fresh = await issue(owner, 'fresh-flag@example.test', 'sommelier');
+    expect(((await (await list(owner)).json()) as { invitations: Array<{ id: string; expired: boolean }> }).invitations.find((i) => i.id === fresh.id)!.expired).toBe(false);
   });
 });
 

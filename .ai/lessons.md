@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-06] [Rodzaj wiersza zapisuj jawnie: nie wnioskuj „konto platformy” z braku członkostwa](lessons/2026-11-06-mark-the-kind-never-infer-it-from-a-missing-row.md) — wyjątek od dostępu to kolumna ustawiana jedną ścieżką, brak wiersza to odmowa, ocena przy użyciu jak przy tworzeniu.
 - [2026-11-06] [Sekret pokazany raz po akcji serwerowej: stan formularza (`useActionState`), nie URL, ciasteczko ani flash](lessons/2026-11-06-show-a-secret-once-with-use-action-state.md) — link zaproszenia wraca w odpowiedzi na POST, nie w URL; działa bez JavaScriptu.
 - [2026-11-06] [Nowa klasa DomainError musi trafić na listę nazw w `server/domain-errors.ts` i do mapy HTTP](lessons/2026-11-06-new-domain-errors-need-the-app-allowlist.md) — inaczej serwis rzuca poprawny błąd, a aplikacja odpowiada 500.
 - [2026-11-06] [Do komponentu klienckiego nie przekazuj funkcji (np. tekstów z i18n jako lambd): vitest tego nie widzi, strona pada dopiero na zbudowanej aplikacji](lessons/2026-11-06-client-component-props-are-not-functions.md) — szablon tekstu z `{miejscami}` zamiast lambdy; potwierdzaj na `next start`, nie tylko w `prerender`.

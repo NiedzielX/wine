@@ -517,7 +517,8 @@ export const pl = {
         invalid_credentials: 'Nieprawidłowy e-mail lub hasło albo konto jest chwilowo zablokowane.',
         no_panel_access: 'To konto nie ma dostępu do panelu. Kelnerzy korzystają z podglądu parowań.',
         unexpected: 'Logowanie nie powiodło się. Spróbuj ponownie za chwilę.'
-      }
+      },
+      notices: { account_created: 'Konto zostało założone i dołączyłeś do restauracji. Zaloguj się hasłem, które przed chwilą wybrałeś.' } as Record<'account_created', string>
     },
     accept: {
       title: 'Dołącz do zespołu',
@@ -530,7 +531,7 @@ export const pl = {
       submitNew: 'Załóż konto i dołącz',
       existingText: 'Ten adres e-mail ma już konto. Dołączenie tylko dodaje tę restaurację do konta: hasło się nie zmienia.',
       submitExisting: 'Dołącz do restauracji',
-      signInText: 'Ten adres e-mail ma już konto. Zaloguj się na nie, wtedy możesz dołączyć.',
+      signInText: 'Ten adres e-mail ma już konto. Zaloguj się na nie, potem otwórz ten link jeszcze raz, żeby dołączyć.',
       signIn: 'Zaloguj się',
       wrongAccountText: (email: string) => `Jesteś zalogowany na inne konto. To zaproszenie jest dla ${email}: wyloguj się i otwórz link ponownie.`,
       signOut: 'Wyloguj się',

@@ -638,7 +638,8 @@ export const en = {
         invalid_credentials: 'The e-mail or password is incorrect, or the account is temporarily locked.',
         no_panel_access: 'This account has no access to the dashboard. Waiters use the pairing lookup instead.',
         unexpected: 'Sign-in failed. Try again in a moment.'
-      } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected', string>
+      } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected', string>,
+      notices: { account_created: 'Your account was created and you joined the restaurant. Sign in with the password you just chose.' } as Record<'account_created', string>
     },
     accept: {
       title: 'Join the team',
@@ -651,7 +652,7 @@ export const en = {
       submitNew: 'Create account and join',
       existingText: 'This e-mail address already has an account. Joining only adds this restaurant to it: your password does not change.',
       submitExisting: 'Join the restaurant',
-      signInText: 'This e-mail address already has an account. Sign in to it, then you can join.',
+      signInText: 'This e-mail address already has an account. Sign in to it, then open this link again to join.',
       signIn: 'Sign in',
       wrongAccountText: (email: string) => `You are signed in with another account. This invitation is for ${email}: sign out and open the link again.`,
       signOut: 'Sign out',

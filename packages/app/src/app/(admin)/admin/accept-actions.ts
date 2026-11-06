@@ -6,6 +6,7 @@ import { SESSION_COOKIE, getPrincipal, sessionCookieOptions } from '@/server/aut
 import { createRequestScope } from '@/server/container';
 import { domainError } from '@/server/domain-errors';
 import { logger } from '@/server/logger';
+import { scrubbedError } from '@/server/scrub-error';
 
 /**
  * A17 — accept an invitation (spec E12 F2, R4). A plain form post with the token in a hidden field (the link's page only shows the
@@ -26,12 +27,19 @@ export async function acceptInvitation(form: FormData) {
     const got = await scope.cradle.invitationService.accept({ token, name, password }, principal ? { userId: principal.user.id, email: principal.user.email } : null);
     target = `/admin/${got.restaurantSlug}`;
     if (got.newAccount) {
-      const jar = await cookies();
-      const old = jar.get(SESSION_COOKIE)?.value;
-      // a session of another person on this browser ends here: the new account gets a session of its own
-      if (old) await scope.cradle.authService.logout(old);
-      const signedIn = await scope.cradle.authService.login(got.email, password);
-      jar.set(SESSION_COOKIE, signedIn.token, sessionCookieOptions(new Date(signedIn.principal.session.expiresAt)));
+      try {
+        const signedIn = await scope.cradle.authService.login(got.email, password);
+        const jar = await cookies();
+        const old = jar.get(SESSION_COOKIE)?.value;
+        // a session of another person on this browser ends only now that the new account has one of its own
+        if (old) await scope.cradle.authService.logout(old);
+        jar.set(SESSION_COOKIE, signedIn.token, sessionCookieOptions(new Date(signedIn.principal.session.expiresAt)));
+      } catch (loginError) {
+        // the account and the membership exist and the link is spent: send the person to sign in with the password just chosen, and say so.
+        // No token in the address, nothing to retry with.
+        logger.warn('sign-in after accepting an invitation failed', { err: scrubbedError(loginError) });
+        target = '/admin/login?notice=account_created';
+      }
     }
   } catch (e) {
     const d = domainError(e);
@@ -43,7 +51,7 @@ export async function acceptInvitation(form: FormData) {
       redirect(back(f.password ? `password_${f.password}` : 'name_required'));
     }
     if (d) redirect(back(d.code));
-    logger.error('accepting an invitation failed unexpectedly', { err: e });
+    logger.error('accepting an invitation failed unexpectedly', { err: scrubbedError(e) });
     redirect(back('unexpected'));
   } finally {
     await scope.dispose();

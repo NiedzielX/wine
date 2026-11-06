@@ -9,6 +9,6 @@ import { env } from './env';
 export const invitationLink = (token: string): string => `${env().publicBaseUrl}/admin/accept?token=${encodeURIComponent(token)}`;
 
 /** The invitation as the API shows it. The token and its hash are never part of it; the link only comes with the answer to the call that created it. */
-export const invitationJson = (i: Invitation) => ({
-  id: i.id, email: i.email, role: i.role, createdBy: i.createdBy, createdByName: i.createdByName, createdAt: i.createdAt, expiresAt: i.expiresAt, expired: Date.parse(i.expiresAt) <= Date.now()
+export const invitationJson = (i: Invitation, nowMs: number) => ({
+  id: i.id, email: i.email, role: i.role, createdBy: i.createdBy, createdByName: i.createdByName, createdAt: i.createdAt, expiresAt: i.expiresAt, expired: Date.parse(i.expiresAt) <= nowMs
 });

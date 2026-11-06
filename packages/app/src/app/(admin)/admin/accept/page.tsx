@@ -36,7 +36,6 @@ export default async function AcceptInvitationPage({ searchParams }: Props) {
   const entry = error ? a.errors[error] : undefined;
   const message = typeof entry === 'function' ? entry(MIN_PASSWORD_LENGTH) : entry;
   const signedInAsInvitee = principal?.user.email === offer.email;
-  const back = `/admin/accept?token=${encodeURIComponent(token)}`;
 
   return (
     <main className="grid min-h-dvh place-items-center px-6 py-16">
@@ -71,7 +70,7 @@ export default async function AcceptInvitationPage({ searchParams }: Props) {
           {offer.accountExists && !principal && (
             <div className="grid gap-4">
               <p className="text-sm">{a.signInText}</p>
-              <Button asChild><Link href={`/admin/login?next=${encodeURIComponent(back)}`}>{a.signIn}</Link></Button>
+              <Button asChild><Link href="/admin/login">{a.signIn}</Link></Button>
             </div>
           )}
           {offer.accountExists && principal && !signedInAsInvitee && (

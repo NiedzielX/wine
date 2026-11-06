@@ -13,7 +13,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const { slug } = await ctx.params;
   return handle(req, { route: '/api/v1/restaurants/{slug}/invitations', write: false, slug, permission: 'team.manage' }, async ({ c, actor }) => {
     const invitations = await c.invitationService.list(slug, actor);
-    return NextResponse.json({ invitations: invitations.map(invitationJson) }, { headers: NO_STORE });
+    const nowMs = c.clock.now().getTime();
+    return NextResponse.json({ invitations: invitations.map((i) => invitationJson(i, nowMs)) }, { headers: NO_STORE });
   });
 }
 
@@ -28,6 +29,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   return handle(req, { route: '/api/v1/restaurants/{slug}/invitations', write: true, slug, permission: 'team.manage' }, async ({ c, actor }) => {
     const input = await parseBody(req, invitationSchema);
     const issued = await c.invitationService.invite(slug, input, actor);
-    return NextResponse.json({ ...invitationJson(issued.invitation), link: invitationLink(issued.token) }, { status: 201, headers: NO_STORE });
+    return NextResponse.json({ ...invitationJson(issued.invitation, c.clock.now().getTime()), link: invitationLink(issued.token) }, { status: 201, headers: NO_STORE });
   });
 }
