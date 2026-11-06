@@ -23,16 +23,16 @@
     "restaurant:create": "tsx scripts/create-restaurant.ts"
   },
   "dependencies": {
-    "@mikro-orm/core": "7.2.2",
-    "@mikro-orm/migrations": "7.2.2",
-    "@mikro-orm/postgresql": "7.2.2",
-    "@mikro-orm/seeder": "7.2.2",
+    "@mikro-orm/core": "7.2.5",
+    "@mikro-orm/migrations": "7.2.5",
+    "@mikro-orm/postgresql": "7.2.5",
+    "@mikro-orm/seeder": "7.2.5",
     "@wine-match/core": "*",
-    "fflate": "0.7.5",
-    "unpdf": "1.8.1"
+    "fflate": "0.8.3",
+    "unpdf": "1.9.1"
   },
   "devDependencies": {
-    "@mikro-orm/cli": "7.2.2",
+    "@mikro-orm/cli": "7.2.5",
     "@wine-match/testkit": "0.2.0"
   },
   "mikro-orm": {

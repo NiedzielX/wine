@@ -48,13 +48,13 @@
     "test-env:down": "sh .ai/scripts/test-env-down.sh"
   },
   "devDependencies": {
-    "@types/node": "22.20.4",
-    "@vitest/coverage-v8": "5.0.2",
-    "oxlint": "1.86.0",
+    "@types/node": "22.20.5",
+    "@vitest/coverage-v8": "5.0.5",
+    "oxlint": "1.89.0",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
-    "vite": "8.3.1",
-    "vitest": "5.0.2"
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
   },
   "allowScripts": {
     "esbuild": false
