@@ -37,6 +37,18 @@ Uprawnienia: **P** publiczny, **W** waiter, **S** sommelier, **M** owner/manager
 | GET | `/auth/me` | S M | bieżący użytkownik i rola w lokalu |
 | POST | `/auth/password-reset` | P | `{email}` → `202` (zawsze, bez ujawniania kont) |
 
+### Zaproszenia do zespołu (E12 F2)
+
+Uprawnienie `team.manage` w lokalu `{slug}`; zapisy: sesja i `X-CSRF-Token`. Zaproszenie to jednorazowy link (72 h) przekazywany ręcznie: poczty nie ma (pytanie Q-O2). Menedżer zaprasza tylko `sommelier`; `owner` i `manager` tylko właściciel; roli `waiter` zaproszenie nie ma. Odpowiedź jest taka sama dla adresu z kontem i bez konta; wyjątek: osoba już w zespole lokalu (aktywna lub z odebranym dostępem) to `409 already_member`.
+
+| Metoda | Ścieżka | Rola | Opis |
+|---|---|---|---|
+| GET | `/restaurants/{slug}/invitations` | O M | `200 {invitations[]}`: `id`, `email`, `role`, `createdBy`, `createdByName`, `createdAt`, `expiresAt`, `expired`; nigdy token ani link |
+| POST | `/restaurants/{slug}/invitations` | O M | ciało `{email, role}` (`strictObject`, `role` ∈ `owner`, `manager`, `sommelier`); `201` z zaproszeniem i polem `link` (`PUBLIC_BASE_URL/admin/accept?token=…`, **jedyny raz**, odpowiedź `Cache-Control: private, no-store`). Nowe zaproszenie na ten sam adres i lokal cofa poprzednie (jeśli zapraszający nie mógł go cofnąć: `403 team_hierarchy`). Błędy: `403 team_hierarchy`, `403 forbidden`, `409 already_member`, `422 validation_failed` |
+| DELETE | `/restaurants/{slug}/invitations/{invitationId}` | O M | cofa nieprzyjęte zaproszenie, link przestaje działać od razu; `204`. `404` dla nieznanego, cudzego lokalu, użytego lub już cofniętego (też gdy id nie jest UUID-em); `403 team_hierarchy`, gdy menedżer cofa zaproszenie właściciela lub menedżera |
+
+Przyjęcie (A17) nie ma trasy API: to formularz `/admin/accept` (akcja serwerowa, zwykły POST bez JavaScriptu). Link, którego nie można użyć (nieznany, użyty, cofnięty, wygasły, zapraszający stracił dostęp), daje jedną odpowiedź: stronę „link nieważny” z kodem 404.
+
 ### Zespół restauracji (E12 F1)
 
 Wymagają uprawnienia `team.manage` (owner, manager) w lokalu `{slug}`; zapisy: sesja, `X-CSRF-Token`, `If-Match`. Hierarchię (Q7) egzekwuje serwis, nie macierz uprawnień.

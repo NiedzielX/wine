@@ -9,6 +9,10 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-06] [Rodzaj wiersza zapisuj jawnie: nie wnioskuj „konto platformy” z braku członkostwa](lessons/2026-11-06-mark-the-kind-never-infer-it-from-a-missing-row.md) — wyjątek od dostępu to kolumna ustawiana jedną ścieżką, brak wiersza to odmowa, ocena przy użyciu jak przy tworzeniu.
+- [2026-11-06] [Sekret pokazany raz po akcji serwerowej: stan formularza (`useActionState`), nie URL, ciasteczko ani flash](lessons/2026-11-06-show-a-secret-once-with-use-action-state.md) — link zaproszenia wraca w odpowiedzi na POST, nie w URL; działa bez JavaScriptu.
+- [2026-11-06] [Nowa klasa DomainError musi trafić na listę nazw w `server/domain-errors.ts` i do mapy HTTP](lessons/2026-11-06-new-domain-errors-need-the-app-allowlist.md) — inaczej serwis rzuca poprawny błąd, a aplikacja odpowiada 500.
+- [2026-11-06] [Do komponentu klienckiego nie przekazuj funkcji (np. tekstów z i18n jako lambd): vitest tego nie widzi, strona pada dopiero na zbudowanej aplikacji](lessons/2026-11-06-client-component-props-are-not-functions.md) — szablon tekstu z `{miejscami}` zamiast lambdy; potwierdzaj na `next start`, nie tylko w `prerender`.
 - [2026-11-05] [`MikroORM.init` nie łączy się z bazą, a po `close()` łączy się sam](lessons/2026-11-05-mikroorm-init-does-not-connect.md) — „baza leży” sprawdzaj `select 1` z limitem czasu i testuj przekaźnikiem TCP, nie zamknięciem ORM.
 - [2026-11-05] [Zaostrzenie „produkcja zawodzi zamykająco” psuje lokalne starty produkcji](lessons/2026-11-05-fail-closed-breaks-local-production-starts.md) — grep po `NODE_ENV=production`/`next start` i jawny wyjątek w e2e, boot:check, test-env-up i README w tym samym PR-ze.
 - [2026-11-05] [W transakcji MikroORM `em.getConnection().execute` omija transakcję](lessons/2026-11-05-pg-execute-inside-transaction.md) — surowe zapytania w `em.transactional` idą przez `em.execute`; blokadę udowadniaj dwoma połączeniami i mutacją.

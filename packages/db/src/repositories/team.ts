@@ -32,7 +32,7 @@ const MEMBER_SELECT = `select m.id as membership_id, m.user_id, u.name, u.email,
   from membership m join app_user u on u.id = m.user_id`;
 
 /** A duplicate event id is a domain error, whatever the table's other constraints are. */
-async function insertAuthEvent(em: EntityManager, e: AuthEvent): Promise<void> {
+export async function insertAuthEvent(em: EntityManager, e: AuthEvent): Promise<void> {
   try {
     await em.execute(
       `insert into auth_event (id, restaurant_id, actor_user_id, subject_user_id, type, meta, at) values (?, ?, ?, ?, ?, ?::jsonb, ?::timestamptz)`,
