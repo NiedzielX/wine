@@ -66,9 +66,15 @@ export async function run(argv: string[], environment: Environment, deps: Invite
     const user = await scope.authRepository.findUserByEmail(inviter);
     if (!user) { deps.err(`No account ${inviter} to invite as.`); return 1; }
     const { invitation, token } = await scope.invitationService.invite(slug, { email, role }, { id: user.id, name: user.name });
-    deps.err(`Invitation for ${invitation.email} as ${invitation.role}; the link works once and expires at ${invitation.expiresAt}. Pass it on privately.`);
-    deps.out(deps.linkFor(token));
-    return 0;
+    // from here the invitation EXISTS: a failure to write must not be reported as "not issued"
+    try {
+      deps.err(`Invitation for ${invitation.email} as ${invitation.role}; the link works once and expires at ${invitation.expiresAt}. Pass it on privately.`);
+      deps.out(deps.linkFor(token));
+      return 0;
+    } catch {
+      try { deps.err(`Error: the invitation for ${invitation.email} was issued but its link could not be written (output closed?). The link is lost: issue the invitation again (a new one replaces this one).`); } catch { /* stderr is closed too: the exit code is all that is left */ }
+      return 1;
+    }
   } catch (e) {
     const known = domainError(e);
     // domain errors (Forbidden, NotFound, AlreadyMember, Validation...) carry a safe message; anything else is not echoed (a driver error repeats bound values)

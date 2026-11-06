@@ -95,13 +95,24 @@ describe('user:invite', () => {
   });
 
   it('the service decides: a sommelier may not invite, a manager may not invite an owner', async () => {
+    const pendingFor = async (email: string) => {
+      const scope = await createRequestScope();
+      try {
+        const tomasz = (await scope.cradle.authRepository.findUserByEmail('tomasz@halka.pl'))!;
+        return (await scope.cradle.invitationService.list('halka', { id: tomasz.id, name: tomasz.name })).filter((i) => i.email === email);
+      } finally { await scope.dispose(); }
+    };
     const sommelier = harness();
     expect(await run(GOOD.map((a) => (a === 'tomasz@halka.pl' ? 'marta@halka.pl' : a)), { NODE_ENV: 'test' }, sommelier.deps)).toBe(1);
     expect(sommelier.out).toEqual([]);
+    expect(sommelier.err.join('\n')).toBe('Error: You do not have permission to do this.');
     const hierarchy = harness();
-    expect(await run(GOOD.map((a) => (a === 'sommelier' ? 'owner' : a)), { NODE_ENV: 'test' }, hierarchy.deps)).toBe(1);
+    const ownerArgs = GOOD.map((a) => (a === 'sommelier' ? 'owner' : a === 'New.Person@Example.com' ? 'denied.owner@example.com' : a));
+    expect(await run(ownerArgs, { NODE_ENV: 'test' }, hierarchy.deps)).toBe(1);
     expect(hierarchy.out).toEqual([]);
-    expect(hierarchy.err.join('\n')).toMatch(/^Error: /);
+    expect(hierarchy.err.join('\n')).toBe('Error: Your role may not change this person or grant this role.');
+    expect(await pendingFor('denied.owner@example.com')).toEqual([]);
+    expect(await pendingFor('new.person@example.com')).toHaveLength(1); // only the first test's invitation exists: Marta's attempt stored nothing
   });
 
   it('fails before issuing when PUBLIC_BASE_URL is unusable, and does not echo an unexpected error message', async () => {
@@ -111,5 +122,13 @@ describe('user:invite', () => {
     const driver = harness({ openScope: async () => { throw new Error('insert into auth_token values (hash-SECRET-123)'); } });
     expect(await run(GOOD, { NODE_ENV: 'test' }, driver.deps)).toBe(1);
     expect(driver.err.join('\n')).not.toContain('SECRET-123');
+  });
+
+  it('when writing the link fails after the invitation exists, it says so instead of "not issued"', async () => {
+    const h = harness({ out: () => { throw new Error('EPIPE'); } });
+    expect(await run(['--restaurant', 'halka', '--email', 'epipe@example.com', '--role', 'sommelier', '--as', 'tomasz@halka.pl'], { NODE_ENV: 'test' }, h.deps)).toBe(1);
+    const text = h.err.join('\n');
+    expect(text).toContain('was issued but its link could not be written');
+    expect(text).not.toContain('was not issued');
   });
 });

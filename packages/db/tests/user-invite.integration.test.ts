@@ -75,6 +75,7 @@ describe('user:invite on PostgreSQL', () => {
     const r = await invite(as('nope@example.com', 'marta@halka.pl'), {});
     expect(r.code).toBe(1);
     expect(r.stdout).toBe('');
+    expect(r.stderr).toContain('Error: You do not have permission to do this.');
     expect(await tokens()).toHaveLength(before);
   }, 60_000);
 });

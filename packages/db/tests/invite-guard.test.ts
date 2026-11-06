@@ -20,6 +20,10 @@ describe('assertInviteCommandAllowed', () => {
     expect(() => assertInviteCommandAllowed({ NODE_ENV: 'production', ALLOW_DEMO_DATA: 'true' }, warn)).not.toThrow();
   });
 
+  it('trims ALLOW_DEMO_DATA like the seeder does', () => {
+    expect(() => assertInviteCommandAllowed({ NODE_ENV: 'production', ALLOW_DEMO_DATA: ' true ' }, warn)).not.toThrow();
+  });
+
   it('warns and runs when NODE_ENV is unset or blank', () => {
     warnings.length = 0;
     assertInviteCommandAllowed({}, warn);
