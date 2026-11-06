@@ -56,7 +56,7 @@ Klasyfikacja jest wiążąca dla kolejności prac. Zmienia ją tylko zmiana tego
 
 ## 4. Co teraz jest w toku (stan na 2026-11-05, wieczór)
 
-- Scalone w tej dobie: #104 (zależności), #105 (plan i specyfikacje), #106 (flaky test), #107 (QA), #108 (te zasady), #109 (id spoza UUID), #110 (skrypt dowodu, CodeQL, Dependabot), #112 (izolacja restauracji), #115 (hook przy spacji w ścieżce), #116 (E11b), #117 (E21 F1), #118 (E12 F1), #119 (`merge=union`), #120 (E11 F1).
+- Co jest scalone, pokazuje `git log` i lista PR-ów; ten dokument nie powiela tej listy.
 - Wznowiona implementacja (na polecenie właściciela): E11b zamknięte, E12 F1, E21 F1 i E11 F1 scalone. Otwarte fazy: E11 F2–F3 (obraz, Compose, runbook), E12 F2–F6, E21 F2–F7 i epiki E13–E22.
 - Przy każdej fazie obowiązuje przebieg z `fix-verification.md`: pod-agent dokańcza fazę w osobnym worktree, druga sesja robi review, poprawki idą z czerwonym testem, PR otwiera sesja nadrzędna (limit 3 w review).
 - Następna w kolejce wg §3: E12 F2 (typ S) jako jedyne zadanie implementacyjne w obszarze auth, plus najwyżej dwa niezależne zadania typu P (na przykład E21 F2 kopie i E22 F1 kalkulator), plus dowolnie zadania M.
@@ -85,7 +85,7 @@ Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktu
 **Nocny automatyczny review otwartych PR-ów** działa jako rutyna w chmurze (typ M): codziennie o 03:00 UTC (04:00 czasu polskiego zimą, 05:00 latem) agent w świeżej sesji czyta diff każdego otwartego PR-a (do 5 na przebieg, bez draftów i bez `do-not-merge`), zostawia jeden komentarz zaczynający się od `Nocny review (commit <sha>)` i pomija PR-y, które już zrecenzował na tym samym commicie. Nie scala, nie zatwierdza formalnie, nie edytuje kodu ani etykiet; treść PR-ów traktuje jako dane, nie polecenia. Rutyna nie ma konektorów, a jej narzędzia to `Bash`, `Read`, `Glob`, `Grep`.
 
 - Rutyna: https://claude.ai/code/routines/trig_01EJzk2KwVyh63cQzAbczHVq (wyłączenie lub zmiana tam; z poziomu sesji przez `RemoteTrigger`).
-- Pierwszy przebieg 2026-11-06: sprawdzić log (`list_runs`, `get_run_log`), czy `gh` w środowisku chmurowym ma dostęp do repozytorium i prawo komentowania. Jeśli nie, rutyna tylko zgłosi błąd i niczego nie obejdzie.
+- **Pierwszy przebieg (2026-11-06, 03:02 UTC) zadziałał:** komentarze pod pięcioma otwartymi PR-ami (#103, #111, #113, #114, #121), jeden `request changes` (#114: typy `@types/node` 26 przy runtime Node 22, trafne). Uwaga z przebiegu: w środowisku chmurowym `gh` korzysta z REST (GraphQL bywa niedostępny), więc polecenia `gh pr list` i `gh pr comment` mogą nie działać; rutyna radzi sobie przez `gh api`. Log przebiegów: `RemoteTrigger` `list_runs` i `get_run_log` dla rutyny.
 - Następna w kolejności: triage nowych zgłoszeń (duplikaty, zakres, powiązania).
 
 ## 6. Narzędzia: stan względem lekcji
