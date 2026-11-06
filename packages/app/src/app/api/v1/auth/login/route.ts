@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /** POST /api/v1/auth/login {email, password} → 200 {user, memberships, csrfToken} + session cookie. */
 export async function POST(req: NextRequest) {
-  return handlePublic(req, { write: true }, async ({ c }) => {
+  return handlePublic(req, { route: '/api/v1/auth/login', write: true }, async ({ c }) => {
     const { email, password } = await parseBody(req, loginSchema);
     const { token, principal } = await c.authService.login(email, password);
     const res = NextResponse.json({ user: principal.user, memberships: principal.memberships, csrfToken: principal.session.csrfToken, expiresAt: principal.session.expiresAt });

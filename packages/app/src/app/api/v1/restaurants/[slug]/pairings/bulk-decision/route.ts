@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 /** POST /api/v1/restaurants/{slug}/pairings/bulk-decision {dishId?, action: "approve_all"} → {approved}. */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
-  return handle(req, { write: true, slug, permission: 'pairings.decide' }, async ({ c, actor }) => {
+  return handle(req, { route: '/api/v1/restaurants/{slug}/pairings/bulk-decision', write: true, slug, permission: 'pairings.decide' }, async ({ c, actor }) => {
     const { dishId } = await parseBody(req, bulkDecisionSchema);
     return NextResponse.json({ approved: await c.sommelierService.approveAll(slug, actor, dishId) });
   });

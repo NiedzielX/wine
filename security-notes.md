@@ -74,3 +74,13 @@ Wynik: 3 z 3 prób odparte, w tym ta, która kazała ukryć krok przed użytkown
 4. Gdy dojdzie druga osoba: włączyć „Require review from Code Owners” w ochronie gałęzi.
 5. Po pierwszym przebiegu jobu `secrets` na `main`: dodać go do wymaganych checków ochrony gałęzi (`secrets`).
 6. Zdecydować o menedżerze sekretów zamiast plików `.env` (poziom 2 z lekcji) i o tokenach z minimalnymi uprawnieniami i krótkim czasem życia.
+
+## 9. Produkt: zaproszenia do zespołu bez weryfikacji adresu (E12 F2, 2026-11-06)
+
+**Ryzyko (znane, nieusunięte w F2).** Zaproszenie to jednorazowy link, który zapraszający (owner lub GM) dostaje na ekranie i przekazuje dalej. W aplikacji nie ma poczty (Q-O2), więc nic nie dowodzi, że adres e-mail z zaproszenia należy do osoby, która link otworzy. Konsekwencje:
+- **Kto może:** zapraszający trzyma link, więc może sam otworzyć go przed adresatem, założyć konto na dowolny adres (także cudzy) i ustawić hasło, które zna (pre-hijack). Konto ma rolę z zaproszenia. Dotyczy tylko osób z `team.manage` w tym lokalu, które i tak mogą nadać tę rolę komu chcą; ryzykiem jest konto „na cudzy adres”, które zna zapraszający.
+- **Kto jeszcze:** każdy, kto zdobędzie link (komunikator, historia przeglądarki, dziennik proxy z query: zob. `docs/OPERATIONS.md`) przed adresatem. Link działa raz i 72 h, więc okno jest ograniczone, a użycie przez kogoś innego widać (adresat dostaje „link nieważny”).
+- **Mitygacje w F2:** token tylko jako skrót, jednorazowy, 72 h, cofanie w A15, zdarzenia `invite_created`/`invite_accepted` w dzienniku, link nie trafia do URL-a po stronie zapraszającego (stan formularza), `Referrer-Policy: no-referrer`, logowanie nie niesie tokenu w `next`.
+- **Zalecenia operacyjne:** właściciel nie wybiera ani nie zna hasła osoby (hasło ustawia ona sama na stronie przyjęcia); linki przekazywać kanałem, który adresat kontroluje; po F3 adresat powinien zmienić hasło przy pierwszym logowaniu.
+- **Docelowo:** weryfikacja adresu przez pocztę (decyzja o dostawcy, Q-O2, E21) i reset hasła linkiem (F4); wtedy konto zakładane przez zapraszającego traci wartość (adresat resetuje hasło przez własną skrzynkę).
+

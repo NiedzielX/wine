@@ -38,3 +38,9 @@ export function formatPrice(amount: number, locale: Locale): string {
   const n = NUMBER_FORMATS[locale].format(amount);
   return locale === 'pl' ? `${n.replace(/\s/g, ' ')} zł` : `${n} zł`;
 }
+
+/** A plain number in the language's own grouping and decimal sign ("1 500" / "1,500", "8,8" / "8.8"), at most two decimals. */
+export function formatNumber(value: number, locale: Locale): string {
+  const n = NUMBER_FORMATS[locale].format(value);
+  return locale === 'pl' ? n.replace(/\s/g, '\u00a0') : n;
+}

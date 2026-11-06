@@ -1,4 +1,5 @@
 import type { CookingMethod, EngineFacts, ImportIssueCode, ProteinType, Role, SetupStepKey } from '@wine-match/core';
+import { showcaseEn } from './showcase-en';
 
 /** Values quoted in an import issue (`ImportIssue.params`): the cell text, the guessed style, a row number. */
 export type IssueParams = Readonly<Record<string, string | undefined>>;
@@ -111,6 +112,7 @@ export const en = {
     back: 'Back',
     close: 'Close'
   },
+  showcase: showcaseEn,
   guest: {
     meta: {
       description: 'Find the wine for what you are eating tonight, from the restaurant’s own list.',
@@ -576,7 +578,9 @@ export const en = {
       importMenu: 'Import menu',
       importWines: 'Import wine list',
       importSales: 'Import sales',
-      opportunities: 'Opportunities'
+      opportunities: 'Opportunities',
+      team: 'Team',
+      acceptInvitation: 'Join a restaurant'
     },
     language: {
       label: 'Dashboard language'
@@ -620,6 +624,7 @@ export const en = {
       importSales: 'Import sales',
       setup: 'Setup',
       qr: 'QR code',
+      team: 'Team',
       signOut: 'Sign out'
     },
     login: {
@@ -635,7 +640,37 @@ export const en = {
         invalid_credentials: 'The e-mail or password is incorrect, or the account is temporarily locked.',
         no_panel_access: 'This account has no access to the dashboard. Waiters use the pairing lookup instead.',
         unexpected: 'Sign-in failed. Try again in a moment.'
-      } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected', string>
+      } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected', string>,
+      notices: { account_created: 'Your account was created and you joined the restaurant. Sign in with the password you just chose.' } as Record<'account_created', string>
+    },
+    accept: {
+      title: 'Join the team',
+      description: (restaurant: string, role: string) => `You were invited to ${restaurant} as ${role}.`,
+      email: 'E-mail address of the invitation',
+      newText: 'Choose your name and a password to create your account.',
+      name: 'Your name',
+      password: 'Password',
+      passwordHelp: (min: number) => `At least ${min} characters.`,
+      submitNew: 'Create account and join',
+      existingText: 'This e-mail address already has an account. Joining only adds this restaurant to it: your password does not change.',
+      submitExisting: 'Join the restaurant',
+      signInText: 'This e-mail address already has an account. Sign in to it, then open this link again to join.',
+      signIn: 'Sign in',
+      wrongAccountText: (email: string) => `You are signed in with another account. This invitation is for ${email}: sign out and open the link again.`,
+      signOut: 'Sign out',
+      errors: {
+        name_required: 'Enter your name.',
+        password_too_short: (min: number) => `The password needs at least ${min} characters.`,
+        password_too_long: 'The password is too long.',
+        sign_in_required: 'Sign in with the account of this e-mail address first.',
+        wrong_account: 'This invitation is for another account. Sign out and open the link again.',
+        account_exists: 'An account with this e-mail address already exists. Sign in to it first.',
+        already_member: 'You are already in the team of this restaurant.',
+        unexpected: 'The invitation could not be accepted. Try again in a moment.'
+      } as Record<string, string | ((min: number) => string)>,
+      invalidTitle: 'This link is not valid any more',
+      invalidText: 'It may have been used, cancelled or have expired. Ask the person who invited you for a new link.',
+      toSignIn: 'Go to sign in'
     },
     forbidden: {
       title: 'No access',
@@ -682,10 +717,14 @@ export const en = {
         content: () => 'Content language and translations saved. Guests see them after you publish.',
         suggestion_added: () => 'Added to suggestions — approve it in “Engine suggestions”. Guests see the change only after you approve it and publish.',
         opportunity_dismissed: (days: number) => `Opportunity ignored. It comes back after ${days} days at the earliest if it still applies.`,
-        opportunity_restored: () => 'Opportunity restored.'
+        opportunity_restored: () => 'Opportunity restored.',
+        member_role_changed: () => 'Role changed. It applies on the person’s next request.',
+        member_deactivated: () => 'Access removed. The person is signed out of this restaurant at once.',
+        member_reactivated: () => 'Access restored. The person can use the dashboard again.',
+        invitation_revoked: () => 'Invitation cancelled. Its link no longer works.'
       },
       errors: {
-        version_conflict: 'This pairing was changed by someone else a moment ago. The page now shows the latest version, please try again.',
+        version_conflict: 'This was changed by someone else a moment ago. The page now shows the latest version, please try again.',
         forbidden: 'You don’t have permission to do that.',
         comment_too_long: 'The note can have at most 140 characters.',
         already_paired: 'This wine is already paired with the dish.',
@@ -726,6 +765,12 @@ export const en = {
         low_match: 'This wine is a weak match for the dish.',
         opportunity_stale: 'This opportunity no longer applies.',
         opportunity_not_dismissed: 'This opportunity is not ignored.',
+        last_owner: 'A restaurant must keep at least one active owner. Make someone else an owner first.',
+        team_hierarchy: 'Your role may not change this person or grant that role. Ask an owner.',
+        self_change: 'You cannot change your own role or remove your own access.',
+        member_deactivated: 'This person’s access is removed. Restore it before changing the role.',
+        already_member: 'This person is already in the team of this restaurant. If their access was removed, restore it in the list.',
+        invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -1217,6 +1262,58 @@ export const en = {
           `Guest names, payments and item names are not saved. Up to ${maxRows} lines per file: split larger exports by whole days.`
         ]
       }
+    },
+    team: {
+      title: 'Team',
+      description: 'Everyone with access to this restaurant. A change applies on the person’s next request: there is nothing to publish.',
+      count: (active: number, total: number) => (total === active ? `${active} people` : `${active} active of ${total}`),
+      listLabel: 'Team members',
+      lastSignIn: (when: string) => `Last sign-in: ${when}`,
+      you: 'You',
+      deactivated: 'Access removed',
+      active: 'Active',
+      deactivatedOn: (when: string) => `Access removed ${when}`,
+      roleLabel: (name: string) => `Role of ${name}`,
+      saveRole: 'Save role',
+      deactivate: 'Remove access',
+      reactivate: 'Restore access',
+      ownerOnly: 'Only an owner can change an owner or a General Manager.',
+      yourself: 'You cannot change your own role or access.',
+      roleHelp: 'A general manager can give the roles Wine Director and Waiter. Only an owner can give Owner or General Manager.',
+      invite: {
+        title: 'Invite someone',
+        description: 'There is no e-mail sending yet: you get a link and pass it on yourself. It works once, for 72 hours, and a newer invitation for the same address replaces the older one.',
+        email: 'E-mail address',
+        role: 'Role',
+        submit: 'Create invitation link',
+        noRoles: 'Your role cannot invite anyone.',
+        createdTitle: 'Invitation link created',
+        /** a template, not a function: it goes to a client component, which cannot receive functions */
+        createdText: 'For {email}, as {role}. It works once and for 72 hours. This is the only time it is shown: copy it now and send it to the person yourself.',
+        linkLabel: 'Invitation link',
+        pendingTitle: 'Pending invitations',
+        pendingLabel: 'Pending invitations',
+        pendingNone: 'No pending invitations.',
+        invitedBy: (name: string) => `Invited by ${name}`,
+        validUntil: (when: string) => `Link valid until ${when}`,
+        expired: 'Expired',
+        revoke: 'Cancel invitation',
+        revokeOwnerOnly: 'Only an owner can cancel this invitation.',
+        errors: {
+          validation_failed: 'Enter a valid e-mail address and choose a role.',
+          already_member: 'This person is already in the team of this restaurant. If their access was removed, restore it in the list.',
+          team_hierarchy: 'Your role may not give this role. A general manager can invite a Wine Director; an owner can invite anyone.',
+          forbidden: 'You don’t have permission to do that.',
+          invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
+          unexpected: 'The invitation could not be created. Nothing was changed; try again.'
+        } as Record<string, string>
+      },
+      roleDescriptions: {
+        owner: 'Everything, including the team.',
+        manager: 'Runs the restaurant and the team, does not decide pairings.',
+        sommelier: 'Decides pairings, imports and publishes.',
+        waiter: 'Uses the pairing lookup, no dashboard.'
+      } as Record<Role, string>
     },
     qr: {
       title: 'QR code',

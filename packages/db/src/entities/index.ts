@@ -8,7 +8,7 @@ import { PairingEntity } from './pairings/pairing';
 import { PublishedVersionEntity } from './publishing/published-version';
 import { RestaurantEntity } from './restaurants/restaurant';
 import { SommelierDecisionEntity } from './pairings/sommelier-decision';
-import { MembershipEntity, SessionEntity, UserEntity } from './auth/user';
+import { AuthEventEntity, AuthTokenEntity, MembershipEntity, SessionEntity, UserEntity } from './auth/user';
 import { WineEntity, WineProfileEmbeddable } from './catalog/wine';
 
 export * from './restaurants/restaurant';
@@ -28,5 +28,5 @@ export * from './sales/sales-record';
 export const ENTITIES = [
   RestaurantEntity, DishEntity, DishProfileEmbeddable, WineEntity, WineProfileEmbeddable,
   PairingEntity, PublishedVersionEntity, SommelierDecisionEntity, GuestInteractionEntity, ImportJobEntity,
-  UserEntity, MembershipEntity, SessionEntity, OpportunityDismissalEntity, RecommendationCodeEntity, SalesRecordEntity
+  UserEntity, MembershipEntity, SessionEntity, OpportunityDismissalEntity, RecommendationCodeEntity, SalesRecordEntity, AuthEventEntity, AuthTokenEntity
 ];

@@ -4,7 +4,7 @@ area: staff
 title: "Unknown malformed or expired code same answer"
 status: automated
 spec:
-  path: .ai/specs/2026-10-16-recommendation-code.md
+  path: .ai/specs/implemented/2026-10-16-recommendation-code.md
   ac: ["AC8"]
 test:
   file: packages/app/tests/e2e/staff-code.e2e.test.ts

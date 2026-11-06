@@ -29,6 +29,7 @@ export default async function RestaurantAdminLayout({ children, params }: Props)
       locale={locale}
       t={t}
       back={back}
+      canManageTeam={access.can('team.manage')}
     >
       <ErrorTextsProvider value={t.admin.error}>{children}</ErrorTextsProvider>
     </AdminShell>

@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const { id } = await ctx.params;
   const slug = req.nextUrl.searchParams.get('restaurant') ?? '';
   if (!slug) return apiError(422, 'validation_failed', 'Query parameter "restaurant" is required.', { restaurant: 'required' });
-  return handle(req, { write: true, slug, permission: 'wines.toggle' }, async ({ c }) => {
+  return handle(req, { route: '/api/v1/wines/{id}', write: true, slug, permission: 'wines.toggle' }, async ({ c }) => {
     const { active } = await parseBody(req, wineAvailabilitySchema);
     const wine = await c.sommelierService.setWineActive(slug, id, active);
     return NextResponse.json({ id: wine.id, active: wine.active });

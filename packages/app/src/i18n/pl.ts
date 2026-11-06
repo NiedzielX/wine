@@ -1,4 +1,5 @@
-import type { EngineFacts } from '@wine-match/core';
+import type { EngineFacts, Role } from '@wine-match/core';
+import { showcasePl } from './showcase-pl';
 import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, TableQuantityText, UsageExplainFacts, WineExplainContext } from './en';
 
 /** Polish plural: 1 wino, 2–4 wina (but 12–14 win), 5+ win. */
@@ -39,6 +40,7 @@ export const pl = {
     back: 'Wstecz',
     close: 'Zamknij'
   },
+  showcase: showcasePl,
   guest: {
     meta: {
       description: 'Znajdź wino do tego, co dziś jesz — z karty win restauracji.',
@@ -455,7 +457,9 @@ export const pl = {
       importMenu: 'Import menu',
       importWines: 'Import karty win',
       importSales: 'Import sprzedaży',
-      opportunities: 'Okazje'
+      opportunities: 'Okazje',
+      team: 'Zespół',
+      acceptInvitation: 'Dołącz do restauracji'
     },
     language: {
       label: 'Język panelu'
@@ -499,6 +503,7 @@ export const pl = {
       importSales: 'Import sprzedaży',
       setup: 'Ustawienia',
       qr: 'Kod QR',
+      team: 'Zespół',
       signOut: 'Wyloguj'
     },
     login: {
@@ -514,7 +519,37 @@ export const pl = {
         invalid_credentials: 'Nieprawidłowy e-mail lub hasło albo konto jest chwilowo zablokowane.',
         no_panel_access: 'To konto nie ma dostępu do panelu. Kelnerzy korzystają z podglądu parowań.',
         unexpected: 'Logowanie nie powiodło się. Spróbuj ponownie za chwilę.'
-      }
+      },
+      notices: { account_created: 'Konto zostało założone i dołączyłeś do restauracji. Zaloguj się hasłem, które przed chwilą wybrałeś.' } as Record<'account_created', string>
+    },
+    accept: {
+      title: 'Dołącz do zespołu',
+      description: (restaurant: string, role: string) => `Zaproszono Cię do restauracji ${restaurant} jako ${role}.`,
+      email: 'Adres e-mail z zaproszenia',
+      newText: 'Podaj imię i hasło, żeby założyć konto.',
+      name: 'Twoje imię',
+      password: 'Hasło',
+      passwordHelp: (min: number) => `Co najmniej ${min} znaków.`,
+      submitNew: 'Załóż konto i dołącz',
+      existingText: 'Ten adres e-mail ma już konto. Dołączenie tylko dodaje tę restaurację do konta: hasło się nie zmienia.',
+      submitExisting: 'Dołącz do restauracji',
+      signInText: 'Ten adres e-mail ma już konto. Zaloguj się na nie, potem otwórz ten link jeszcze raz, żeby dołączyć.',
+      signIn: 'Zaloguj się',
+      wrongAccountText: (email: string) => `Jesteś zalogowany na inne konto. To zaproszenie jest dla ${email}: wyloguj się i otwórz link ponownie.`,
+      signOut: 'Wyloguj się',
+      errors: {
+        name_required: 'Wpisz swoje imię.',
+        password_too_short: (min: number) => `Hasło musi mieć co najmniej ${min} znaków.`,
+        password_too_long: 'Hasło jest za długie.',
+        sign_in_required: 'Najpierw zaloguj się na konto z tego adresu e-mail.',
+        wrong_account: 'To zaproszenie jest dla innego konta. Wyloguj się i otwórz link ponownie.',
+        account_exists: 'Konto z tym adresem e-mail już istnieje. Najpierw się na nie zaloguj.',
+        already_member: 'Jesteś już w zespole tej restauracji.',
+        unexpected: 'Nie udało się przyjąć zaproszenia. Spróbuj ponownie za chwilę.'
+      } as Record<string, string | ((min: number) => string)>,
+      invalidTitle: 'Ten link już nie jest ważny',
+      invalidText: 'Mógł zostać użyty, anulowany albo wygasnąć. Poproś osobę, która Cię zaprosiła, o nowy link.',
+      toSignIn: 'Przejdź do logowania'
     },
     forbidden: {
       title: 'Brak dostępu',
@@ -561,10 +596,14 @@ export const pl = {
         content: () => 'Język treści i tłumaczenia zapisane. Goście zobaczą je po publikacji.',
         suggestion_added: () => 'Dodano do propozycji — zatwierdź je w „Propozycjach silnika”. Goście zobaczą zmianę dopiero po zatwierdzeniu i publikacji.',
         opportunity_dismissed: (days: number) => `Okazja zignorowana. Wróci najwcześniej po ${days} dniach, jeśli nadal będzie aktualna.`,
-        opportunity_restored: () => 'Okazja przywrócona.'
+        opportunity_restored: () => 'Okazja przywrócona.',
+        member_role_changed: () => 'Rola zmieniona. Działa od kolejnego żądania tej osoby.',
+        member_deactivated: () => 'Dostęp odebrany. Osoba zostaje od razu wylogowana z tej restauracji.',
+        member_reactivated: () => 'Dostęp przywrócony. Osoba może znów korzystać z panelu.',
+        invitation_revoked: () => 'Zaproszenie anulowane. Jego link już nie działa.'
       },
       errors: {
-        version_conflict: 'Ktoś przed chwilą zmienił to parowanie. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
+        version_conflict: 'Ktoś przed chwilą to zmienił. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
         forbidden: 'Nie masz uprawnień do tej czynności.',
         comment_too_long: 'Notatka może mieć najwyżej 140 znaków.',
         already_paired: 'To wino jest już sparowane z tym daniem.',
@@ -605,6 +644,12 @@ export const pl = {
         low_match: 'To wino słabo pasuje do dania.',
         opportunity_stale: 'Ta okazja jest już nieaktualna.',
         opportunity_not_dismissed: 'Ta okazja nie jest zignorowana.',
+        last_owner: 'Restauracja musi mieć co najmniej jednego aktywnego właściciela. Najpierw ustaw kogoś innego jako właściciela.',
+        team_hierarchy: 'Twoja rola nie pozwala zmienić tej osoby ani nadać tej roli. Poproś właściciela.',
+        self_change: 'Nie możesz zmienić własnej roli ani odebrać sobie dostępu.',
+        member_deactivated: 'Dostęp tej osoby jest odebrany. Przywróć go przed zmianą roli.',
+        already_member: 'Ta osoba jest już w zespole tej restauracji. Jeśli odebrano jej dostęp, przywróć go na liście.',
+        invitation_conflict: 'Inne zaproszenie na ten adres powstało w tej samej chwili. Spróbuj ponownie.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
     },
@@ -1082,6 +1127,57 @@ export const pl = {
           `Nazwiska gości, płatności i nazwy pozycji nie są zapisywane. Do ${maxRows} pozycji w pliku: większe eksporty dziel po całych dniach.`
         ]
       }
+    },
+    team: {
+      title: 'Zespół',
+      description: 'Wszyscy, którzy mają dostęp do tej restauracji. Zmiana działa od kolejnego żądania tej osoby: nie ma czego publikować.',
+      count: (active: number, total: number) => (total === active ? `Osób: ${active}` : `Aktywnych ${active} z ${total}`),
+      listLabel: 'Członkowie zespołu',
+      lastSignIn: (when: string) => `Ostatnie logowanie: ${when}`,
+      you: 'To Ty',
+      deactivated: 'Dostęp odebrany',
+      active: 'Aktywny',
+      deactivatedOn: (when: string) => `Dostęp odebrany ${when}`,
+      roleLabel: (name: string) => `Rola: ${name}`,
+      saveRole: 'Zapisz rolę',
+      deactivate: 'Odbierz dostęp',
+      reactivate: 'Przywróć dostęp',
+      ownerOnly: 'Właściciela i General Managera może zmienić tylko właściciel.',
+      yourself: 'Nie możesz zmienić własnej roli ani dostępu.',
+      roleHelp: 'General Manager może nadać role Wine Director i Kelner. Rolę Właściciel lub General Manager nadaje tylko właściciel.',
+      invite: {
+        title: 'Zaproś osobę',
+        description: 'Wysyłki e-maili jeszcze nie ma: dostajesz link i przekazujesz go sam. Działa raz, przez 72 godziny, a nowe zaproszenie na ten sam adres zastępuje poprzednie.',
+        email: 'Adres e-mail',
+        role: 'Rola',
+        submit: 'Utwórz link zaproszenia',
+        noRoles: 'Twoja rola nie pozwala nikogo zapraszać.',
+        createdTitle: 'Link zaproszenia utworzony',
+        createdText: 'Dla {email}, jako {role}. Działa raz i przez 72 godziny. Widzisz go tylko teraz: skopiuj i przekaż tej osobie samodzielnie.',
+        linkLabel: 'Link zaproszenia',
+        pendingTitle: 'Oczekujące zaproszenia',
+        pendingLabel: 'Oczekujące zaproszenia',
+        pendingNone: 'Brak oczekujących zaproszeń.',
+        invitedBy: (name: string) => `Zaprasza: ${name}`,
+        validUntil: (when: string) => `Link ważny do ${when}`,
+        expired: 'Wygasło',
+        revoke: 'Anuluj zaproszenie',
+        revokeOwnerOnly: 'To zaproszenie może anulować tylko właściciel.',
+        errors: {
+          validation_failed: 'Wpisz poprawny adres e-mail i wybierz rolę.',
+          already_member: 'Ta osoba jest już w zespole tej restauracji. Jeśli odebrano jej dostęp, przywróć go na liście.',
+          team_hierarchy: 'Twoja rola nie pozwala nadać tej roli. General Manager może zaprosić Wine Directora, właściciel każdego.',
+          forbidden: 'Nie masz uprawnień do tej czynności.',
+          invitation_conflict: 'Inne zaproszenie na ten adres powstało w tej samej chwili. Spróbuj ponownie.',
+          unexpected: 'Nie udało się utworzyć zaproszenia. Nic nie zostało zmienione, spróbuj ponownie.'
+        } as Record<string, string>
+      },
+      roleDescriptions: {
+        owner: 'Wszystko, także zespół.',
+        manager: 'Prowadzi restaurację i zespół, nie rozstrzyga parowań.',
+        sommelier: 'Rozstrzyga parowania, importuje i publikuje.',
+        waiter: 'Korzysta z podpowiedzi win, bez panelu.'
+      } as Record<Role, string>
     },
     qr: {
       title: 'Kod QR',

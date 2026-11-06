@@ -2,9 +2,9 @@ import { asClass, asFunction, asValue, createContainer, InjectionMode, type Awil
 import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
-  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
-  SommelierService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
-  type PasswordHasher, type Repositories, type SessionTokens
+  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, MemorySystemHealth, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
+  InvitationService, SommelierService, TeamService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
+  type PasswordHasher, type Repositories, type SessionTokens, type SystemHealth
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
 import { env } from './env';
@@ -41,7 +41,11 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   usageEventService: UsageEventService;
   recommendationCodeService: RecommendationCodeService;
   salesKpiService: SalesKpiService;
+  teamService: TeamService;
+  invitationService: InvitationService;
   logger: Logger;
+  /** whether the database answers (GET /api/v1/health) */
+  systemHealth: SystemHealth;
 }
 
 export type DataSource = 'memory' | 'postgres';
@@ -73,6 +77,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     usageEventService: asClass(UsageEventService).scoped(),
     recommendationCodeService: asClass(RecommendationCodeService).scoped(),
     salesKpiService: asClass(SalesKpiService).scoped(),
+    teamService: asClass(TeamService).scoped(),
+    invitationService: asClass(InvitationService).scoped(),
     // the application's logger, for services that report without failing (recommendation codes)
     logger: asValue<Logger>(logger),
     // time and identity come from outside so core stays deterministic and testable
@@ -105,7 +111,11 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped(),
       guestInteractionRepository: asClass(db.PgGuestInteractionRepository).scoped(),
       recommendationCodeRepository: asClass(db.PgRecommendationCodeRepository).scoped(),
-      salesRepository: asClass(db.PgSalesRepository).scoped()
+      salesRepository: asClass(db.PgSalesRepository).scoped(),
+      systemHealth: asClass(db.PgSystemHealth).scoped(),
+      teamRepository: asClass(db.PgTeamRepository).scoped(),
+      authAuditRepository: asClass(db.PgAuthAuditRepository).scoped(),
+      invitationRepository: asClass(db.PgInvitationRepository).scoped()
     });
   } else {
     const store = MemoryStore.from(buildDemoDataset({ ids: 'uuid' }));
@@ -125,7 +135,11 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       opportunityDismissalRepository: asValue(repos.opportunityDismissalRepository),
       guestInteractionRepository: asValue(repos.guestInteractionRepository),
       recommendationCodeRepository: asValue(repos.recommendationCodeRepository),
-      salesRepository: asValue(repos.salesRepository)
+      salesRepository: asValue(repos.salesRepository),
+      systemHealth: asValue<SystemHealth>(new MemorySystemHealth()),
+      teamRepository: asValue(repos.teamRepository),
+      authAuditRepository: asValue(repos.authAuditRepository),
+      invitationRepository: asValue(repos.invitationRepository)
     });
   }
   return container;
@@ -133,8 +147,14 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
 
 /** Root container, created once per process (cached on globalThis for Next.js dev reloads). */
 export function getContainer(): Promise<AwilixContainer<Cradle>> {
-  globalForDi.__wineMatchContainer ??= buildContainer();
-  return globalForDi.__wineMatchContainer;
+  const pending = (globalForDi.__wineMatchContainer ??= buildContainer());
+  // A build that fails is NOT remembered: the next request builds again instead of answering with the old failure for the life of
+  // the process (spec 2026-10-15-production-deployment, R3 and Q5). MikroORM.init itself does not connect, so a database that is down
+  // shows at the first query, not here; recovery of the connection is the pool's (see PgSystemHealth tests); this covers every other build failure.
+  pending.catch(() => {
+    if (globalForDi.__wineMatchContainer === pending) delete globalForDi.__wineMatchContainer;
+  });
+  return pending;
 }
 
 /** A fresh request scope. Resolve services from it, never from the root container. */

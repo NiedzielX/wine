@@ -2,7 +2,7 @@
 status: implemented
 created: 2026-10-16
 owner: Filip
-related: [.ai/specs/product-brief.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-10-16-sommelier-opportunities.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-15-polish-language.md, .ai/specs/implemented/2026-10-15-bilingual-content.md, .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md]
+related: [.ai/specs/product-brief.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-10-16-sommelier-opportunities.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-15-polish-language.md, .ai/specs/implemented/2026-10-15-bilingual-content.md, .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md]
 ---
 
 # „Jak to działa” — wyjaśnienia działania rekomendacji (E07)

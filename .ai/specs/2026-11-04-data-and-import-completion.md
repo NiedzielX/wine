@@ -2,7 +2,7 @@
 status: approved
 created: 2026-11-04
 owner: Filip
-related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-14-phase5-import-and-qr.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/lessons/2026-10-14-import-conventions.md, .ai/lessons/2026-10-25-import-preview-reads-saved-rows.md, .ai/runs/2026-10-25-pos-item-name-privacy.md, BACKWARD_COMPATIBILITY.md, issue #89, issue #90]
+related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-14-phase5-import-and-qr.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/lessons/2026-10-14-import-conventions.md, .ai/lessons/2026-10-25-import-preview-reads-saved-rows.md, .ai/runs/2026-10-25-pos-item-name-privacy.md, BACKWARD_COMPATIBILITY.md, issue #89, issue #90]
 ---
 
 # Dane i import: OCR skanów, eksport CSV, przekierowanie po zmianie sluga, wiele kodów, prywatność importu (E20)

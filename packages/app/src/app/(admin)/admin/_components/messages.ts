@@ -29,6 +29,7 @@ export function savedText(f: Flash, saved: string | undefined, n: string | undef
     case 'approved': case 'rejected': case 'restored': case 'role': case 'note': case 'moved': case 'added': case 'deleted':
     case 'wine_shown': case 'wine_hidden': case 'settings': case 'import_uploaded': case 'import_checked': case 'import_cancelled':
     case 'details': case 'details_slug': case 'translations': case 'content': case 'suggestion_added': case 'opportunity_restored':
+    case 'member_role_changed': case 'member_deactivated': case 'member_reactivated': case 'invitation_revoked':
       return s[saved]();
     default: return undefined;
   }

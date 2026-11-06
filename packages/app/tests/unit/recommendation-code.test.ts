@@ -6,6 +6,7 @@ import SelectedPage from '@/app/(guest)/r/[slug]/selected/[wineId]/page';
 import { createRequestScope } from '@/server/container';
 import { logger } from '@/server/logger';
 import { ISSUE_TIMEOUT_MS, issueCodeForPage } from '@/server/recommendation-code';
+import { renderMetrics, resetMetrics } from '@/server/metrics';
 import { SYNTHETIC_TRAFFIC_HEADER } from '@/server/usage-events';
 
 /**
@@ -132,6 +133,19 @@ describe('G8: the code for the waiter (AC5, AC13)', () => {
   });
 });
 
+describe('G8 when the write fails (R4, AC6)', () => {
+  it('a repository that throws or hangs leaves G8 whole: a page, the unavailable line and a warning, no code', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const issue = vi.spyOn(repo, 'tryIssue').mockRejectedValue(new Error('connection refused'));
+    const html = await render(wine, { dish: duck, serving: 'bottle', sid: '8d4f5e60-7182-4d9e-9fa0-2b3c4d5e6f70' });
+    expect(issue).toHaveBeenCalled();
+    expect(html).toContain('data-recommendation-code="none"');
+    expect(html).toContain('Code unavailable — name the wine to your waiter.');
+    expect(html).toContain('Show this to your waiter.');
+    expect(warn).toHaveBeenCalledWith('recommendation code not issued', expect.objectContaining({ error: 'connection refused' }));
+  });
+});
+
 describe('issueCodeForPage (R4, AC6)', () => {
   const restaurant = () => ({ id: restaurantId, slug: 'halka' });
   const input = () => ({ session: { id: SID, isNew: false, source: 'link' as const }, source: 'guest' as const, wineId: wine, serving: 'bottle' as const, dishIds: [] });
@@ -157,6 +171,23 @@ describe('issueCodeForPage (R4, AC6)', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(await pending).toBeNull();
     expect(warn).toHaveBeenCalledWith('recommendation code not issued', expect.objectContaining({ error: `timed out after ${ISSUE_TIMEOUT_MS} ms` }));
+  });
+
+  it('counts each outcome under its own label from the closed set issued / declined / timeout / error (E21 F1 R1)', async () => {
+    setHeaders();
+    resetMetrics();
+    vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const issued = { code: 'ABC', serving: 'bottle', wineId: wine } as never;
+    await issueCodeForPage(failing(async () => issued), restaurant(), input());
+    await issueCodeForPage(failing(async () => null), restaurant(), input());
+    await issueCodeForPage(failing(async () => { throw new Error('db'); }), restaurant(), input());
+    vi.useFakeTimers();
+    const pending = issueCodeForPage(failing(() => new Promise(() => {})), restaurant(), input());
+    await vi.advanceTimersByTimeAsync(ISSUE_TIMEOUT_MS);
+    await pending;
+    const text = renderMetrics();
+    for (const result of ['issued', 'declined', 'error', 'timeout']) expect(text).toContain(`guest_code_issue_total{result="${result}"} 1`);
+    expect(text).not.toContain('result="limit"');
   });
 
   it('a request that is not a guest page view does not reach the service', async () => {

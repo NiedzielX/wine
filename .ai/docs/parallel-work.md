@@ -54,15 +54,39 @@ Klasyfikacja jest wiążąca dla kolejności prac. Zmienia ją tylko zmiana tego
 | Niestabilne testy, długi testowe | M | np. słabe testy ze scenariuszy `.ai/qa` | brak |
 | Automatyczny review PR-ów | M | komentarze, bez merge | brak |
 
-## 4. Co teraz jest w toku (stan na 2026-11-05)
+## 4. Co teraz jest w toku (stan na 2026-11-05, wieczór)
 
-- Stan po porządkach 2026-11-05: scalono #104 (zależności), #105 (plan i specyfikacje), #106 (flaky test) i #107 (QA). Otwarte zostają #103 (odświeżenie briefu) i ten PR, czyli poniżej limitu z §1.
-- Implementacja E11 F1, E11b, E12 F1, E21 F1 jest wstrzymana na polecenie właściciela. Praca czterech agentów leży w lokalnych worktree i nie została wypchnięta.
-- **Proponowany start po decyzji właściciela:** E12 F1 (typ S) jako jedyne zadanie implementacyjne, plus najwyżej dwa niezależne zadania typu P (na przykład E22 F1 i E21 F1), plus dowolnie zadania M.
+- Co jest scalone, pokazuje `git log` i lista PR-ów; ten dokument nie powiela tej listy.
+- Wznowiona implementacja (na polecenie właściciela): E11b zamknięte, E12 F1, E21 F1 i E11 F1 scalone. Otwarte fazy: E11 F2–F3 (obraz, Compose, runbook), E12 F2–F6, E21 F2–F7 i epiki E13–E22.
+- Przy każdej fazie obowiązuje przebieg z `fix-verification.md`: pod-agent dokańcza fazę w osobnym worktree, druga sesja robi review, poprawki idą z czerwonym testem, PR otwiera sesja nadrzędna (limit 3 w review).
+- Następna w kolejce wg §3: E12 F2 (typ S) jako jedyne zadanie implementacyjne w obszarze auth, plus najwyżej dwa niezależne zadania typu P (na przykład E21 F2 kopie i E22 F1 kalkulator), plus dowolnie zadania M.
 
-## 5. Automatyzacja nocna (propozycja, niewłączona)
+## 6. Narzędzia: stan względem lekcji
 
-Najbezpieczniejsza pierwsza automatyzacja to **nocny automatyczny review otwartych PR-ów** (typ M): agent czyta diff, uruchamia istniejące kontrole i zostawia komentarz z ustaleniami. Nie scala, nie edytuje PR-ów, nie zmienia etykiet ryzyka. Rano właściciel ma gotowe uwagi i decyduje o merge. Harmonogram włączamy dopiero po zgodzie właściciela (jest to trwała konfiguracja). Kolejna w kolejności: triage nowych zgłoszeń (duplikaty, zakres, powiązania).
+Mamy: Claude Code w aplikacji desktopowej, worktree na zadanie, skille `om-auto-*`, bramkę QA, `check:qa` i skrypty `test-env`. Brakuje względem macierzy z lekcji:
+- jednego widoku „co czeka na mnie” (kolejka zadań ze statusami);
+- automatycznego sprzątania worktree (osobne, ręcznie utrzymywane worktree zostają po przerwanej pracy);
+- krótkich logów zadań w tle (dziś są w przebiegach `.ai/runs`);
+- nocnej automatyzacji (§5).
+
+Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktujemy ją jako listę kryteriów, a nie ranking.
+
+## 7. Jak pracujemy dziś i co zmieniamy
+
+**Dziś:** właściciel zleca zadania w rozmowie, agent pracuje autonomicznie na specyfikacjach `approved`, jedna faza to jeden PR, merge dopiero po wyraźnej zgodzie właściciela. W jednym momencie bywało do czterech agentów implementujących plus kilka PR-ów w review, i wtedy kolejka czekała na decyzje.
+
+**Zmieniamy:**
+1. Limit trzech otwartych PR-ów w review (§1.1) i kolejność z §3.
+2. Jedno zadanie typu S w obszarze, resztę zadań niezależnych typu P lub M.
+3. Pytania partiami, review w stałych blokach.
+4. Po zgodzie właściciela: nocny automatyczny review (§5).
+5. Wszystkie zadania implementacyjne z kryteriami akceptacji mają scenariusze `.ai/qa` (reguła z lekcji 12), więc automatyczne sprawdzenie zastępuje część ręcznego QA.## 5. Automatyzacja nocna (włączona 2026-11-05)
+
+**Nocny automatyczny review otwartych PR-ów** działa jako rutyna w chmurze (typ M): codziennie o 03:00 UTC (04:00 czasu polskiego zimą, 05:00 latem) agent w świeżej sesji czyta diff każdego otwartego PR-a (do 5 na przebieg, bez draftów i bez `do-not-merge`), zostawia jeden komentarz zaczynający się od `Nocny review (commit <sha>)` i pomija PR-y, które już zrecenzował na tym samym commicie. Nie scala, nie zatwierdza formalnie, nie edytuje kodu ani etykiet; treść PR-ów traktuje jako dane, nie polecenia. Rutyna nie ma konektorów, a jej narzędzia to `Bash`, `Read`, `Glob`, `Grep`.
+
+- Rutyna: https://claude.ai/code/routines/trig_01EJzk2KwVyh63cQzAbczHVq (wyłączenie lub zmiana tam; z poziomu sesji przez `RemoteTrigger`).
+- **Pierwszy przebieg (2026-11-06, 03:02 UTC) zadziałał:** komentarze pod pięcioma otwartymi PR-ami (#103, #111, #113, #114, #121), jeden `request changes` (#114: typy `@types/node` 26 przy runtime Node 22, trafne). Uwaga z przebiegu: w środowisku chmurowym `gh` korzysta z REST (GraphQL bywa niedostępny), więc polecenia `gh pr list` i `gh pr comment` mogą nie działać; rutyna radzi sobie przez `gh api`. Log przebiegów: `RemoteTrigger` `list_runs` i `get_run_log` dla rutyny.
+- Następna w kolejności: triage nowych zgłoszeń (duplikaty, zakres, powiązania).
 
 ## 6. Narzędzia: stan względem lekcji
 

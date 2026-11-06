@@ -8,8 +8,12 @@ import { ormConfig } from './config';
 const globalForOrm = globalThis as unknown as { __wineMatchOrm?: Promise<MikroORM> };
 
 export function getOrm(overrides: Partial<Options> = {}): Promise<MikroORM> {
-  globalForOrm.__wineMatchOrm ??= MikroORM.init(ormConfig(overrides));
-  return globalForOrm.__wineMatchOrm;
+  const pending = (globalForOrm.__wineMatchOrm ??= MikroORM.init(ormConfig(overrides)));
+  // an init that failed is not remembered: the next call tries again (the database may be back)
+  pending.catch(() => {
+    if (globalForOrm.__wineMatchOrm === pending) delete globalForOrm.__wineMatchOrm;
+  });
+  return pending;
 }
 
 export async function closeOrm(): Promise<void> {

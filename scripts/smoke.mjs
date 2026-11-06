@@ -4,22 +4,41 @@
  *   npm run build && npm start        (in one terminal)
  *   npm run smoke                     (default http://localhost:3000, restaurant "halka")
  *   npm run smoke -- http://localhost:3101 halka
+ *   npm run smoke -- --production https://wine.example.com my-restaurant
+ *   npm run smoke -- --showcase http://localhost:3101        (the /demo pages; the app must run with SHOWCASE_MODE=calculator)
  * Works against both data sources; ids are discovered through the API, nothing is hard-coded.
+ *
+ * The FULL run signs in with a demo account and CHANGES data (it switches a wine's `active` flag back and forth and creates
+ * cancelled imports): run it against a trial instance, never a real installation. `--production` is the check for a real
+ * installation: GET requests only, no sign-in, nothing that depends on the menu's content (spec 2026-10-15-production-deployment, R6).
+ * Both modes send `X-Wine-Match-Synthetic: 1` on every request (R7).
  */
-const base = (process.argv[2] ?? 'http://localhost:3000').replace(/\/$/, '');
-const slug = process.argv[3] ?? 'halka';
+import { syntheticFetch } from './lib/synthetic-fetch.mjs';
+import { visibleText } from './lib/visible-text.mjs';
+
+const flags = process.argv.slice(2).filter((a) => a.startsWith('--'));
+const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const PRODUCTION = flags.includes('--production');
+const SHOWCASE = flags.includes('--showcase');
+const unknownFlags = flags.filter((f) => f !== '--production' && f !== '--showcase');
+if (unknownFlags.length || (PRODUCTION && SHOWCASE)) {
+  console.error(`${unknownFlags.length ? `Unknown option ${unknownFlags.join(', ')}` : '--production and --showcase cannot be combined'}. Usage: node scripts/smoke.mjs [--production | --showcase] [url] [slug]`);
+  process.exit(2);
+}
+const base = (positional[0] ?? 'http://localhost:3000').replace(/\/$/, '');
+const slug = positional[1] ?? 'halka';
+if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
+  console.error(`"${slug}" is not a restaurant slug (lower-case letters, digits and single hyphens). Usage: node scripts/smoke.mjs [--production] [url] [slug]`);
+  process.exit(2);
+}
 const EMAIL = process.env.SMOKE_EMAIL ?? 'marta@halka.pl';      // demo accounts only: see .env.example
 const PASSWORD = process.env.SMOKE_PASSWORD ?? 'demo-halka-2026';
 let failures = 0;
 let SESSION = '';   // cookie of the signed-in sommelier, used for dashboard requests
 
-/**
- * Every request of the smoke test is our own traffic: it carries `x-wine-match-synthetic: 1`, so the guest pages render
- * as usual but record no usage events (spec 2026-10-15-guest-usage-events, Q14). Set here once, for every fetch.
- */
-const SYNTHETIC = { 'x-wine-match-synthetic': '1' };
-const realFetch = globalThis.fetch;
-globalThis.fetch = (url, init = {}) => realFetch(url, { ...init, headers: { ...SYNTHETIC, ...(init.headers ?? {}) } });
+/** Every request of the smoke test is synthetic traffic (R7) and, with --production, a GET (R6): see lib/synthetic-fetch.mjs. */
+const sent = [];
+globalThis.fetch = syntheticFetch({ getOnly: PRODUCTION || SHOWCASE, sent });
 
 async function check(name, path, { status = 200, has = [], hasNot = [], method = 'GET', body, redirect = 'follow', cookie, headers = {}, location } = {}) {
   const useCookie = cookie ?? (path.startsWith('/admin') ? SESSION : '');
@@ -52,6 +71,82 @@ async function apiLogin(email, password) {
   const text = await res.text();
   const setCookie = res.headers.getSetCookie?.() ?? [];
   return { res, text, body: (() => { try { return JSON.parse(text); } catch { return {}; } })(), setCookie, cookie: setCookie.map((c) => c.split(';')[0]).join('; ') };
+}
+
+/**
+ * `--production` (R6): what can be checked on a real installation without signing in, writing or knowing the menu.
+ * Needs DEMO_RESTAURANT_SLUG on the server to be the pilot's slug, otherwise `/` does not reach the restaurant.
+ */
+async function productionSmoke() {
+  console.log(`Production smoke of ${base} for "${slug}" (GET only, no sign-in)`);
+  const health = await check('health: the app can serve and the database answers', '/api/v1/health', { has: ['"status":"ok"'] });
+  expect('health is never cached', /no-store/.test(health.res.headers.get('cache-control') ?? ''), health.res.headers.get('cache-control'));
+  const root = await fetch(`${base}/`, { redirect: 'follow' });
+  await root.arrayBuffer();
+  expect('/ ends on the restaurant page (set DEMO_RESTAURANT_SLUG to this slug)', root.status === 200 && new URL(root.url).pathname.startsWith(`/r/${slug}`), `${root.status} ${root.url}`);
+  await check('guest start page', `/r/${slug}`, { has: ['<html'] });
+  const menu = await check('public menu API', `/api/v1/public/restaurants/${slug}/menu`, { has: [`"slug":"${slug}"`] });
+  let body = null;
+  try { body = JSON.parse(menu.text); } catch { /* reported below */ }
+  const dishes = Array.isArray(body?.categories) ? body.categories.flatMap((c) => (Array.isArray(c?.dishes) ? c.dishes : null)) : null;
+  expect('public menu API has the documented shape (restaurant, categories with dishes)', body?.restaurant?.slug === slug && dishes !== null && !dishes.includes(null) && dishes.every((d) => typeof d?.id === 'string' && typeof d?.name === 'string' && typeof d?.price === 'number'), menu.text.slice(0, 200));
+  await check('sign-in page', '/admin/login', { cookie: '', has: ['<form'] });
+  await check('a session route without a session is 401', '/api/v1/auth/me', { status: 401, has: ['unauthenticated'] });
+  const hdrRes = await fetch(`${base}/r/${slug}`);
+  await hdrRes.body?.cancel();
+  const hdr = hdrRes.headers;
+  expect('security headers: nosniff and a referrer policy', hdr.get('x-content-type-options') === 'nosniff' && !!hdr.get('referrer-policy'), `${hdr.get('x-content-type-options')} / ${hdr.get('referrer-policy')}`);
+  const adminRes = await fetch(`${base}/admin/login`);
+  await adminRes.body?.cancel();
+  const adminHdr = adminRes.headers;
+  expect('dashboard responses are never cached or framed', /no-store/.test(adminHdr.get('cache-control') ?? '') && adminHdr.get('x-frame-options') === 'DENY', `${adminHdr.get('cache-control')} / ${adminHdr.get('x-frame-options')}`);
+  expect('every request was a GET (and carried the synthetic header)', sent.length > 0 && sent.every((r) => r.method === 'GET'), JSON.stringify(sent.filter((r) => r.method !== 'GET')));
+  console.log(failures ? `\n${failures} check(s) failed` : '\nAll production smoke checks passed');
+  process.exit(failures ? 1 : 0);
+}
+/**
+ * `--showcase` (spec 2026-11-04-sales-demo-and-roi-calculator, phase F1): the public calculator pages of an instance that runs with
+ * SHOWCASE_MODE=calculator. GET only, no sign-in, no data read. Needs the words "założenie" / "assumption" (every number is an
+ * assumption, R3) and refuses "AI" anywhere in the HTML (N02), a cookie, and a missing noindex.
+ */
+async function showcaseSmoke() {
+  console.log(`Showcase smoke of ${base} (GET only)`);
+  const NBSP = '\u00a0';
+  const noAi = (name, text) => expect(`${name}: no "AI" wording`, !/\bAI\b|sztuczn/i.test(visibleText(text)), 'found AI wording');
+  const pl = await check('DM2 calculator in Polish', '/demo/roi?lang=pl', { has: ['Kalkulator zwrotu', 'założenie zespołu', 'Czym to jest', `9${NBSP}110${NBSP}zł`, 'Dodatkowa marża po opłacie za plan (założenie)', 'method="get"'], hasNot: ['zmierzon', 'gwarantowan', 'wynik pilotażu'] });
+  noAi('DM2 pl', pl.text);
+  const en = await check('DM2 calculator in English', '/demo/roi?lang=en', { has: ['Return calculator', 'team assumption', 'What this is', '9,110', 'Extra margin after the plan fee (assumption)'], hasNot: ['measured', 'guaranteed'] });
+  noAi('DM2 en', en.text);
+  expect('DM2 is never cached, never indexed, sets no cookie', /no-store/.test(pl.res.headers.get('cache-control') ?? '') && /noindex/.test(pl.res.headers.get('x-robots-tag') ?? '') && /noindex/.test(pl.text) && (pl.res.headers.getSetCookie?.() ?? []).length === 0, `${pl.res.headers.get('cache-control')} / ${pl.res.headers.get('x-robots-tag')}`);
+  const own = await check('DM2 with a link from a restaurant: its numbers are used', '/demo/roi?lang=en&customers=2000&attachRate=40&wineSpend=200&margin=50&attachChange=3&spendChange=0&planPrice=390', { has: ['value="2000"', 'assumption: your value (default 1,500 guests)'] });
+  expect('a link with numbers: the result is not the default one', !own.text.includes('9,110 zł'), 'default result found');
+  const bad = await check('DM2 with unusable values falls back to the defaults and says so', '/demo/roi?lang=en&customers=1e9&margin=-4&__proto__=x&attachRate=abc', { has: ['We used the default instead of these values', '9,110'], hasNot: ['NaN', 'Infinity'] });
+  noAi('DM2 bad query', bad.text);
+  // the page's own text (the HTML also carries framework data that contains the word "undefined")
+  expect('DM2 bad query: no "undefined" or "[object" in the visible text', !/undefined|\[object/.test(visibleText(bad.text)), 'found');
+  const sum = await check('DM3 printable summary', '/demo/roi/summary?lang=pl&d=2026-11-06', { has: ['Podsumowanie założeń: kalkulator zwrotu Wine Match', '06.11.2026', 'Użyj Ctrl/Cmd+P', 'To założenia, nie pomiary', 'print:hidden'], hasNot: ['data-print-button'] });
+  noAi('DM3', sum.text);
+  expect('DM3 never cached and not indexed', /no-store/.test(sum.res.headers.get('cache-control') ?? '') && /noindex/.test(sum.res.headers.get('x-robots-tag') ?? ''), `${sum.res.headers.get('cache-control')} / ${sum.res.headers.get('x-robots-tag')}`);
+  expect('every request was a GET (and carried the synthetic header)', sent.length > 0 && sent.every((r) => r.method === 'GET'), JSON.stringify(sent.filter((r) => r.method !== 'GET')));
+  console.log(failures ? `\n${failures} check(s) failed` : '\nAll showcase smoke checks passed');
+  process.exit(failures ? 1 : 0);
+}
+if (SHOWCASE) {
+  try {
+    await showcaseSmoke();
+  } catch (error) {
+    console.log(`FAIL     showcase smoke could not finish: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
+}
+
+if (PRODUCTION) {
+  try {
+    await productionSmoke();
+  } catch (error) {
+    console.log(`FAIL     production smoke could not finish: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 }
 
 // discover ids through the public API
@@ -211,7 +306,9 @@ await check('no session: API list pairings', `/api/v1/restaurants/${slug}/pairin
 await check('no session: API change a wine', `/api/v1/wines/${wine}?restaurant=${slug}`, { method: 'PATCH', body: { active: false }, status: 401 });
 await check('API me with a session', '/api/v1/auth/me', { cookie: SESSION, has: ['csrfToken', slug] });
 
-const hdr = (await fetch(`${base}/admin/login`)).headers;
+const hdrRes = await fetch(`${base}/admin/login`);
+await hdrRes.body?.cancel();
+const hdr = hdrRes.headers;
 expect('dashboard responses are never cached or framed', /no-store/.test(hdr.get('cache-control') ?? '') && hdr.get('x-frame-options') === 'DENY', `${hdr.get('cache-control')} / ${hdr.get('x-frame-options')}`);
 expect('every response has nosniff', (await fetch(`${base}/r/${slug}`)).headers.get('x-content-type-options') === 'nosniff');
 
@@ -255,6 +352,27 @@ await check('GM can read pairings', `/api/v1/restaurants/${slug}/pairings`, { co
 await check('GM can hide and show wines', wineUrl, { method: 'PATCH', body: { active: true }, headers: gmw, has: ['"active":true'] });
 await check('GM sees the publish screen with a working button', `/admin/${slug}/publish`, { cookie: GM, has: ['Publish changes'], hasNot: ['Your role cannot publish'] });
 await check('a session of one user does not open another restaurant', `/admin/nope`, { cookie: GM, status: 403 });
+
+// --- team (E12 F1, A15): the general manager manages it, the Wine Director does not
+await check('GM sees A15 Team with the people of the restaurant', `/admin/${slug}/team`, { cookie: GM, has: ['Team', 'Marta Wierzbicka', 'Tomasz Lis', 'Save role'], hasNot: ['scrypt'] });
+await check('the Wine Director has no access to A15 Team', `/admin/${slug}/team`, { status: 403 });
+await check('GM reads the team over the API', `/api/v1/restaurants/${slug}/team`, { cookie: GM, has: ['"members"', '"version"'], hasNot: ['password'] });
+await check('the Wine Director cannot read the team over the API', `/api/v1/restaurants/${slug}/team`, { cookie: SESSION, status: 403 });
+await check('no session: A15 Team goes to sign-in', `/admin/${slug}/team`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });
+
+// --- invitations (E12 F2): A15 invites and lists, A17 accepts; a dead link is one 404 page. The smoke makes one invitation and cancels it again.
+const invUrl = `/api/v1/restaurants/${slug}/invitations`;
+await check('GM sees the invite form and the pending list on A15', `/admin/${slug}/team`, { cookie: GM, has: ['Invite someone', 'Create invitation link', 'Pending invitations'], hasNot: ['accept?token='] });
+const made = await check('GM invites a Wine Director over the API and gets the link once', invUrl, { method: 'POST', body: { email: 'smoke-invite@smoke.example', role: 'sommelier' }, headers: gmw, status: 201, has: ['/admin/accept?token='] });
+const madeBody = JSON.parse(made.text || '{}');
+await check('the invitation list shows the address and never the link', invUrl, { cookie: GM, has: ['smoke-invite@smoke.example'], hasNot: ['accept?token=', '"token"'] });
+await check('GM cannot invite a manager', invUrl, { method: 'POST', body: { email: 'smoke-manager@smoke.example', role: 'manager' }, headers: gmw, status: 403, has: ['team_hierarchy'] });
+await check('the Wine Director cannot read the invitations', invUrl, { cookie: SESSION, status: 403 });
+await check('the link opens the accept page A17 without signing in', new URL(madeBody.link ?? 'http://x/').pathname + new URL(madeBody.link ?? 'http://x/').search, { cookie: '', has: ['Join the team', 'smoke-invite@smoke.example', 'Create account and join'] });
+await check('GM cancels the invitation', `${invUrl}/${madeBody.id}`, { method: 'DELETE', headers: gmw, status: 204 });
+await check('a cancelled link is the one "not valid" page', new URL(madeBody.link ?? 'http://x/').pathname + new URL(madeBody.link ?? 'http://x/').search, { cookie: '', status: 404, has: ['This link is not valid any more'] });
+await check('an unknown link is the same page', '/admin/accept?token=smoke-not-a-real-link-0000', { cookie: '', status: 404, has: ['This link is not valid any more'] });
+await check('no token is a 404 too', '/admin/accept', { cookie: '', status: 404 });
 
 // --- import, QR and setup (Phase 5). Nothing here changes the catalog: every import is cancelled.
 for (const path of ['/import/menu', '/import/wines', '/import/sales', '/setup', '/qr']) {
@@ -407,7 +525,7 @@ await check('A1 dashboard with wm_lang=pl', A, { cookie: PLC, headers: { 'accept
 await check('A2 menu in Polish', `${A}/menu`, { cookie: PLC, has: ['Szukaj dań', 'Przystawki', 'Szkic, do sprawdzenia', 'Opublikowane', '<title>Menu | Panel Wine Match</title>'] });
 await check('A4 wine list in Polish: styles, prices with NBSP', `${A}/wines`, { cookie: PLC, has: ['Karta win', 'Tylko butelka', 'Czerwone', '\u00a0zł', 'Ukryj'] });
 await check('A6 pairings in Polish: roles, flash by code, Polish engine reasons', `${A}/pairings/${duck}?saved=approved`, { cookie: PLC, has: ['Parowanie zatwierdzone.', 'Zatwierdzone dla gości', 'Podstawowe', 'Najlepsza cena', 'Propozycje silnika', 'Co teraz widzą goście', 'Ustaw rolę', 'Jak gość widzi Twoje pary?', 'Gość widzi najwyżej 4 wina.'], hasNot: ['Approved for guests', 'Set role', ...OLD_LABELS] });
-await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą zmienił to parowanie'] });
+await check('A6 Polish error flash by code', `${A}/pairings/${duck}?error=version_conflict`, { cookie: PLC, has: ['Nie zapisano', 'Ktoś przed chwilą to zmienił'] });
 await check('A7 review queue in Polish', `${A}/review`, { cookie: PLC, has: ['Do przeglądu', 'Zatwierdź', 'Odrzuć', 'Otwórz parowania', 'para sommeliera'], hasNot: OLD_LABELS });
 await check('A3 dish in Polish: content in the panel language', `${A}/menu/${duck}`, { cookie: PLC, has: ['Pierś z kaczki', 'Tłumaczenia', 'Zapisz tłumaczenia'] });
 await check('A6 note form in Polish has PL and EN fields', `${A}/pairings/${duck}`, { cookie: PLC, has: ['name="comment_pl"', 'name="comment_en"', 'Pinot noir i sos wiśniowy'] });

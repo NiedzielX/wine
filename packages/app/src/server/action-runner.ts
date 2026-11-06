@@ -5,6 +5,7 @@ import { authorizeAction } from './auth';
 import { createRequestScope, type Cradle } from './container';
 import { domainError } from './domain-errors';
 import { logger } from './logger';
+import { scrubbedError } from './scrub-error';
 
 /**
  * The shared core of the dashboard's server actions: session and permission check, the service call,
@@ -74,7 +75,7 @@ export async function perform(form: FormData, permission: Permission, change: (c
   } catch (e) {
     const d = domainError(e);
     if (d) return { back, flash: { error: d.code } };
-    logger.error('admin action failed', { err: e, slug });
+    logger.error('admin action failed', { err: scrubbedError(e), slug });
     return { back, flash: { error: 'unexpected' } };
   } finally {
     await scope.dispose();
