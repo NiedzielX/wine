@@ -38,7 +38,9 @@ export async function acceptInvitation(form: FormData) {
     if (d?.code === 'invalid_token') redirect('/admin/accept?error=invalid_token');
     if (d?.code === 'validation_failed') {
       const f = d.fields ?? {};
-      redirect(back(f.password ? `password_${f.password}` : f.name ? 'name_required' : 'unexpected'));
+      // a body that is not even shaped like a link (no field to blame) is a dead link like any other
+      if (!f.password && !f.name) redirect('/admin/accept?error=invalid_token');
+      redirect(back(f.password ? `password_${f.password}` : 'name_required'));
     }
     if (d) redirect(back(d.code));
     logger.error('accepting an invitation failed unexpectedly', { err: e });

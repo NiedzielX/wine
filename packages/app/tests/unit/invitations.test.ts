@@ -301,6 +301,8 @@ describe('A17: opening and accepting a link', () => {
       await expect(render(token ? { token } : {}), token).rejects.toBeInstanceOf(state().NotFoundSignal);
       expect(await accept(token || 'x'.repeat(20), { name: 'Z', password: PASSWORD }), token).toBe('/admin/accept?error=invalid_token');
     }
+    // a token too short to be one is a dead link too, not a different answer
+    expect(await accept('short', { name: 'Z', password: PASSWORD })).toBe('/admin/accept?error=invalid_token');
     expect(store.users.some((u) => u.email === 'dead1@example.test' || u.email === 'dead2@example.test')).toBe(false);
   });
 
