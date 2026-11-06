@@ -2,7 +2,7 @@
 status: in-progress
 created: 2026-11-04
 owner: Filip
-related: [.ai/specs/2026-11-04-product-completion-plan.md (E12), .ai/specs/product-brief.md (D03, D13, D16, D19, N01, N03, N04), .ai/specs/implemented/2026-10-14-phase4-authentication.md, .ai/specs/implemented/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-production-deployment.md, .ai/lessons/2026-10-14-auth-conventions.md, docs/USER_ROLES.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md]
+related: [.ai/specs/2026-11-04-product-completion-plan.md (E12), .ai/specs/product-brief.md (D03, D13, D16, D19, N01, N03, N04), .ai/specs/implemented/2026-10-14-phase4-authentication.md, .ai/specs/implemented/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-production-deployment.md, .ai/lessons/2026-10-14-auth-conventions.md, docs/USER_ROLES.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md]
 ---
 
 # Konta personelu, PIN kelnera i role (E12)
