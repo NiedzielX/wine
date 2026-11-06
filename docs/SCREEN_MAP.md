@@ -9,6 +9,8 @@ System składa się z dwóch aplikacji na wspólnym silniku i wspólnym API.
 | Nawigacja | liniowa: top bar z „Back”, przełącznik „One dish / Whole table” | sidebar z grupami; na wąskim ekranie poziomy pasek |
 | Adres | `/r/{slug}/…` | `/admin/…` |
 
+Trzeci, osobny obszar: **publiczne strony sprzedażowe** (E22, `/demo/…`, grupa tras `(showcase)` z własnym layoutem głównym, desktop-first, druk A4; wyłączone, dopóki `SHOWCASE_MODE` nie jest ustawione; patrz „Showcase” niżej).
+
 W mockupie adresy są hash-routami (`index.html#/r/halka/menu`). Indeks wszystkich ekranów: `#/`.
 
 ## Guest application
@@ -132,3 +134,19 @@ flowchart LR
 | A15 Team | – | – | – | ✓ (GM nie zmienia właściciela ani innego GM) |
 
 W mockupie oba konta demonstracyjne mają pełny dostęp; ograniczenia ról GM dotyczą wersji produkcyjnej (wymuszane w API).
+
+## Showcase (E22, publiczne strony sprzedażowe)
+
+Spec `2026-11-04-sales-demo-and-roi-calculator`. Identyfikatory DM0–DM5 przydzielone w planie (`G` i `A` są zajęte, `P1–P6` to E14, `D0–D5` myliłoby się z decyzjami D01–D19). Wszystkie ekrany są publiczne (bez logowania), `noindex`, `Cache-Control: private, no-store`; gdy tryb jest za niski, odpowiadają **404**. Zmienna `SHOWCASE_MODE`: `off` (domyślnie), `calculator` (faza F1), `demo` (F2, jeszcze niedostępne).
+
+```
+DM0 Przewodnik demo ........................... /demo                  (F2, tryb demo)
+DM1 Jak to działa dla restauracji ............. /demo/tour             (F2)
+DM2 Kalkulator zwrotu ......................... /demo/roi?customers=&attachRate=&wineSpend=&margin=&attachChange=&spendChange=&planPrice=   (F1, tryb calculator)
+ └─ DM3 Wersja do druku / PDF ................. /demo/roi/summary?…&d=RRRR-MM-DD   (F1)
+DM4 Panel sommeliera, tylko odczyt ............ /demo/panel            (F3, tryb demo)
+DM5 KPI na danych syntetycznych ............... /demo/kpi              (F3, tryb demo)
+```
+
+Stan implementacji: **DM2 i DM3 (F1)**. W trybie `off` wszystkie adresy `/demo/*` dają 404; w `calculator` DM0, DM1, DM4, DM5 też (nie istnieją do swoich faz).
+
