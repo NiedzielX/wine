@@ -1,0 +1,50 @@
+'use server';
+
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { SESSION_COOKIE, getPrincipal, sessionCookieOptions } from '@/server/auth';
+import { createRequestScope } from '@/server/container';
+import { domainError } from '@/server/domain-errors';
+import { logger } from '@/server/logger';
+
+/**
+ * A17 — accept an invitation (spec E12 F2, R4). A plain form post with the token in a hidden field (the link's page only shows the
+ * form; the token never goes to the server as a GET side effect). A person without an account gets one and is signed in with the
+ * password just chosen; a person with an account must already be signed in to it and only gets the membership. A dead link of any
+ * kind (unknown, used, cancelled, expired, its inviter gone) ends on the same "not valid" page, without the token in the address.
+ */
+export async function acceptInvitation(form: FormData) {
+  const token = String(form.get('token') ?? '');
+  const name = String(form.get('name') ?? '');
+  const password = String(form.get('password') ?? '');
+  const back = (error: string) => `/admin/accept?token=${encodeURIComponent(token)}&error=${error}`;
+
+  const principal = await getPrincipal();
+  const scope = await createRequestScope();
+  let target = '/admin/login';
+  try {
+    const got = await scope.cradle.invitationService.accept({ token, name, password }, principal ? { userId: principal.user.id, email: principal.user.email } : null);
+    target = `/admin/${got.restaurantSlug}`;
+    if (got.newAccount) {
+      const jar = await cookies();
+      const old = jar.get(SESSION_COOKIE)?.value;
+      // a session of another person on this browser ends here: the new account gets a session of its own
+      if (old) await scope.cradle.authService.logout(old);
+      const signedIn = await scope.cradle.authService.login(got.email, password);
+      jar.set(SESSION_COOKIE, signedIn.token, sessionCookieOptions(new Date(signedIn.principal.session.expiresAt)));
+    }
+  } catch (e) {
+    const d = domainError(e);
+    if (d?.code === 'invalid_token') redirect('/admin/accept?error=invalid_token');
+    if (d?.code === 'validation_failed') {
+      const f = d.fields ?? {};
+      redirect(back(f.password ? `password_${f.password}` : f.name ? 'name_required' : 'unexpected'));
+    }
+    if (d) redirect(back(d.code));
+    logger.error('accepting an invitation failed unexpectedly', { err: e });
+    redirect(back('unexpected'));
+  } finally {
+    await scope.dispose();
+  }
+  redirect(target);
+}

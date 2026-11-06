@@ -577,7 +577,8 @@ export const en = {
       importWines: 'Import wine list',
       importSales: 'Import sales',
       opportunities: 'Opportunities',
-      team: 'Team'
+      team: 'Team',
+      acceptInvitation: 'Join a restaurant'
     },
     language: {
       label: 'Dashboard language'
@@ -639,6 +640,35 @@ export const en = {
         unexpected: 'Sign-in failed. Try again in a moment.'
       } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected', string>
     },
+    accept: {
+      title: 'Join the team',
+      description: (restaurant: string, role: string) => `You were invited to ${restaurant} as ${role}.`,
+      email: 'E-mail address of the invitation',
+      newText: 'Choose your name and a password to create your account.',
+      name: 'Your name',
+      password: 'Password',
+      passwordHelp: (min: number) => `At least ${min} characters.`,
+      submitNew: 'Create account and join',
+      existingText: 'This e-mail address already has an account. Joining only adds this restaurant to it: your password does not change.',
+      submitExisting: 'Join the restaurant',
+      signInText: 'This e-mail address already has an account. Sign in to it, then you can join.',
+      signIn: 'Sign in',
+      wrongAccountText: (email: string) => `You are signed in with another account. This invitation is for ${email}: sign out and open the link again.`,
+      signOut: 'Sign out',
+      errors: {
+        name_required: 'Enter your name.',
+        password_too_short: (min: number) => `The password needs at least ${min} characters.`,
+        password_too_long: 'The password is too long.',
+        sign_in_required: 'Sign in with the account of this e-mail address first.',
+        wrong_account: 'This invitation is for another account. Sign out and open the link again.',
+        account_exists: 'An account with this e-mail address already exists. Sign in to it first.',
+        already_member: 'You are already in the team of this restaurant.',
+        unexpected: 'The invitation could not be accepted. Try again in a moment.'
+      } as Record<string, string | ((min: number) => string)>,
+      invalidTitle: 'This link is not valid any more',
+      invalidText: 'It may have been used, cancelled or have expired. Ask the person who invited you for a new link.',
+      toSignIn: 'Go to sign in'
+    },
     forbidden: {
       title: 'No access',
       text: 'Your account has no access to this restaurant’s dashboard. Ask the owner to add you, or sign in with another account.',
@@ -687,7 +717,8 @@ export const en = {
         opportunity_restored: () => 'Opportunity restored.',
         member_role_changed: () => 'Role changed. It applies on the person’s next request.',
         member_deactivated: () => 'Access removed. The person is signed out of this restaurant at once.',
-        member_reactivated: () => 'Access restored. The person can use the dashboard again.'
+        member_reactivated: () => 'Access restored. The person can use the dashboard again.',
+        invitation_revoked: () => 'Invitation cancelled. Its link no longer works.'
       },
       errors: {
         version_conflict: 'This was changed by someone else a moment ago. The page now shows the latest version, please try again.',
@@ -735,6 +766,8 @@ export const en = {
         team_hierarchy: 'Your role may not change this person or grant that role. Ask an owner.',
         self_change: 'You cannot change your own role or remove your own access.',
         member_deactivated: 'This person’s access is removed. Restore it before changing the role.',
+        already_member: 'This person is already in the team of this restaurant. If their access was removed, restore it in the list.',
+        invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -1244,6 +1277,33 @@ export const en = {
       ownerOnly: 'Only an owner can change an owner or a General Manager.',
       yourself: 'You cannot change your own role or access.',
       roleHelp: 'A general manager can give the roles Wine Director and Waiter. Only an owner can give Owner or General Manager.',
+      invite: {
+        title: 'Invite someone',
+        description: 'There is no e-mail sending yet: you get a link and pass it on yourself. It works once, for 72 hours, and a newer invitation for the same address replaces the older one.',
+        email: 'E-mail address',
+        role: 'Role',
+        submit: 'Create invitation link',
+        noRoles: 'Your role cannot invite anyone.',
+        createdTitle: 'Invitation link created',
+        createdText: (email: string, role: string) => `For ${email}, as ${role}. It works once and for 72 hours. This is the only time it is shown: copy it now and send it to the person yourself.`,
+        linkLabel: 'Invitation link',
+        pendingTitle: 'Pending invitations',
+        pendingLabel: 'Pending invitations',
+        pendingNone: 'No pending invitations.',
+        invitedBy: (name: string) => `Invited by ${name}`,
+        validUntil: (when: string) => `Link valid until ${when}`,
+        expired: 'Expired',
+        revoke: 'Cancel invitation',
+        revokeOwnerOnly: 'Only an owner can cancel this invitation.',
+        errors: {
+          validation_failed: 'Enter a valid e-mail address and choose a role.',
+          already_member: 'This person is already in the team of this restaurant. If their access was removed, restore it in the list.',
+          team_hierarchy: 'Your role may not give this role. A general manager can invite a Wine Director; an owner can invite anyone.',
+          forbidden: 'You don’t have permission to do that.',
+          invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
+          unexpected: 'The invitation could not be created. Nothing was changed; try again.'
+        } as Record<string, string>
+      },
       roleDescriptions: {
         owner: 'Everything, including the team.',
         manager: 'Runs the restaurant and the team, does not decide pairings.',

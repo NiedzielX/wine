@@ -456,7 +456,8 @@ export const pl = {
       importWines: 'Import karty win',
       importSales: 'Import sprzedaży',
       opportunities: 'Okazje',
-      team: 'Zespół'
+      team: 'Zespół',
+      acceptInvitation: 'Dołącz do restauracji'
     },
     language: {
       label: 'Język panelu'
@@ -518,6 +519,35 @@ export const pl = {
         unexpected: 'Logowanie nie powiodło się. Spróbuj ponownie za chwilę.'
       }
     },
+    accept: {
+      title: 'Dołącz do zespołu',
+      description: (restaurant: string, role: string) => `Zaproszono Cię do restauracji ${restaurant} jako ${role}.`,
+      email: 'Adres e-mail z zaproszenia',
+      newText: 'Podaj imię i hasło, żeby założyć konto.',
+      name: 'Twoje imię',
+      password: 'Hasło',
+      passwordHelp: (min: number) => `Co najmniej ${min} znaków.`,
+      submitNew: 'Załóż konto i dołącz',
+      existingText: 'Ten adres e-mail ma już konto. Dołączenie tylko dodaje tę restaurację do konta: hasło się nie zmienia.',
+      submitExisting: 'Dołącz do restauracji',
+      signInText: 'Ten adres e-mail ma już konto. Zaloguj się na nie, wtedy możesz dołączyć.',
+      signIn: 'Zaloguj się',
+      wrongAccountText: (email: string) => `Jesteś zalogowany na inne konto. To zaproszenie jest dla ${email}: wyloguj się i otwórz link ponownie.`,
+      signOut: 'Wyloguj się',
+      errors: {
+        name_required: 'Wpisz swoje imię.',
+        password_too_short: (min: number) => `Hasło musi mieć co najmniej ${min} znaków.`,
+        password_too_long: 'Hasło jest za długie.',
+        sign_in_required: 'Najpierw zaloguj się na konto z tego adresu e-mail.',
+        wrong_account: 'To zaproszenie jest dla innego konta. Wyloguj się i otwórz link ponownie.',
+        account_exists: 'Konto z tym adresem e-mail już istnieje. Najpierw się na nie zaloguj.',
+        already_member: 'Jesteś już w zespole tej restauracji.',
+        unexpected: 'Nie udało się przyjąć zaproszenia. Spróbuj ponownie za chwilę.'
+      } as Record<string, string | ((min: number) => string)>,
+      invalidTitle: 'Ten link już nie jest ważny',
+      invalidText: 'Mógł zostać użyty, anulowany albo wygasnąć. Poproś osobę, która Cię zaprosiła, o nowy link.',
+      toSignIn: 'Przejdź do logowania'
+    },
     forbidden: {
       title: 'Brak dostępu',
       text: 'Twoje konto nie ma dostępu do panelu tej restauracji. Poproś właściciela o dodanie albo zaloguj się na inne konto.',
@@ -566,7 +596,8 @@ export const pl = {
         opportunity_restored: () => 'Okazja przywrócona.',
         member_role_changed: () => 'Rola zmieniona. Działa od kolejnego żądania tej osoby.',
         member_deactivated: () => 'Dostęp odebrany. Osoba zostaje od razu wylogowana z tej restauracji.',
-        member_reactivated: () => 'Dostęp przywrócony. Osoba może znów korzystać z panelu.'
+        member_reactivated: () => 'Dostęp przywrócony. Osoba może znów korzystać z panelu.',
+        invitation_revoked: () => 'Zaproszenie anulowane. Jego link już nie działa.'
       },
       errors: {
         version_conflict: 'Ktoś przed chwilą to zmienił. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
@@ -614,6 +645,8 @@ export const pl = {
         team_hierarchy: 'Twoja rola nie pozwala zmienić tej osoby ani nadać tej roli. Poproś właściciela.',
         self_change: 'Nie możesz zmienić własnej roli ani odebrać sobie dostępu.',
         member_deactivated: 'Dostęp tej osoby jest odebrany. Przywróć go przed zmianą roli.',
+        already_member: 'Ta osoba jest już w zespole tej restauracji. Jeśli odebrano jej dostęp, przywróć go na liście.',
+        invitation_conflict: 'Inne zaproszenie na ten adres powstało w tej samej chwili. Spróbuj ponownie.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
     },
@@ -1109,6 +1142,33 @@ export const pl = {
       ownerOnly: 'Właściciela i General Managera może zmienić tylko właściciel.',
       yourself: 'Nie możesz zmienić własnej roli ani dostępu.',
       roleHelp: 'General Manager może nadać role Wine Director i Kelner. Rolę Właściciel lub General Manager nadaje tylko właściciel.',
+      invite: {
+        title: 'Zaproś osobę',
+        description: 'Wysyłki e-maili jeszcze nie ma: dostajesz link i przekazujesz go sam. Działa raz, przez 72 godziny, a nowe zaproszenie na ten sam adres zastępuje poprzednie.',
+        email: 'Adres e-mail',
+        role: 'Rola',
+        submit: 'Utwórz link zaproszenia',
+        noRoles: 'Twoja rola nie pozwala nikogo zapraszać.',
+        createdTitle: 'Link zaproszenia utworzony',
+        createdText: (email: string, role: string) => `Dla ${email}, jako ${role}. Działa raz i przez 72 godziny. Widzisz go tylko teraz: skopiuj i przekaż tej osobie samodzielnie.`,
+        linkLabel: 'Link zaproszenia',
+        pendingTitle: 'Oczekujące zaproszenia',
+        pendingLabel: 'Oczekujące zaproszenia',
+        pendingNone: 'Brak oczekujących zaproszeń.',
+        invitedBy: (name: string) => `Zaprasza: ${name}`,
+        validUntil: (when: string) => `Link ważny do ${when}`,
+        expired: 'Wygasło',
+        revoke: 'Anuluj zaproszenie',
+        revokeOwnerOnly: 'To zaproszenie może anulować tylko właściciel.',
+        errors: {
+          validation_failed: 'Wpisz poprawny adres e-mail i wybierz rolę.',
+          already_member: 'Ta osoba jest już w zespole tej restauracji. Jeśli odebrano jej dostęp, przywróć go na liście.',
+          team_hierarchy: 'Twoja rola nie pozwala nadać tej roli. General Manager może zaprosić Wine Directora, właściciel każdego.',
+          forbidden: 'Nie masz uprawnień do tej czynności.',
+          invitation_conflict: 'Inne zaproszenie na ten adres powstało w tej samej chwili. Spróbuj ponownie.',
+          unexpected: 'Nie udało się utworzyć zaproszenia. Nic nie zostało zmienione, spróbuj ponownie.'
+        } as Record<string, string>
+      },
       roleDescriptions: {
         owner: 'Wszystko, także zespół.',
         manager: 'Prowadzi restaurację i zespół, nie rozstrzyga parowań.',
