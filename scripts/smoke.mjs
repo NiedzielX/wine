@@ -14,6 +14,7 @@
  * Both modes send `X-Wine-Match-Synthetic: 1` on every request (R7).
  */
 import { syntheticFetch } from './lib/synthetic-fetch.mjs';
+import { visibleText } from './lib/visible-text.mjs';
 
 const flags = process.argv.slice(2).filter((a) => a.startsWith('--'));
 const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'));
@@ -111,7 +112,7 @@ async function productionSmoke() {
 async function showcaseSmoke() {
   console.log(`Showcase smoke of ${base} (GET only)`);
   const NBSP = '\u00a0';
-  const noAi = (name, text) => expect(`${name}: no "AI" wording`, !/\bAI\b|sztuczn/i.test(text.replace(/<[^>]*>/g, ' ')), 'found AI wording');
+  const noAi = (name, text) => expect(`${name}: no "AI" wording`, !/\bAI\b|sztuczn/i.test(visibleText(text)), 'found AI wording');
   const pl = await check('DM2 calculator in Polish', '/demo/roi?lang=pl', { has: ['Kalkulator zwrotu', 'założenie zespołu', 'Czym to jest', `9${NBSP}110${NBSP}zł`, 'Dodatkowa marża po opłacie za plan (założenie)', 'method="get"'], hasNot: ['zmierzon', 'gwarantowan', 'wynik pilotażu'] });
   noAi('DM2 pl', pl.text);
   const en = await check('DM2 calculator in English', '/demo/roi?lang=en', { has: ['Return calculator', 'team assumption', 'What this is', '9,110', 'Extra margin after the plan fee (assumption)'], hasNot: ['measured', 'guaranteed'] });
@@ -122,7 +123,7 @@ async function showcaseSmoke() {
   const bad = await check('DM2 with unusable values falls back to the defaults and says so', '/demo/roi?lang=en&customers=1e9&margin=-4&__proto__=x&attachRate=abc', { has: ['We used the default instead of these values', '9,110'], hasNot: ['NaN', 'Infinity'] });
   noAi('DM2 bad query', bad.text);
   // the page's own text (the HTML also carries framework data that contains the word "undefined")
-  expect('DM2 bad query: no "undefined" or "[object" in the visible text', !/undefined|\[object/.test(bad.text.replace(/<script[^]*?<\/script>/g, '').replace(/<[^>]*>/g, ' ')), 'found');
+  expect('DM2 bad query: no "undefined" or "[object" in the visible text', !/undefined|\[object/.test(visibleText(bad.text)), 'found');
   const sum = await check('DM3 printable summary', '/demo/roi/summary?lang=pl&d=2026-11-06', { has: ['Podsumowanie założeń: kalkulator zwrotu Wine Match', '06.11.2026', 'Użyj Ctrl/Cmd+P', 'To założenia, nie pomiary', 'print:hidden'], hasNot: ['data-print-button'] });
   noAi('DM3', sum.text);
   expect('DM3 never cached and not indexed', /no-store/.test(sum.res.headers.get('cache-control') ?? '') && /noindex/.test(sum.res.headers.get('x-robots-tag') ?? ''), `${sum.res.headers.get('cache-control')} / ${sum.res.headers.get('x-robots-tag')}`);

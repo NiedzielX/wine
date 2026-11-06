@@ -8,6 +8,7 @@ import RoiSummaryPage from '@/app/(showcase)/demo/roi/summary/page';
 import { en } from '@/i18n/en';
 import { pl } from '@/i18n/pl';
 import { proxy } from '@/proxy';
+import { visibleText } from '../../../../scripts/lib/visible-text.mjs';
 import { logger } from '@/server/logger';
 import { explicitLang, formatters, roiFieldViews, roiQuery, roiSteps } from '@/server/showcase-roi';
 
@@ -29,8 +30,8 @@ async function render(page: unknown, search: Record<string, string | string[] | 
   const { prelude } = await prerender(createElement(page as Page, { searchParams: Promise.resolve(search) }));
   return (await new Response(prelude).text()).replace(/<!-- -->/g, '');
 }
-/** The text a person reads: tags out, non-breaking spaces as spaces. */
-const textOf = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/ /g, ' ').replace(/\s+/g, ' ');
+/** The text a person reads: markup out, non-breaking spaces as spaces. */
+const textOf = visibleText;
 const main = (html: string) => html.slice(html.indexOf('<main'), html.indexOf('</main>'));
 
 beforeEach(() => {

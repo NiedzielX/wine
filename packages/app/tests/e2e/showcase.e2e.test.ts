@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { startBuiltApp } from '@wine-match/testkit';
+import { visibleText } from '../../../../scripts/lib/visible-text.mjs';
 import { describe, expect, inject, it } from 'vitest';
 
 /**
@@ -12,9 +13,8 @@ const appDir = fileURLToPath(new URL('../..', import.meta.url));
 const base = () => inject('e2e').baseUrl;
 const appLog = () => readFileSync(`${appDir}/test-results/e2e-app.log`, 'utf8');
 const showcaseViews = () => appLog().split('\n').filter((l) => l.includes('"msg":"showcase_view"'));
-const NBSP = / /g;
-/** The words a person reads. */
-const textOf = (html: string) => html.replace(/<script[^]*?<\/script>/g, '').replace(/<[^>]*>/g, ' ').replace(NBSP, ' ').replace(/\s+/g, ' ');
+/** The words a person reads (a character-level reader, not a regular expression on markup). */
+const textOf = visibleText;
 const get = async (path: string, init?: RequestInit) => {
   const res = await fetch(`${base()}${path}`, init);
   return { res, html: (await res.text()).replace(/<!-- -->/g, '') };
