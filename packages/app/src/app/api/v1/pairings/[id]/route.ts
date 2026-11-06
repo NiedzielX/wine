@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const slug = req.nextUrl.searchParams.get('restaurant') ?? '';
   if (!slug) return needRestaurant();
-  return handle(req, { write: true, slug, permission: 'pairings.decide' }, async ({ c, actor }) => {
+  return handle(req, { route: '/api/v1/pairings/{id}', write: true, slug, permission: 'pairings.decide' }, async ({ c, actor }) => {
     const version = requiredVersion(req);
     if (typeof version !== 'number') return version;
     const change = await parseBody(req, pairingUpdateSchema);
@@ -47,7 +47,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const slug = req.nextUrl.searchParams.get('restaurant') ?? '';
   if (!slug) return needRestaurant();
-  return handle(req, { write: true, slug, permission: 'pairings.decide' }, async ({ c, actor }) => {
+  return handle(req, { route: '/api/v1/pairings/{id}', write: true, slug, permission: 'pairings.decide' }, async ({ c, actor }) => {
     const version = requiredVersion(req);
     if (typeof version !== 'number') return version;
     await c.sommelierService.deleteManual(slug, id, actor, version);

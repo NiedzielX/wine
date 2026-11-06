@@ -23,6 +23,8 @@ Czytaj tyle, ile wymaga zadanie; §1.2–§1.6 (pełne: `.ai/docs/architecture-r
 | testy, CI, skrypty | `.ai/docs/commands.md` |
 | nowa specyfikacja, log, lekcja | `.ai/docs/process-templates.md` (specyfikację czytaj od sekcji Wymagania, Kryteria akceptacji, Realizacja) |
 | standardy kodu | `.ai/docs/engineering-standards.md` |
+| planowanie pracy równoległej, kolejność zadań | `.ai/docs/parallel-work.md` |
+| naprawa błędu, zgłoszenie błędu, weryfikacja poprawki | `.ai/docs/fix-verification.md` |
 | agent, skille, MCP, sekrety | `security-notes.md` |
 <!-- routing:end -->
 
@@ -34,7 +36,7 @@ Wine Match: platforma B2B2C rekomendacji win dla restauracji — aplikacja gośc
 
 | Obszar | Technologia | Wersja |
 |---|---|---|
-| Aplikacja | Next.js (App Router, Turbopack), React | 16.3.7, 19.3.0 |
+| Aplikacja | Next.js (App Router, Turbopack), React | 16.4.1, 19.3.0 |
 | Język | TypeScript (natywny kompilator) | 7.0.2 |
 | Baza danych | PostgreSQL + MikroORM (migracje, seedery, pula połączeń) | PG ≥ 16, MikroORM 7.2.2 |
 | Dependency Injection | Awilix (tryb `PROXY`) | 13.0.5 |
@@ -68,7 +70,7 @@ Skrót; pełna wersja, w tym wyjątki od konwencji komend: `.ai/docs/architectur
 - **Porty i adaptery:** dane przez interfejsy z `core/src/ports` (pamięć i PostgreSQL, `DATA_SOURCE`). Nowa metoda portu = przypadek w `repositoryContract` + implementacja w pamięci i w PostgreSQL.
 - **Izolacja tenantów:** każda metoda repozytorium poza wyszukaniem restauracji po slugu przyjmuje `restaurantId`.
 - **Awilix:** jedyny root kompozycji to `app/src/server/container.ts`; serwisy rozwiązuj z zakresu żądania (`getRequestScope()`, `createRequestScope()` + `dispose()`), nigdy z kontenera głównego.
-- **Zapisy (komendy)** tylko przez serwisy z `core` z `actor`, opcjonalnie `expectedVersion`, błędy jako `DomainError`; goście czytają opublikowaną migawkę (`listPublished*`), panel dane bieżące. Zatwierdzone wyjątki (2026-10-15, 2026-10-16): telemetria (`UsageEventService`) i wydanie kodu polecenia (`RecommendationCodeService.issue`) bez `actor` i `DomainError`, błąd tylko do `logger`; polecenia operatora w `packages/db/scripts/` mogą pisać przez MikroORM, nigdy kod uruchamiany przez aplikację.
+- **Zapisy (komendy)** tylko przez serwisy z `core` z `actor`, opcjonalnie `expectedVersion`, błędy jako `DomainError`; goście czytają opublikowaną migawkę (`listPublished*`), panel dane bieżące. Zatwierdzone wyjątki (2026-10-15, 2026-10-16): telemetria (`UsageEventService`) i wydanie kodu polecenia (`RecommendationCodeService.issue`) bez `actor` i `DomainError`, błąd tylko do `logger`; polecenia operatora w `packages/db/scripts/` mogą pisać przez MikroORM, nigdy kod uruchamiany przez aplikację. Wyjątek od reguły `restaurantId` (zatwierdzony przez właściciela 2026-11-06): `findUsable` i `accept` zaproszenia (`InvitationService`) zaczynają od linku, więc nie biorą `restaurantId`; restauracja pochodzi z wiersza tokenu, a każda dalsza operacja jest już ograniczona do niej (`packages/core/AGENTS.md`).
 - **Uprawnienia:** jedna tabela (`core/src/auth/permissions.ts`), każde wejście sprawdza samo (`requireAccess`, `authorizeAction`, `handle()`); ukrycie przycisku nie jest zabezpieczeniem. Błędów domenowych nie rozpoznajemy przez `instanceof`, tylko `domainError()`.
 - **MikroORM:** encje przez `defineEntity`; zmiana encji wymaga migracji w tym samym przebiegu (`npm run db:migration:create`), zastosowanych migracji nie edytuj, `npm run schema:check -w @wine-match/db` musi być zgodne. **QR:** `PUBLIC_BASE_URL/r/{slug}`, zmiana sluga unieważnia wydrukowane kody.
 
@@ -205,7 +207,9 @@ Szablon lekcji: `.ai/docs/process-templates.md`.
 Praca nie jest skończona, dopóki jej działania nie udowodnisz. „Powinno działać” nie jest weryfikacją.
 
 - **Minimum przy każdej zmianie kodu:** `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`. Przy zmianach UI: ekran przy 390 px i 1440 px, bez poziomego przewijania i bez błędów w konsoli. Przy zmianach silnika: także `npm run engine:matrix` i przegląd wyników oczami sommeliera. Przy zmianach w `db`, portach lub serwisach: także `npm run test:db` na PostgreSQL. Przy zmianach stron lub API: `next build` i sprawdzenie w trybie `DATA_SOURCE=memory` oraz `postgres`.
-- **Błędy naprawiaj od reprodukcji:** najpierw test, który pada (albo zapisane kroki odtworzenia), potem poprawka; test zostaje w repozytorium. Mając zgłoszenie, padający test lub log, doprowadź naprawę do końca samodzielnie; pytaj tylko o decyzje dotyczące zakresu lub zachowania produktu.
+- **Testy integracyjne (e2e) i scenariusze QA:** zmiana zachowania widocznego w UI lub API ma test w `packages/app/tests/e2e/` i scenariusz Markdown w `.ai/qa/{AREA}/` (konwencja: `.ai/qa/README.md`; skill `om-integration-tests` ma lokalne rozszerzenie w `.ai/skills/om-integration-tests/`). Test jest deterministyczny: reguły w `references/best-practices.md` tego rozszerzenia. `npm run check:qa` pilnuje powiązania scenariuszy z testami.
+- **Błędy naprawiaj od reprodukcji:** najpierw test, który pada (albo zapisane kroki odtworzenia), potem poprawka; test zostaje w repozytorium. Mając zgłoszenie, padający test lub log, doprowadź naprawę do końca samodzielnie; pytaj tylko o decyzje dotyczące zakresu lub zachowania produktu. „Naprawione” to hipoteza: przed PR uruchom `npm run verify:regression -- <test>` (test czerwony na kodzie sprzed poprawki, zielony po) i wklej wynik do opisu PR. Pełny przebieg: `.ai/docs/fix-verification.md`.
+- **Review poprawki robi inna sesja:** PR z poprawką dostaje review od drugiego agenta w nowej sesji, bez kontekstu autora (najlepiej inny model albo pod-agent bez wglądu w uzasadnienia autora). GitHub nie pozwala autorowi zatwierdzić własnego PR-a, więc wynik wpisz jako komentarz do PR.
 - **Dowody w logu:** w sekcji „Weryfikacja” logu przebiegu wpisz uruchomione polecenia i ich wyniki.
 - **Przegląd własnego diffu przed zakończeniem**, jak recenzent: czy spełnione jest każde kryterium akceptacji, czy nie złamano sekcji 7, czy zaktualizowano `docs/`.
 - **Najpierw działające, potem właściwe:** jeśli poprawka działa, ale jest doraźna, zadaj sobie pytanie „wiedząc to, co wiem teraz, jak wyglądałoby eleganckie rozwiązanie?” i wdróż je, jeśli mieści się w zakresie. Jeśli nie — zapisz dług techniczny w „Wyniku” logu.
@@ -225,6 +229,7 @@ Praca nie jest skończona, dopóki jej działania nie udowodnisz. „Powinno dzi
 ## 8. Praca równoległa, pod-agenci i powtarzalne czynności
 
 - **Równoległe sesje** prowadź w osobnych `git worktree` na osobnych gałęziach: jedna specyfikacja = jeden worktree. Każda sesja ma własny log w `.ai/runs/`; dwie sesje nie edytują tej samej specyfikacji. Przy konflikcie w `.ai/lessons.md` zachowaj linie z obu stron.
+- **Limit pracy w toku:** najwyżej 3 otwarte PR-y czekające na review właściciela; zadania dzielą się na I, S, P, M i tylko typ M idzie szeroko. Zasady i klasyfikacja zadań: `.ai/docs/parallel-work.md`.
 - **Pod-agentów** używaj do eksploracji kodu, wyszukiwania w dokumentacji, przeglądu planu i weryfikacji, żeby główny kontekst pozostał czysty. Agent główny scala ich wyniki i zapisuje je w swoim logu przebiegu.
 - **Kiedy pod-agent, kiedy nie:** pod-agent daje jakość i oszczędza uwagę agenta głównego, ale zwiększa łączny koszt tokenów (startuje z pustym oknem). Używaj go do researchu, przeglądu, weryfikacji i prac, które da się zrównoleglić; nie do małej zmiany w jednym pliku. Brief zawiera cel, pliki do przeczytania i to, co już wykluczono.
 - **Czynność wykonywaną częściej niż raz dziennie albo w każdym przebiegu** zamień w skrypt `npm run …` lub komendę agenta zapisaną w repozytorium (`.claude/commands/`) i opisz ją w lekcji. Przykład: `npm run engine:matrix`.

@@ -1,5 +1,7 @@
 import type { ImportRepository } from './import';
+import type { InvitationRepository } from './invitations';
 import type { SalesRepository } from './sales';
+import type { AuthAuditRepository, TeamRepository } from './team';
 import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
 import type { Locale } from '../i18n/locale';
 import type {
@@ -289,4 +291,7 @@ export interface Repositories {
   guestInteractionRepository: GuestInteractionRepository;
   recommendationCodeRepository: RecommendationCodeRepository;
   salesRepository: SalesRepository;
+  teamRepository: TeamRepository;
+  authAuditRepository: AuthAuditRepository;
+  invitationRepository: InvitationRepository;
 }

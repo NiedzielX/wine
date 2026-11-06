@@ -2,7 +2,7 @@
 
 Zasady ogólne: `../../AGENTS.md` (§1.2–1.4 i §7). Ekrany: `../../docs/SCREEN_SPECIFICATION.md`, API: `../../docs/API_SPECIFICATION.md`. Szczegóły architektury: `../../.ai/docs/architecture-rules.md`.
 
-**Co tu jest:** Next.js App Router w `src/app` z grupami tras `(guest)` (gość, `/r/[slug]/...`) i `(admin)` (panel, `/admin/...`), route handlery REST w `src/app/api/v1`, kod tylko serwerowy w `src/server` (kontener Awilix, zakres żądania, parsowanie parametrów).
+**Co tu jest:** Next.js App Router w `src/app` z grupami tras `(guest)` (gość, `/r/[slug]/...`), `(admin)` (panel, `/admin/...`) i `(showcase)` (publiczne strony sprzedażowe `/demo/...`, E22: `showcaseGate()` na początku strony, `logShowcaseView()` na końcu, stan tylko w URL), route handlery REST w `src/app/api/v1`, kod tylko serwerowy w `src/server` (kontener Awilix, zakres żądania, parsowanie parametrów).
 
 **Zasady:**
 - Strony i route handlery: parsuj wejście → rozwiąż serwis z zakresu żądania → wyrenderuj lub zwróć JSON. Bez logiki biznesowej i bez importów z `@wine-match/db`.
@@ -28,7 +28,7 @@ Zasady ogólne: `../../AGENTS.md` (§1.2–1.4 i §7). Ekrany: `../../docs/SCREE
 - **Język (PL/EN):** teksty tylko ze słowników `src/i18n/en.ts` i `pl.ts`; linki gościa buduje `href` z `guestContext`; `/api/v1` bez `locale`; treści restauracji lokalizują serwisy przez `locale` (panel edytuje `source`). Pełna wersja: `.ai/docs/app-details.md`.
 - Cookie: httpOnly, SameSite=Lax, `Secure` w produkcji (`AUTH_COOKIE_SECURE=false` tylko do lokalnego `next start` po http). Nagłówki bezpieczeństwa w `next.config.ts` (`headers()`); strony panelu i `/api/v1/auth` nie są cache'owane.
 - **Import i Setup:** upload jako akcja serwerowa (`[slug]/import-actions.ts`, `bodySizeLimit: 11mb`), parser plików ładowany leniwie, podgląd importu to jeden formularz działający bez JS. Pełna wersja: `.ai/docs/app-details.md`.
-- **Trasy API:** zawsze `handle()` (sesja, CSRF, uprawnienie) albo `handlePublic()` z `server/api-auth.ts`; ciało przez `parseBody(req, schemat)` (schematy w `core/validators`), upload przez `readUpload()`. Własny `try/catch` w trasie jest błędem: błędy mapuje `guarded()`, nieoczekiwane trafiają do `logger` z ogólnym 500.
+- **Trasy API:** zawsze `handle()` (sesja, CSRF, uprawnienie) albo `handlePublic()` z `server/api-auth.ts` (jedyny wyjątek: `GET /api/v1/health` przez `handleUnscoped()`, bez zakresu żądania, żeby awaria bazy dała 503, nie 500); ciało przez `parseBody(req, schemat)` (schematy w `core/validators`), upload przez `readUpload()`. Własny `try/catch` w trasie jest błędem: błędy mapuje `guarded()`, nieoczekiwane trafiają do `logger` z ogólnym 500.
 - **Log i konfiguracja:** `logger` z `server/logger.ts` (jedyny moduł z `console`), `env()` z `server/env.ts` (czytane leniwie; strony, które go czytają, są `force-dynamic`). `instrumentation.ts` sprawdza konfigurację przy starcie serwera i kończy proces kodem 1 przy błędzie.
 - Nowa strona panelu: dopisz sprawdzenia do `scripts/smoke.mjs` (kod HTTP i kluczowa treść).
 

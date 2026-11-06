@@ -101,7 +101,9 @@ describe('messages by code', () => {
     expect(savedText(en.admin.flash, 'imported', '2-1-6')).toBe('Imported: 2 new, 1 updated. 6 engine suggestions are ready for review.');
     expect(savedText(pl.admin.flash, 'published', '7')).toContain('wersję 7');
     expect(savedText(en.admin.flash, 'zzz', undefined)).toBeUndefined();
-    expect(errorText(pl.admin.flash, 'version_conflict')).toContain('Ktoś przed chwilą zmienił');
+    expect(errorText(pl.admin.flash, 'version_conflict')).toContain('Ktoś przed chwilą to zmienił');
+    expect(errorText(pl.admin.flash, 'version_conflict')).not.toMatch(/parowani/i);
+    expect(errorText(en.admin.flash, 'version_conflict')).not.toMatch(/pairing/i);
     expect(errorText(en.admin.flash, 'constructor')).toBe(en.admin.flash.errors.unexpected);
     expect(errorText(pl.admin.flash, 'no_such_code')).toBe(pl.admin.flash.errors.unexpected);
   });

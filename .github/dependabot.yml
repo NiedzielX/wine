@@ -1,0 +1,33 @@
+# Dependabot (lesson 14): known-vulnerable dependencies arrive as pull requests instead of waiting for someone to run
+# an audit. Vulnerability alerts are a repository setting (Settings > Advanced Security); this file only configures the
+# version updates. Kept small on purpose: at most 2 open pull requests, so they do not break the limit of 3 pull
+# requests waiting for review (.ai/docs/parallel-work.md), and a 14-day cooldown, the same rule as for adding
+# dependencies by hand (AGENTS.md 1.1). Versions stay pinned exactly (.npmrc save-exact); the audit gate
+# (scripts/audit-gate.mjs) still decides what blocks a pull request.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 14
+    # runtime is Node 22 (.nvmrc, engines): the types must follow it, not the newest Node (a wrong major compiles against APIs Node 22 lacks)
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    labels: [dependencies, risk-medium]
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 1
+    cooldown:
+      default-days: 14
+    labels: [dependencies, risk-medium]

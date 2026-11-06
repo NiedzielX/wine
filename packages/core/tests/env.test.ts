@@ -15,7 +15,7 @@ describe('development', () => {
   it('an empty environment is a working demo setup', () => {
     expect(parseEnv({})).toEqual({
       nodeEnv: 'development', isProduction: false, dataSource: 'memory', databaseUrl: null, secureCookies: false, publicBaseUrl: 'http://localhost:3000',
-      publicBaseUrlIsDefault: true, logLevel: 'debug', demoRestaurantSlug: 'halka'
+      publicBaseUrlIsDefault: true, allowLocalBaseUrl: false, logLevel: 'debug', demoRestaurantSlug: 'halka', metricsToken: null, showcaseMode: 'off'
     });
   });
 
@@ -37,21 +37,22 @@ describe('data source: a typo must not pick the demo data', () => {
 });
 
 describe('production fails closed', () => {
-  const prod = { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: 'postgres://u:p@h/db' };
+  const base = { PUBLIC_BASE_URL: 'https://wine.example.com' };
+  const prod = { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: 'postgres://u:p@h/db', ...base };
 
   it('a complete production setup works and uses secure cookies and info logging by default', () => {
     expect(parseEnv(prod)).toMatchObject({ isProduction: true, dataSource: 'postgres', secureCookies: true, logLevel: 'info' });
   });
 
   it('refuses to start without an explicit data source, and says so once', () => {
-    expect(fails({ NODE_ENV: 'production' })).toHaveLength(1);
-    expect(fails({ NODE_ENV: 'production' })[0]).toMatch(/DATA_SOURCE: must be set in production/);
+    expect(fails({ NODE_ENV: 'production', ...base })).toHaveLength(1);
+    expect(fails({ NODE_ENV: 'production', ...base })[0]).toMatch(/DATA_SOURCE: must be set in production/);
   });
 
   it('refuses demo data (public passwords) unless it is explicitly allowed', () => {
-    expect(fails({ NODE_ENV: 'production', DATA_SOURCE: 'memory' })[0]).toMatch(/PUBLIC password/);
-    expect(parseEnv({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true' }).dataSource).toBe('memory');
-    expect(fails({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'yes' })[0]).toMatch(/ALLOW_DEMO_DATA: must be/);
+    expect(fails({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ...base })[0]).toMatch(/PUBLIC password/);
+    expect(parseEnv({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true', ...base }).dataSource).toBe('memory');
+    expect(fails({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'yes', ...base })[0]).toMatch(/ALLOW_DEMO_DATA: must be/);
   });
 
   it('reports every problem at once', () => {
@@ -59,6 +60,60 @@ describe('production fails closed', () => {
     expect(issues.length).toBeGreaterThanOrEqual(2);
     expect(issues.join(' ')).toMatch(/AUTH_COOKIE_SECURE/);
     expect(issues.join(' ')).toMatch(/LOG_LEVEL/);
+  });
+
+  describe('PUBLIC_BASE_URL (spec 2026-10-15-production-deployment, R4, AC4)', () => {
+    const withUrl = (url: string | undefined, extra: Record<string, string> = {}) => ({ ...prod, PUBLIC_BASE_URL: url, ...extra });
+
+    it.each([
+      ['not set', undefined],
+      ['empty', ''],
+      ['http instead of https', 'http://wine.example.com'],
+      ['localhost', 'https://localhost'],
+      ['localhost with a trailing dot', 'https://localhost./'],
+      ['an IPv4 address', 'https://127.0.0.1'],
+      ['a private IPv4 address', 'https://192.168.1.10'],
+      ['the unspecified address', 'https://0.0.0.0'],
+      ['an IPv6 address', 'https://[::1]'],
+      ['a single-label host', 'https://app'],
+      ['a .local host', 'https://pilot.local'],
+      ['a .localhost host', 'https://wine.localhost'],
+      ['a .internal host', 'https://wine.internal'],
+      ['a .lan host', 'https://wine.lan'],
+      ['a .home.arpa host', 'https://wine.home.arpa']
+    ])('production refuses %s', (_label, url) => {
+      const issues = fails(withUrl(url));
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toMatch(/PUBLIC_BASE_URL/);
+      expect(issues[0]).toMatch(/ALLOW_LOCAL_BASE_URL/);
+    });
+
+    it('production accepts a public https address', () => {
+      expect(parseEnv(withUrl('https://wine.example.com'))).toMatchObject({ publicBaseUrl: 'https://wine.example.com', allowLocalBaseUrl: false });
+      expect(parseEnv(withUrl('https://wine.example.com:8443/app/'))).toMatchObject({ publicBaseUrl: 'https://wine.example.com:8443/app' });
+    });
+
+    it('applies to every data source, including demo mode', () => {
+      expect(fails({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true' })[0]).toMatch(/PUBLIC_BASE_URL: is not set/);
+    });
+
+    it('ALLOW_LOCAL_BASE_URL=true lets a local address through and is reported', () => {
+      expect(parseEnv(withUrl('http://localhost:3000', { ALLOW_LOCAL_BASE_URL: 'true' }))).toMatchObject({ publicBaseUrl: 'http://localhost:3000', allowLocalBaseUrl: true });
+      expect(parseEnv(withUrl(undefined, { ALLOW_LOCAL_BASE_URL: 'true' }))).toMatchObject({ publicBaseUrl: 'http://localhost:3000', publicBaseUrlIsDefault: true });
+      expect(fails(withUrl('http://localhost:3000', { ALLOW_LOCAL_BASE_URL: 'yes' }))[0]).toMatch(/ALLOW_LOCAL_BASE_URL: must be/);
+    });
+
+    it('AUTH_COOKIE_SECURE=false does not excuse a local address', () => {
+      expect(fails(withUrl('http://localhost:3000', { AUTH_COOKIE_SECURE: 'false' }))[0]).toMatch(/PUBLIC_BASE_URL/);
+    });
+
+    it('development is not restricted', () => {
+      expect(parseEnv({ PUBLIC_BASE_URL: 'http://localhost:3000' }).allowLocalBaseUrl).toBe(false);
+    });
+
+    it('is reported together with the other problems', () => {
+      expect(fails({ NODE_ENV: 'production' }).join(' ')).toMatch(/DATA_SOURCE.*PUBLIC_BASE_URL/);
+    });
   });
 
   it('the error message lists the problems', () => {
@@ -69,7 +124,7 @@ describe('production fails closed', () => {
 describe('cookies and the public address', () => {
   it('AUTH_COOKIE_SECURE overrides the default both ways', () => {
     expect(parseEnv({ AUTH_COOKIE_SECURE: 'true' }).secureCookies).toBe(true);
-    expect(parseEnv({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true', AUTH_COOKIE_SECURE: 'false' }).secureCookies).toBe(false);
+    expect(parseEnv({ NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true', AUTH_COOKIE_SECURE: 'false', PUBLIC_BASE_URL: 'https://wine.example.com' }).secureCookies).toBe(false);
   });
 
   it('PUBLIC_BASE_URL is normalised (no trailing slash, no path garbage) and must be http(s)', () => {
@@ -79,8 +134,88 @@ describe('cookies and the public address', () => {
     expect(fails({ PUBLIC_BASE_URL: 'ftp://example.com' })[0]).toMatch(/PUBLIC_BASE_URL/);
   });
 
+  describe('the stored address is the parsed, checked one (review of PR #120)', () => {
+    const prod = { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: 'postgres://u:p@h/db' };
+
+    it.each([
+      ['HTTPS://wine.example.com', 'https://wine.example.com'],
+      ['Https://Wine.Example.COM/', 'https://wine.example.com'],
+      ['https://wine。example。com', 'https://wine.example.com'],
+      ['https://wine.example.com./app//', 'https://wine.example.com/app'],
+      ['https://wine.example.com:443/', 'https://wine.example.com'],
+      ['https://wine.example.com:8443/x?a=1#f', 'https://wine.example.com:8443/x']
+    ])('production stores %s as %s and it is not the default address', (raw, stored) => {
+      expect(parseEnv({ ...prod, PUBLIC_BASE_URL: raw })).toMatchObject({ publicBaseUrl: stored, publicBaseUrlIsDefault: false });
+    });
+
+    it.each([
+      ['userinfo', 'https://user:pw@wine.example.com'],
+      ['userinfo without a password', 'https://user@wine.example.com'],
+      ['a backslash that the parser reads as a slash', 'https://wine.example.com\\@localhost'],
+      ['a backslash alone', 'https://wine.example.com\\path'],
+      ['white space', 'https://wine.example.com/ a'],
+      ['an @ in the path', 'https://wine.example.com/@x']
+    ])('refuses %s in every environment, even with ALLOW_LOCAL_BASE_URL', (_label, raw) => {
+      for (const extra of [prod, { ...prod, ALLOW_LOCAL_BASE_URL: 'true' }, {}]) expect(fails({ ...extra, PUBLIC_BASE_URL: raw })[0]).toMatch(/PUBLIC_BASE_URL/);
+    });
+
+    it.each(['.invalid', '.localdomain', '.intranet', '.corp', '.local', '.localhost'])('production refuses a %s host', (suffix) => {
+      expect(fails({ ...prod, PUBLIC_BASE_URL: `https://wine${suffix}` })[0]).toMatch(/local host/);
+    });
+
+    it('.test stays allowed: the spec and the e2e suite use https://wine.example.test as a public address', () => {
+      expect(parseEnv({ ...prod, PUBLIC_BASE_URL: 'https://wine.example.test' }).publicBaseUrl).toBe('https://wine.example.test');
+    });
+  });
+
   it('the demo restaurant slug must look like an address name', () => {
     expect(parseEnv({ DEMO_RESTAURANT_SLUG: 'my-place' }).demoRestaurantSlug).toBe('my-place');
     expect(fails({ DEMO_RESTAURANT_SLUG: 'My Place' })[0]).toMatch(/DEMO_RESTAURANT_SLUG/);
+  });
+});
+
+describe('metrics token', () => {
+  it('is optional (null = endpoint disabled), blank counts as unset, and a short token is refused', () => {
+    expect(parseEnv({}).metricsToken).toBeNull();
+    expect(parseEnv({ METRICS_TOKEN: '  ' }).metricsToken).toBeNull();
+    expect(parseEnv({ METRICS_TOKEN: 'x'.repeat(32) }).metricsToken).toBe('x'.repeat(32));
+    expect(fails({ METRICS_TOKEN: 'short' })[0]).toMatch(/METRICS_TOKEN: must be at least 32 characters/);
+  });
+});
+
+describe('SHOWCASE_MODE (spec 2026-11-04-sales-demo-and-roi-calculator, R1, AC1 for phase F1)', () => {
+  const postgres = { DATA_SOURCE: 'postgres', DATABASE_URL: 'postgresql://u:p@h:5432/db' };
+  const production = { NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://wine.example.com' };
+
+  it('unset or blank is off, so the /demo pages answer 404', () => {
+    expect(parseEnv({}).showcaseMode).toBe('off');
+    expect(parseEnv({ SHOWCASE_MODE: '' }).showcaseMode).toBe('off');
+    expect(parseEnv({ SHOWCASE_MODE: '   ' }).showcaseMode).toBe('off');
+    expect(parseEnv({ SHOWCASE_MODE: 'off' }).showcaseMode).toBe('off');
+  });
+
+  it('calculator is accepted on postgres, and in production on a real installation: it reads no data', () => {
+    expect(parseEnv({ SHOWCASE_MODE: 'calculator' }).showcaseMode).toBe('calculator');
+    expect(parseEnv({ SHOWCASE_MODE: 'calculator', ...postgres }).showcaseMode).toBe('calculator');
+    expect(parseEnv({ SHOWCASE_MODE: 'calculator', ...postgres, ...production }).showcaseMode).toBe('calculator');
+  });
+
+  it('a value outside the list is refused with the name of the variable, not read as off or as calculator', () => {
+    for (const bad of ['calculater', 'Calculator', 'ON', 'true', '1', 'calculator ', 'off,calculator']) {
+      expect(fails({ SHOWCASE_MODE: bad })[0], bad).toMatch(/^SHOWCASE_MODE: must be "off" or "calculator"/);
+    }
+  });
+
+  it('demo is a known mode of the spec that this version does not have: refused, never taken for calculator', () => {
+    expect(fails({ SHOWCASE_MODE: 'demo' })).toEqual(['SHOWCASE_MODE: "demo" is not available in this version. Use "off" or "calculator".']);
+    expect(fails({ SHOWCASE_MODE: 'demo', ...postgres })[0]).toMatch(/^SHOWCASE_MODE: "demo"/);
+    expect(fails({ SHOWCASE_MODE: 'demo', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true' })[0]).toMatch(/^SHOWCASE_MODE: "demo"/);
+  });
+
+  it('a wrong value is reported together with the other problems, in one error', () => {
+    const issues = fails({ SHOWCASE_MODE: 'nope', DATA_SOURCE: 'postgres' });
+    expect(issues).toHaveLength(2);
+    expect(issues.join('\n')).toMatch(/DATABASE_URL/);
+    expect(issues.join('\n')).toMatch(/SHOWCASE_MODE/);
   });
 });

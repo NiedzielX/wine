@@ -3,8 +3,8 @@ import type { Repositories, RestaurantDetails } from '../../ports/repositories';
 
 export type RestaurantServiceDeps = Pick<Repositories, 'restaurantRepository' | 'restaurantWriteRepository'>;
 
-/** Words that would collide with routes of the application. */
-export const RESERVED_SLUGS = ['login', 'api', 'r', 'admin', 'static', 'assets', '_next', 'new', 'null', 'undefined'];
+/** Words that would collide with routes of the application. `accept`, `reset` and `account` are the dashboard routes beside `[slug]` (spec E12 F2, R4). */
+export const RESERVED_SLUGS = ['login', 'api', 'r', 'admin', 'static', 'assets', '_next', 'new', 'null', 'undefined', 'accept', 'reset', 'account'];
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**

@@ -1,0 +1,39 @@
+# CodeQL (lesson 14): deterministic static analysis of the TypeScript code for security problems, as an extra check
+# on every pull request. The repository is public, so it is free. It follows data flow from request input to
+# dangerous places (SQL, paths, HTML), which an agent reading one file can miss. The result appears as a check and as
+# annotations on the pull request; whether it BLOCKS a merge is a branch protection rule (a repository setting that
+# the maintainer sets: add "CodeQL / analyze" to the required checks once the first runs are clean).
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 4 * * 1'
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:javascript-typescript

@@ -1,0 +1,63 @@
+import { ForbiddenError, LastOwnerError, SelfChangeError, TeamHierarchyError, ValidationError } from '../errors';
+import { can } from './permissions';
+import type { MembershipStatus, Role, TeamMember } from './types';
+
+/**
+ * Who may change whom (spec E12 Q7). The permission matrix says who may manage the team at all (`team.manage`);
+ * these pure functions are the hierarchy on top of it. They throw the domain error, or return when the change is allowed.
+ *
+ *  - nobody changes their own role or deactivates themselves;
+ *  - only an owner touches an owner or a manager, and only an owner grants `owner` or `manager`;
+ *  - the last active owner is protected by the repository, atomically (a check here would race).
+ */
+
+/** Roles a manager may grant: the ones below their own. */
+const MANAGER_GRANTS: readonly Role[] = ['sommelier', 'waiter'];
+
+/** An owner changes anyone; a manager only the roles below manager (decided 2026-11-05: least privilege, the owner recovers). */
+function mayTouch(actor: Pick<TeamMember, 'role'>, target: Pick<TeamMember, 'role'>): boolean {
+  return actor.role === 'owner' || (target.role !== 'owner' && target.role !== 'manager');
+}
+
+export function assertMayChangeRole(actor: Pick<TeamMember, 'role' | 'userId'>, target: TeamMember, role: Role): void {
+  if (actor.userId === target.userId) throw new SelfChangeError();
+  if (!mayTouch(actor, target)) throw new TeamHierarchyError();
+  if (actor.role !== 'owner' && !MANAGER_GRANTS.includes(role)) throw new TeamHierarchyError();
+  if (target.status !== 'active') throw new ValidationError('member_deactivated', 'Reactivate this person before changing their role.');
+}
+
+export function assertMayChangeStatus(actor: Pick<TeamMember, 'role' | 'userId'>, target: TeamMember, status: MembershipStatus): void {
+  if (status === 'deactivated' && actor.userId === target.userId) throw new SelfChangeError();
+  if (!mayTouch(actor, target)) throw new TeamHierarchyError();
+}
+
+/** Used by the in-memory repository and documented for the SQL one: the change leaves no active owner. */
+export function leavesNoOwner(before: { role: Role; status: MembershipStatus }, after: { role: Role; status: MembershipStatus }, otherActiveOwners: number): boolean {
+  const wasOwner = before.role === 'owner' && before.status === 'active';
+  return wasOwner && !(after.role === 'owner' && after.status === 'active') && otherActiveOwners === 0;
+}
+
+export function assertKeepsAnOwner(before: { role: Role; status: MembershipStatus }, after: { role: Role; status: MembershipStatus }, otherActiveOwners: number): void {
+  if (leavesNoOwner(before, after, otherActiveOwners)) throw new LastOwnerError();
+}
+
+/** The roles the actor may grant (an owner: all; a manager: the roles below manager). For the team screen; the service still checks. */
+export function grantableRoles(actor: Pick<TeamMember, 'role'>): Role[] {
+  return actor.role === 'owner' ? ['owner', 'manager', 'sommelier', 'waiter'] : [...MANAGER_GRANTS];
+}
+
+/** Whether the actor may change this person at all (their role or their status): not themselves; an owner or a manager only by an owner. */
+export function mayManageMember(actor: Pick<TeamMember, 'role' | 'userId'>, target: Pick<TeamMember, 'role' | 'userId'>): boolean {
+  return actor.userId !== target.userId && mayTouch(actor, target);
+}
+
+/**
+ * The whole decision for one change, from the stored rows: the actor must be active with `team.manage`, and every part
+ * of the change (role, status) must pass the hierarchy. The service runs it on the rows it read, and the repository
+ * again on the rows it locked, so a change decided on stale data is refused at the moment it would be applied.
+ */
+export function assertChangeAllowed(actor: Pick<TeamMember, 'role' | 'status' | 'userId'>, target: TeamMember, set: { role?: Role; status?: MembershipStatus }): void {
+  if (actor.status !== 'active' || !can(actor.role, 'team.manage')) throw new ForbiddenError();
+  if (set.role !== undefined && set.role !== target.role) assertMayChangeRole(actor, target, set.role);
+  if (set.status !== undefined && set.status !== target.status) assertMayChangeStatus(actor, target, set.status);
+}

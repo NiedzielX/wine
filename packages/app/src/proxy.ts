@@ -43,4 +43,4 @@ export function proxy(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export const config = { matcher: ['/admin/:path*', '/r/:path*'] };
+export const config = { matcher: ['/admin/:path*', '/r/:path*', '/demo/:path*'] };

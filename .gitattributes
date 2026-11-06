@@ -1,0 +1,5 @@
+*.sh text eol=lf
+# a new lesson line or index row is added at the top of these files by almost every pull request; two branches adding
+# different lines at the same place must not conflict, so a merge keeps the lines of both sides (AGENTS.md section 8)
+.ai/lessons.md merge=union
+.ai/qa/INDEX.md merge=union
