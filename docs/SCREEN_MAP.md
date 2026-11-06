@@ -78,7 +78,8 @@ Go live
  ├─ A10 Setup checklist (onboarding) ............. /admin/setup
  ├─ A11 Publish .................................. /admin/publish
  ├─ A12 QR generation ............................ /admin/qr
- └─ A15 Team (Zespół) ............................ /admin/team   (owner, GM; E12 F1)
+ ├─ A15 Team (Zespół, zaproszenia) .............. /admin/team   (owner, GM; E12 F1, F2)
+ └─ A17 Przyjęcie zaproszenia (publiczny) ........ /admin/accept  (poza [slug]; E12 F2)
 Guest view
  └─ link do G0 (nowa karta)
 ```
