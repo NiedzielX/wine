@@ -9,8 +9,8 @@ export interface InviteLabels {
   role: string;
   submit: string;
   createdTitle: string;
-  /** the sentence for the invitation just made (the address and the role are known only after the post) */
-  createdText: (email: string, role: string) => string;
+  /** the sentence for the invitation just made, with `{email}` and `{role}` (known only after the post); a string because props to a client component cannot be functions */
+  createdText: string;
   linkLabel: string;
   errors: Record<string, string>;
 }
@@ -49,7 +49,7 @@ export function InviteForm({ action, slug, back, roles, roleNames, labels }: {
         <Alert className="border-transparent bg-sage-soft text-sage" role="status" data-invitation-link>
           <AlertTitle>{labels.createdTitle}</AlertTitle>
           <AlertDescription className="grid gap-2">
-            <p>{labels.createdText(state.email, roleNames[state.role] ?? state.role)}</p>
+            <p>{labels.createdText.replace('{email}', state.email).replace('{role}', roleNames[state.role] ?? state.role)}</p>
             <Label htmlFor="invite-link">{labels.linkLabel}</Label>
             <Input id="invite-link" readOnly value={state.link} autoComplete="off" className="font-mono text-xs" />
           </AlertDescription>

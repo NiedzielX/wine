@@ -1150,7 +1150,7 @@ export const pl = {
         submit: 'Utwórz link zaproszenia',
         noRoles: 'Twoja rola nie pozwala nikogo zapraszać.',
         createdTitle: 'Link zaproszenia utworzony',
-        createdText: (email: string, role: string) => `Dla ${email}, jako ${role}. Działa raz i przez 72 godziny. Widzisz go tylko teraz: skopiuj i przekaż tej osobie samodzielnie.`,
+        createdText: 'Dla {email}, jako {role}. Działa raz i przez 72 godziny. Widzisz go tylko teraz: skopiuj i przekaż tej osobie samodzielnie.',
         linkLabel: 'Link zaproszenia',
         pendingTitle: 'Oczekujące zaproszenia',
         pendingLabel: 'Oczekujące zaproszenia',

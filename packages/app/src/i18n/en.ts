@@ -1285,7 +1285,8 @@ export const en = {
         submit: 'Create invitation link',
         noRoles: 'Your role cannot invite anyone.',
         createdTitle: 'Invitation link created',
-        createdText: (email: string, role: string) => `For ${email}, as ${role}. It works once and for 72 hours. This is the only time it is shown: copy it now and send it to the person yourself.`,
+        /** a template, not a function: it goes to a client component, which cannot receive functions */
+        createdText: 'For {email}, as {role}. It works once and for 72 hours. This is the only time it is shown: copy it now and send it to the person yourself.',
         linkLabel: 'Invitation link',
         pendingTitle: 'Pending invitations',
         pendingLabel: 'Pending invitations',
