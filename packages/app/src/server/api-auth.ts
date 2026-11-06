@@ -38,6 +38,7 @@ export function fromDomainError(e: unknown): NextResponse | null {
   switch (d.name) {
     case 'InvalidCredentialsError': return apiError(401, d.code, d.message);
     case 'NoPanelAccessError':
+    case 'ShowcaseReadOnlyError':
     case 'TeamHierarchyError':
     case 'ForbiddenError': return apiError(403, d.code, d.message);
     case 'InvalidTokenError':

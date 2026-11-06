@@ -643,3 +643,32 @@ Spec `2026-11-04-sales-demo-and-roi-calculator` (E22), faza F1. Identyfikatory e
 | JS | przycisk „Drukuj” (komponent kliencki tylko dla `window.print()`) istnieje wyłącznie z JavaScriptem; bez niego strona działa i podpowiada Ctrl/Cmd+P |
 | Pozostałe | jak DM2 (publiczny, tryb `calculator`, 404 poza trybem, bez zapisów, `noindex`, licznik `showcase_view` z `page=roi_summary`) |
 
+
+## DM0 Demo guide — `/demo`
+
+Spec `2026-11-04-sales-demo-and-roi-calculator` (E22), faza F2.
+
+| Pole | Opis |
+|---|---|
+| Cel | Przewodnik po fikcyjnej restauracji Halka w pięciu krokach, z linkiem (restauracja dostaje jeden adres) |
+| Funkcje | tytuł „Demo: fikcyjna restauracja Halka”; kroki 1–3 to linki do stron gościa: danie z parą sommeliera (`/r/halka/dish/{id}/wines`, pierwsze danie w kolejności menu z zatwierdzoną parą i parą główną, inaczej lista dań), cały stół (`/r/halka/table`), podgląd kelnera (`/r/halka/staff/table`); kroki 4 (panel) i 5 (KPI) to F3: oznaczone „pojawi się w kolejnej wersji”, bez linku; nota, że Halka jest fikcyjna, a wina to wpisy prawdziwych posiadłości bez znaczenia partnerstwa; linki do DM1 i DM2 |
+| Dane wejściowe | `lang`; dane z `catalogService.publishedMenu` i `pairingCoverage` (odczyt) |
+| Dane wyjściowe | brak zapisów, brak cookies, linki niosą tylko `lang` (bez `sid` i preferencji); jedna linia logu `showcase_view` (`page=hub`) |
+| Error | brak opublikowanego menu: krok 1 prowadzi do listy dań |
+| Permissions | publiczny; tylko tryb `demo` (inaczej 404) |
+| Układ | 390 px jedna kolumna, od 768 px dwie; bez poziomego przewijania; działa bez JavaScriptu |
+
+## DM1 How it works for a restaurant — `/demo/tour`
+
+| Pole | Opis |
+|---|---|
+| Cel | Krótka (≈230 słów) opowieść o pozycjonowaniu sommelier-first dla właściciela |
+| Funkcje | pięć sekcji: „Sommelier ma ostatnie słowo”, „Gość dostaje wino z Twojej karty”, „Kelner nie musi zgadywać”, „Widzisz, co się sprzedaje”, „Czego nie robimy”; linki: „Jak liczymy dopasowanie” (G12, tylko w `demo`), kalkulator, przewodnik (tylko w `demo`) |
+| Dane wyjściowe | brak zapisów i danych; `showcase_view` (`page=tour`) |
+| Treść | bez słowa „AI” i „sztuczna inteligencja” (test); do przeczytania przez właściciela (Q12) |
+| Permissions | publiczny; tryby `calculator` i `demo`, inaczej 404 |
+| Układ | jedna kolumna do 48 rem, bez poziomego przewijania |
+
+## Pasek „Dane demonstracyjne” (strony gościa, tryb `demo`)
+
+Na górze każdej strony gościa instancji `demo` (`(guest)/layout.tsx`, `_components/demo-ribbon.tsx`): „Dane demonstracyjne: fikcyjna restauracja” i link „Wróć do przewodnika” (`/demo?lang=…`). W trybach `off` i `calculator` nie istnieje. Strony gościa w trybie `demo` nie zapisują zdarzeń użycia.

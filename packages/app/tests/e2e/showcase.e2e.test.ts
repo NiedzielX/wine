@@ -15,14 +15,19 @@ const appLog = () => readFileSync(`${appDir}/test-results/e2e-app.log`, 'utf8');
 const showcaseViews = () => appLog().split('\n').filter((l) => l.includes('"msg":"showcase_view"'));
 /** The words a person reads (a character-level reader, not a regular expression on markup). */
 const textOf = visibleText;
-const get = async (path: string, init?: RequestInit) => {
-  const res = await fetch(`${base()}${path}`, init);
+const get = async (path: string, init?: RequestInit, root: string = base()) => {
+  const res = await fetch(`${root}${path}`, init);
   return { res, html: (await res.text()).replace(/<!-- -->/g, '') };
 };
+const hrefs = (html: string) => [...html.matchAll(/\shref="([^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, '&'));
+/** What the public demo instance runs with: memory, the flag that allows it, a public https address, production mode. */
+const demoEnv = { NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true', SHOWCASE_MODE: 'demo', PUBLIC_BASE_URL: 'https://demo.wine-match.example.com', AUTH_COOKIE_SECURE: 'false', LOG_LEVEL: 'info' };
+const NO_AI = /\bAI\b|sztuczn/i;
+const DEMO_PASSWORD = 'demo-halka-2026';
 
 describe('the showcase in calculator mode', () => {
   it('serves the calculator and the summary, and answers 404 for the pages of the later phases', async () => {
-    for (const path of ['/demo/roi', '/demo/roi/summary']) expect((await get(path)).res.status, path).toBe(200);
+    for (const path of ['/demo/roi', '/demo/roi/summary', '/demo/tour']) expect((await get(path)).res.status, path).toBe(200);
     for (const path of ['/demo', '/demo/panel', '/demo/kpi']) expect((await get(path)).res.status, path).toBe(404);
   });
 
@@ -41,7 +46,7 @@ describe('the showcase in calculator mode', () => {
     }
     await expect(
       startBuiltApp({ cwd: appDir, readyPath: '/api/v1/health', logFile: `${appDir}/test-results/e2e-showcase-bad.log`, env: { ...env, SHOWCASE_MODE: 'calculater' } })
-    ).rejects.toThrow(/exited with code 1[^]*invalid configuration[^]*SHOWCASE_MODE: must be \\+"off\\+" or \\+"calculator\\+"/);
+    ).rejects.toThrow(/exited with code 1[^]*invalid configuration[^]*SHOWCASE_MODE: must be \\+"off\\+", \\+"calculator\\+" or \\+"demo\\+"/);
   });
 
   it('keeps the numbers in the address: the same link gives the same figures, and a form sent without JavaScript changes the result', async () => {
@@ -122,5 +127,83 @@ describe('the showcase in calculator mode', () => {
     const css = (await Promise.all([...html.matchAll(/href="(\/_next\/static\/[^"]+\.css)"/g)].map(async (m) => (await fetch(`${base()}${m[1]}`)).text()))).join('\n');
     expect(css).toMatch(/@media print\{[^]*\.print\\:hidden\{display:none\}/);
     expect(css).toMatch(/@page\{size:A4/);
+  });
+});
+
+describe('the showcase in demo mode (F2)', () => {
+  it('serves the guide with working links, the tour and the ribbon on guest pages; the panel and KPI pages are not built yet', async () => {
+    const demo = await startBuiltApp({ cwd: appDir, readyPath: '/demo', logFile: `${appDir}/test-results/e2e-showcase-demo.log`, env: demoEnv });
+    try {
+      const hub = await get('/demo?lang=pl', undefined, demo.url);
+      expect(hub.res.status).toBe(200);
+      expect(textOf(hub.html)).toContain('Demo: fikcyjna restauracja Halka');
+      expect(textOf(hub.html)).not.toMatch(NO_AI);
+      expect(hub.res.headers.get('cache-control')).toBe('private, no-store');
+      expect(hub.res.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+      expect(hub.res.headers.getSetCookie()).toEqual([]);
+      const steps = hrefs(hub.html).filter((h) => h.startsWith('/r/'));
+      expect(steps).toHaveLength(3);
+      for (const step of steps) {
+        const page = await get(step, undefined, demo.url);
+        expect(page.res.status, step).toBe(200);
+        expect(new URL(step, 'http://x').searchParams.has('sid'), step).toBe(false);
+        // the ribbon of the demo, with the way back that carries the language only
+        expect(page.html, step).toContain('data-demo-ribbon');
+        expect(hrefs(page.html), step).toContain('/demo?lang=pl');
+      }
+      const first = await get(steps[0], undefined, demo.url);
+      expect(textOf(first.html)).toContain('Para sommeliera');
+      for (const path of ['/demo/panel', '/demo/kpi']) expect((await get(path, undefined, demo.url)).res.status, path).toBe(404);
+
+      const tour = await get('/demo/tour?lang=en', undefined, demo.url);
+      expect(tour.res.status).toBe(200);
+      expect([...tour.html.matchAll(/data-section="(\w+)"/g)]).toHaveLength(5);
+      expect(hrefs(tour.html)).toContain('/r/halka/how-it-works?lang=en');
+      expect(textOf(tour.html)).not.toMatch(NO_AI);
+      expect((await get('/demo/roi', undefined, demo.url)).res.status).toBe(200);
+      // the main instance (calculator mode) shows no ribbon on its guest pages
+      expect((await get('/r/halka')).html).not.toContain('data-demo-ribbon');
+    } finally {
+      await demo.stop();
+    }
+  });
+
+  it('is read-only: no account exists, sign-in is refused with the demo password too, and the password is nowhere in a page', async () => {
+    const demo = await startBuiltApp({ cwd: appDir, readyPath: '/demo', logFile: `${appDir}/test-results/e2e-showcase-demo-ro.log`, env: demoEnv });
+    try {
+      const login = await fetch(`${demo.url}/api/v1/auth/login`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'marta@halka.pl', password: DEMO_PASSWORD })
+      });
+      const body = await login.text();
+      expect(login.status).toBe(403);
+      expect(JSON.parse(body)).toMatchObject({ error: { code: 'showcase_read_only' } });
+      expect(body).not.toContain(DEMO_PASSWORD);
+      expect(login.headers.getSetCookie()).toEqual([]);
+
+      const page = await get('/admin/login?lang=en', undefined, demo.url);
+      expect(page.res.status).toBe(200);
+      expect(textOf(page.html)).toContain('read-only');
+      expect(page.html).not.toContain('type="password"');
+      expect(page.html).toContain('href="/demo"');
+      for (const path of ['/demo', '/demo/tour', '/admin/login', '/r/halka']) {
+        const { html } = await get(path, undefined, demo.url);
+        expect(html, path).not.toContain(DEMO_PASSWORD);
+        expect(textOf(html), path).not.toMatch(NO_AI);
+      }
+      // the panel needs a session and there is no way to get one
+      const panel = await fetch(`${demo.url}/admin/halka`, { redirect: 'manual' });
+      await panel.arrayBuffer();
+      expect([302, 307, 308]).toContain(panel.status);
+      expect(panel.headers.get('location')).toContain('/admin/login');
+    } finally {
+      await demo.stop();
+    }
+  });
+
+  it('refuses to start in demo mode on PostgreSQL or without ALLOW_DEMO_DATA, naming the variable', async () => {
+    const pg = { ...demoEnv, DATA_SOURCE: 'postgres', DATABASE_URL: inject('e2e').databaseUrl, ALLOW_LOCAL_BASE_URL: 'true' };
+    await expect(startBuiltApp({ cwd: appDir, readyPath: '/api/v1/health', logFile: `${appDir}/test-results/e2e-showcase-demo-pg.log`, env: pg })).rejects.toThrow(/exited with code 1[^]*SHOWCASE_MODE=demo: requires DATA_SOURCE=memory/);
+    const { ALLOW_DEMO_DATA: _flag, ...noFlag } = { ...demoEnv, NODE_ENV: 'development' } as Record<string, string>;
+    await expect(startBuiltApp({ cwd: appDir, readyPath: '/api/v1/health', logFile: `${appDir}/test-results/e2e-showcase-demo-flag.log`, env: noFlag })).rejects.toThrow(/exited with code 1[^]*SHOWCASE_MODE=demo: requires ALLOW_DEMO_DATA=true/);
   });
 });

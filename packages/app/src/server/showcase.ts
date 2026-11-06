@@ -9,7 +9,7 @@ import { logger } from './logger';
  */
 
 /** Modes in the order in which they switch more on; a page asks for the lowest mode that serves it. */
-const RANK: Readonly<Record<ShowcaseMode, number>> = { off: 0, calculator: 1 };
+const RANK: Readonly<Record<ShowcaseMode, number>> = { off: 0, calculator: 1, demo: 2 };
 
 /**
  * 404 unless `SHOWCASE_MODE` is at least `required` (fails closed: unset is `off`). The configuration is read through `env()`,
@@ -22,7 +22,7 @@ export function showcaseGate(required: Exclude<ShowcaseMode, 'off'>): ShowcaseMo
 }
 
 /** The showcase pages that are counted. The value is the whole of what is recorded about a visit. */
-export type ShowcasePage = 'roi' | 'roi_summary';
+export type ShowcasePage = 'hub' | 'tour' | 'roi' | 'roi_summary';
 
 /**
  * One log line per page view and nothing else (Q9): the page name. No address, no user agent, no query string (the calculator's

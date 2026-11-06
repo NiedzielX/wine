@@ -43,3 +43,13 @@ Dziennik dostępowy proxy **musi obcinać query string**: `sid=`, `diet=` i `wit
 ## Kontakt dyżurny
 
 Do uzupełnienia przez operatora przed pierwszym klientem: imię, telefon i kanał zgłoszeń osoby dyżurnej oraz zastępcy. Aplikacja nie przechowuje tych danych.
+
+## Instancja demo (E22 F2)
+
+Publiczne demo fikcyjnej restauracji Halka to **osobna instancja**, nigdy ta, na której są prawdziwe restauracje (spec `2026-11-04-sales-demo-and-roi-calculator`, Q1, Q2, R1, R9).
+
+- **Zmienne:** `SHOWCASE_MODE=demo`, `DATA_SOURCE=memory`, `ALLOW_DEMO_DATA=true`, własny `PUBLIC_BASE_URL` (https, własna domena), `NODE_ENV=production`. `demo` na `postgres` albo bez `ALLOW_DEMO_DATA=true` kończy start kodem 1 z nazwą zmiennej. Bez `DATABASE_URL`, bez `METRICS_TOKEN` nie jest wymagany.
+- **Co robi:** ładuje zestaw Halki bez kont (hasło `demo-halka-2026` nie istnieje), wyłącza logowanie (`/admin/login` pokazuje komunikat, `POST /api/v1/auth/login` odpowiada 403 `showcase_read_only`), nie zapisuje zdarzeń gości, pokazuje pasek „Dane demonstracyjne” na stronach gościa. Strony gościa nadal wydają kody poleceń do pamięci procesu (limit `MAX_MEMORY_RECOMMENDATION_CODES`, znikają z restartem): to jedyny zapis.
+- **Restart** czyści pamięć; instancja nie ma stanu do odtwarzania.
+- **Sprawdzenie:** `npm run smoke -- --showcase https://<domena-dema>` (tylko GET). Odsłony: jedna linia logu `showcase_view` z samą nazwą strony (`hub`, `tour`, `roi`, `roi_summary`).
+- Obraz i Compose dla instancji demo: do czasu E11 F2–F3 uruchamiaj `next start` z powyższymi zmiennymi za reverse proxy z https.

@@ -9,7 +9,7 @@
 const NAMES = new Set([
   'DomainError', 'NotFoundError', 'ValidationError', 'VersionConflictError', 'InvariantError', 'ForbiddenError',
   'InvalidCredentialsError', 'NoPanelAccessError', 'TableNeedsTwoDishesError', 'LastOwnerError', 'TeamHierarchyError', 'SelfChangeError',
-  'InvalidTokenError', 'AlreadyMemberError'
+  'InvalidTokenError', 'AlreadyMemberError', 'ShowcaseReadOnlyError'
 ]);
 
 export interface DomainErrorInfo {

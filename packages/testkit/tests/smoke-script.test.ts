@@ -110,8 +110,8 @@ describe('smoke --production', () => {
   });
 });
 
-/** A stand-in for an instance with SHOWCASE_MODE=calculator: the words the smoke test asks for, with one flaw selectable per test. */
-function showcaseInstance(flaw: 'none' | 'ai' | 'cookie' | 'indexable' = 'none') {
+/** A stand-in for an instance with SHOWCASE_MODE=calculator (or demo, phase F2): the words the smoke test asks for, with one flaw selectable per test. */
+function showcaseInstance(flaw: 'none' | 'ai' | 'cookie' | 'indexable' = 'none', mode: 'calculator' | 'demo' = 'calculator') {
   const seen: Seen[] = [];
   const NBSP = '\u00a0';
   const server = createServer((req, res) => {
@@ -128,12 +128,16 @@ function showcaseInstance(flaw: 'none' | 'ai' | 'cookie' | 'indexable' = 'none')
         : 'Return calculator team assumption What this is 9,110 zł Extra margin after the plan fee (assumption)');
     }
     if (url.pathname === '/demo/roi/summary') return page('Podsumowanie założeń: kalkulator zwrotu Wine Match 06.11.2026 Użyj Ctrl/Cmd+P To założenia, nie pomiary print:hidden');
+    if (url.pathname === '/demo/tour') return page('Sommelier ma ostatnie słowo Czego nie robimy');
+    if (mode === 'demo' && url.pathname === '/demo') return page('Demo: the invented restaurant Halka <li data-step="guest"></li> <a href="/r/halka/table?lang=en">Open</a>');
+    if (mode === 'demo' && url.pathname === '/r/halka/table') return page('<div data-demo-ribbon></div> Whole table');
+    if (mode === 'demo' && url.pathname === '/admin/login') return page('This demo is read-only: signing in is switched off');
     res.writeHead(404); res.end();
   });
   return { server, seen, start: () => new Promise<string>((resolve) => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${(server.address() as { port: number }).port}`))) };
 }
 
-describe('smoke --showcase (spec 2026-11-04-sales-demo-and-roi-calculator, phase F1)', () => {
+describe('smoke --showcase (spec 2026-11-04-sales-demo-and-roi-calculator, phases F1 and F2)', () => {
   it('passes on a calculator instance, sending GET requests only, every one synthetic', async () => {
     const { server, seen, start } = showcaseInstance();
     running = server;
@@ -142,6 +146,17 @@ describe('smoke --showcase (spec 2026-11-04-sales-demo-and-roi-calculator, phase
     expect(output).not.toContain('FAIL');
     expect(code).toBe(0);
     expect(seen.length).toBeGreaterThanOrEqual(5);
+    expect(seen.every((r) => r.method === 'GET' && r.synthetic === '1')).toBe(true);
+  });
+
+  it('passes on a demo instance too: the guide, its links with the ribbon, and the switched-off sign-in', async () => {
+    const { server, seen, start } = showcaseInstance('none', 'demo');
+    running = server;
+    const { code, output } = await smoke(['--showcase', await start()]);
+    expect(output).toContain('All showcase smoke checks passed');
+    expect(output).toContain('DM0 guide (demo mode)');
+    expect(output).toContain('guide link /r/halka/table?lang=en');
+    expect(code).toBe(0);
     expect(seen.every((r) => r.method === 'GET' && r.synthetic === '1')).toBe(true);
   });
 

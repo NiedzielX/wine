@@ -15,7 +15,8 @@ export const showcasePl = {
   header: {
     brand: 'Wine Match',
     language: 'Język',
-    skip: 'Przejdź do treści'
+    skip: 'Przejdź do treści',
+    links: { guide: 'Przewodnik', tour: 'Jak to działa', roi: 'Kalkulator' }
   },
   roi: {
     title: 'Kalkulator zwrotu',
@@ -92,6 +93,42 @@ export const showcasePl = {
         breakEvenGuests: 'P ÷ (m × s)'
       }
     }
+  },
+  ribbon: {
+    text: 'Dane demonstracyjne: fikcyjna restauracja',
+    back: 'Wróć do przewodnika'
+  },
+  hub: {
+    title: 'Demo: fikcyjna restauracja Halka',
+    lead: 'Przejdź przez Wine Match w pięciu krokach, tak jak spotykają go gość, kelner i sommelier. Bez logowania i bez danych osobowych. Wszystko tutaj jest wymyślone: restauracja, jej menu, ceny i ludzie.',
+    stepWord: (n: number) => `Krok ${n}`,
+    soon: 'Pojawi się w kolejnej wersji dema',
+    open: 'Otwórz',
+    steps: {
+      guest: { title: 'Gość wybiera danie', see: 'Co zobaczysz: wina pasujące do jednego dania, z pieczęcią sommeliera tam, gdzie sommelier zdecydował.' },
+      table: { title: 'Cały stół', see: 'Co zobaczysz: jedno wino pasujące do wszystkich dań wybranych przy stoliku.' },
+      waiter: { title: 'Podgląd kelnera', see: 'Co zobaczysz: pary dla dania lub stolika, gotowe dla osoby, która podaje wino.' },
+      panel: { title: 'Panel sommeliera', see: 'Co zobaczysz: karty win i dań restauracji z decyzjami sommeliera, tylko do odczytu.' },
+      kpi: { title: 'Co się sprzedaje', see: 'Co zobaczysz: sprzedaż wina i korzystanie ze stron gościa, na wymyślonych danych, które są tak oznaczone.' }
+    },
+    more: { title: 'Dodatkowo', tour: 'Jak to działa dla restauracji', roi: 'Kalkulator zwrotu' },
+    note: 'Halka to fikcyjna restauracja. Wina na jej karcie to wpisy prawdziwych posiadłości, użyte tylko jako realistyczne przykłady: nie oznaczają żadnego partnerstwa ani poparcia.',
+    metaTitle: 'Demo'
+  },
+  tour: {
+    metaTitle: 'Jak to działa dla restauracji',
+    title: 'Jak Wine Match działa dla restauracji',
+    lead: 'Pięć krótkich punktów o tym, co robi produkt i czego nie rusza.',
+    sections: [
+      { id: 'sommelier', title: 'Sommelier ma ostatnie słowo', text: 'Pary win i dań zatwierdza sommelier restauracji. Gość widzi pieczęć „Para sommeliera” tylko przy parze, którą sommelier zatwierdził lub zmienił. Tam, gdzie sommelier jeszcze nie zdecydował, gość dostaje najlepszą propozycję z reguł, opisaną „Polecane do Twojego dania”, bez pieczęci.' },
+      { id: 'guest', title: 'Gość dostaje wino z Twojej karty', text: 'Gość skanuje kod na stoliku i wybiera danie albo cały stół. Propozycje pochodzą wyłącznie z Twojej karty win i tylko z win, które dziś oferujesz.' },
+      { id: 'waiter', title: 'Kelner nie musi zgadywać', text: 'Kelner ma prosty podgląd par dla dania lub stolika, więc na pytanie gościa odpowiada tą samą parą, którą gość zobaczył.' },
+      { id: 'sales', title: 'Widzisz, co się sprzedaje', text: 'Po zaimportowaniu sprzedaży z kasy panel pokazuje, na ilu rachunkach jest wino i jak sprawdzają się pary. Liczby pochodzą z Twoich danych.' },
+      { id: 'not', title: 'Czego nie robimy', text: 'Nie sprzedajemy miejsc na liście i nie ma płatnych pozycji: kolejność wynika z reguł i decyzji sommeliera. Zapytanie gościa nie trafia do żadnej zewnętrznej usługi.' }
+    ],
+    howLink: 'Jak liczymy dopasowanie',
+    roiLink: 'Kalkulator zwrotu',
+    demoLink: 'Wróć do przewodnika po demo'
   },
   summary: {
     title: 'Podsumowanie założeń: kalkulator zwrotu Wine Match',

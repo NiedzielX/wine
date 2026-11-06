@@ -8,10 +8,10 @@ import type { LogLevel } from '../logging/logger';
  */
 /**
  * The public sales showcase (spec 2026-11-04-sales-demo-and-roi-calculator, R1): `off` serves nothing under `/demo`,
- * `calculator` serves the return calculator (it reads no data, so it may run next to real restaurants).
- * The `demo` mode of the spec (guided read-only demo, F2) is NOT accepted yet and fails the start with a message.
+ * `calculator` serves the return calculator (it reads no data, so it may run next to real restaurants), `demo` adds the guided
+ * read-only demo of the invented restaurant (F2): it needs `DATA_SOURCE=memory` AND `ALLOW_DEMO_DATA=true`, never real data.
  */
-export type ShowcaseMode = 'off' | 'calculator';
+export type ShowcaseMode = 'off' | 'calculator' | 'demo';
 
 export interface AppEnv {
   nodeEnv: 'development' | 'test' | 'production';
@@ -53,7 +53,6 @@ const schema = z.object({
   ALLOW_LOCAL_BASE_URL: optional(z.enum(['true', 'false'], { error: 'must be "true" or "false"' })),
   ALLOW_DEMO_DATA: optional(z.enum(['true', 'false'], { error: 'must be "true" or "false"' })),
   LOG_LEVEL: optional(z.enum(['debug', 'info', 'warn', 'error'], { error: 'must be debug, info, warn or error' })),
-  // `demo` is a known value of the spec that is not built yet: it is refused below with its own message, like any other unknown one
   SHOWCASE_MODE: optional(z.string()),
   METRICS_TOKEN: optional(z.string().min(32, { error: 'must be at least 32 characters (or leave it unset to disable GET /api/v1/metrics)' })),
   DEMO_RESTAURANT_SLUG: optional(z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: 'must be a lower-case address name' }))
@@ -126,14 +125,13 @@ export function parseEnv(raw: Record<string, string | undefined>): AppEnv {
     const problem = publicBaseUrlProblem(parsedBase);
     if (problem) issues.push(`PUBLIC_BASE_URL: ${problem}. In production it must be the public https:// address of this installation, because QR codes printed with a wrong address cannot be fixed. Only for a local run or a test, set ALLOW_LOCAL_BASE_URL=true.`);
   }
-  // fails closed: a typo must not switch a public section on, and `demo` must not be taken for `calculator` (F2 adds it with its own rules)
+  // fails closed: a typo must not switch a public section on, and `demo` must never run next to real restaurants (Q2, R1)
   const showcase = e.SHOWCASE_MODE ?? 'off';
-  if (showcase !== 'off' && showcase !== 'calculator') {
-    issues.push(
-      showcase === 'demo'
-        ? 'SHOWCASE_MODE: "demo" is not available in this version. Use "off" or "calculator".'
-        : 'SHOWCASE_MODE: must be "off" or "calculator" (or leave it unset for "off").'
-    );
+  if (showcase !== 'off' && showcase !== 'calculator' && showcase !== 'demo') {
+    issues.push('SHOWCASE_MODE: must be "off", "calculator" or "demo" (or leave it unset for "off").');
+  } else if (showcase === 'demo') {
+    if (dataSource !== 'memory') issues.push('SHOWCASE_MODE=demo: requires DATA_SOURCE=memory. The demo is a separate instance with invented data and must never read or write real restaurants.');
+    if (e.ALLOW_DEMO_DATA !== 'true') issues.push('SHOWCASE_MODE=demo: requires ALLOW_DEMO_DATA=true (the demo serves the invented restaurant Halka from memory).');
   }
   if (issues.length) throw new ConfigError(issues);
 

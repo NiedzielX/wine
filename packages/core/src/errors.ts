@@ -47,6 +47,14 @@ export class NoPanelAccessError extends DomainError {
   }
 }
 
+/** Sign-in is switched off on the public demo instance (spec 2026-11-04-sales-demo-and-roi-calculator, Q5, R9): there are no accounts to sign in to. */
+export class ShowcaseReadOnlyError extends DomainError {
+  constructor() {
+    super('showcase_read_only', 'This demo is read-only: signing in is switched off.');
+    this.name = 'ShowcaseReadOnlyError';
+  }
+}
+
 /** The record was changed by someone else since the caller read it. */
 export class VersionConflictError extends DomainError {
   constructor() {
