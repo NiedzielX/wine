@@ -1,4 +1,5 @@
 import type { CookingMethod, EngineFacts, ImportIssueCode, ProteinType, Role, SetupStepKey } from '@wine-match/core';
+import { showcaseEn } from './showcase-en';
 
 /** Values quoted in an import issue (`ImportIssue.params`): the cell text, the guessed style, a row number. */
 export type IssueParams = Readonly<Record<string, string | undefined>>;
@@ -111,6 +112,7 @@ export const en = {
     back: 'Back',
     close: 'Close'
   },
+  showcase: showcaseEn,
   guest: {
     meta: {
       description: 'Find the wine for what you are eating tonight, from the restaurant’s own list.',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ROI_DEFAULTS, ROI_FIELDS, ROI_KEYS, computeRoi, parseRoiInputs, type RoiInputs, type RoiKey } from '../src/showcase/roi';
+import { ROI_DEFAULTS, ROI_FIELDS, ROI_KEYS, computeRoi, parsePrintDate, parseRoiInputs, type RoiInputs, type RoiKey } from '../src/showcase/roi';
 
 /** Spec 2026-11-04-sales-demo-and-roi-calculator, phase F1: the calculator's maths (R2, Q6; AC3, AC4, AC5). */
 
@@ -264,6 +264,35 @@ describe('parseRoiInputs (AC5)', () => {
     for (const inputs of [lows, highs]) {
       const r = computeRoi(inputs);
       for (const v of Object.values(r)) if (typeof v === 'number') expect(Number.isFinite(v)).toBe(true);
+    }
+  });
+});
+
+describe('parseRoiInputs: a value read back from a link we built (the page links to itself)', () => {
+  it('is kept to six decimals, so printing it never uses an exponent and it reads back as the same number', () => {
+    expect(parseRoiInputs({ attachChange: '0.0000001' }).inputs.attachChange).toBe(0);
+    expect(parseRoiInputs({ attachChange: '0.0000004' }).provided).toEqual(['attachChange']);
+    expect(parseRoiInputs({ wineSpend: '12.3456789' }).inputs.wineSpend).toBe(12.345679);
+    for (const text of ['0.000001', '1', '1,5', '149.99', '99.999999', '-12.5', '0']) {
+      const once = parseRoiInputs({ attachChange: text }).inputs.attachChange;
+      expect(String(once), text).not.toMatch(/e/i);
+      expect(parseRoiInputs({ attachChange: String(once) }).inputs.attachChange, text).toBe(once);
+    }
+  });
+
+  it('a value that only rounds into range is accepted at the edge and one that rounds out of it is not', () => {
+    expect(parseRoiInputs({ customers: '0.9999996' }).inputs.customers).toBe(1);
+    expect(parseRoiInputs({ customers: '0.9999994' }).replaced).toEqual(['customers']);
+  });
+});
+
+describe('parsePrintDate (R5: the date on the printout is typed, never read from the clock)', () => {
+  it('keeps a real calendar day as YYYY-MM-DD and nothing else', () => {
+    expect(parsePrintDate('2026-11-06')).toBe('2026-11-06');
+    expect(parsePrintDate('2028-02-29')).toBe('2028-02-29');
+    expect(parsePrintDate('2000-02-29')).toBe('2000-02-29');
+    for (const bad of ['2026-02-29', '2100-02-29', '2026-13-01', '2026-00-10', '2026-04-31', '2026-4-5', '06.11.2026', '2026-11-06T10:00', ' 2026-11-06', '1899-12-31', '', undefined, null, 20261106, ['2026-11-06'], '<script>']) {
+      expect(parsePrintDate(bad), String(bad)).toBeNull();
     }
   });
 });

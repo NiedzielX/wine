@@ -1,4 +1,5 @@
 import type { EngineFacts, Role } from '@wine-match/core';
+import { showcasePl } from './showcase-pl';
 import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, TableQuantityText, UsageExplainFacts, WineExplainContext } from './en';
 
 /** Polish plural: 1 wino, 2–4 wina (but 12–14 win), 5+ win. */
@@ -39,6 +40,7 @@ export const pl = {
     back: 'Wstecz',
     close: 'Zamknij'
   },
+  showcase: showcasePl,
   guest: {
     meta: {
       description: 'Znajdź wino do tego, co dziś jesz — z karty win restauracji.',

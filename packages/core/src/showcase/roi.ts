@@ -59,7 +59,9 @@ function parseDecimal(value: unknown): number | null {
   const n = Number(text.replace(',', '.'));
   // a string of 400 digits is a valid pattern and an infinite number
   if (!Number.isFinite(n)) return null;
-  return n + 0; // "-0" becomes 0
+  // six decimals are far below a grosz, and a value kept to six decimals always prints without an exponent (1e-7 would not
+  // read back through the pattern above, so a link built from it would be refused)
+  return Math.round(n * 1e6) / 1e6 + 0; // "-0" becomes 0
 }
 
 /**
@@ -159,4 +161,19 @@ export function computeRoi(inputs: RoiInputs): RoiResult {
     breakEvenRevenue: m > 0 ? finiteOrNull((p * 100) / m) : null,
     breakEvenGuests: m > 0 && s > 0 ? finiteOrNull((p * 100) / (m * s)) : null
   };
+}
+
+/**
+ * The optional print date of the summary (`d`, R5): the page never reads the clock, the person writes the date. Only a real calendar
+ * day as `YYYY-MM-DD` is kept; anything else is no date.
+ */
+export function parsePrintDate(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (year < 1900 || year > 2999 || month < 1 || month > 12 || day < 1) return null;
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  return day <= days ? raw : null;
 }

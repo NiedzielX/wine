@@ -37,6 +37,8 @@ const nextConfig: NextConfig = {
     return [
       { source: '/:path*', headers: baseline },
       { source: '/admin/:path*', headers: sensitive },
+      // the sales showcase: shown to people who got a link, never cached and never indexed (spec 2026-11-04-sales-demo-and-roi-calculator, R11)
+      { source: '/demo/:path*', headers: [{ key: 'Cache-Control', value: 'private, no-store' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
       { source: '/api/v1/auth/:path*', headers: [{ key: 'Cache-Control', value: 'private, no-store' }] }
     ];
   }
