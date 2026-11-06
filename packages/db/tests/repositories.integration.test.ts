@@ -1,7 +1,7 @@
 import { Migrator } from '@mikro-orm/migrations';
 import { MikroORM } from '@mikro-orm/postgresql';
 import {
-  AdminService, AuthService, RecommendationCodeService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset, teamContract, SECOND_RESTAURANT, TeamService, type SecondRestaurant, type AuthEvent,
+  AdminService, AuthService, RecommendationCodeService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset, teamContract, invitationContract, InvitationService, SECOND_RESTAURANT, TeamService, type SecondRestaurant, type AuthEvent,
   createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, type Repositories
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
@@ -18,6 +18,8 @@ import { Migration20261021190119_sales_record_recommendation_code } from '../src
 import { Migration20261105160730_team_status_and_auth_event } from '../src/migrations/Migration20261105160730_team_status_and_auth_event';
 import { MembershipEntity, PairingEntity, UserEntity } from '../src/entities';
 import { PgAuthAuditRepository, PgTeamRepository } from '../src/repositories/team';
+import { PgInvitationRepository } from '../src/repositories/invitations';
+import { Migration20261106114659_auth_token } from '../src/migrations/Migration20261106114659_auth_token';
 import { PgAuthRepository } from '../src/repositories/auth';
 import { PgImportRepository } from '../src/repositories/import';
 import { NodeImportFileParser } from '../src/import';
@@ -51,7 +53,7 @@ async function freshDatabase(name = 'winematch_db_test'): Promise<MikroORM> {
 
 /** Empties every table and loads the demo data again: each write test starts from the same state. */
 async function resetData(orm: MikroORM): Promise<void> {
-  await orm.em.getConnection().execute('truncate table auth_event, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await orm.em.getConnection().execute('truncate table auth_event, auth_token, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
   await new DemoSeeder().run(orm.em.fork());
 }
 
@@ -88,7 +90,8 @@ function pgRepos(orm: MikroORM): Repositories {
     recommendationCodeRepository: new PgRecommendationCodeRepository({ em }),
     salesRepository: new PgSalesRepository({ em }),
     teamRepository: new PgTeamRepository({ em }),
-    authAuditRepository: new PgAuthAuditRepository({ em })
+    authAuditRepository: new PgAuthAuditRepository({ em }),
+    invitationRepository: new PgInvitationRepository({ em })
   };
 }
 
@@ -168,6 +171,13 @@ run('PostgreSQL', () => {
     const second = await seedSecondRestaurant(orm);
     const em = orm.em.fork();
     return { team: new PgTeamRepository({ em }), audit: new PgAuthAuditRepository({ em }), auth: new PgAuthRepository({ em }), dataset: ds, second };
+  }, { describe, it, expect, beforeEach });
+
+  invitationContract('postgres', async () => {
+    await resetData(orm);
+    const second = await seedSecondRestaurant(orm);
+    const em = orm.em.fork();
+    return { invites: new PgInvitationRepository({ em }), team: new PgTeamRepository({ em }), audit: new PgAuthAuditRepository({ em }), auth: new PgAuthRepository({ em }), dataset: ds, second };
   }, { describe, it, expect, beforeEach });
 
   // Write contract last: it resets the data before every test.
@@ -810,6 +820,120 @@ run('PostgreSQL', () => {
       // the status check and the type check are back
       await expect(conn.execute("update membership set status = 'gone'")).rejects.toThrow(/membership_status_check/);
       await expect(conn.execute("insert into auth_event (id, type, at) values ('5ec0d000-0000-4000-8000-000000000999', 'nonsense', now())")).rejects.toThrow(/auth_event_type_check/);
+    });
+  });
+  describe('invitations on PostgreSQL (spec E12 F2: hash only, concurrency, constraints, migration)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const tokens = new NodeSessionTokens();
+    let seq = 0;
+    const ids = () => `5ec0d000-0000-4000-8000-${String(500_000_000_000 + ++seq)}`;
+    /** The services over a fresh connection each, like two requests; the real token generator, so the hash is the real one. */
+    const invitationsOf = () => {
+      const em = orm.em.fork();
+      const repos = { restaurantRepository: new PgRestaurantRepository({ em }), teamRepository: new PgTeamRepository({ em }), invitationRepository: new PgInvitationRepository({ em }) };
+      return new InvitationService({
+        ...repos, authRepository: new PgAuthRepository({ em }), passwordHasher: { hash: async (p) => `scrypt$test-only$${p.length}` }, sessionTokens: tokens,
+        clock: { now: () => new Date() }, idGenerator: { uuid: ids }
+      });
+    };
+    const owner = (second: SecondRestaurant) => ({ id: second.owner1.userId, name: second.owner1.name });
+    const sql = <T>(query: string, params: unknown[] = []) => orm.em.getConnection().execute<T[]>(query, params);
+
+    it('stores only the SHA-256 of the link\'s token, the e-mail in lower case, and nothing the token could be read back from (AC7)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const issued = await invitationsOf().invite(SECOND_RESTAURANT.slug, { email: 'Hash.Check@Example.test', role: 'sommelier' }, owner(second));
+      const rows = await sql<Record<string, unknown>>('select * from auth_token');
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ kind: 'invite', token_hash: tokens.hash(issued.token), email: 'hash.check@example.test', role: 'sommelier', used_at: null, revoked_at: null });
+      expect(String(rows[0].token_hash)).toMatch(/^[0-9a-f]{64}$/);
+      expect(JSON.stringify(rows)).not.toContain(issued.token);
+      // nor does the audit trail carry the token or the address
+      const events = await sql<Record<string, unknown>>("select * from auth_event where type = 'invite_created'");
+      expect(JSON.stringify(events)).not.toContain(issued.token);
+      expect(JSON.stringify(events)).not.toContain('example.test');
+    });
+
+    it('two accepts of one link at the same moment, on two connections: one account and one membership, the other gets the dead-link answer (AC24)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      for (let round = 0; round < 8; round++) {
+        const issued = await invitationsOf().invite(SECOND_RESTAURANT.slug, { email: `race${round}@example.test`, role: 'sommelier' }, owner(second));
+        const results = await Promise.allSettled([
+          invitationsOf().accept({ token: issued.token, name: 'First', password: 'a-long-enough-passphrase' }, null),
+          invitationsOf().accept({ token: issued.token, name: 'Second', password: 'a-long-enough-passphrase' }, null)
+        ]);
+        expect(results.filter((r) => r.status === 'fulfilled'), `round ${round}`).toHaveLength(1);
+        const lost = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+        expect(lost.reason, `round ${round}`).toMatchObject({ name: 'InvalidTokenError', code: 'invalid_token' });
+        expect(await sql(`select 1 from app_user where email = 'race${round}@example.test'`)).toHaveLength(1);
+        expect(await sql(`select 1 from membership m join app_user u on u.id = m.user_id where u.email = 'race${round}@example.test'`)).toHaveLength(1);
+        expect(await sql("select 1 from auth_event where type = 'invite_accepted' and meta->>'invitation_id' = ?", [issued.invitation.id])).toHaveLength(1);
+      }
+    });
+
+    it('a person who got a membership by other means gets already_member, the transaction rolls back and the link stays unused', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const marta = ds.users.find((u) => u.key === 'marta')!;
+      const issued = await invitationsOf().invite(SECOND_RESTAURANT.slug, { email: marta.email, role: 'manager' }, owner(second));
+      await sql(`insert into membership (id, user_id, restaurant_id, role, created_at) values (?, ?, ?, 'waiter', now())`, [ids(), marta.id, second.restaurantId]);
+      await expect(invitationsOf().accept({ token: issued.token }, { userId: marta.id, email: marta.email })).rejects.toMatchObject({ name: 'AlreadyMemberError', code: 'already_member' });
+      expect(await sql('select used_at from auth_token where id = ?', [issued.invitation.id])).toEqual([{ used_at: null }]);
+      expect(await sql("select 1 from auth_event where type = 'invite_accepted'")).toHaveLength(0);
+      expect((await sql<{ role: string }>('select role from membership where user_id = ? and restaurant_id = ?', [marta.id, second.restaurantId]))[0].role).toBe('waiter');
+    });
+
+    it('an account created for the same e-mail between the page and the post is refused with account_exists and rolls back, link unused', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const issued = await invitationsOf().invite(SECOND_RESTAURANT.slug, { email: 'twin@example.test', role: 'sommelier' }, owner(second));
+      const repo = new PgInvitationRepository({ em: orm.em.fork() });
+      await sql(`insert into app_user (id, email, name, password_hash, created_at) values (?, 'twin@example.test', 'Twin', 'scrypt$x', now())`, [ids()]);
+      await expect(repo.accept({ tokenHash: tokens.hash(issued.token), now: new Date().toISOString(), membershipId: ids(), eventId: ids(), newAccount: { userId: ids(), name: 'Twin 2', passwordHash: 'scrypt$y' }, existingUserId: null }))
+        .rejects.toMatchObject({ code: 'account_exists' });
+      expect(await sql('select used_at from auth_token where id = ?', [issued.invitation.id])).toEqual([{ used_at: null }]);
+    });
+
+    it('the database itself refuses a second pending invitation for one e-mail, an invitation without a restaurant or for a waiter', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const insert = (over: { id?: string; hash?: string; restaurant?: string | null; email?: string; role?: string | null; used?: boolean } = {}) => sql(
+        `insert into auth_token (id, kind, token_hash, restaurant_id, email, role, created_by, created_at, expires_at, used_at) values (?, 'invite', ?, ?, ?, ?, ?, now(), now() + interval '1 hour', ${over.used ? 'now()' : 'null'})`,
+        [over.id ?? ids(), over.hash ?? seq.toString(16).padStart(64, 'a'), over.restaurant === undefined ? second.restaurantId : over.restaurant, over.email ?? 'one@example.test', over.role === undefined ? 'sommelier' : over.role, second.owner1.userId]
+      );
+      await insert({ hash: '1'.repeat(64) });
+      await expect(insert({ hash: '2'.repeat(64) })).rejects.toThrow(/auth_token_pending_invite_unique/);
+      await insert({ hash: '3'.repeat(64), used: true });                       // a used one does not count
+      await expect(insert({ hash: '4'.repeat(64), email: 'two@example.test', role: 'waiter' })).rejects.toThrow(/auth_token_invite_shape_check/);
+      await expect(insert({ hash: '5'.repeat(64), email: 'three@example.test', restaurant: null })).rejects.toThrow(/auth_token_invite_shape_check/);
+      await expect(insert({ hash: '1'.repeat(64), email: 'four@example.test' })).rejects.toThrow(/auth_token_token_hash_unique/);
+    });
+
+    it('the F2 migration stops with a readable message when a restaurant already has accept, reset or account as its slug, and changes nothing (AC25)', async () => {
+      const conn = orm.em.getConnection();
+      const tableExists = async () => (await conn.execute<Array<{ n: string }>>("select count(*)::text as n from information_schema.tables where table_name = 'auth_token'"))[0].n === '1';
+      const migration = new Migration20261106114659_auth_token(orm.em.getDriver(), orm.config);
+      const run = async (fn: 'up' | 'down') => {
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      expect(await tableExists()).toBe(true);
+      await run('down');
+      expect(await tableExists()).toBe(false);
+      try {
+        for (const slug of ['accept', 'reset', 'account']) {
+          const em = orm.em.fork();
+          em.create(RestaurantEntity, { id: ids(), slug, name: `Clash ${slug}`, tagline: '', address: 'x', city: 'y', wineDirector: 'z', status: 'active', settings: { showUnreviewed: true, showScores: true } });
+          await em.flush();
+          await expect(run('up'), slug).rejects.toThrow(new RegExp(`stopped: a restaurant already uses a slug that is now reserved.*\\(${slug}\\).*Rename it first.*Nothing was changed`));
+          expect(await tableExists(), slug).toBe(false);
+          await conn.execute('delete from restaurant where slug = ?', [slug]);
+        }
+        // no clash: the migration applies, the table is back with its constraints
+        await run('up');
+        expect(await tableExists()).toBe(true);
+      } finally {
+        await conn.execute("delete from restaurant where slug in ('accept', 'reset', 'account')");
+        if (!(await tableExists())) await run('up');
+      }
+      expect(await tableExists()).toBe(true);
     });
   });
 });
