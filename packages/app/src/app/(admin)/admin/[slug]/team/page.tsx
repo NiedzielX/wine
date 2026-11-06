@@ -46,6 +46,7 @@ export default async function TeamPage({ params, searchParams }: Props) {
     throw e;
   });
   const inviteRoles = invitableRoles(me);
+  const nowMs = scope.cradle.clock.now().getTime();
   const activeCount = members.filter((x) => x.status === 'active').length;
   const roles = grantableRoles(me);
   const common = { slug, back: `/admin/${slug}/team` };
@@ -72,7 +73,7 @@ export default async function TeamPage({ params, searchParams }: Props) {
         <CardContent className="px-0">
           {invitations.length === 0 ? <p className="px-6 py-4 text-sm text-muted-foreground">{m.invite.pendingNone}</p> : (
             <ul aria-label={m.invite.pendingLabel}>
-              {invitations.map((inv) => <InvitationRow key={inv.id} invitation={inv} canRevoke={inviteRoles.includes(inv.role)} common={common} locale={locale} t={t} />)}
+              {invitations.map((inv) => <InvitationRow key={inv.id} invitation={inv} expired={Date.parse(inv.expiresAt) <= nowMs} canRevoke={inviteRoles.includes(inv.role)} common={common} locale={locale} t={t} />)}
             </ul>
           )}
         </CardContent>
@@ -132,12 +133,11 @@ function MemberRow({ member, self, editable, roles, common, locale, t }: {
   );
 }
 
-function InvitationRow({ invitation, canRevoke, common, locale, t }: {
-  invitation: Invitation; canRevoke: boolean; common: { slug: string; back: string };
+function InvitationRow({ invitation, expired, canRevoke, common, locale, t }: {
+  invitation: Invitation; expired: boolean; canRevoke: boolean; common: { slug: string; back: string };
   locale: Awaited<ReturnType<typeof getI18n>>['locale']; t: Awaited<ReturnType<typeof getI18n>>['t'];
 }) {
   const m = t.admin.team;
-  const expired = Date.parse(invitation.expiresAt) <= Date.now();
   return (
     <li className="grid gap-3 border-b px-6 py-4 last:border-b-0 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-center" data-invitation={invitation.id}>
       <div className="min-w-0">
