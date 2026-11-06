@@ -21,7 +21,7 @@ const PRODUCTION = flags.includes('--production');
 const SHOWCASE = flags.includes('--showcase');
 const unknownFlags = flags.filter((f) => f !== '--production' && f !== '--showcase');
 if (unknownFlags.length || (PRODUCTION && SHOWCASE)) {
-  console.error(`Unknown or conflicting option ${(unknownFlags.length ? unknownFlags : flags).join(', ')}. Usage: node scripts/smoke.mjs [--production | --showcase] [url] [slug]`);
+  console.error(`${unknownFlags.length ? `Unknown option ${unknownFlags.join(', ')}` : '--production and --showcase cannot be combined'}. Usage: node scripts/smoke.mjs [--production | --showcase] [url] [slug]`);
   process.exit(2);
 }
 const base = (positional[0] ?? 'http://localhost:3000').replace(/\/$/, '');

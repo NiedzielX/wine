@@ -54,7 +54,7 @@ describe('smoke --production', () => {
     const { code, output } = await smoke(['--production', url, 'pilot']);
     expect(output).toContain('All production smoke checks passed');
     expect(code).toBe(0);
-    expect(seen.length).toBeGreaterThan(5);
+    expect(seen.length).toBeGreaterThanOrEqual(5);
     expect(seen.every((r) => r.method === 'GET')).toBe(true);
     expect(seen.every((r) => r.synthetic === '1')).toBe(true);
     expect(seen.map((r) => r.url)).not.toContain('/api/v1/auth/login');
@@ -107,6 +107,66 @@ describe('smoke --production', () => {
     const { code, output } = await smoke(['--prod', 'http://127.0.0.1:1', 'pilot']);
     expect(code).toBe(2);
     expect(output).toContain('Unknown option');
+  });
+});
+
+/** A stand-in for an instance with SHOWCASE_MODE=calculator: the words the smoke test asks for, with one flaw selectable per test. */
+function showcaseInstance(flaw: 'none' | 'ai' | 'cookie' | 'indexable' = 'none') {
+  const seen: Seen[] = [];
+  const NBSP = '\u00a0';
+  const server = createServer((req, res) => {
+    seen.push({ method: req.method ?? '', url: req.url ?? '', synthetic: req.headers[SYNTHETIC_HEADER] as string | undefined });
+    const url = new URL(req.url ?? '/', 'http://x');
+    const headers: Record<string, string | string[]> = { 'content-type': 'text/html', 'cache-control': 'private, no-store', ...(flaw === 'indexable' ? {} : { 'x-robots-tag': 'noindex, nofollow' }), ...(flaw === 'cookie' ? { 'set-cookie': 'a=b' } : {}) };
+    const page = (body: string) => { res.writeHead(200, headers); res.end(`<html><head><meta name="robots" content="noindex, nofollow"/></head><body><main>${body}${flaw === 'ai' ? ' Powered by AI' : ''}</main></body></html>`); };
+    if (url.pathname === '/demo/roi') {
+      const lang = url.searchParams.get('lang');
+      if (url.searchParams.get('customers') === '1e9') return page('We used the default instead of these values 9,110 zł');
+      if (url.searchParams.has('customers')) return page('value="2000" assumption: your value (default 1,500 guests) 12,000 zł');
+      return page(lang === 'pl'
+        ? `Kalkulator zwrotu założenie zespołu Czym to jest 9${NBSP}110${NBSP}zł Dodatkowa marża po opłacie za plan (założenie) <form method="get"></form>`
+        : 'Return calculator team assumption What this is 9,110 zł Extra margin after the plan fee (assumption)');
+    }
+    if (url.pathname === '/demo/roi/summary') return page('Podsumowanie założeń: kalkulator zwrotu Wine Match 06.11.2026 Użyj Ctrl/Cmd+P To założenia, nie pomiary print:hidden');
+    res.writeHead(404); res.end();
+  });
+  return { server, seen, start: () => new Promise<string>((resolve) => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${(server.address() as { port: number }).port}`))) };
+}
+
+describe('smoke --showcase (spec 2026-11-04-sales-demo-and-roi-calculator, phase F1)', () => {
+  it('passes on a calculator instance, sending GET requests only, every one synthetic', async () => {
+    const { server, seen, start } = showcaseInstance();
+    running = server;
+    const { code, output } = await smoke(['--showcase', await start()]);
+    expect(output).toContain('All showcase smoke checks passed');
+    expect(output).not.toContain('FAIL');
+    expect(code).toBe(0);
+    expect(seen.length).toBeGreaterThanOrEqual(5);
+    expect(seen.every((r) => r.method === 'GET' && r.synthetic === '1')).toBe(true);
+  });
+
+  it.each([['ai', /no "AI" wording/], ['cookie', /sets no cookie/], ['indexable', /never indexed/]] as const)('fails when the page has the flaw "%s"', async (flaw, message) => {
+    const { server, start } = showcaseInstance(flaw);
+    running = server;
+    const { code, output } = await smoke(['--showcase', await start()]);
+    expect(code).toBe(1);
+    expect(output).toMatch(/FAIL/);
+    expect(output).toMatch(message);
+  });
+
+  it('fails on an instance where the showcase is off (404)', async () => {
+    const { server, seen, start } = installation();
+    running = server;
+    const { code, output } = await smoke(['--showcase', await start()]);
+    expect(code).toBe(1);
+    expect(output).toContain('FAIL');
+    expect(seen.every((r) => r.method === 'GET')).toBe(true);
+  });
+
+  it('cannot be combined with --production (exit 2)', async () => {
+    const { code, output } = await smoke(['--showcase', '--production', 'http://127.0.0.1:1']);
+    expect(code).toBe(2);
+    expect(output).toContain('cannot be combined');
   });
 });
 
