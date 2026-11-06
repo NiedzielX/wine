@@ -237,3 +237,74 @@ describe('InvitationService.inviteOwner (the interface E14 uses, AC24)', () => {
     expect(await t.repos.invitationRepository.listPending(halkaId())).toEqual([]);
   });
 });
+
+describe('the platform flag and the inviter that is gone (review majors 1 and 2)', () => {
+  let t: ReturnType<typeof build>;
+  beforeEach(() => { t = build(); });
+  const PASSWORD = 'a-long-enough-passphrase';
+
+  it('a regular inviter whose membership row has disappeared leaves a dead link, for every role (it is not a platform invitation)', async () => {
+    const byOwner = await t.invitations.invite(SLUG, { email: 'gone1@example.test', role: 'owner' }, t.owner);
+    const byManager = await t.invitations.invite(SLUG, { email: 'gone2@example.test', role: 'sommelier' }, t.manager);
+    for (const id of [SECOND_RESTAURANT.members[0].userId, SECOND_RESTAURANT.members[2].userId]) {
+      const i = t.store.memberships.findIndex((m) => m.userId === id && m.restaurantId === t.second.restaurantId);
+      t.store.memberships.splice(i, 1);
+    }
+    for (const issued of [byOwner, byManager]) {
+      expect(await t.invitations.offer(issued.token)).toBeNull();
+      await expect(t.invitations.accept({ token: issued.token, name: 'X', password: PASSWORD }, null)).rejects.toMatchObject({ name: 'InvalidTokenError' });
+    }
+    expect(t.store.users.some((u) => u.email === 'gone1@example.test' || u.email === 'gone2@example.test')).toBe(false);
+  });
+
+  it('a platform invitation stays valid with no membership of the inviter, and is marked as one', async () => {
+    const platform = { id: 'cccccccc-0000-4000-8000-000000000001', name: 'Platform Admin', isStaff: true };
+    const issued = await t.invitations.inviteOwner(platform, t.data.restaurant.id, 'founder@halka.test');
+    expect(t.store.invitations.find((i) => i.id === issued.invitation.id)).toMatchObject({ platform: true });
+    expect(await t.invitations.offer(issued.token)).toMatchObject({ role: 'owner' });
+    const regular = await t.invitations.invite(SLUG, { email: 'regular@example.test', role: 'sommelier' }, t.owner);
+    expect(t.store.invitations.find((i) => i.id === regular.invitation.id)).toMatchObject({ platform: false });
+  });
+
+  it('a platform owner invitation dies when the restaurant gets an active owner another way (same answer as any dead link)', async () => {
+    const platform = { id: 'cccccccc-0000-4000-8000-000000000001', name: 'Platform Admin', isStaff: true };
+    const issued = await t.invitations.inviteOwner(platform, t.data.restaurant.id, 'late-founder@halka.test');
+    // an owner appears through some other path (E14's organisation, an operator command)
+    t.store.users.push({ id: 'dddddddd-0000-4000-8000-000000000001', email: 'operator-made@halka.test', name: 'Op', passwordHash: 'x', failedAttempts: 0, lockedUntil: null, lastLoginAt: null });
+    t.store.memberships.push({ userId: 'dddddddd-0000-4000-8000-000000000001', membershipId: 'dddddddd-0000-4000-8000-000000000002', restaurantId: t.data.restaurant.id, restaurantSlug: 'halka', restaurantName: 'Halka', role: 'owner', status: 'active', version: 1, createdAt: '2026-10-05T07:00:00.000Z', deactivatedAt: null, deactivatedBy: null });
+    expect(await t.invitations.offer(issued.token)).toBeNull();
+    await expect(t.invitations.accept({ token: issued.token, name: 'F', password: PASSWORD }, null)).rejects.toMatchObject({ name: 'InvalidTokenError', code: 'invalid_token' });
+    expect(t.store.users.some((u) => u.email === 'late-founder@halka.test')).toBe(false);
+  });
+
+  it('one rule for a platform account that is also a member: the invitation is refused when made AND when used (consistency)', async () => {
+    const platform = { id: 'cccccccc-0000-4000-8000-000000000001', name: 'Platform Admin', isStaff: true };
+    const issued = await t.invitations.inviteOwner(platform, t.data.restaurant.id, 'consistent@halka.test');
+    // afterwards the platform account becomes an active manager of that restaurant
+    t.store.users.push({ id: platform.id, email: 'platform@example.test', name: platform.name, passwordHash: 'x', failedAttempts: 0, lockedUntil: null, lastLoginAt: null });
+    t.store.memberships.push({ userId: platform.id, membershipId: 'dddddddd-0000-4000-8000-000000000003', restaurantId: t.data.restaurant.id, restaurantSlug: 'halka', restaurantName: 'Halka', role: 'manager', status: 'active', version: 1, createdAt: '2026-10-05T07:00:00.000Z', deactivatedAt: null, deactivatedBy: null });
+    await expect(t.invitations.inviteOwner(platform, t.data.restaurant.id, 'another@halka.test')).rejects.toMatchObject({ name: 'ForbiddenError' });
+    expect(await t.invitations.offer(issued.token)).toBeNull();
+    // a deactivated member is no team manager: both the creation and the use are allowed again
+    t.store.memberships.find((m) => m.membershipId === 'dddddddd-0000-4000-8000-000000000003')!.status = 'deactivated';
+    expect(await t.invitations.offer(issued.token)).not.toBeNull();
+    await expect(t.invitations.inviteOwner(platform, t.data.restaurant.id, 'another@halka.test')).resolves.toBeTruthy();
+  });
+});
+
+describe('e-mail case (review minor 8): both sides are compared in lower case', () => {
+  it('a legacy account stored in mixed case is a member for the invitation check and an existing account at accept', async () => {
+    const t = build();
+    const legacy = (id: string, email: string) => t.store.users.push({ id, email, name: 'Legacy', passwordHash: 'x', failedAttempts: 0, lockedUntil: null, lastLoginAt: null });
+    legacy('eeeeeeee-0000-4000-8000-000000000001', 'Legacy.Member@Example.test');
+    t.store.memberships.push({ userId: 'eeeeeeee-0000-4000-8000-000000000001', membershipId: 'eeeeeeee-0000-4000-8000-000000000002', restaurantId: t.second.restaurantId, restaurantSlug: SLUG, restaurantName: 'Second Table', role: 'sommelier', status: 'active', version: 1, createdAt: '2026-10-05T07:00:00.000Z', deactivatedAt: null, deactivatedBy: null });
+    await expect(t.invitations.invite(SLUG, { email: 'legacy.member@example.test', role: 'sommelier' }, t.owner)).rejects.toMatchObject({ name: 'AlreadyMemberError' });
+    // a legacy account that is not a member: a "new account" for the same address in lower case would be a duplicate of it
+    legacy('eeeeeeee-0000-4000-8000-000000000003', 'Legacy.Other@Example.test');
+    const issued = await t.invitations.invite(SLUG, { email: 'legacy.other@example.test', role: 'sommelier' }, t.owner);
+    await expect(t.invitations.accept({ token: issued.token, name: 'Dup', password: 'a-long-enough-passphrase' }, null)).rejects.toMatchObject({ code: 'account_exists' });
+    expect(t.store.users.filter((u) => u.email.toLowerCase() === 'legacy.other@example.test')).toHaveLength(1);
+    // the link is not spent by the refusal (a legacy account cannot sign in at all: login lower-cases the address, so there is nothing to join with)
+    expect(await t.invitations.offer(issued.token)).not.toBeNull();
+  });
+});

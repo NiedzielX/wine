@@ -79,6 +79,8 @@ export const AuthTokenEntity = defineEntity({
     email: p.string().length(254),
     role: p.enum([...ROLES] as const).nullable(),
     user: () => p.manyToOne(UserEntity).nullable().deleteRule('cascade'),
+    /** made by `InvitationService.inviteOwner` (E14): judged by the platform rule at every use, never inferred from a missing membership */
+    platform: p.boolean().default(false),
     createdBy: p.uuid(),
     createdAt: p.datetime(),
     expiresAt: p.datetime(),

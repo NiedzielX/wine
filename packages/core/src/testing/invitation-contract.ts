@@ -128,6 +128,19 @@ export function invitationContract(
       t.expect((await usable(b.invitation.tokenHash))?.id).toBe(b.invitation.id);
     });
 
+    t.it('treats an expired pending invitation as no obstacle: a manager replaces an expired owner invitation, a live one still refuses them', async () => {
+      const old = await invite({ email: 'stale@invited.test', role: 'owner', createdAt: NOW, expiresAt: at(1 * HOURS) });
+      // two hours later the owner's invitation has expired: the manager's new invitation replaces it instead of failing on its role
+      const fresh = await invite({ by: second.manager, email: 'stale@invited.test', role: 'sommelier', createdAt: at(2 * HOURS), expiresAt: at(74 * HOURS) });
+      t.expect(await usable(old.invitation.tokenHash, at(30 * 60_000))).toBeNull();
+      t.expect((await usable(fresh.invitation.tokenHash, at(2 * HOURS)))?.role).toBe('sommelier');
+      t.expect((await invites.listPending(second.restaurantId)).map((i) => i.id)).toEqual([fresh.invitation.id]);
+      // a live owner invitation still blocks the manager
+      const live = await invite({ email: 'live@invited.test', role: 'owner', createdAt: at(2 * HOURS), expiresAt: at(74 * HOURS) });
+      await t.expect(invite({ by: second.manager, email: 'live@invited.test', role: 'sommelier', createdAt: at(3 * HOURS), expiresAt: at(75 * HOURS) })).rejects.toMatchObject({ name: 'TeamHierarchyError' });
+      t.expect((await usable(live.invitation.tokenHash, at(3 * HOURS)))?.role).toBe('owner');
+    });
+
     t.it('revoking needs the entitlement to invite that role: a sommelier is forbidden, a manager cannot revoke an owner invitation', async () => {
       const boss = await invite({ email: 'boss2@invited.test', role: 'owner' });
       const wine = await invite({ email: 'wine2@invited.test', role: 'sommelier' });
@@ -205,6 +218,16 @@ export function invitationContract(
       // an invitation of a person who is still entitled is untouched
       t.expect((await usable(ownerMade.invitation.tokenHash))?.id).toBe(ownerMade.invitation.id);
       t.expect(await auth.findUserByEmail('x1@invited.test')).toBeNull();
+    });
+
+    t.it('re-checks a platform invitation when the link is used: once the restaurant has an active owner, every other owner invitation is dead (same answer)', async () => {
+      const a = await invite({ platform: true, by: second.owner1, restaurantId: ds.restaurant.id, role: 'owner', email: 'founder-a@halka.test' });
+      const b = await invite({ platform: true, by: second.owner1, restaurantId: ds.restaurant.id, role: 'owner', email: 'founder-b@halka.test' });
+      t.expect((await usable(b.invitation.tokenHash))?.id).toBe(b.invitation.id);
+      await accept(a.invitation.tokenHash);
+      t.expect(await usable(b.invitation.tokenHash)).toBeNull();
+      await t.expect(accept(b.invitation.tokenHash)).rejects.toMatchObject({ name: 'InvalidTokenError', code: 'invalid_token', message: 'This link is not valid any more.' });
+      t.expect(await auth.findUserByEmail('founder-b@halka.test')).toBeNull();
     });
 
     t.it('keeps the platform invitation (inviteOwner) alive without a membership, but only for the owner role into a restaurant without an active owner', async () => {

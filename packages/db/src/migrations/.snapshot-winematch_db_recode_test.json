@@ -474,6 +474,23 @@
           ],
           "mappedType": "enum"
         },
+        "platform": {
+          "name": "platform",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "false",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "boolean"
+        },
         "restaurant_id": {
           "name": "restaurant_id",
           "type": "uuid",

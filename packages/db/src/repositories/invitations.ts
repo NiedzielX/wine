@@ -1,7 +1,7 @@
 import { UniqueConstraintViolationException } from '@mikro-orm/core';
 import type { EntityManager } from '@mikro-orm/postgresql';
 import {
-  AlreadyMemberError, ForbiddenError, InvalidTokenError, InvariantError, NotFoundError, ValidationError, assertInvitationEvent, assertMayInvite, assertPlatformMayInvite, assertValidAuthEvent, inviterStillEntitled,
+  AlreadyMemberError, ForbiddenError, InvalidTokenError, InvariantError, NotFoundError, ValidationError, assertInvitationEvent, assertMayInvite, assertPlatformMayInvite, assertValidAuthEvent, invitationStillValid,
   type AcceptInvitation, type AcceptedInvitation, type AuthEvent, type CreateInvitation, type Invitation, type InvitationPreview, type InvitationRepository, type MembershipStatus, type RevokeInvitation, type Role
 } from '@wine-match/core';
 import { isUuid } from './ids';
@@ -59,16 +59,17 @@ export class PgInvitationRepository implements InvitationRepository {
           if (!actor) throw new ForbiddenError();
           assertMayInvite(actor, n.role);
         }
-        if ((await em.execute<unknown[]>(`select 1 from membership m join app_user u on u.id = m.user_id where m.restaurant_id = ? and u.email = ?`, [restaurantId, n.email])).length > 0) throw new AlreadyMemberError();
-        const replaced = await em.execute<Array<{ role: Role }>>(
-          `update auth_token set revoked_at = ?::timestamptz where kind = 'invite' and restaurant_id = ? and email = ? and used_at is null and revoked_at is null returning role`,
+        if ((await em.execute<unknown[]>(`select 1 from membership m join app_user u on u.id = m.user_id where m.restaurant_id = ? and lower(u.email) = ?`, [restaurantId, n.email])).length > 0) throw new AlreadyMemberError();
+        const replaced = await em.execute<Array<{ role: Role; expires_at: Date }>>(
+          `update auth_token set revoked_at = ?::timestamptz where kind = 'invite' and restaurant_id = ? and email = ? and used_at is null and revoked_at is null returning role, expires_at`,
           [new Date(n.createdAt), restaurantId, n.email]
         );
-        if (!platform) for (const r of replaced) assertMayInvite(actor!, r.role);
+        // an expired invitation is no obstacle: it is replaced whatever its role (only a live one the inviter could not have made refuses them)
+        if (!platform) for (const r of replaced) if (new Date(r.expires_at).getTime() > new Date(n.createdAt).getTime()) assertMayInvite(actor!, r.role);
         assertInvitationEvent(restaurantId, event, 'invite_created', n.createdBy, n.id);
         await em.execute(
-          `insert into auth_token (id, kind, token_hash, restaurant_id, email, role, user_id, created_by, created_at, expires_at) values (?, 'invite', ?, ?, ?, ?, null, ?, ?::timestamptz, ?::timestamptz)`,
-          [n.id, n.tokenHash, restaurantId, n.email, n.role, n.createdBy, new Date(n.createdAt), new Date(n.expiresAt)]
+          `insert into auth_token (id, kind, token_hash, restaurant_id, email, role, user_id, platform, created_by, created_at, expires_at) values (?, 'invite', ?, ?, ?, ?, null, ?, ?, ?::timestamptz, ?::timestamptz)`,
+          [n.id, n.tokenHash, restaurantId, n.email, n.role, platform, n.createdBy, new Date(n.createdAt), new Date(n.expiresAt)]
         );
         await insertAuthEvent(em, event);
         return toInvitation((await em.execute<InvitationRow[]>(`${SELECT} where t.id = ?`, [n.id]))[0]);
@@ -103,15 +104,16 @@ export class PgInvitationRepository implements InvitationRepository {
   }
 
   async findUsable(tokenHash: string, now: string): Promise<InvitationPreview | null> {
-    const row = (await this.em.getConnection().execute<Array<{ id: string; restaurant_id: string; slug: string; name: string; email: string; role: Role; created_by: string; expires_at: Date }>>(
-      `select t.id, t.restaurant_id, r.slug, r.name, t.email, t.role, t.created_by, t.expires_at
+    const row = (await this.em.getConnection().execute<Array<{ id: string; restaurant_id: string; slug: string; name: string; email: string; role: Role; platform: boolean; created_by: string; expires_at: Date }>>(
+      `select t.id, t.restaurant_id, r.slug, r.name, t.email, t.role, t.platform, t.created_by, t.expires_at
          from auth_token t join restaurant r on r.id = t.restaurant_id
         where t.token_hash = ? and t.kind = 'invite' and t.used_at is null and t.revoked_at is null and t.expires_at > ?::timestamptz`,
       [tokenHash, new Date(now)]
     ))[0];
     if (!row) return null;
     const inviter = (await this.em.getConnection().execute<MemberRow[]>(`select role, status from membership where restaurant_id = ? and user_id = ?`, [row.restaurant_id, row.created_by]))[0] ?? null;
-    if (!inviterStillEntitled(inviter, row.role)) return null;
+    const owners = (await this.em.getConnection().execute<Array<{ n: string }>>(`select count(*)::text as n from membership where restaurant_id = ? and role = 'owner' and status = 'active'`, [row.restaurant_id]))[0];
+    if (!invitationStillValid(row, inviter, Number(owners.n))) return null;
     return { id: row.id, restaurantId: row.restaurant_id, restaurantSlug: row.slug, restaurantName: row.name, email: row.email, role: row.role, expiresAt: iso(row.expires_at) };
   }
 
@@ -125,19 +127,27 @@ export class PgInvitationRepository implements InvitationRepository {
     if (input.existingUserId !== null && !isUuid(input.existingUserId)) throw new ValidationError('wrong_account', 'This invitation is for another account. Sign out and open the link again.');
     try {
       return await this.em.transactional(async (em) => {
-        const used = (await em.execute<Array<{ id: string; restaurant_id: string; email: string; role: Role; created_by: string }>>(
+        const used = (await em.execute<Array<{ id: string; restaurant_id: string; email: string; role: Role; platform: boolean; created_by: string }>>(
           `update auth_token set used_at = ?::timestamptz
             where token_hash = ? and kind = 'invite' and used_at is null and revoked_at is null and expires_at > ?::timestamptz
-            returning id, restaurant_id, email, role, created_by`,
+            returning id, restaurant_id, email, role, platform, created_by`,
           [new Date(input.now), input.tokenHash, new Date(input.now)]
         ))[0];
         if (!used) throw new InvalidTokenError();
         const inviter = (await em.execute<MemberRow[]>(`select role, status from membership where restaurant_id = ? and user_id = ? for share`, [used.restaurant_id, used.created_by]))[0] ?? null;
-        if (!inviterStillEntitled(inviter, used.role)) throw new InvalidTokenError();
+        // a platform invitation is judged by the platform rule NOW: the restaurant row is locked so two platform links cannot both make "the first owner"
+        let owners = 0;
+        if (used.platform) {
+          await em.execute(`select id from restaurant where id = ? for update`, [used.restaurant_id]);
+          owners = (await em.execute<unknown[]>(`select id from membership where restaurant_id = ? and role = 'owner' and status = 'active' for share`, [used.restaurant_id])).length;
+        }
+        if (!invitationStillValid(used, inviter, owners)) throw new InvalidTokenError();
         const restaurant = (await em.execute<Array<{ slug: string }>>(`select slug from restaurant where id = ?`, [used.restaurant_id]))[0];
         let userId: string;
         if (input.newAccount) {
           userId = input.newAccount.userId;
+          // the unique index is case-sensitive: an account stored in mixed case before addresses were normalised would be duplicated
+          if ((await em.execute<unknown[]>(`select 1 from app_user where lower(email) = ?`, [used.email])).length > 0) throw new ValidationError('account_exists', 'An account with this e-mail address already exists. Sign in to it first.');
           try {
             await em.execute(
               `insert into app_user (id, email, name, password_hash, created_at) values (?, ?, ?, ?, ?::timestamptz)`,
@@ -149,7 +159,7 @@ export class PgInvitationRepository implements InvitationRepository {
           }
         } else {
           const user = (await em.execute<Array<{ id: string; email: string }>>(`select id, email from app_user where id = ?`, [input.existingUserId]))[0];
-          if (!user || user.email !== used.email) throw new ValidationError('wrong_account', 'This invitation is for another account. Sign out and open the link again.');
+          if (!user || user.email.toLowerCase() !== used.email) throw new ValidationError('wrong_account', 'This invitation is for another account. Sign out and open the link again.');
           userId = user.id;
         }
         try {

@@ -27,12 +27,18 @@ export function assertPlatformMayInvite(member: { role: Role; status: Membership
   if (activeOwners > 0) throw new ValidationError('restaurant_has_owner', 'This restaurant already has an active owner.');
 }
 
+const managesTeam = (m: { role: Role; status: MembershipStatus } | null): boolean => !!m && m.status === 'active' && can(m.role, 'team.manage');
+
 /**
- * Whether the person who made an invitation may still stand behind it when the link is used. A deactivated inviter, or
- * one whose role changed so that they could no longer have invited this role, takes their pending invitations with them.
- * `null` (no membership in the restaurant at all) is the platform account of `inviteOwner`.
+ * Whether an invitation may still be used: the same rules as when it was made, applied to the rows as they are now.
+ *  - a member's invitation (`platform` false): the inviter must STILL be an active member with `team.manage` who may invite this role. A
+ *    deactivated inviter, a demoted one, or one whose membership row is gone takes their pending invitations with them;
+ *  - a platform invitation (`inviteOwner`, `platform` true, marked on the row, never inferred from a missing membership): the same rule as at
+ *    creation (`assertPlatformMayInvite`): the role is `owner`, the restaurant has NO active owner now, and the platform account has not
+ *    become an active team manager of the restaurant (then it would use the normal path). So once an owner exists, every other owner
+ *    invitation of the platform is dead, and a platform account that is also a member is judged the same at both moments.
  */
-export function inviterStillEntitled(inviter: { role: Role; status: MembershipStatus } | null, role: Role): boolean {
-  if (inviter === null) return true;
-  return inviter.status === 'active' && can(inviter.role, 'team.manage') && invitableRoles(inviter).includes(role);
+export function invitationStillValid(invitation: { platform: boolean; role: Role }, inviter: { role: Role; status: MembershipStatus } | null, activeOwners: number): boolean {
+  if (invitation.platform) return invitation.role === 'owner' && activeOwners === 0 && !managesTeam(inviter);
+  return inviter !== null && managesTeam(inviter) && invitableRoles(inviter).includes(invitation.role);
 }

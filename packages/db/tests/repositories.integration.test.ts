@@ -936,4 +936,128 @@ run('PostgreSQL', () => {
       expect(await tableExists()).toBe(true);
     });
   });
+  describe('invitations on PostgreSQL, review fixes (platform flag, re-check at use, races, e-mail case)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const tokens = new NodeSessionTokens();
+    let seq = 0;
+    const ids = () => `5ec0d000-0000-4000-8000-${String(400_000_000_000 + ++seq)}`;
+    const invitationsOf = () => {
+      const em = orm.em.fork();
+      const repos = { restaurantRepository: new PgRestaurantRepository({ em }), teamRepository: new PgTeamRepository({ em }), invitationRepository: new PgInvitationRepository({ em }) };
+      return new InvitationService({
+        ...repos, authRepository: new PgAuthRepository({ em }), passwordHasher: { hash: async (p) => `scrypt$test-only$${p.length}` }, sessionTokens: tokens,
+        clock: { now: () => new Date() }, idGenerator: { uuid: ids }
+      });
+    };
+    const sql = <T>(query: string, params: unknown[] = []) => orm.em.getConnection().execute<T[]>(query, params);
+    const platform = { id: '5ec0d000-0000-4000-8000-0000000000aa', name: 'Platform Admin', isStaff: true };
+    const PASSWORD = 'a-long-enough-passphrase';
+    const accept = (token: string) => invitationsOf().accept({ token, name: 'Someone', password: PASSWORD }, null);
+
+    it('marks only inviteOwner invitations as platform; a regular inviter whose membership row is gone leaves a dead link, a platform invitation stays valid (major 1)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const regular = await invitationsOf().invite(SECOND_RESTAURANT.slug, { email: 'gone@example.test', role: 'owner' }, { id: second.owner1.userId, name: 'First Owner' });
+      const founder = await invitationsOf().inviteOwner(platform, ds.restaurant.id, 'founder@halka.test');
+      expect(await sql('select email, platform from auth_token order by email')).toEqual([{ email: 'founder@halka.test', platform: true }, { email: 'gone@example.test', platform: false }]);
+      await sql('delete from membership where id = ?', [second.owner1.membershipId]);
+      const repo = new PgInvitationRepository({ em: orm.em.fork() });
+      expect(await repo.findUsable(tokens.hash(regular.token), new Date().toISOString())).toBeNull();
+      await expect(accept(regular.token)).rejects.toMatchObject({ name: 'InvalidTokenError' });
+      expect(await sql("select 1 from app_user where email = 'gone@example.test'")).toHaveLength(0);
+      expect(await repo.findUsable(tokens.hash(founder.token), new Date().toISOString())).toMatchObject({ role: 'owner', restaurantSlug: 'halka' });
+    });
+
+    it('a platform owner invitation is re-checked at use: dead once the restaurant has an active owner, alive again if that owner is deactivated (major 2)', async () => {
+      const issued = await invitationsOf().inviteOwner(platform, ds.restaurant.id, 'late@halka.test');
+      const userId = ids(); const membershipId = ids();
+      await sql(`insert into app_user (id, email, name, password_hash, created_at) values (?, 'operator@halka.test', 'Op', 'scrypt$x', now())`, [userId]);
+      await sql(`insert into membership (id, user_id, restaurant_id, role, created_at) values (?, ?, ?, 'owner', now())`, [membershipId, userId, ds.restaurant.id]);
+      const repo = new PgInvitationRepository({ em: orm.em.fork() });
+      expect(await repo.findUsable(tokens.hash(issued.token), new Date().toISOString())).toBeNull();
+      await expect(accept(issued.token)).rejects.toMatchObject({ name: 'InvalidTokenError', code: 'invalid_token' });
+      expect(await sql("select 1 from app_user where email = 'late@halka.test'")).toHaveLength(0);
+      await sql("update membership set status = 'deactivated' where id = ?", [membershipId]);
+      expect((await accept(issued.token)).role).toBe('owner');
+    });
+
+    it('one rule for a platform account that is also a team manager: refused when made and when used (major 2)', async () => {
+      const issued = await invitationsOf().inviteOwner(platform, ds.restaurant.id, 'same@halka.test');
+      await sql(`insert into app_user (id, email, name, password_hash, created_at) values (?, 'platform@example.test', 'Platform', 'scrypt$x', now())`, [platform.id]);
+      await sql(`insert into membership (id, user_id, restaurant_id, role, created_at) values (?, ?, ?, 'manager', now())`, [ids(), platform.id, ds.restaurant.id]);
+      await expect(invitationsOf().inviteOwner(platform, ds.restaurant.id, 'other@halka.test')).rejects.toMatchObject({ name: 'ForbiddenError' });
+      expect(await new PgInvitationRepository({ em: orm.em.fork() }).findUsable(tokens.hash(issued.token), new Date().toISOString())).toBeNull();
+      await expect(accept(issued.token)).rejects.toMatchObject({ name: 'InvalidTokenError' });
+    });
+
+    it('two platform links for one restaurant used at the same moment make ONE owner, never two (restaurant row lock)', async () => {
+      for (let round = 0; round < 6; round++) {
+        await resetData(orm);
+        const a = await invitationsOf().inviteOwner(platform, ds.restaurant.id, `a${round}@halka.test`);
+        const b = await invitationsOf().inviteOwner(platform, ds.restaurant.id, `b${round}@halka.test`);
+        const results = await Promise.allSettled([accept(a.token), accept(b.token)]);
+        expect(results.filter((r) => r.status === 'fulfilled'), `round ${round}`).toHaveLength(1);
+        expect((results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason).toMatchObject({ name: 'InvalidTokenError' });
+        expect(await sql("select 1 from membership where restaurant_id = ? and role = 'owner'", [ds.restaurant.id])).toHaveLength(1);
+      }
+    });
+
+    it('an accept racing with a revoke: either the account exists and the revoke is "not found", or the link is dead and nothing exists, never both (two connections)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const owner = { id: second.owner1.userId, name: 'First Owner' };
+      const outcomes = new Set<string>();
+      for (let round = 0; round < 12; round++) {
+        const issued = await invitationsOf().invite(SECOND_RESTAURANT.slug, { email: `rev${round}@example.test`, role: 'sommelier' }, owner);
+        const [accepted, revoked] = await Promise.allSettled([accept(issued.token), invitationsOf().revoke(SECOND_RESTAURANT.slug, issued.invitation.id, owner)]);
+        const accounts = (await sql(`select 1 from app_user where email = 'rev${round}@example.test'`)).length;
+        if (accepted.status === 'fulfilled') {
+          outcomes.add('accepted first');
+          expect(accounts).toBe(1);
+          expect(revoked.status).toBe('rejected');
+          expect((revoked as PromiseRejectedResult).reason).toMatchObject({ name: 'NotFoundError' });
+        } else {
+          outcomes.add('revoked first');
+          expect(accounts).toBe(0);
+          expect(revoked.status).toBe('fulfilled');
+          expect((accepted as PromiseRejectedResult).reason).toMatchObject({ name: 'InvalidTokenError' });
+        }
+      }
+      expect(outcomes.size).toBeGreaterThan(0);
+    });
+
+    it('an accept racing with the inviter\'s deactivation: the link is used before it, or it is dead; a link is never used after the deactivation committed (two connections)', async () => {
+      for (let round = 0; round < 12; round++) {
+        await resetData(orm);
+        const second = await seedSecondRestaurant(orm);
+        const manager = { id: second.manager.userId, name: 'The Manager' };
+        const issued = await invitationsOf().invite(SECOND_RESTAURANT.slug, { email: `dea${round}@example.test`, role: 'sommelier' }, manager);
+        const em = orm.em.fork();
+        const deactivate = new PgTeamRepository({ em }).applyChange(second.restaurantId, second.manager.membershipId, {
+          expectedVersion: 1, set: { status: 'deactivated' }, actorUserId: second.owner1.userId, at: new Date().toISOString(),
+          events: [{ id: ids(), restaurantId: second.restaurantId, actorUserId: second.owner1.userId, subjectUserId: second.manager.userId, type: 'member_deactivated', meta: {}, at: new Date().toISOString() }]
+        });
+        const [accepted, deactivated] = await Promise.allSettled([accept(issued.token), deactivate]);
+        expect(deactivated.status, `round ${round}`).toBe('fulfilled');
+        if (accepted.status === 'rejected') expect(accepted.reason).toMatchObject({ name: 'InvalidTokenError' });
+        // after both are done the deactivation holds, so the link is dead for anyone still holding it; if the accept won, the account exists exactly once
+        const accounts = (await sql(`select 1 from app_user where email = 'dea${round}@example.test'`)).length;
+        expect(accounts).toBe(accepted.status === 'fulfilled' ? 1 : 0);
+        expect(await new PgInvitationRepository({ em: orm.em.fork() }).findUsable(tokens.hash(issued.token), new Date().toISOString())).toBeNull();
+      }
+    });
+
+    it('e-mail case: an account stored in mixed case counts as a member and as an existing account, on both sides of the comparison (minor 8)', async () => {
+      const second = await seedSecondRestaurant(orm);
+      const owner = { id: second.owner1.userId, name: 'First Owner' };
+      const memberId = ids(); const otherId = ids();
+      await sql(`insert into app_user (id, email, name, password_hash, created_at) values (?, 'Legacy.Member@Example.test', 'L', 'scrypt$x', now()), (?, 'Legacy.Other@Example.test', 'L2', 'scrypt$x', now())`, [memberId, otherId]);
+      await sql(`insert into membership (id, user_id, restaurant_id, role, created_at) values (?, ?, ?, 'sommelier', now())`, [ids(), memberId, second.restaurantId]);
+      await expect(invitationsOf().invite(SECOND_RESTAURANT.slug, { email: 'legacy.member@example.test', role: 'sommelier' }, owner)).rejects.toMatchObject({ name: 'AlreadyMemberError' });
+      const issued = await invitationsOf().invite(SECOND_RESTAURANT.slug, { email: 'legacy.other@example.test', role: 'sommelier' }, owner);
+      await expect(accept(issued.token)).rejects.toMatchObject({ code: 'account_exists' });
+      expect(await sql("select 1 from app_user where lower(email) = 'legacy.other@example.test'")).toHaveLength(1);
+      // the repository, given that user as the existing account, accepts (the comparison lowers the stored side)
+      const got = await new PgInvitationRepository({ em: orm.em.fork() }).accept({ tokenHash: tokens.hash(issued.token), now: new Date().toISOString(), membershipId: ids(), eventId: ids(), newAccount: null, existingUserId: otherId });
+      expect(got).toMatchObject({ userId: otherId, role: 'sommelier' });
+    });
+  });
 });

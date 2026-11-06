@@ -1,5 +1,5 @@
 import type { AuthEvent, AuthUser, Invitation, Membership, MembershipStatus, Role, SessionRecord, TeamMember } from '../auth/types';
-import { assertMayInvite, assertPlatformMayInvite, inviterStillEntitled } from '../auth/invitation-rules';
+import { assertMayInvite, assertPlatformMayInvite, invitationStillValid } from '../auth/invitation-rules';
 import type { DemoDataset } from '../demo/dataset';
 import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine } from '../domain/types';
 import { assertChangeEvents, assertInvitationEvent, assertValidAuthEvent, authEventLimit } from '../auth/audit-rules';
@@ -48,6 +48,8 @@ export interface StoredInvitation {
   email: string;
   role: Role;
   tokenHash: string;
+  /** made by `inviteOwner` (E14): the inviter is a platform account, judged by the platform rule at every use */
+  platform: boolean;
   createdBy: string;
   createdAt: string;
   expiresAt: string;
@@ -497,14 +499,16 @@ export class MemoryInvitationRepository implements InvitationRepository {
       if (!actor) throw new ForbiddenError();
       assertMayInvite(actor, n.role);
     }
-    if (this.store.users.some((u) => u.email === n.email && this.memberOf(restaurantId, u.id))) throw new AlreadyMemberError();
+    // both sides in lower case: an account stored in mixed case before the address was normalised is still the same person
+    if (this.store.users.some((u) => u.email.toLowerCase() === n.email && this.memberOf(restaurantId, u.id))) throw new AlreadyMemberError();
     // the invitations this one replaces: the inviter must have been entitled to hand out each of them
     const replaced = this.pending(restaurantId).filter((i) => i.email === n.email);
-    if (!platform) for (const r of replaced) assertMayInvite(actor!, r.role);
+    // an expired invitation is no obstacle: it is replaced whatever its role (only a live one the inviter could not have made refuses them)
+    if (!platform) for (const r of replaced) if (Date.parse(r.expiresAt) > Date.parse(n.createdAt)) assertMayInvite(actor!, r.role);
     assertInvitationEvent(restaurantId, event, 'invite_created', n.createdBy, n.id);
     if (this.store.authEvents.some((e) => e.id === event.id) || this.store.invitations.some((i) => i.id === n.id || i.tokenHash === n.tokenHash)) throw new InvariantError('duplicate_event', 'The invitation or its event already exists.');
     for (const r of replaced) r.revokedAt = n.createdAt;
-    const row: StoredInvitation = { id: n.id, restaurantId, email: n.email, role: n.role, tokenHash: n.tokenHash, createdBy: n.createdBy, createdAt: n.createdAt, expiresAt: n.expiresAt, usedAt: null, revokedAt: null };
+    const row: StoredInvitation = { id: n.id, restaurantId, email: n.email, role: n.role, tokenHash: n.tokenHash, platform, createdBy: n.createdBy, createdAt: n.createdAt, expiresAt: n.expiresAt, usedAt: null, revokedAt: null };
     this.store.invitations.push(row);
     this.store.authEvents.push(copy(event));
     return this.view(row);
@@ -525,7 +529,8 @@ export class MemoryInvitationRepository implements InvitationRepository {
   private usable(tokenHash: string, now: string): StoredInvitation | null {
     const row = this.store.invitations.find((i) => i.tokenHash === tokenHash);
     if (!row || row.usedAt !== null || row.revokedAt !== null || Date.parse(row.expiresAt) <= Date.parse(now)) return null;
-    return inviterStillEntitled(this.memberOf(row.restaurantId, row.createdBy), row.role) ? row : null;
+    const owners = this.store.memberships.filter((m) => m.restaurantId === row.restaurantId && m.role === 'owner' && m.status === 'active').length;
+    return invitationStillValid(row, this.memberOf(row.restaurantId, row.createdBy), owners) ? row : null;
   }
 
   async findUsable(tokenHash: string, now: string): Promise<InvitationPreview | null> {
@@ -541,11 +546,11 @@ export class MemoryInvitationRepository implements InvitationRepository {
     if ((input.newAccount === null) === (input.existingUserId === null)) throw new InvariantError('invalid_accept', 'Give either a new account or an existing user.');
     let userId: string;
     if (input.newAccount) {
-      if (this.store.users.some((u) => u.email === row.email)) throw new ValidationError('account_exists', 'An account with this e-mail address already exists. Sign in to it first.');
+      if (this.store.users.some((u) => u.email.toLowerCase() === row.email)) throw new ValidationError('account_exists', 'An account with this e-mail address already exists. Sign in to it first.');
       userId = input.newAccount.userId;
     } else {
       const user = this.store.users.find((u) => u.id === input.existingUserId);
-      if (!user || user.email !== row.email) throw new ValidationError('wrong_account', 'This invitation is for another account. Sign out and open the link again.');
+      if (!user || user.email.toLowerCase() !== row.email) throw new ValidationError('wrong_account', 'This invitation is for another account. Sign out and open the link again.');
       userId = user.id;
     }
     if (this.memberOf(row.restaurantId, userId)) throw new AlreadyMemberError();
