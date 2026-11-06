@@ -62,6 +62,7 @@ export * from './demo/halka';
 export * from './demo/dataset';
 export * from './demo/users';
 export * from './memory/memory-repositories';
+export * from './memory/system-health';
 export * from './testing/contract-types';
 export * from './testing/repository-contract';
 export * from './testing/write-contract';

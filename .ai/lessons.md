@@ -9,6 +9,8 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-05] [`MikroORM.init` nie łączy się z bazą, a po `close()` łączy się sam](lessons/2026-11-05-mikroorm-init-does-not-connect.md) — „baza leży” sprawdzaj `select 1` z limitem czasu i testuj przekaźnikiem TCP, nie zamknięciem ORM.
+- [2026-11-05] [Zaostrzenie „produkcja zawodzi zamykająco” psuje lokalne starty produkcji](lessons/2026-11-05-fail-closed-breaks-local-production-starts.md) — grep po `NODE_ENV=production`/`next start` i jawny wyjątek w e2e, boot:check, test-env-up i README w tym samym PR-ze.
 - [2026-11-05] [W transakcji MikroORM `em.getConnection().execute` omija transakcję](lessons/2026-11-05-pg-execute-inside-transaction.md) — surowe zapytania w `em.transactional` idą przez `em.execute`; blokadę udowadniaj dwoma połączeniami i mutacją.
 - [2026-11-05] [Wiersz `MemoryStore.memberships` bez `status` nie daje dostępu](lessons/2026-11-05-memory-store-rows-need-team-fields.md) — test dopisujący członkostwo podaje pełny `StoredMembership` (status, version, createdAt…), bo vitest nie sprawdza typów.
 - [2026-11-05] [onRequestError dostaje pełny URL z query i nagłówki](lessons/2026-11-05-on-request-error-carries-query-and-cookies.md) — loguj tylko metodę, ścieżkę bez query i wzorzec trasy; w teście ustaw NEXT_RUNTIME=nodejs.
