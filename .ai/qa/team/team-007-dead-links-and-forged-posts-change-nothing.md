@@ -40,7 +40,7 @@ A cancelled, expired or orphaned link, a forged cross-site post and a link of an
 
 ## Data and cleanup
 
-- Creates invitations; removed after the file runs; the manager's access is restored.
+- Creates invitations; removed after the file runs; the invited manager's access is restored.
 
 ## Test implementation
 

@@ -190,7 +190,6 @@ describe('invitations on PostgreSQL, without JavaScript', () => {
 
   it('dead links all look alike: cancelled, expired, an inviter who lost access, and a link of another restaurant; a cross-site forged post changes nothing (AC7, AC24)', async () => {
     const o = await owner();
-    const m = await manager();
     // the fields of a real accept form (the action id among them), to post with another link's token
     const template = formFields(await html(await get(pathOf((await invite(o, mail('template'))).link))), 'password');
     const dead = async (link: string) => {
@@ -211,21 +210,24 @@ describe('invitations on PostgreSQL, without JavaScript', () => {
     await sql(`update auth_token set expires_at = now() - interval '1 minute' where id = $1`, [expired.id]);
     await dead(expired.link);
 
-    // an inviter who loses access takes the link with them, and gets it back with the access
-    const byManager = await invite(m, mail('bymarek'));
+    // an inviter who loses access takes the link with them, and gets it back with the access. The inviter is a manager made here
+    // by an invitation of their own, so the people of global-setup (and the versions the team file expects) are left alone.
+    const newManager = await invite(o, mail('mgr'), 'manager');
+    const joined = await post('/admin/accept', withField(withField(withField(template, 'token', tokenOf(newManager.link)), 'name', 'Mina Manager'), 'password', PASSWORD));
+    expect(joined.headers.get('location')).toBe(`/admin/${slug}`);
+    const m = await signIn(mail('mgr'), PASSWORD);
+    const byManager = await invite(m, mail('bymgr'));
     expect((await get(pathOf(byManager.link))).status).toBe(200);
     const team = ((await (await get(`/api/v1/restaurants/${slug}/team`, o)).json()) as { members: Array<{ membershipId: string; email: string; version: number }> }).members;
-    const marek = team.find((x) => x.email === NEW_RESTAURANT_TEAM.manager.email)!;
-    const patch = (version: number, status: string) => fetch(`${base()}/api/v1/restaurants/${slug}/team/${marek.membershipId}`, {
+    const mgr = team.find((x) => x.email === mail('mgr'))!;
+    const patch = (version: number, status: string) => fetch(`${base()}/api/v1/restaurants/${slug}/team/${mgr.membershipId}`, {
       method: 'PATCH', headers: { cookie: o.cookie, 'x-csrf-token': o.csrf, origin: origin(), 'content-type': 'application/json', 'if-match': `"${version}"` }, body: JSON.stringify({ status })
     });
-    try {
-      expect((await patch(marek.version, 'deactivated')).status).toBe(200);
-      await dead(byManager.link);
-    } finally {
-      expect((await patch(marek.version + 1, 'active')).status).toBe(200);
-    }
-    expect(await sql('select 1 from app_user where email = $1', [mail('bymarek')])).toHaveLength(0);
+    expect((await patch(mgr.version, 'deactivated')).status).toBe(200);
+    await dead(byManager.link);
+    expect((await patch(mgr.version + 1, 'active')).status).toBe(200);
+    expect((await get(pathOf(byManager.link))).status).toBe(200);              // entitled again: the same link lives again
+    expect(await sql('select 1 from app_user where email = $1', [mail('bymgr')])).toHaveLength(0);
 
     // a forged cross-site post of a valid form is refused and uses nothing up
     const valid = await invite(o, mail('forged'));
