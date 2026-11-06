@@ -41,7 +41,7 @@ Pakiety wewnętrzne eksportują źródła TypeScript (bez kroku build); Next.js 
 
 - **Strony gościa:** Tailwind CSS z motywem `app/src/app/(guest)/guest.css`, mobile-first, komponenty serwerowe; filtry jako linki i parametry URL, tak aby działały bez JavaScriptu.
 - **Panel:** komponenty shadcn/ui z `@wine-match/ui` i motyw `@wine-match/ui/styles.css`, desktop-first. Nowy komponent shadcn dodawaj do `packages/ui` (`npx shadcn add <komponent>` w `packages/ui`), nie kopiuj go do `app`.
-- Gość i panel mają **osobne layouty główne** (grupy tras `(guest)` i `(admin)`), żeby motywy się nie mieszały. Nie dodawaj `src/app/layout.tsx`.
+- Gość i panel mają **osobne layouty główne** (grupy tras `(guest)` i `(admin)`), żeby motywy się nie mieszały. Trzeci, własny layout główny ma grupa `(showcase)` (publiczne strony sprzedażowe `/demo/*`, E22: desktop-first, shadcn jak panel, druk A4, `noindex`, 404 poza `SHOWCASE_MODE`). Nie dodawaj `src/app/layout.tsx`.
 - Fonty wyłącznie lokalnie (`@fontsource-variable/*`). **NIE WOLNO** używać `next/font/google` ani zasobów z CDN.
 - Komponenty klienckie (`'use client'`) tylko tam, gdzie potrzebna jest interakcja; nie importują nic z `app/src/server`.
 

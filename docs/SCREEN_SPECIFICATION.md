@@ -595,5 +595,51 @@ Spec `2026-11-04-staff-accounts-and-roles` (E12), faza 1. Identyfikatory ekranó
 | Permissions | `requireAccess` + `team.manage` (strona), `authorizeAction(slug, 'team.manage')` (akcje), `handle()` (API); wpis „Team” w nawigacji tylko z `team.manage` |
 | API | `GET /restaurants/{slug}/team`, `PATCH /restaurants/{slug}/team/{membershipId}` (`If-Match`) |
 | Układ | 390 i 1440 px bez poziomego przewijania (wiersze to karty, `min-w-0`, `break-words`) |
-| Później | zaproszenia (F2), odblokowanie PIN-u i kelner z PIN-em (F5), dziennik A18 (F6) |
+| Zaproszenia (F2) | karta „Invite someone” (adres e-mail, rola dozwolona przez hierarchię; manager widzi tylko Wine Director) i lista „Pending invitations” (adres, rola, kto zaprosił, ważność, „Cancel invitation”; manager nie cofa zaproszeń właściciela ani managera). Formularz to `useActionState`: odpowiedź na POST (także bez JavaScriptu) zawiera link zaproszenia **raz** (pole tylko do odczytu); nie trafia do adresu, ciasteczka ani dziennika, a odświeżenie strony go nie pokazuje. Akcje `inviteMember`, `revokeInvitation`. Błędy: `already_member`, `team_hierarchy`, `validation_failed`, `forbidden`, `invitation_conflict` |
+| Później | odblokowanie PIN-u i kelner z PIN-em (F5), dziennik A18 (F6) |
+
+## A17 Przyjęcie zaproszenia — `/admin/accept?token=`
+
+Spec `2026-11-04-staff-accounts-and-roles` (E12), faza 2. Tryb resetu hasła (`/admin/reset`) dojdzie w F4.
+
+| Pole | Opis |
+|---|---|
+| Cel | Osoba z linkiem dołącza do zespołu restauracji z rolą z zaproszenia |
+| Użytkownik | każdy z linkiem (publiczny, bez `requireAccess`); strona poza `[slug]` i `(lists)` |
+| Funkcje | GET tylko wyświetla formularz (nic nie zużywa): nowa osoba podaje imię i hasło (min. 12 znaków) → konto, członkostwo i od razu sesja; osoba z kontem tego adresu musi być zalogowana na nie (bez sesji: link do zwykłego `/admin/login` bez tokenu w adresie, po zalogowaniu otwiera link jeszcze raz; inne konto: „Sign out”). Gdy po założeniu konta logowanie się nie uda, osoba trafia na `/admin/login?notice=account_created` (konto istnieje, link jest zużyty, tokenu nie ma w adresie), a sesja innej osoby w tej przeglądarce zostaje i dostaje tylko członkostwo, hasło się nie zmienia |
+| Dane wejściowe | `InvitationService.offer(token)` (restauracja, rola, adres, czy konto istnieje) |
+| Dane wyjściowe | akcja serwerowa `acceptInvitation` (`accept-actions.ts`; pola `token`, `name`, `password`) → `InvitationService.accept` (jedna transakcja) → przekierowanie do `/admin/{slug}` |
+| Error | błędy walidacji z powodem (`name_required`, `password_too_short`, `password_too_long`) i `sign_in_required`, `wrong_account`, `account_exists`, `already_member` w adresie (`?error=`, token zostaje, link działa dalej); **link, którego nie można użyć, to jedna strona „This link is not valid any more” z kodem 404**, a akcja przekierowuje na `/admin/accept?error=invalid_token` bez tokenu |
+| Nagłówki | `Referrer-Policy: no-referrer`, `Cache-Control: private, no-store`, `<meta name="referrer">`, `noindex`; token jest w formularzu (własny link osoby) i w żadnym `href` ani `src` |
+| Permissions | publiczna; każde zużycie sprawdza token, ważność, cofnięcie i prawa zapraszającego atomowo w repozytorium |
+| Układ | jedna karta, 390 i 1440 px bez poziomego przewijania; formularz działa bez JavaScriptu |
+
+## DM2 Return calculator — `/demo/roi?customers=&attachRate=&wineSpend=&margin=&attachChange=&spendChange=&planPrice=`
+
+Spec `2026-11-04-sales-demo-and-roi-calculator` (E22), faza F1. Identyfikatory ekranów E22: DM0–DM5.
+
+| Pole | Opis |
+|---|---|
+| Cel | Właściciel restauracji wpisuje własne liczby i widzi, ile dodatkowej marży z wina dałyby **założenia zespołu Wine Match**, razem ze wzorem. To rachunek na założeniach, nigdy wynik pomiaru ani obietnica (decyzja D19) |
+| Użytkownik | każdy z linkiem (publiczny); tryb `SHOWCASE_MODE=calculator`, inaczej 404 |
+| Funkcje | formularz `GET` z siedmioma polami (goście miesięcznie C, odsetek gości zamawiających wino a0, średnia wartość wina na gościa zamawiającego wino s, marża m, zmiana odsetka Δa w pp, zmiana wartości Δs, cena planu P), każde z etykietą, jednostką, „domyślnie: …” i **pochodzeniem** („założenie zespołu: z koncepcji produktu” / „wartość robocza, bez źródła” / „założenie: Twoja wartość”); wynik „Dodatkowa marża po opłacie za plan (założenie)” (nigdy „zysk”) z przychodem i marżą; wzór krok po kroku z podstawionymi liczbami i oznaczeniem „wynik wzoru”; stały blok „Czym to jest” (założenia własne, bez obietnicy wyniku, cała zmiana przypisana produktowi, bez sezonowości i kosztów, Wine Attach Rate per rachunek vs odsetek gości); „Przywróć domyślne” i „Wersja do druku” jako linki |
+| Model | `a1 = clamp(a0 + Δa, 0, 100)`, `s1 = max(0, s + Δs)`, efekt odsetka `C·(a1−a0)·s`, efekt wartości `C·a1·(s1−s)`, przychód = suma, marża `m·przychód`, po opłacie `marża − P`; punkt zwrotu `P/m` zł i `P/(m·s)` gości (null przy m = 0 lub s = 0); zaokrąglenie do 1 zł tylko przy wyświetlaniu; wynik ujemny jest pokazany |
+| Dane wejściowe | parametry URL (jedyny stan): pole = zwykła liczba `^-?\d+([.,]\d+)?$` w zakresie (C 1–200 000, a0 i m 0–100, s 0–5 000, Δa ±100, Δs ±1 000, P 0–50 000), do sześciu miejsc po przecinku; przecinek polski dozwolony, bez notacji wykładniczej; `lang` zachowany w linkach |
+| Dane wyjściowe | brak zapisów: żadnych cookies, localStorage, bazy ani zewnętrznych zasobów; jedna linia logu `showcase_view` z samym `page` (bez parametrów) |
+| Loading / Empty | nie dotyczy (strona dynamiczna, bez danych) |
+| Error | wartość niepoprawna lub poza zakresem → domyślna, pole wymienione w komunikacie „Zamiast tych wartości użyliśmy domyślnych: …”; nigdy NaN, Infinity ani undefined |
+| Permissions | publiczny; 404 poza trybem (`showcaseGate`) |
+| API | brak (`/api/v1` bez zmian) |
+| Układ | 390 i 1440 px bez poziomego przewijania; od 1024 px dwie kolumny (formularz po lewej, wynik i wzór po prawej); dostępność: `<label>` przy każdym polu, jedno `h1`, `role="status"` przy komunikacie o zamianie. Odstępstwo od specyfikacji: wynik nie ma `aria-live`, bo strona nie odświeża go bez przeładowania |
+| `noindex` | meta `robots` i nagłówek `X-Robots-Tag: noindex, nofollow` |
+
+## DM3 Printable summary — `/demo/roi/summary?…&d=YYYY-MM-DD`
+
+| Pole | Opis |
+|---|---|
+| Cel | Wersja do druku lub „Zapisz jako PDF” tych samych założeń i wzoru, do wysłania restauracji |
+| Funkcje | nagłówek „Podsumowanie założeń: kalkulator zwrotu Wine Match”; data z parametru `d` (poprawny dzień kalendarzowy; **nigdy z zegara serwera**; bez daty linia do ręcznego wpisania na wydruku); tabela siedmiu liczb z pochodzeniem; wzór krok po kroku; blok „Czym to jest”; notatka „To założenia, nie pomiary”; pasek sterowania (powrót do kalkulatora, ustawienie daty, przycisk „Drukuj / Zapisz jako PDF”, zdanie „Użyj Ctrl/Cmd+P” zawsze widoczne) |
+| Druk | `@media print`: nawigacja i pasek sterowania ukryte (`print:hidden`), A4 z marginesem 14 mm, czcionka 11 px, wiersze i kroki nie dzielą się między strony; ma się mieścić na dwóch stronach A4 |
+| JS | przycisk „Drukuj” (komponent kliencki tylko dla `window.print()`) istnieje wyłącznie z JavaScriptem; bez niego strona działa i podpowiada Ctrl/Cmd+P |
+| Pozostałe | jak DM2 (publiczny, tryb `calculator`, 404 poza trybem, bez zapisów, `noindex`, licznik `showcase_view` z `page=roi_summary`) |
 

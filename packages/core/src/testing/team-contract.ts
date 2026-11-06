@@ -207,7 +207,7 @@ export function teamContract(
     });
 
     t.it('stores only allowed meta, and reads back exactly what was stored', async () => {
-      const e = event(second.restaurantId, { actorUserId: second.owner1.userId, subjectUserId: second.manager.userId, meta: { membership_id: second.manager.membershipId, from: 'manager', to: 'waiter', role: 'waiter' } });
+      const e = event(second.restaurantId, { actorUserId: second.owner1.userId, subjectUserId: second.manager.userId, meta: { membership_id: second.manager.membershipId, from: 'manager', to: 'waiter', role: 'waiter', invitation_id: second.manager.membershipId } });
       await audit.record(second.restaurantId, e);
       const stored = (await audit.list(second.restaurantId))[0];
       t.expect(stored).toEqual(e);
@@ -272,7 +272,9 @@ export function teamContract(
 }
 
 /** The second restaurant as the in-memory store keeps it (the PostgreSQL setup inserts the same rows). */
-export function addSecondRestaurant(store: { users: AuthUserLike[]; memberships: StoredMembershipLike[] }): SecondRestaurant {
+export function addSecondRestaurant(store: { users: AuthUserLike[]; memberships: StoredMembershipLike[]; restaurants: RestaurantLike[] }): SecondRestaurant {
+  // the restaurant itself (the invitation repository looks it up): a copy of the first one under the second one's identity
+  if (!store.restaurants.some((r) => r.id === SECOND_RESTAURANT.id)) store.restaurants.push({ ...store.restaurants[0], id: SECOND_RESTAURANT.id, slug: SECOND_RESTAURANT.slug, name: SECOND_RESTAURANT.name });
   const [owner1, owner2, manager, sommelier] = SECOND_RESTAURANT.members;
   for (const m of SECOND_RESTAURANT.members) {
     store.users.push({ id: m.userId, email: m.email, name: m.name, passwordHash: 'plain:unused', failedAttempts: 0, lockedUntil: null, lastLoginAt: null });
@@ -283,5 +285,6 @@ export function addSecondRestaurant(store: { users: AuthUserLike[]; memberships:
   }
   return { restaurantId: SECOND_RESTAURANT.id, owner1, owner2, manager, sommelier };
 }
+type RestaurantLike = import('../domain/types').Restaurant;
 type AuthUserLike = import('../auth/types').AuthUser;
 type StoredMembershipLike = import('../memory/memory-repositories').StoredMembership;

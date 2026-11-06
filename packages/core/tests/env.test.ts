@@ -15,7 +15,7 @@ describe('development', () => {
   it('an empty environment is a working demo setup', () => {
     expect(parseEnv({})).toEqual({
       nodeEnv: 'development', isProduction: false, dataSource: 'memory', databaseUrl: null, secureCookies: false, publicBaseUrl: 'http://localhost:3000',
-      publicBaseUrlIsDefault: true, allowLocalBaseUrl: false, logLevel: 'debug', demoRestaurantSlug: 'halka', metricsToken: null
+      publicBaseUrlIsDefault: true, allowLocalBaseUrl: false, logLevel: 'debug', demoRestaurantSlug: 'halka', metricsToken: null, showcaseMode: 'off'
     });
   });
 
@@ -180,5 +180,42 @@ describe('metrics token', () => {
     expect(parseEnv({ METRICS_TOKEN: '  ' }).metricsToken).toBeNull();
     expect(parseEnv({ METRICS_TOKEN: 'x'.repeat(32) }).metricsToken).toBe('x'.repeat(32));
     expect(fails({ METRICS_TOKEN: 'short' })[0]).toMatch(/METRICS_TOKEN: must be at least 32 characters/);
+  });
+});
+
+describe('SHOWCASE_MODE (spec 2026-11-04-sales-demo-and-roi-calculator, R1, AC1 for phase F1)', () => {
+  const postgres = { DATA_SOURCE: 'postgres', DATABASE_URL: 'postgresql://u:p@h:5432/db' };
+  const production = { NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://wine.example.com' };
+
+  it('unset or blank is off, so the /demo pages answer 404', () => {
+    expect(parseEnv({}).showcaseMode).toBe('off');
+    expect(parseEnv({ SHOWCASE_MODE: '' }).showcaseMode).toBe('off');
+    expect(parseEnv({ SHOWCASE_MODE: '   ' }).showcaseMode).toBe('off');
+    expect(parseEnv({ SHOWCASE_MODE: 'off' }).showcaseMode).toBe('off');
+  });
+
+  it('calculator is accepted on postgres, and in production on a real installation: it reads no data', () => {
+    expect(parseEnv({ SHOWCASE_MODE: 'calculator' }).showcaseMode).toBe('calculator');
+    expect(parseEnv({ SHOWCASE_MODE: 'calculator', ...postgres }).showcaseMode).toBe('calculator');
+    expect(parseEnv({ SHOWCASE_MODE: 'calculator', ...postgres, ...production }).showcaseMode).toBe('calculator');
+  });
+
+  it('a value outside the list is refused with the name of the variable, not read as off or as calculator', () => {
+    for (const bad of ['calculater', 'Calculator', 'ON', 'true', '1', 'calculator ', 'off,calculator']) {
+      expect(fails({ SHOWCASE_MODE: bad })[0], bad).toMatch(/^SHOWCASE_MODE: must be "off" or "calculator"/);
+    }
+  });
+
+  it('demo is a known mode of the spec that this version does not have: refused, never taken for calculator', () => {
+    expect(fails({ SHOWCASE_MODE: 'demo' })).toEqual(['SHOWCASE_MODE: "demo" is not available in this version. Use "off" or "calculator".']);
+    expect(fails({ SHOWCASE_MODE: 'demo', ...postgres })[0]).toMatch(/^SHOWCASE_MODE: "demo"/);
+    expect(fails({ SHOWCASE_MODE: 'demo', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true' })[0]).toMatch(/^SHOWCASE_MODE: "demo"/);
+  });
+
+  it('a wrong value is reported together with the other problems, in one error', () => {
+    const issues = fails({ SHOWCASE_MODE: 'nope', DATA_SOURCE: 'postgres' });
+    expect(issues).toHaveLength(2);
+    expect(issues.join('\n')).toMatch(/DATABASE_URL/);
+    expect(issues.join('\n')).toMatch(/SHOWCASE_MODE/);
   });
 });

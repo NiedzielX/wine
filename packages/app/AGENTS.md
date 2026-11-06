@@ -2,7 +2,7 @@
 
 Zasady ogólne: `../../AGENTS.md` (§1.2–1.4 i §7). Ekrany: `../../docs/SCREEN_SPECIFICATION.md`, API: `../../docs/API_SPECIFICATION.md`. Szczegóły architektury: `../../.ai/docs/architecture-rules.md`.
 
-**Co tu jest:** Next.js App Router w `src/app` z grupami tras `(guest)` (gość, `/r/[slug]/...`) i `(admin)` (panel, `/admin/...`), route handlery REST w `src/app/api/v1`, kod tylko serwerowy w `src/server` (kontener Awilix, zakres żądania, parsowanie parametrów).
+**Co tu jest:** Next.js App Router w `src/app` z grupami tras `(guest)` (gość, `/r/[slug]/...`), `(admin)` (panel, `/admin/...`) i `(showcase)` (publiczne strony sprzedażowe `/demo/...`, E22: `showcaseGate()` na początku strony, `logShowcaseView()` na końcu, stan tylko w URL), route handlery REST w `src/app/api/v1`, kod tylko serwerowy w `src/server` (kontener Awilix, zakres żądania, parsowanie parametrów).
 
 **Zasady:**
 - Strony i route handlery: parsuj wejście → rozwiąż serwis z zakresu żądania → wyrenderuj lub zwróć JSON. Bez logiki biznesowej i bez importów z `@wine-match/db`.

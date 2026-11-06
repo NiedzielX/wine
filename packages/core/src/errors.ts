@@ -86,3 +86,22 @@ export class InvariantError extends DomainError {
     this.name = 'InvariantError';
   }
 }
+
+/**
+ * A one-time link (invitation, later a password reset) that does not work: unknown, already used, revoked, expired, or its
+ * inviter may no longer stand behind it. ONE answer for all of them, so a link cannot be probed (spec E12 R4, AC7).
+ */
+export class InvalidTokenError extends DomainError {
+  constructor() {
+    super('invalid_token', 'This link is not valid any more.');
+    this.name = 'InvalidTokenError';
+  }
+}
+
+/** The e-mail already belongs to a person of this restaurant (active or deactivated): the inviter sees the team list, so this is no leak (spec E12 R4, AC24). */
+export class AlreadyMemberError extends DomainError {
+  constructor() {
+    super('already_member', 'This person is already in the team of this restaurant.');
+    this.name = 'AlreadyMemberError';
+  }
+}

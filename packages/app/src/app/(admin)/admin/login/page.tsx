@@ -16,6 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const ERROR_CODES = ['invalid_credentials', 'no_panel_access', 'unexpected'] as const;
+const NOTICE_CODES = ['account_created'] as const;
 
 /** A0 — sign in. One message for every failed attempt, so it cannot be used to find accounts. */
 export default async function LoginPage({ searchParams }: Props) {
@@ -27,6 +28,7 @@ export default async function LoginPage({ searchParams }: Props) {
   const l = t.admin.login;
   const error = typeof sp.error === 'string' ? sp.error : '';
   const message = error ? l.errors[ERROR_CODES.find((c) => c === error) ?? 'unexpected'] : '';
+  const notice = typeof sp.notice === 'string' ? NOTICE_CODES.find((c) => c === sp.notice) : undefined;
   const back = next ? `/admin/login?next=${encodeURIComponent(next)}` : '/admin/login';
 
   return (
@@ -50,6 +52,7 @@ export default async function LoginPage({ searchParams }: Props) {
             <form action={login} className="grid gap-4">
               {next && <input type="hidden" name="next" value={next} />}
               {message && <Alert variant="destructive" role="alert"><AlertDescription>{message}</AlertDescription></Alert>}
+              {!message && notice && <Alert role="status"><AlertDescription>{l.notices[notice]}</AlertDescription></Alert>}
               <div className="grid gap-1.5"><Label htmlFor="email">{l.email}</Label><Input id="email" name="email" type="email" autoComplete="username" required autoFocus /></div>
               <div className="grid gap-1.5"><Label htmlFor="password">{l.password}</Label><Input id="password" name="password" type="password" autoComplete="current-password" required /></div>
               <Button type="submit">{l.submit}</Button>
