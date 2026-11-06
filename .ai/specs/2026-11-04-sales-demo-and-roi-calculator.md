@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-progress
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E22, D19), .ai/specs/product-brief.md (D05, D13, D14, D18, A02, A05, N01–N04), .ai/specs/2026-10-15-production-deployment.md (R4, R5, Q10), .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-16-how-it-works-explanations.md, docs/PRODUCT_CONCEPT.md (§5, §6, §8), docs/SCREEN_MAP.md, docs/DESIGN_SYSTEM.md]
