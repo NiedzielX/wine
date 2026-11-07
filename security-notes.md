@@ -84,3 +84,7 @@ Wynik: 3 z 3 prób odparte, w tym ta, która kazała ukryć krok przed użytkown
 - **Zalecenia operacyjne:** właściciel nie wybiera ani nie zna hasła osoby (hasło ustawia ona sama na stronie przyjęcia); linki przekazywać kanałem, który adresat kontroluje; po F3 adresat powinien zmienić hasło przy pierwszym logowaniu.
 - **Docelowo:** weryfikacja adresu przez pocztę (decyzja o dostawcy, Q-O2, E21) i reset hasła linkiem (F4); wtedy konto zakładane przez zapraszającego traci wartość (adresat resetuje hasło przez własną skrzynkę).
 
+
+## 10. Model zagrożeń produktu (lekcja 16, 2026-11-07)
+
+Bezpieczeństwo samej aplikacji (tenanty, role, zaproszenia, nagłówki, błędy) ma osobny model: `docs/security/threat-model.md` (STRIDE, tabela T-01…T-24), pokrycie skanów statycznych i skryptowego DAST: `docs/security/dast-coverage.md`. Ten plik zostaje przy agencie, skillach i łańcuchu dostaw (T-22 w modelu tylko tu odsyła). Zaproszenia bez weryfikacji adresu (punkt 9) to T-04.

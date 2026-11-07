@@ -1,0 +1,151 @@
+# Wine Match: threat model
+
+Lesson 16 (security) applied to this application. Method: Shostack's four questions, STRIDE per component, then a threat table with a response and a way to check it. State of the code: `main` at `39d695b` plus the branch `sec/lesson-16-security-review` (state 2026-11-07). Diagram: [`threat-model.mmd`](threat-model.mmd). Scope of the agent and supply-chain side (skills, MCP, hooks, secret scan, prompt injection) is **not repeated here**: see [`/security-notes.md`](../../security-notes.md); T-22 only points to it. Coverage of the script-level DAST and of the static checks: [`dast-coverage.md`](dast-coverage.md). Evidence per access boundary: `.ai/runs/2026-11-07-lesson-16-security.md`.
+
+Rules of this file: IDs (`T-01` …) never change or get reused; a closed threat stays in the table with status `fixed` or `accepted`. "Control today" claims were each opened in the code (file:line, lines of 2026-11-07); a claim I could not check says `UNVERIFIED`. Likelihood (L) and impact (I) are 1 to 3 (3 = high), my estimate, not a measurement.
+
+## 1. What are we working on?
+
+### 1.1 System profile
+
+B2B2C wine recommendation: a guest (phone, no account) reads pairings from a QR code; staff of a restaurant (owner, general manager, Wine Director) run a panel; the waiter uses a public staff view. One Next.js process (guest pages, panel, REST API, server actions) and PostgreSQL. No e-mail, no payments, no third-party scripts or fonts (`AGENTS.md` §7).
+
+**Assets (what hurts when lost)**
+
+| Asset | Why it matters | Where it lives |
+|---|---|---|
+| A1 Restaurant data of one tenant: menu, wines, pairings, sales imports (prices, revenue), KPIs | commercial secret of the restaurant; wrong pairings are public harm | tables `dish`, `wine`, `pairing`, `sales_record`, `import_job`, all keyed by `restaurant_id` |
+| A2 Staff accounts, sessions, roles | decide who can publish to guests and who can add staff | `app_user`, `membership`, `session` (token hash only) |
+| A3 One-time invitation tokens | whoever holds a live link becomes a member | `auth_token` (SHA-256 only), link shown once |
+| A4 Published guest view | what guests see; integrity matters more than secrecy | `published_version`, guest pages |
+| A5 Guest health-like preferences (diet, allergens in the URL) | personal data in query strings | URL only, never stored; may land in proxy logs |
+| A6 Audit trail | accountability for role and access changes | `auth_event` |
+| A7 Availability of guest pages during service | the product is used at the table | process, DB pool |
+| A8 Operator secrets: `DATABASE_URL`, `METRICS_TOKEN`, demo password policy | full compromise | environment of the host |
+
+**Actors**
+
+| Actor | Trust | Notes |
+|---|---|---|
+| Guest | none (anonymous) | URL state only, no cookie |
+| Waiter | none at the web level | public staff view, can mark a code "ordered"; a waiter account has no panel login (`permissions.ts:17-24`) |
+| Sommelier ("Wine Director") | member of one or more restaurants | decides pairings, imports, publishes |
+| General manager / owner | member, `team.manage` | invites and removes people; owner above manager |
+| Invitee | none until the link is used | link carries role and restaurant |
+| Showcase visitor | none | calculator pages, no data |
+| Platform operator | full, on the host | CLI commands with guards; no web "platform admin" yet (E14) |
+| Attacker | any of the above, scripted; or an insider with one valid account in restaurant B | main model: **a valid user of tenant B attacks tenant A** |
+
+**Entry points**
+
+| # | Entry point | Authentication | Component |
+|---|---|---|---|
+| E1 | `/r/{slug}/**` guest pages, query `sid`, `diet`, `without`, `budget`, `lang`, `sheet`, `code` | none | guest pages |
+| E2 | server action "Ordered / Undo" on `/r/{slug}/staff` | none; the code itself, current service day only | staff action |
+| E3 | `/api/v1/public/**`, `/api/v1/dishes/{id}/recommendations`, `/api/v1/recommendations/table`, `/api/v1/import-samples/*` | none | guest API |
+| E4 | `/admin/login`, `POST /api/v1/auth/login` | credentials | auth |
+| E5 | `/admin/**` pages and server actions | session cookie `wm_session` | panel |
+| E6 | `/api/v1/restaurants/{slug}/**`, `/pairings/{id}`, `/wines/{id}`, `/imports/**` | session + CSRF + permission | REST API (`handle()`) |
+| E7 | `/admin/accept?token=` and its form | one-time token | invitations (E12) |
+| E8 | `/demo/roi`, `/demo/roi/summary` | none; only when `SHOWCASE_MODE=calculator` | showcase (E22) |
+| E9 | `/api/v1/health` | none | health (E21) |
+| E10 | `/api/v1/metrics` | bearer `METRICS_TOKEN`; 404 when unset | metrics (E21) |
+| E11 | file uploads (CSV, XLSX, PDF up to 10 MB) as server action and `POST /api/v1/imports/{kind}` | session + `import.manage` | import |
+| E12 | operator CLI: `db:seed`, `restaurant:create`, `user:create`, `user:invite` | shell on the host | seeder and operator commands |
+
+**Trust boundaries** (diagram: `threat-model.mmd`)
+
+| TB | Boundary | What crosses it | What must hold |
+|---|---|---|---|
+| TB0 | Internet to proxy | every request | nothing from here is trusted: not headers, not URL state, not ids |
+| TB1 | anonymous to signed-in staff | session cookie, `X-CSRF-Token` | every door (layout, action, API) checks itself (`AGENTS.md` §1.3) |
+| TB2 | proxy to app | forwarded request | TLS, HSTS and query-less access log are the proxy's job (not in this repo) |
+| TB3 | app to database | SQL by MikroORM | every query carries `restaurant_id` (tenant isolation) |
+| TB4 | tenant A to tenant B (inside TB3/TB4) | object ids, slugs | a slug is authorised by membership; an id is resolved only inside that slug's restaurant |
+| TB5 | role to role inside one tenant | team change, invitation | hierarchy of `team-rules.ts` |
+| TB6 | operator shell to production data | CLI | guards refuse protected `NODE_ENV` without an explicit flag |
+| TB7 | guest URL-state to server | query parameters | parsed by `@wine-match/core`, never trusted, never stored |
+
+### 1.2 Assumptions and open questions
+
+Assumptions (stated so they can be wrong):
+
+1. One restaurant group per installation; tenants share one database and one process (row-level isolation by `restaurant_id`, no per-tenant database).
+2. TLS terminates at a reverse proxy that the E11 runbook will define. Nothing in the app enforces HTTPS (only `Secure` cookies by default in production, `env.ts:147` in `packages/core/src/config/env.ts`).
+3. The attacker model that matters is an authenticated user of another tenant and an anonymous scripted client, not a nation state. The operator host and the database are trusted.
+4. There is no e-mail in the product (Q-O2), so no identity is verified outside the invitation link.
+5. Demo data (public password) exists only on trial instances (`ALLOW_DEMO_DATA=true`); a real installation never has it.
+6. The showcase (`/demo`) reads no restaurant data (calculator only); showcase phases F2 to F4 (demo restaurant) are not built.
+7. "Platform admin" (E14) does not exist yet: the platform invitation path is core-only (`inviteOwner`, no HTTP caller).
+
+Open questions for the owner (not blocking this review):
+
+- Q1. Who terminates TLS and sets HSTS (`Strict-Transport-Security`)? I did not add it in `next.config.ts`: a wrong `includeSubDomains` on a shared domain is hard to undo, and over plain http browsers ignore it. Decide in E11.
+- Q2. A full CSP with `script-src` needs a per-request nonce for Next.js inline scripts (dynamic rendering already; cost: a `proxy.ts` nonce plus testing every page). Do you want it (T-16), or is the partial CSP enough until a second tenant exists?
+- Q3. Should the platform (E14) operate with a flag on the user row or a separate table? T-03 shows the invitation row carries `platform` and is judged at use (`invitation-rules.ts:41`); the same discipline is needed for any platform-account design.
+- Q4. Is a per-IP rate limit on login and on guest writes in E21 F3 scope for the first tenant, or only the account lockout that exists today (T-07, T-13)?
+- Q5. Is the invitation without e-mail verification (T-04) acceptable until F4 (reset by e-mail), as recorded in `security-notes.md` §9?
+- Q6. Do you want the access-boundary checks in this branch (`access-boundaries.e2e.test.ts`) required in CI (they already run in the `e2e` job)?
+
+## 2. What can go wrong? STRIDE per component
+
+Each cell names the threat IDs of §4; `-` means I found nothing worth a row.
+
+| Component | S poofing | T ampering | R epudiation | I nformation disclosure | D enial of service | E levation of privilege |
+|---|---|---|---|---|---|---|
+| Guest pages and API (E1, E3) | - | T-11 | - | T-11, T-14 | T-13 | - |
+| Staff action (E2) | T-10 | T-10, T-15 | T-10 | - | T-13 | - |
+| Auth and sessions (E4, E5) | T-05, T-07, T-08 | T-06 | T-09 (trail exists) | T-17 | T-07 | T-09 |
+| Panel and REST API (E5, E6) | T-05 | T-01, T-06 | covered by `auth_event` | T-01, T-17 | T-23 | T-01, T-02 |
+| Team and roles (E6) | - | T-02 | T-02 (events written) | T-01 | - | T-02 |
+| Invitations (E7) | T-03, T-04 | T-03 | T-03 (`invite_*` events) | T-12 | - | T-03 |
+| Showcase (E8) | - | T-21 | - | - | T-21 | - |
+| Health and metrics (E9, E10) | - | - | - | T-18 | T-18 | - |
+| Import (E11) | - | T-19 | - | T-19 | T-19, T-23 | - |
+| Seeder and operator commands (E12) | T-08 | T-20 | - | T-20 | - | T-20 |
+| Browser-facing headers (all) | - | T-15, T-16 | - | T-14 | - | T-16 |
+| Logs and errors | - | - | - | T-12, T-17, T-24 | - | - |
+| Build, dependencies, agent | - | T-22 | - | T-22 | - | T-22 |
+
+## 3. What are we going to do about it?
+
+Responses: **mitigate** (control exists or is added), **accept** (known, decided, written down), **transfer** (to the proxy or the operator), **avoid** (feature does not exist). The table in §4 gives the response per threat; the three access-boundary threats T-01, T-02, T-03 were exercised against a running instance in this review (evidence cards in the run log).
+
+## 4. Threat table
+
+L = likelihood, I = impact (1 low to 3 high). "Verify" names the test or command that fails when the control breaks. Status: `open`, `mitigated`, `fixed` (changed in this branch), `accepted`.
+
+| ID | Threat | STRIDE | Where (files) | L | I | Response | Control today (checked in code) | How we verify | OWASP / CWE |
+|---|---|---|---|---|---|---|---|---|---|
+| T-01 | A valid user of restaurant B reads or changes an object of restaurant A by sending A's object id (pairing, wine, import, membership, invitation) under B's own slug (BOLA/IDOR) | T, I, E | `api/v1/pairings/[id]`, `wines/[id]`, `imports/[ref]`, `restaurants/[slug]/team/[membershipId]`, `invitations/[invitationId]` routes; `packages/core/src/services/**`; `packages/db/src/repositories/*.ts` | 2 | 3 | mitigate (verified, no finding) | route authorises the SLUG by membership (`permissions.ts:37-41`, `api-auth.ts:143`); service resolves slug to `restaurantId` and every repository call carries it (`sommelier-service.ts:45`, `import-service.ts:150-153`, `import.ts:27`, `team-service.ts:75-83`); 35 `restaurant: restaurantId` filters in `packages/db/src/repositories` | `access-boundaries.e2e.test.ts` T-01 (both directions, 11 writes, reads, whole payloads, 12-table digest); mutation: removing the import repository scope turns it red (run log); `repositoryContract` in `core/testing` | A01:2021, CWE-639, CWE-285 |
+| T-02 | Role escalation inside a tenant: a manager grants owner or touches the owner, a Wine Director manages the team, a body smuggles extra fields | E, T | `team-rules.ts:12-60`, `team-service.ts:41-72`, `validators/team/team-change.schema.ts:7` (`strictObject`), `validators/invitations/invitation.schema.ts:6` | 2 | 3 | mitigate (verified, no finding) | hierarchy in pure functions run in the service and again on the locked rows in the repository; `team.manage` re-read from the stored membership, not the session (`team-service.ts:75-83`); unknown body fields refused (strictObject) | `access-boundaries.e2e.test.ts` T-02 (manager and Wine Director rungs, smuggled fields, payload and digest unchanged); prior art `team.e2e.test.ts` (hierarchy, versions); `core/tests/team.test.ts` | A01:2021, CWE-269, CWE-915 |
+| T-03 | Invitation abused: forged role/restaurant/`platform` in the accept form, second use of a link, platform flag inferred from a missing row | S, E | `invitation-rules.ts:15-45`, `invitation-service.ts:95-140`, `accept-actions.ts`, `db/repositories/invitations.ts` | 2 | 3 | mitigate (verified, no finding) | role and restaurant come from the token row, form fields ignored; `platform` is a stored column re-judged at use (`invitation-rules.ts:41`); token stored as SHA-256 only, used by one `update … returning` (`invitations.ts:64-98`); `inviteOwner` has no HTTP caller (grep) | `access-boundaries.e2e.test.ts` T-03 (forged fields, second use, digest); prior art `invitations.e2e.test.ts` (dead links, AC24 two posts) | A01:2021, A04:2021, CWE-639, CWE-840 |
+| T-04 | Invitation without e-mail verification: the inviter or a link thief creates the account on someone else's address and knows the password (pre-hijack) | S | `accept-actions.ts`, `security-notes.md` §9 | 2 | 2 | accept (documented), mitigate in E12 F4 | one-time, 72 h, hash only, revocable, events `invite_created` / `invite_accepted`, `no-referrer` on the page (`next.config.ts:50`) | review of `security-notes.md` §9; no new test | A07:2021, CWE-287 |
+| T-05 | Session theft or fixation: cookie readable by script, sent over http, not rotated | S | `server/auth.ts:15-21`, `core/src/config/env.ts:147`, `accept-actions.ts:39-44` | 2 | 3 | mitigate | `httpOnly`, `sameSite=lax`, `Secure` default in production, `AUTH_COOKIE_SECURE=false` warns at boot (`startup.ts:17`); token random 32 bytes, DB keeps hash (`db/src/auth/tokens.ts:7`); logout deletes the row; old session ended when a new account signs in (`accept-actions.ts:42`) | `security-headers.e2e.test.ts` cookie test (HttpOnly, SameSite, path, expiry; Secure by config `core/tests/env.test.ts:44`); Secure on a real TLS deployment UNVERIFIED (needs E11) | A07:2021, CWE-614, CWE-1004, CWE-384 |
+| T-06 | CSRF on panel API and server actions | T | `api-auth.ts:18-25,133,140`, Next.js server-action Origin check, `staff/actions.ts` | 2 | 2 | mitigate | cross-site `Sec-Fetch-Site` and foreign `Origin` refused on writes; `X-CSRF-Token` compared in constant time (`api-auth.ts:30-33`); cookie `SameSite=Lax` | prior art `invitations.e2e.test.ts` (forged cross-site post), `access-boundaries.e2e.test.ts` writes with token; a request with no `Origin` and no `Sec-Fetch-Site` is allowed by design (non-browser clients), covered by the token | A01:2021, CWE-352 |
+| T-07 | Password guessing and credential stuffing; lockout used to lock a real user out; no per-IP limit | S, D | `core/src/auth/auth-service.ts:30-61`, `db/repositories/auth.ts:30` | 2 | 2 | mitigate partly; per-IP limit planned E21 F3 | per-account lockout (`registerFailedLogin`), same answer and time for unknown user, wrong password and locked account (dummy hash, `auth-service.ts:36-43`), scrypt, min 12 chars | `core/tests/auth.test.ts` and `core/src/testing/auth-contract.ts`; throttling under load and lockout-as-DoS NOT exercised | A07:2021, CWE-307, CWE-204 |
+| T-08 | Demo accounts with a public password on a real installation | S, E | `db/seeders/seed-guard.ts:35-45`, `DemoSeeder.ts:4`, `db/scripts/*` | 1 | 3 | mitigate | seeder refuses protected `NODE_ENV` without `ALLOW_DEMO_DATA=true`; `NODE_ENV` unset warns and runs (`seed-guard.ts:35`; see Q in T-20) | `db/tests/seed-guard.integration.test.ts`; on this instance the seeder warned about unset `NODE_ENV` (observed) | A07:2021, CWE-1392 |
+| T-09 | A deactivated member keeps access with an open session | E | `auth-service.ts:74`, `team-service.ts:75-83`, `permissions.ts:37` | 2 | 2 | mitigate | memberships re-read on every request; team commands re-check `active` | prior art `team.e2e.test.ts` (session loses access at once, regains it) | A01:2021, CWE-613 |
+| T-10 | Public staff action abused: anyone who guesses or sees a code marks it "ordered" or undoes it; clickjacking of the button | T, S, R | `(guest)/r/[slug]/staff/actions.ts:20-70`, `recommendation-code-service.ts` | 2 | 1 | accept (approved Q8 of E09), frame-ancestors added | only a code of this restaurant's current service day changes; cross-site refused; redirect built from validated parts; framing refused since this branch (T-15) | `staff-code.e2e.test.ts` (prior art), `security-headers.e2e.test.ts` | A01:2021, CWE-1021 |
+| T-11 | Guest URL-state injection: script in `lang`/`sid`, `__proto__`/`constructor` keys, oversized values; guest health data in logs | T, I | `core` `parseGuestPrefs`, `server/guest-page.ts`, `proxy.ts`, `request-errors.ts:6-32`, `docs/OPERATIONS.md:21` | 2 | 2 | mitigate | keys through `Map`/`Object.fromEntries` (lesson 2026-10-15); app log lines carry route pattern, never query (`api-auth.ts:89-91`); `onRequestError` drops query | probe of 7 hostile queries on this instance: all 200, no reflected script (`dast-coverage.md`); proxy log without query is the operator's duty, UNVERIFIED | A03:2021, CWE-79, CWE-1321, CWE-532 |
+| T-12 | One-time token leaks through Referer, cache, proxy access log or the login `next` parameter | I | `next.config.ts:49-50`, `accept/page.tsx`, `auth-actions.ts`, `docs/OPERATIONS.md:21` | 2 | 2 | mitigate, transfer log rule to proxy | `Referrer-Policy: no-referrer` and `no-store` on `/admin/accept`; login does not carry the token in `next` | `security-headers.e2e.test.ts` (invitation page headers); proxy log: UNVERIFIED (not in repo) | A02:2021, CWE-598 |
+| T-13 | Guests flood writes that are open by design (usage events, code issue, staff action); no rate limit | D | `usage-events.ts`, `recommendation-code.ts`, `staff/actions.ts` | 2 | 1 | accept now, E21 F3 | failures go to `logger` only; writes are small rows; no limit exists UNVERIFIED under load | not exercised; E21 F3 owns limits | A04:2021, CWE-770 |
+| T-14 | Framework banner `X-Powered-By: Next.js` helps a scanner choose advisories | I | `packages/app/next.config.ts:11` | 3 | 1 | **fixed** | `poweredByHeader: false` | `security-headers.e2e.test.ts` (11 kinds of answer, red before, green after) | A05:2021, CWE-200 |
+| T-15 | Clickjacking: guest and showcase pages were framable (only `/admin` had `X-Frame-Options`) | T, S | `next.config.ts:31-39` | 2 | 2 | **fixed** | `X-Frame-Options: DENY` and CSP `frame-ancestors 'none'` on every path; also `base-uri`, `object-src`, `form-action 'self'`, `Permissions-Policy` | `security-headers.e2e.test.ts` | A05:2021, CWE-1021 |
+| T-16 | No `script-src`: a future XSS would run unchecked | T, E | `next.config.ts` (comment at the headers) | 1 | 3 | open (Q2) | React escapes by default; `dangerouslySetInnerHTML`, `eval`, `new Function`, `child_process`, `innerHTML` absent from `app`, `core`, `db`, `ui` source (grep 2026-11-07); no third-party script or font | grep above; `check:design`; nonce CSP not built | A03:2021, CWE-79, CWE-693 |
+| T-17 | Error answers leak stack, paths, SQL, connection data; malformed percent-encoding gives a generic 500 (inflates 5xx ratio) | I, D | `api-auth.ts:75-100`, `scrub-error.ts`, `request-errors.ts`, `instrumentation.ts` | 2 | 2 | mitigate; 500 on bad path accepted (framework) | API failures: generic body, one log line with redacted `err`; pages: generic Next error | `security-headers.e2e.test.ts` error test (7 failing requests), `npm run boot:check`; observed `GET /r/%E0%A4%A` returns 500 "Internal Server Error" with no detail | A05:2021, CWE-209, CWE-755 |
+| T-18 | Metrics or health expose installation details | I | `api/v1/metrics/route.ts:25-33`, `health/route.ts`, `server/health.ts` | 1 | 2 | mitigate | metrics 404 when unset, 401 without bearer, constant-time compare of hashes; health body has no host or error | `security-headers.e2e.test.ts`, `observability.e2e.test.ts`, `health.e2e.test.ts` | A05:2021, CWE-200 |
+| T-19 | Hostile import file: decompression bomb, huge sheet, formula or script text, parser crash | D, T | `db/src/import/parse-file.ts:26-51`, `readXlsx` (fflate, unpack limit), `unpdf` | 2 | 2 | mitigate partly | 10 MB limit, row limit, own XLSX reader with unpack limit and no XML parser (`db/AGENTS.md`); PDF parser is third-party | `db/tests/import-parsers.test.ts`; adversarial files NOT fuzzed in this review; no CSV export yet (E20 F3 will need formula-injection escaping) | A04:2021, CWE-409, CWE-1236 |
+| T-20 | Operator commands run against production: demo seed, invitation link printed to a shared log | E, I | `seed-guard.ts:35-64`, `scripts/user-invite.ts`, `restaurant-bootstrap.ts` | 1 | 3 | mitigate | guards refuse protected `NODE_ENV` without `ALLOW_DEMO_DATA`; `user:invite` prints only the link on stdout, non-domain errors without text | `db/tests/invite-guard.test.ts`, `user-invite.integration.test.ts`; unset `NODE_ENV` is a warning, not a refusal (observed 2026-11-07): consider fail-closed | A05:2021, CWE-1188 |
+| T-21 | Showcase abused: write attempts, cache of figures, data exposure through the calculator | T, D | `server/showcase.ts:15-25`, `(showcase)/**`, `next.config.ts:47` | 1 | 1 | mitigate | gate fails closed (unset is `off`); reads no restaurant data; `no-store`, `noindex`; log line carries page name only | `access-boundaries.e2e.test.ts` T-03b (write methods, no cookie, digest unchanged), `showcase.e2e.test.ts` | A04:2021, CWE-770 |
+| T-22 | Supply chain and agent environment (dependencies, skills, MCP, hooks, secrets in agent sessions) | T, I, E | `security-notes.md`, `.claude/`, `scripts/audit-gate.mjs`, `.github/workflows/*` | 2 | 3 | see `security-notes.md` | not repeated here; this review re-ran `audit:gate` (0 high, 0 critical), `secrets:scan` (21 matches, all allowlisted) and `lint` | those three commands; CodeQL runs in CI only, not run locally | A06:2021, A08:2021, CWE-1357 |
+| T-23 | Large request bodies are buffered before the size check | D | `api-auth.ts:166-168` (`req.text()` then length check) | 2 | 1 | accept | limit applied after read (2 MB limit, 11 MB for uploads); the proxy should cap bodies | 3 MB body answered `payload_too_large` (`security-headers.e2e.test.ts`); memory pressure under many large bodies NOT measured | A04:2021, CWE-770 |
+| T-24 | Secrets or personal data in logs and error reports | I | `core/src/logging/redact.ts:25-60`, `request-errors.ts`, `scrub-error.ts`, `api-auth.ts:89-91` | 2 | 2 | mitigate | redaction of values and keys, query dropped from error reports, route pattern instead of URL | `core/tests/logging.test.ts` redaction, `observability.e2e.test.ts` (log line without query); a full log read for tokens on a live run NOT done | A09:2021, CWE-532 |
+
+## 5. Did we do a good job? (how this model gets checked and kept alive)
+
+- **Three checks for every access boundary** (positive control for both accounts, refused read, refused write, state after): rule added to `.ai/docs/engineering-standards.md` §"Access boundaries". `access-boundaries.e2e.test.ts` is the template.
+- **Mutation proof, not only green**: for T-01 one scoping filter was removed and the test went red (run log). A green test that cannot go red proves nothing.
+- **Review triggers**: a new route with an id in the path, a new role or permission, a new public write, a new upload type, a new operator command, a new env var that opens a feature. Each adds or edits a row here in the same PR.
+- **What this review did not cover** is listed in `dast-coverage.md` (not repeated): no CodeQL run, no real TLS, no load or rate-limit test, no browser-side checks of CSP, no fuzzing of import files, no review of the E11 deployment (not built), no penetration of the proxy.
+- Next review: when E11 (hosting) and E14 (platform admin) land, and before the second tenant is onboarded.
