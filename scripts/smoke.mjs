@@ -5,13 +5,17 @@
  *   npm run smoke                     (default http://localhost:3000, restaurant "halka")
  *   npm run smoke -- http://localhost:3101 halka
  *   npm run smoke -- --production https://wine.example.com my-restaurant
- *   npm run smoke -- --showcase http://localhost:3101        (the /demo pages; the app must run with SHOWCASE_MODE=calculator)
+ *   npm run smoke -- --showcase http://localhost:3101        (the /demo pages; the app must run with SHOWCASE_MODE=calculator or demo)
  * Works against both data sources; ids are discovered through the API, nothing is hard-coded.
  *
  * The FULL run signs in with a demo account and CHANGES data (it switches a wine's `active` flag back and forth and creates
  * cancelled imports): run it against a trial instance, never a real installation. `--production` is the check for a real
  * installation: GET requests only, no sign-in, nothing that depends on the menu's content (spec 2026-10-15-production-deployment, R6).
  * Both modes send `X-Wine-Match-Synthetic: 1` on every request (R7).
+ *
+ * On an instance with SHOWCASE_MODE=demo use `--showcase` ONLY (GET only, no sign-in). The FULL run signs in with a demo account and fails
+ * there BY DESIGN: the demo instance loads no accounts and refuses sign-in (spec 2026-11-04-sales-demo-and-roi-calculator, R9). `--production`
+ * also expects a real restaurant and `/admin/login` with a form, so it fails on a demo instance as well.
  */
 import { syntheticFetch } from './lib/synthetic-fetch.mjs';
 import { visibleText } from './lib/visible-text.mjs';

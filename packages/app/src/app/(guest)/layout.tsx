@@ -7,7 +7,11 @@ import './guest.css';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
-  return { title: { default: 'Wine Match', template: '%s | Wine Match' }, description: t.guest.meta.description };
+  // the demo instance is for people who got a link, on all its pages, not only under /demo (E22 R11); read per request, never at build time
+  return {
+    title: { default: 'Wine Match', template: '%s | Wine Match' }, description: t.guest.meta.description,
+    ...(env().showcaseMode === 'demo' ? { robots: { index: false, follow: false } } : {})
+  };
 }
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: '#3b0f1c' };

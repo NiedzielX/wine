@@ -217,6 +217,13 @@ describe('SHOWCASE_MODE (spec 2026-11-04-sales-demo-and-roi-calculator, R1, AC1)
     expect(fails({ SHOWCASE_MODE: 'demo', ...postgres })).toHaveLength(2);
   });
 
+  it('demo refuses a DEMO_RESTAURANT_SLUG that is not in the demo data, and accepts the one that is', () => {
+    const demo = { SHOWCASE_MODE: 'demo', ALLOW_DEMO_DATA: 'true' };
+    expect(fails({ ...demo, DEMO_RESTAURANT_SLUG: 'pilot' })).toEqual([expect.stringMatching(/^DEMO_RESTAURANT_SLUG: "pilot" is not in the demo data\. With SHOWCASE_MODE=demo it must be "halka"/)]);
+    expect(parseEnv({ ...demo, DEMO_RESTAURANT_SLUG: 'halka' }).demoRestaurantSlug).toBe('halka');
+    expect(parseEnv({ SHOWCASE_MODE: 'calculator', DEMO_RESTAURANT_SLUG: 'pilot' }).demoRestaurantSlug).toBe('pilot');
+  });
+
   it('demo in production still obeys the https rule of PUBLIC_BASE_URL and the memory rule', () => {
     const demo = { SHOWCASE_MODE: 'demo', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true' };
     expect(parseEnv({ ...demo, ...production }).showcaseMode).toBe('demo');

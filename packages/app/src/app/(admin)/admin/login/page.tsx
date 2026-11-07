@@ -56,7 +56,7 @@ export default async function LoginPage({ searchParams }: Props) {
             {readOnly ? (
               <div className="grid gap-4">
                 <Alert role="status"><AlertDescription>{message}</AlertDescription></Alert>
-                <Link href="/demo" className="text-sm font-medium underline underline-offset-4">{l.showcaseBack}</Link>
+                <Link href={`/demo?lang=${locale}`} className="text-sm font-medium underline underline-offset-4">{l.showcaseBack}</Link>
               </div>
             ) : (
             <form action={login} className="grid gap-4">

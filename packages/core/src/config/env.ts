@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RESTAURANT as DEMO_RESTAURANT } from '../demo/halka';
 import type { LogLevel } from '../logging/logger';
 
 /**
@@ -132,6 +133,10 @@ export function parseEnv(raw: Record<string, string | undefined>): AppEnv {
   } else if (showcase === 'demo') {
     if (dataSource !== 'memory') issues.push('SHOWCASE_MODE=demo: requires DATA_SOURCE=memory. The demo is a separate instance with invented data and must never read or write real restaurants.');
     if (e.ALLOW_DEMO_DATA !== 'true') issues.push('SHOWCASE_MODE=demo: requires ALLOW_DEMO_DATA=true (the demo serves the invented restaurant Halka from memory).');
+    // the guide and every link in it name this restaurant: a slug that is not in the demo data would send every step to a 404 page
+    if (e.DEMO_RESTAURANT_SLUG !== undefined && e.DEMO_RESTAURANT_SLUG !== DEMO_RESTAURANT.slug) {
+      issues.push(`DEMO_RESTAURANT_SLUG: "${e.DEMO_RESTAURANT_SLUG}" is not in the demo data. With SHOWCASE_MODE=demo it must be "${DEMO_RESTAURANT.slug}" (or leave it unset).`);
+    }
   }
   if (issues.length) throw new ConfigError(issues);
 

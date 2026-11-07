@@ -35,8 +35,6 @@ const speculative = (h: HeaderReader) => /prefetch|prerender/i.test(`${h.get('se
  * preview, not a client without a user agent. A soft navigation with JavaScript (`RSC: 1`) is a page view.
  */
 export function shouldRecord(h: HeaderReader): boolean {
-  // the public demo instance records no guest events at all (spec 2026-11-04-sales-demo-and-roi-calculator, R9): nothing may push its synthetic data out of memory
-  if (env().showcaseMode === 'demo') return false;
   if (h.get(PREFETCH_HEADER) === '1' || h.get('next-router-prefetch') !== null || speculative(h)) return false;
   if (h.get(SYNTHETIC_TRAFFIC_HEADER) === '1') return false;
   const ua = (h.get('user-agent') ?? '').trim().toLowerCase();
@@ -56,6 +54,9 @@ export async function trackUsage(
   session: GuestSessionRef,
   events: UsageEvent[]
 ): Promise<void> {
+  // the public demo instance records no guest events at all (spec 2026-11-04-sales-demo-and-roi-calculator, R9): nothing may push its
+  // synthetic data out of memory. Only events: recommendation codes are still issued there (`issueCodeForPage` uses `shouldRecord` alone).
+  if (env().showcaseMode === 'demo') return;
   if (!shouldRecord(await headers())) return;
   if (!events.length && !(session.isNew && session.source !== 'staff')) return;
   const service = services.usageEventService;

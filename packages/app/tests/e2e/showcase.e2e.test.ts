@@ -22,6 +22,28 @@ const get = async (path: string, init?: RequestInit, root: string = base()) => {
 const hrefs = (html: string) => [...html.matchAll(/\shref="([^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, '&'));
 /** What the public demo instance runs with: memory, the flag that allows it, a public https address, production mode. */
 const demoEnv = { NODE_ENV: 'production', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true', SHOWCASE_MODE: 'demo', PUBLIC_BASE_URL: 'https://demo.wine-match.example.com', AUTH_COOKIE_SECURE: 'false', LOG_LEVEL: 'info' };
+const PHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+/** A guest's request: a phone's user agent (an empty or tool user agent is not a guest and gets no code), redirects not followed. */
+const guestGet = async (root: string, path: string) => {
+  const res = await fetch(`${root}${path}`, { headers: { 'user-agent': PHONE, 'accept-language': 'en' }, redirect: 'manual' });
+  return { res, html: (await res.text()).replace(/<!-- -->/g, '').replace(/&amp;/g, '&') };
+};
+/**
+ * A server action sent the way a browser without JavaScript sends its form: multipart POST to a page that carries the action, with the
+ * action's id as the field name `$ACTION_ID_<id>`. The id comes from the build's own manifest, so no page has to render the form
+ * (the sign-in page of a demo instance has none).
+ */
+async function invokeAction(root: string, path: string, exportedName: string, fields: Record<string, string>) {
+  const manifest = JSON.parse(readFileSync(`${appDir}/.next/server/server-reference-manifest.json`, 'utf8')) as { node: Record<string, { exportedName: string }> };
+  const id = Object.entries(manifest.node).find(([, v]) => v.exportedName === exportedName)?.[0];
+  if (!id) throw new Error(`no server action named ${exportedName} in the build`);
+  const form = new FormData();
+  form.set(`$ACTION_ID_${id}`, '');
+  for (const [k, v] of Object.entries(fields)) form.set(k, v);
+  const res = await fetch(`${root}${path}`, { method: 'POST', body: form, redirect: 'manual', headers: { 'user-agent': PHONE, origin: root } });
+  await res.arrayBuffer();
+  return res;
+}
 const NO_AI = /\bAI\b|sztuczn/i;
 const DEMO_PASSWORD = 'demo-halka-2026';
 
@@ -184,7 +206,7 @@ describe('the showcase in demo mode (F2)', () => {
       expect(page.res.status).toBe(200);
       expect(textOf(page.html)).toContain('read-only');
       expect(page.html).not.toContain('type="password"');
-      expect(page.html).toContain('href="/demo"');
+      expect(hrefs(page.html)).toContain('/demo?lang=en');
       for (const path of ['/demo', '/demo/tour', '/admin/login', '/r/halka']) {
         const { html } = await get(path, undefined, demo.url);
         expect(html, path).not.toContain(DEMO_PASSWORD);
@@ -195,6 +217,68 @@ describe('the showcase in demo mode (F2)', () => {
       await panel.arrayBuffer();
       expect([302, 307, 308]).toContain(panel.status);
       expect(panel.headers.get('location')).toContain('/admin/login');
+    } finally {
+      await demo.stop();
+    }
+  });
+
+  it('still issues recommendation codes and lets the waiter confirm one, while every guest page stays cookie-free', async () => {
+    const demo = await startBuiltApp({ cwd: appDir, readyPath: '/demo', logFile: `${appDir}/test-results/e2e-showcase-demo-codes.log`, env: demoEnv });
+    try {
+      const hub = await guestGet(demo.url, '/demo?lang=en');
+      const dishHref = hrefs(hub.html).find((h) => h.includes('/wines'))!;
+      const dishId = /\/dish\/([^/]+)\/wines/.exec(dishHref)![1];
+      const pages = [dishHref, '/r/halka?lang=en', '/r/halka/menu?lang=en', '/r/halka/table?lang=en', '/r/halka/staff/table?lang=en', '/r/halka/how-it-works?lang=en'];
+      const wines = await guestGet(demo.url, dishHref);
+      const wineHref = hrefs(wines.html).find((h) => h.startsWith('/r/halka/wine/'))!;
+      pages.push(wineHref);
+      for (const path of pages) {
+        const page = await guestGet(demo.url, path);
+        expect(page.res.status, path).toBe(200);
+        expect(page.res.headers.getSetCookie(), path).toEqual([]);
+        expect(page.html, path).toContain('<meta name="robots" content="noindex, nofollow"/>');
+      }
+      // G7 → G8 the way a browser without JavaScript does it: the code is on the page (R9: the one write the demo keeps)
+      const wineId = /\/wine\/([^/?]+)/.exec(wineHref)![1];
+      const selected = await guestGet(demo.url, `/r/halka/selected/${wineId}?dish=${dishId}&serving=bottle&lang=en`);
+      expect(selected.res.status).toBe(200);
+      const code = /data-recommendation-code="([A-Z0-9]{3,4})"/.exec(selected.html)?.[1];
+      expect(code).toBeTruthy();
+      expect(textOf(selected.html)).not.toContain('Code unavailable');
+      expect(selected.res.headers.getSetCookie()).toEqual([]);
+
+      // the waiter confirms it (the one public server action): a redirect back with the result, no cookie
+      const staff = await guestGet(demo.url, `/r/halka/staff?code=${code}&lang=en`);
+      expect(staff.html).toContain('name="intent" value="confirm"');
+      const confirmed = await invokeAction(demo.url, '/r/halka/staff', 'markCode', { slug: 'halka', code: code!, intent: 'confirm', lang: 'en' });
+      expect(confirmed.status).toBe(303);
+      expect(confirmed.headers.get('location')).toContain('marked=confirmed');
+      expect(confirmed.headers.getSetCookie()).toEqual([]);
+      const unknown = await invokeAction(demo.url, '/r/halka/staff', 'markCode', { slug: 'halka', code: 'ZZZ', intent: 'confirm', lang: 'en' });
+      expect(unknown.headers.get('location')).toContain('codeError=not_found');
+    } finally {
+      await demo.stop();
+    }
+  });
+
+  it('refuses the sign-in form action and an invitation in a built demo instance, and sets no session', async () => {
+    const demo = await startBuiltApp({ cwd: appDir, readyPath: '/demo', logFile: `${appDir}/test-results/e2e-showcase-demo-actions.log`, env: demoEnv });
+    try {
+      const login = await invokeAction(demo.url, '/admin/login', 'login', { email: 'marta@halka.pl', password: DEMO_PASSWORD });
+      expect(login.status).toBe(303);
+      expect(login.headers.get('location')).toBe('/admin/login?error=showcase_read_only');
+      expect(login.headers.getSetCookie()).toEqual([]);
+
+      // no invitation can exist (there is no one to send it), so a made-up token creates nothing and opens no session
+      const accept = await invokeAction(demo.url, '/admin/accept', 'acceptInvitation', { token: 'x'.repeat(43), name: 'Eve', password: 'a-long-enough-password' });
+      expect(accept.status).toBeLessThan(500);
+      expect(accept.headers.getSetCookie()).toEqual([]);
+      const accepted = await guestGet(demo.url, `/admin/accept?token=${'x'.repeat(43)}`);
+      expect(accepted.res.status).toBeLessThan(500);
+      expect(accepted.html).not.toContain('type="password"');
+      const after = await fetch(`${demo.url}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'eve@example.com', password: 'a-long-enough-password' }) });
+      await after.arrayBuffer();
+      expect(after.status).toBe(403);
     } finally {
       await demo.stop();
     }

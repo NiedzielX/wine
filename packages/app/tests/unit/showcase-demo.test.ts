@@ -15,6 +15,7 @@ import WinesPage from '@/app/(guest)/r/[slug]/dish/[dishId]/wines/page';
 import StaffTablePage from '@/app/(guest)/r/[slug]/staff/table/page';
 import { POST as loginPost } from '@/app/api/v1/auth/login/route';
 import { createRequestScope } from '@/server/container';
+import { issueCodeForPage } from '@/server/recommendation-code';
 import { hubSteps, pickShowcaseDish } from '@/server/showcase-hub';
 import { shouldRecord } from '@/server/usage-events';
 import { en } from '@/i18n/en';
@@ -101,20 +102,28 @@ describe('DM0 the guide (R6, AC9)', () => {
     expect(text).toContain('nie oznaczają żadnego partnerstwa');
   });
 
-  it('every link of the guide answers 200 (the pages render), and the dish of step 1 has an approved pairing', async () => {
-    const html = await render(DemoHubPage);
-    const [guest, table, waiter] = hrefs(html).filter((h) => h.startsWith('/r/'));
+  it('every link of the guide is rendered by the page it points at (no 404) with that page\'s own content, and step 1 shows the seal', async () => {
+    const guide = hrefs(await render(DemoHubPage)).filter((h) => h.startsWith('/r/'));
+    expect(guide.map((h) => h.replace(/\/dish\/[^/]+\//, '/dish/{id}/'))).toEqual(['/r/halka/dish/{id}/wines?lang=en', '/r/halka/table?lang=en', '/r/halka/staff/table?lang=en']);
+    const [guest, table, waiter] = guide;
     const c = (await createRequestScope()).cradle;
     const menu = (await c.catalogService.publishedMenu('halka'))!;
     const dishId = /\/dish\/([^/]+)\/wines/.exec(guest)![1];
     expect(menu.dishes.some((d) => d.id === dishId)).toBe(true);
     expect((await c.catalogService.pairingCoverage(menu.restaurant.id)).get(dishId)).toMatchObject({ approved: expect.any(Number), hasPrimary: true });
+    const search = (href: string) => Promise.resolve(Object.fromEntries(new URL(href, 'http://x').searchParams));
     const q = { slug: 'halka' };
-    const wines = await render(WinesPage, { params: Promise.resolve({ ...q, dishId }), searchParams: Promise.resolve({ lang: 'en' }) });
-    expect(visibleText(wines)).toContain('Sommelier’s pairing');
-    expect(await render(TablePage, { params: Promise.resolve(q), searchParams: Promise.resolve({ lang: 'en' }) })).toContain('id="table-form"');
-    expect(await render(StaffTablePage, { params: Promise.resolve(q), searchParams: Promise.resolve({ lang: 'en' }) })).toContain('<main');
-    expect([guest, table, waiter]).toHaveLength(3);
+    // a missing page would throw NEXT_NOT_FOUND from `render`; each page must show its own heading and, for step 1, the sommelier's seal
+    const wines = visibleText(await render(WinesPage, { params: Promise.resolve({ ...q, dishId }), searchParams: search(guest) }));
+    expect(wines).toContain('Sommelier’s pairing');
+    expect(wines).toContain(menu.dishes.find((d) => d.id === dishId)!.name);
+    const tableHtml = await render(TablePage, { params: Promise.resolve(q), searchParams: search(table) });
+    expect(tableHtml).toContain('id="table-form"');
+    expect(visibleText(tableHtml)).toContain('Find a bottle for the table');
+    const staff = await render(StaffTablePage, { params: Promise.resolve(q), searchParams: search(waiter) });
+    expect(staff).toContain('<main');
+    expect(visibleText(staff)).toContain('Whole table');
+    expect(visibleText(staff)).toContain('Show the bottle');
   });
 
   it('a new step is one entry: with the panel and KPI pages ready, every step is a link', () => {
@@ -230,7 +239,8 @@ describe('read-only (R9, Q5, AC13)', () => {
       expect(html).not.toContain('type="password"');
       expect(html).not.toContain('name="email"');
       expect(html).not.toContain(DEMO_PASSWORD);
-      expect(html).toContain('href="/demo"');
+      // the way back carries the language (R6), nothing else
+      expect(hrefs(html)).toContain(`/demo?lang=${lang}`);
       expect(visibleText(html)).toContain(lang === 'en' ? 'read-only' : 'tylko do odczytu');
       expect(visibleText(html)).not.toMatch(NO_AI);
     }
@@ -240,12 +250,25 @@ describe('read-only (R9, Q5, AC13)', () => {
     for (const page of [DemoHubPage, TourPage, LoginPage]) expect(await render(page)).not.toContain(DEMO_PASSWORD);
   });
 
-  it('records no guest event: the filter says no, and three page views leave the table of interactions as it was', async () => {
+  it('still issues recommendation codes (the one allowed write, bounded in memory) while it records no session or event (R9)', async () => {
+    next().headers.clear();
+    next().headers.set('user-agent', 'Mozilla/5.0 (iPhone) Safari');
+    const c = (await createRequestScope()).cradle;
+    const menu = (await c.catalogService.publishedMenu('halka'))!;
+    const dish = menu.dishes.find((d) => d.name === 'Duck breast')!.id;
+    const wine = (await c.recommendationService.forDish('halka', dish, { serving: 'any', styles: [], maxPrice: null, weight: 'any', mood: 'any' }))!.result.items[0].wine.id;
+    const session = c.usageEventService.session({ sid: '1d0f5a2e-3b4c-4d5e-9f60-718293a4b5c6' }, 'link');
+    const before = (await c.guestInteractionRepository.listBySession(menu.restaurant.id, session.id)).length;
+    const issued = await issueCodeForPage(c, menu.restaurant, { session, source: 'guest', wineId: wine, serving: 'bottle', dishIds: [dish], tier: null });
+    expect(issued?.code).toMatch(/^[A-Z0-9]{3,}$/);
+    expect((await c.guestInteractionRepository.listBySession(menu.restaurant.id, session.id)).length).toBe(before);
+    expect(shouldRecord({ get: (n: string) => (n.toLowerCase() === 'user-agent' ? 'Mozilla/5.0 (iPhone) Safari' : null) })).toBe(true);
+  });
+
+  it('records no guest event: page views of the menu, the dish, the table and the waiter leave the table of interactions as it was', async () => {
     const chrome = { get: (n: string) => ({ 'user-agent': 'Mozilla/5.0 (iPhone) Safari' })[n.toLowerCase()] ?? null };
-    expect(shouldRecord(chrome)).toBe(false);
-    mode.value = 'calculator';
+    // the request filter is about the request; `trackUsage` is what switches events off in demo (below)
     expect(shouldRecord(chrome)).toBe(true);
-    mode.value = 'demo';
 
     const c = (await createRequestScope()).cradle;
     const menu = (await c.catalogService.publishedMenu('halka'))!;
@@ -253,6 +276,11 @@ describe('read-only (R9, Q5, AC13)', () => {
     const count = async () => (await c.guestInteractionRepository.listBySession(menu.restaurant.id, sid)).length;
     const before = await count();
     for (let i = 0; i < 3; i++) await render(MenuPage, { params: Promise.resolve({ slug: 'halka' }), searchParams: Promise.resolve({ sid }) });
+    // the pages that record the most on a normal instance: the dish page, the table page and the staff table result
+    const dishId = menu.dishes.find((d) => d.name === 'Duck breast')!.id;
+    await render(WinesPage, { params: Promise.resolve({ slug: 'halka', dishId }), searchParams: Promise.resolve({ sid }) });
+    await render(TablePage, { params: Promise.resolve({ slug: 'halka' }), searchParams: Promise.resolve({ sid }) });
+    await render(StaffTablePage, { params: Promise.resolve({ slug: 'halka' }), searchParams: Promise.resolve({ sid }) });
     await Promise.all(next().afterTasks.splice(0));
     expect(await count()).toBe(before);
     expect(before).toBe(0);
