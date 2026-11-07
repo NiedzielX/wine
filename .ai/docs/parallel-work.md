@@ -108,3 +108,39 @@ Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktu
 3. Pytania partiami, review w stałych blokach.
 4. Po zgodzie właściciela: nocny automatyczny review (§5).
 5. Wszystkie zadania implementacyjne z kryteriami akceptacji mają scenariusze `.ai/qa` (reguła z lekcji 12), więc automatyczne sprawdzenie zastępuje część ręcznego QA.
+
+## 8. Znaczenie etykiet PR (ściągawka z lekcji 17)
+
+Etykieta zapisuje decyzję z jednej chwili; przed działaniem sprawdź historię PR-a (kto mówił ostatni, nowe commity, CI): `.ai/docs/review-protocol.md` §3. Pełna taksonomia i bramka QA: `SDLC.md`. W naszym układzie wyjście z review nazywa się „ready-for-owner”, a jego etykietą jest istniejące `merge-queue`. Ustawia je tylko sesja nadrzędna po spełnieniu §8 protokołu; **nie oznacza zgody na merge** (ta pada w rozmowie).
+
+| Etykieta | Kto ustawia | Znaczy | Na kogo czeka | Uwaga |
+|---|---|---|---|---|
+| `review` | sesja nadrzędna po otwarciu PR | gotowy do review, bez decyzji | na nas (recenzent) albo, po komentarzu, na autora | może znaczyć „nikt nie patrzył” albo „zrecenzowane, czeka na odpowiedź”: sprawdź historię |
+| `changes-requested` | recenzent/sesja nadrzędna | są blokery | na autora; po nowych commitach na nas | filtr kolejki go nie podejmuje (protokół §4) |
+| `merge-queue` (ready-for-owner) | sesja nadrzędna | review i bramki spełnione, czeka decyzja właściciela | na właściciela | tylko dla obecnego head; nowy commit unieważnia |
+| `needs-qa` / `qa-approved` | sesja nadrzędna / tester | zmiana widoczna dla użytkownika wymaga QA; QA zaliczone | na QA / na właściciela | `qa-approved` jest przypięte do commitu (`QA head: <sha>`), nowy push je starzeje; `skip-qa` dla zmian bez UI |
+| `qa-failed` | tester | QA nie przeszło | na autora | twarda blokada |
+| `in-progress` | sesja pracująca | ktoś nad PR-em pracuje teraz | na tę sesję | review zbiorcze go pomija; nie przejmuj bez uzgodnienia |
+| `ci-monitoring` | sesja pracująca | czeka na CI | na CI | po zakończeniu zdjąć |
+| `blocked` / `do-not-merge` | **tylko właściciel** (ustawia i zdejmuje) | ręczny hamulec | na właściciela | agent ich nie dotyka; zatrzymują przepływ wszędzie |
+| `risk-low` | sesja nadrzędna | docs, testy, literówki | | dowód: zielone CI, jedno review |
+| `risk-medium` (domyślny przy braku) | sesja nadrzędna | zwykła zmiana w jednym obszarze z testami | | dowód: testy, jedno review w świeżym kontekście |
+| `risk-high` | sesja nadrzędna; przy konflikcie sygnałów wyższe | uprawnienia, sesje, zakres danych, pieniądze, migracje, kontrakty | | dowody z `SDLC.md` + co najmniej dwa review w świeżym kontekście + brak self-QA |
+
+Wszystkie powyższe etykiety istnieją już w repozytorium (sprawdzone `gh api repos/NiedzielX/wine/labels`, 2026-11-07). Agent nie tworzy etykiet. Gdyby któraś zniknęła, polecenia dla właściciela lub koordynatora (kolory jak obecnie):
+
+```sh
+gh label create review --color 0366d6
+gh label create changes-requested --color b60205
+gh label create merge-queue --color 0e8a16 --description "ready-for-owner: czeka na decyzję właściciela, nie zgoda na merge"
+gh label create needs-qa --color fbca04
+gh label create qa-approved --color 0e8a16
+gh label create qa-failed --color b60205
+gh label create in-progress --color c5def5
+gh label create ci-monitoring --color d4c5f9
+gh label create blocked --color b60205
+gh label create do-not-merge --color b60205
+gh label create risk-low --color 0e8a16
+gh label create risk-medium --color fbca04
+gh label create risk-high --color b60205
+```
