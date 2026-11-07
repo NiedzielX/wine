@@ -3,6 +3,10 @@
 # dangerous places (SQL, paths, HTML), which an agent reading one file can miss. The result appears as a check and as
 # annotations on the pull request; whether it BLOCKS a merge is a branch protection rule (a repository setting that
 # the maintainer sets: add "CodeQL / analyze" to the required checks once the first runs are clean).
+# `security-extended` (added 2026-11-07, lesson 16 / docs/security/threat-model.md): the broader query suite, on top
+# of the default one — more coverage (e.g. more injection and crypto patterns), more false positives. A new alert it
+# raises is reported and reviewed, never mass-suppressed; a genuine false positive gets a dismissal with a reason on
+# the specific alert, not a change to this file.
 name: CodeQL
 
 on:
@@ -34,6 +38,7 @@ jobs:
         with:
           languages: javascript-typescript
           build-mode: none
+          queries: security-extended
       - uses: github/codeql-action/analyze@v4
         with:
           category: /language:javascript-typescript

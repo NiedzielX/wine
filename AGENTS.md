@@ -26,6 +26,7 @@ Czytaj tyle, ile wymaga zadanie; §1.2–§1.6 (pełne: `.ai/docs/architecture-r
 | planowanie pracy równoległej, kolejność zadań | `.ai/docs/parallel-work.md` |
 | naprawa błędu, zgłoszenie błędu, weryfikacja poprawki | `.ai/docs/fix-verification.md` |
 | agent, skille, MCP, sekrety | `security-notes.md` |
+| bezpieczeństwo produktu, granice dostępu, nowa trasa z id w ścieżce | `docs/security/threat-model.md`, `.ai/docs/engineering-standards.md` §10 |
 <!-- routing:end -->
 
 ## 1. Projekt i architektura
@@ -210,6 +211,7 @@ Praca nie jest skończona, dopóki jej działania nie udowodnisz. „Powinno dzi
 - **Testy integracyjne (e2e) i scenariusze QA:** zmiana zachowania widocznego w UI lub API ma test w `packages/app/tests/e2e/` i scenariusz Markdown w `.ai/qa/{AREA}/` (konwencja: `.ai/qa/README.md`; skill `om-integration-tests` ma lokalne rozszerzenie w `.ai/skills/om-integration-tests/`). Test jest deterministyczny: reguły w `references/best-practices.md` tego rozszerzenia. `npm run check:qa` pilnuje powiązania scenariuszy z testami.
 - **Błędy naprawiaj od reprodukcji:** najpierw test, który pada (albo zapisane kroki odtworzenia), potem poprawka; test zostaje w repozytorium. Mając zgłoszenie, padający test lub log, doprowadź naprawę do końca samodzielnie; pytaj tylko o decyzje dotyczące zakresu lub zachowania produktu. „Naprawione” to hipoteza: przed PR uruchom `npm run verify:regression -- <test>` (test czerwony na kodzie sprzed poprawki, zielony po) i wklej wynik do opisu PR. Pełny przebieg: `.ai/docs/fix-verification.md`.
 - **Review poprawki robi inna sesja:** PR z poprawką dostaje review od drugiego agenta w nowej sesji, bez kontekstu autora (najlepiej inny model albo pod-agent bez wglądu w uzasadnienia autora). GitHub nie pozwala autorowi zatwierdzić własnego PR-a, więc wynik wpisz jako komentarz do PR.
+- **Granice dostępu (tenant, rola, zaproszenie, pokaz) mają test HTTP z trzema sprawdzeniami:** kontrola pozytywna dla obu kont, odmowa odczytu i zapisu, stan po próbie (całe ładunki i skrót tabel, nie liczniki); szczegóły i szablon: `.ai/docs/engineering-standards.md` §10, model zagrożeń: `docs/security/threat-model.md`.
 - **Dowody w logu:** w sekcji „Weryfikacja” logu przebiegu wpisz uruchomione polecenia i ich wyniki.
 - **Przegląd własnego diffu przed zakończeniem**, jak recenzent: czy spełnione jest każde kryterium akceptacji, czy nie złamano sekcji 7, czy zaktualizowano `docs/`.
 - **Najpierw działające, potem właściwe:** jeśli poprawka działa, ale jest doraźna, zadaj sobie pytanie „wiedząc to, co wiem teraz, jak wyglądałoby eleganckie rozwiązanie?” i wdróż je, jeśli mieści się w zakresie. Jeśli nie — zapisz dług techniczny w „Wyniku” logu.

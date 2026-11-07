@@ -32,6 +32,7 @@ A test without a scenario, or a scenario without a test, fails `node scripts/che
 | `team` | Team and access: roles, deactivation, who may change whom (E12) |
 | `ops` | Operator-facing behaviour of the running app: metrics endpoint, request log, health check, production smoke test |
 | `showcase` | The public sales pages under `/demo`: the return calculator and its printable summary (E22) |
+| `security` | Access boundaries by object id, role hierarchy, invitation forgery, security headers and error answers (lesson 16, `docs/security/threat-model.md`) |
 | `import` | Reserved for menu, wine and sales import (no end-to-end test yet) |
 
 Add a new area only when no existing one fits, and add it to this table in the same change.
