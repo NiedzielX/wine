@@ -23,17 +23,17 @@ In calculator mode the owner-facing calculator and its printable summary open; t
 
 ## When
 
-1. Open the calculator, then the printable summary.
+1. Open the calculator, the printable summary and the tour.
 2. Open /demo, /demo/panel and /demo/kpi.
 
 ## Then
 
-1. The calculator and the summary answer 200.
+1. The calculator, the summary and the tour answer 200.
 2. The three other addresses answer 404.
 
 ## Edge cases covered
 
-- Only the pages of this phase are checked; the guided demo, the panel and the KPI pages are later phases.
+- Only the pages of this phase are checked; the guided demo (demo mode only) and the panel and KPI pages (later phase) are 404 here.
 
 ## Data and cleanup
 

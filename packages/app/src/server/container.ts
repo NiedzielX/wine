@@ -118,7 +118,9 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       invitationRepository: asClass(db.PgInvitationRepository).scoped()
     });
   } else {
-    const store = MemoryStore.from(buildDemoDataset({ ids: 'uuid' }));
+    const dataset = buildDemoDataset({ ids: 'uuid' });
+    // the public demo instance loads NO accounts: the published demo password must not exist there, whatever a route does (E22 R9)
+    const store = MemoryStore.from(env().showcaseMode === 'demo' ? { ...dataset, users: [] } : dataset);
     const repos = createMemoryRepositories(store);
     container.register({
       restaurantRepository: asValue(repos.restaurantRepository),

@@ -179,3 +179,7 @@ stateDiagram-v2
 ```
 
 Statusy `ImportJob`: `uploaded → parsing → preview_ready → confirmed | failed | cancelled`.
+
+## 7. Właściciel restauracji dostaje link do demo (E22 F2)
+
+Link do instancji demo → `/demo` (przewodnik) → krok 1 (gość wybiera danie, widzi pieczęć „Para sommeliera”), krok 2 (cały stół), krok 3 (podgląd kelnera) → `/demo/tour` (jak to działa dla restauracji) → `/demo/roi` (kalkulator, założenia zespołu). Na stronach gościa stoi pasek „Dane demonstracyjne” z linkiem z powrotem do przewodnika. Bez logowania i bez danych osobowych; próba wejścia do panelu kończy się komunikatem „demo tylko do odczytu”. Kroki 4 (panel) i 5 (KPI) dochodzą w F3.

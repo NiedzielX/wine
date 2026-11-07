@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { SESSION_COOKIE, safeNext, sessionCookieOptions } from '@/server/auth';
 import { createRequestScope } from '@/server/container';
 import { domainError } from '@/server/domain-errors';
+import { env } from '@/server/env';
 import { logger } from '@/server/logger';
 
 /** Sign in / sign out. Plain form posts: they work without JavaScript. */
@@ -14,6 +15,8 @@ export async function login(form: FormData) {
   const password = String(form.get('password') ?? '');
   const next = safeNext(String(form.get('next') ?? ''));
   const back = (error: string) => `/admin/login?error=${error}${next ? `&next=${encodeURIComponent(next)}` : ''}`;
+  // the public demo is read-only: no account exists there and nothing is looked up (E22 Q5, R9)
+  if (env().showcaseMode === 'demo') redirect(back('showcase_read_only'));
   if (!email || !password) redirect(back('invalid_credentials'));
 
   const scope = await createRequestScope();

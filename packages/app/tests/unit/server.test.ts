@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { DomainError, InvalidCredentialsError, NoPanelAccessError, NotFoundError, ValidationError, VersionConflictError, InvariantError, ForbiddenError, buildDemoDataset } from '@wine-match/core';
+import { DomainError, InvalidCredentialsError, NoPanelAccessError, NotFoundError, ValidationError, VersionConflictError, InvariantError, ForbiddenError, ShowcaseReadOnlyError, buildDemoDataset } from '@wine-match/core';
 import { TableNeedsTwoDishesError } from '@wine-match/core';
 import { apiError, PUBLIC_CACHE, publicWine } from '@/server/api';
 import { fromDomainError, handle, handlePublic, ifMatch, importJson, pairingJson, parseBody, readUpload, isCrossSite } from '@/server/api-auth';
@@ -37,6 +37,7 @@ describe('errors: recognised by name and code, never by class', () => {
     const status = (e: unknown) => fromDomainError(e)!.status;
     expect(status(new InvalidCredentialsError())).toBe(401);
     expect(status(new NoPanelAccessError())).toBe(403);
+    expect(status(new ShowcaseReadOnlyError())).toBe(403);
     expect(status(new ForbiddenError())).toBe(403);
     expect(status(new NotFoundError('x'))).toBe(404);
     expect(status(new VersionConflictError())).toBe(409);

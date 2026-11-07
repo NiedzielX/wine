@@ -639,8 +639,10 @@ export const en = {
       errors: {
         invalid_credentials: 'The e-mail or password is incorrect, or the account is temporarily locked.',
         no_panel_access: 'This account has no access to the dashboard. Waiters use the pairing lookup instead.',
-        unexpected: 'Sign-in failed. Try again in a moment.'
-      } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected', string>,
+        unexpected: 'Sign-in failed. Try again in a moment.',
+        showcase_read_only: 'This demo is read-only: signing in is switched off, so there is no password to try.'
+      } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected' | 'showcase_read_only', string>,
+      showcaseBack: 'Back to the demo guide',
       notices: { account_created: 'Your account was created and you joined the restaurant. Sign in with the password you just chose.' } as Record<'account_created', string>
     },
     accept: {

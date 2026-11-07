@@ -183,7 +183,7 @@ describe('metrics token', () => {
   });
 });
 
-describe('SHOWCASE_MODE (spec 2026-11-04-sales-demo-and-roi-calculator, R1, AC1 for phase F1)', () => {
+describe('SHOWCASE_MODE (spec 2026-11-04-sales-demo-and-roi-calculator, R1, AC1)', () => {
   const postgres = { DATA_SOURCE: 'postgres', DATABASE_URL: 'postgresql://u:p@h:5432/db' };
   const production = { NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://wine.example.com' };
 
@@ -202,14 +202,34 @@ describe('SHOWCASE_MODE (spec 2026-11-04-sales-demo-and-roi-calculator, R1, AC1 
 
   it('a value outside the list is refused with the name of the variable, not read as off or as calculator', () => {
     for (const bad of ['calculater', 'Calculator', 'ON', 'true', '1', 'calculator ', 'off,calculator']) {
-      expect(fails({ SHOWCASE_MODE: bad })[0], bad).toMatch(/^SHOWCASE_MODE: must be "off" or "calculator"/);
+      expect(fails({ SHOWCASE_MODE: bad })[0], bad).toMatch(/^SHOWCASE_MODE: must be "off", "calculator" or "demo"/);
     }
   });
 
-  it('demo is a known mode of the spec that this version does not have: refused, never taken for calculator', () => {
-    expect(fails({ SHOWCASE_MODE: 'demo' })).toEqual(['SHOWCASE_MODE: "demo" is not available in this version. Use "off" or "calculator".']);
-    expect(fails({ SHOWCASE_MODE: 'demo', ...postgres })[0]).toMatch(/^SHOWCASE_MODE: "demo"/);
-    expect(fails({ SHOWCASE_MODE: 'demo', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true' })[0]).toMatch(/^SHOWCASE_MODE: "demo"/);
+  it('demo needs DATA_SOURCE=memory and ALLOW_DEMO_DATA=true, each refusal names its variable', () => {
+    expect(parseEnv({ SHOWCASE_MODE: 'demo', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true' }).showcaseMode).toBe('demo');
+    expect(parseEnv({ SHOWCASE_MODE: 'demo', ALLOW_DEMO_DATA: 'true' }).showcaseMode).toBe('demo');
+    expect(fails({ SHOWCASE_MODE: 'demo' })).toEqual([expect.stringMatching(/^SHOWCASE_MODE=demo: requires ALLOW_DEMO_DATA=true/)]);
+    expect(fails({ SHOWCASE_MODE: 'demo', ALLOW_DEMO_DATA: 'false' })[0]).toMatch(/ALLOW_DEMO_DATA=true/);
+    const onPostgres = fails({ SHOWCASE_MODE: 'demo', ALLOW_DEMO_DATA: 'true', ...postgres });
+    expect(onPostgres).toEqual([expect.stringMatching(/^SHOWCASE_MODE=demo: requires DATA_SOURCE=memory/)]);
+    // postgres without the flag: both reasons, in one error
+    expect(fails({ SHOWCASE_MODE: 'demo', ...postgres })).toHaveLength(2);
+  });
+
+  it('demo refuses a DEMO_RESTAURANT_SLUG that is not in the demo data, and accepts the one that is', () => {
+    const demo = { SHOWCASE_MODE: 'demo', ALLOW_DEMO_DATA: 'true' };
+    expect(fails({ ...demo, DEMO_RESTAURANT_SLUG: 'pilot' })).toEqual([expect.stringMatching(/^DEMO_RESTAURANT_SLUG: "pilot" is not in the demo data\. With SHOWCASE_MODE=demo it must be "halka"/)]);
+    expect(parseEnv({ ...demo, DEMO_RESTAURANT_SLUG: 'halka' }).demoRestaurantSlug).toBe('halka');
+    expect(parseEnv({ SHOWCASE_MODE: 'calculator', DEMO_RESTAURANT_SLUG: 'pilot' }).demoRestaurantSlug).toBe('pilot');
+  });
+
+  it('demo in production still obeys the https rule of PUBLIC_BASE_URL and the memory rule', () => {
+    const demo = { SHOWCASE_MODE: 'demo', DATA_SOURCE: 'memory', ALLOW_DEMO_DATA: 'true' };
+    expect(parseEnv({ ...demo, ...production }).showcaseMode).toBe('demo');
+    expect(fails({ ...demo, NODE_ENV: 'production', PUBLIC_BASE_URL: 'http://wine.example.com' })[0]).toMatch(/PUBLIC_BASE_URL: must start with https/);
+    expect(fails({ ...demo, NODE_ENV: 'production' })[0]).toMatch(/PUBLIC_BASE_URL: is not set/);
+    expect(fails({ SHOWCASE_MODE: 'demo', ALLOW_DEMO_DATA: 'true', ...postgres, ...production })[0]).toMatch(/DATA_SOURCE=memory/);
   });
 
   it('a wrong value is reported together with the other problems, in one error', () => {
