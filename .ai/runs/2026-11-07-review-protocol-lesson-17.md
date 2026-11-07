@@ -15,7 +15,7 @@ Zapisać protokół review (trzy warstwy bramek, triage kolejki, ochrona gałęz
 ## Przebieg
 - Przeczytano AGENTS.md, parallel-work, fix-verification, commands, SDLC (etykiety, ryzyko), CODE_REVIEW, security-notes.
 - Odczyty tylko GET: ochrona gałęzi `main` i lista etykiet (wszystkie etykiety z SDLC już istnieją, `ready-for-owner` = `merge-queue`).
-- „Reguła trzech sprawdzeń z engineering-standards §10” nie istnieje w repo (plik kończy się na §9): lista authz opiera się na `AGENTS.md` §1.3, `engineering-standards.md` §6 i §8 oraz `CODE_REVIEW.md` (drzwi, rekord, dane).
+- Początkowo „reguła trzech sprawdzeń” §10 nie istniała w repo (plik kończył się na §9), więc lista authz była rekonstrukcją. Po scaleniu #127 (`origin/main`, czyste scalenie) przejście authz odwzorowuje `engineering-standards.md` §10, a protokół i etykiety wskazują `parallel-work.md` §1.11 (aktualizacja `docs/security/threat-model.md` przy `risk-high`). Sekcja etykiet pozostaje §8 (brak kolizji; istniejące zdublowane §6/§7 pochodzą z `main`, nie ruszane).
 - Wskaźnik w tabeli routingu `AGENTS.md` (wiersz „review”), bo plik da się edytować bez błędu `check:context` (jest już ponad progiem ostrzeżenia, +45 B).
 - Logika paczki w `scripts/lib/review-pack.mjs` (wstrzykiwany fetcher), cienki CLI w `scripts/review-pack.mjs`; test w `packages/testkit/tests/review-pack.test.ts`.
 - Próba na prawdziwym PR #125 (tylko GET): paczka zbudowana, bez opisu.

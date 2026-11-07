@@ -15,13 +15,15 @@
 - [ ] Czerwone CI lub konflikt z `main` to ustalenie w raporcie, nie powód, żeby przerwać review.
 
 <!-- checklist:authz -->
-Reguła trzech sprawdzeń (każde wejście, każda operacja na rekordzie, każda warstwa danych). W repo ta reguła jest rozproszona: `AGENTS.md` §1.3 (uprawnienia, izolacja tenantów), `engineering-standards.md` §6 i §8, `CODE_REVIEW.md` (autoryzacja).
-- [ ] **1. Drzwi:** wejście (strona/layout `requireAccess`, akcja `authorizeAction`, trasa `handle()`) samo sprawdza zalogowanie i uprawnienie z tabeli `permissions.ts`; ukryty przycisk nie liczy się. Błąd w sprawdzeniu kończy się odmową.
-- [ ] **2. Rekord:** sprawdzana jest konkretna restauracja i konkretny rekord (id z URL-a należy do tej restauracji), nie tylko „jest zalogowany”.
-- [ ] **3. Dane:** każda metoda repozytorium przyjmuje `restaurantId` (wyjątki jawnie wymienione w `AGENTS.md` §1.3); zapytanie bez niego to blocker.
-- [ ] Jest test ścieżki odmowy i odczytu z cudzego zakresu (inna restauracja, inna rola), z asercją na treść odpowiedzi, nie tylko status.
+Reguła trzech sprawdzeń: `.ai/docs/engineering-standards.md` §10 (granica dostępu ma test HTTP na prawdziwej instancji; szablon `packages/app/tests/e2e/access-boundaries.e2e.test.ts`). Mapa granic: `docs/security/threat-model.md`. Sprawdź diff względem czterech elementów §10:
+- [ ] **1. Kontrola pozytywna dla OBU kont:** to samo wywołanie, które ma być odmówione, działa dla właściciela danych (200), w obie strony (A→B i B→A); bez tego 404 może znaczyć „zepsute wywołanie”.
+- [ ] **2. Odmowa odczytu:** obce konto dostaje 403 (obcy slug) albo 404 (cudze id pod własnym slugiem), a ciało nie zawiera żadnej wartości z cudzych danych.
+- [ ] **3. Odmowa zapisu:** każda metoda zapisu z cudzym id lub za wysoką rolą kończy się 403/404/422, nigdy 2xx; pola spoza schematu odrzucone (`strictObject`).
+- [ ] **4. Stan po próbie:** porównane całe ładunki przed i po oraz skrót wierszy dotkniętych tabel, nie liczniki; mutacja (usunięty filtr `restaurant`, wymuszona rola) wykazuje, że test pada.
+- [ ] Drzwi: wejście (`requireAccess`, `authorizeAction`, `handle()`) samo sprawdza zalogowanie i uprawnienie z `permissions.ts`; błąd w sprawdzeniu kończy się odmową; każda metoda repozytorium przyjmuje `restaurantId` (wyjątki: `AGENTS.md` §1.3).
+- [ ] Nowa trasa z id w ścieżce, nowa rola lub publiczne wejście ma wiersz w `docs/security/threat-model.md` w tym samym PR.
 - [ ] Zapis wymaga CSRF (`X-CSRF-Token` / kontrola Origin); sesja i ciasteczka bez zmian flag.
-- [ ] Zmiana tabeli uprawnień lub kodu sesji i haseł to `risk-high` (druga osoba, bez self-QA).
+- [ ] Zmiana tabeli uprawnień lub kodu sesji i haseł to `risk-high`: druga osoba, bez self-QA, zaktualizowany `threat-model.md` (`parallel-work.md` §1.11).
 
 <!-- checklist:nextjs -->
 - [ ] Komponent serwerowy domyślnie; `'use client'` tylko przy interakcji i bez importów z `app/src/server`; do komponentu klienckiego nie trafiają funkcje ani niepotrzebne dane (serializowalne propsy).

@@ -126,7 +126,7 @@ Etykieta zapisuje decyzję z jednej chwili; przed działaniem sprawdź historię
 | `blocked` / `do-not-merge` | **tylko właściciel** (ustawia i zdejmuje) | ręczny hamulec | na właściciela | agent ich nie dotyka; zatrzymują przepływ wszędzie |
 | `risk-low` | sesja nadrzędna | docs, testy, literówki | | dowód: zielone CI, jedno review |
 | `risk-medium` (domyślny przy braku) | sesja nadrzędna | zwykła zmiana w jednym obszarze z testami | | dowód: testy, jedno review w świeżym kontekście |
-| `risk-high` | sesja nadrzędna; przy konflikcie sygnałów wyższe | uprawnienia, sesje, zakres danych, pieniądze, migracje, kontrakty | | dowody z `SDLC.md` + co najmniej dwa review w świeżym kontekście + brak self-QA |
+| `risk-high` | sesja nadrzędna; przy konflikcie sygnałów wyższe | uprawnienia, sesje, zakres danych, pieniądze, migracje, kontrakty | | dowody z `SDLC.md` + zaktualizowany `docs/security/threat-model.md` i karty „trzech sprawdzeń” (§1.11, `engineering-standards.md` §10) + co najmniej dwa review w świeżym kontekście + brak self-QA |
 
 Wszystkie powyższe etykiety istnieją już w repozytorium (sprawdzone `gh api repos/NiedzielX/wine/labels`, 2026-11-07). Agent nie tworzy etykiet. Gdyby któraś zniknęła, polecenia dla właściciela lub koordynatora (kolory jak obecnie):
 

@@ -219,7 +219,7 @@ export async function buildReviewPack({ pr, repo = DEFAULT_REPO, fetcher, maxDif
   push('## Files', ...fileRows.map((f) => `- \`${cleanLine(f.filename, 200)}\` (${cleanLine(f.status, 12)}, +${f.additions ?? 0} / -${f.deletions ?? 0})`));
 
   push('## Risk', `- Label: ${risk.label ? `\`risk-${risk.label}\`` : 'none (read as medium, SDLC.md)'}; path signal: ${risk.pathSignalHigh ? 'touches a risk-high area' : 'none'}; **effective: risk-${risk.effective}**.`,
-    ...(risk.effective === 'high' ? ['- risk-high: at least two independent fresh-context reviews are required (`.ai/docs/review-protocol.md`); this pack is for one of them.'] : []));
+    ...(risk.effective === 'high' ? ['- risk-high: at least two independent fresh-context reviews are required (`.ai/docs/review-protocol.md`); this pack is for one of them. Also check that `docs/security/threat-model.md` was updated and new access boundaries carry the three-checks evidence (`engineering-standards.md` section 10, `parallel-work.md` section 1.11).'] : []));
 
   push('## Spec');
   if (specs.length === 0) push('no spec linked: nothing in the branch name or the changed `.ai/specs` files points to a spec. Judge the diff against the repository rules only, and report the missing spec as a finding when the change needs one (`AGENTS.md` section 3).');

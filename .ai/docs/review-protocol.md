@@ -21,6 +21,7 @@ Zasady:
 
 - Zwykły PR: jedno review w świeżym kontekście z paczki recenzenta (§5).
 - **`risk-high`: co najmniej dwa niezależne review w świeżym kontekście** (osobne pod-agenty, najlepiej różne modele; żaden nie widzi wyniku drugiego). Lekcja podaje 5 przebiegów jako dobry kompromis koszt/zysk, a przy 10 około +119% ustaleń, więc dla zmian o największym znaczeniu (uprawnienia, pieniądze, migracje) rozważ więcej przebiegów, a koszt wpisz w log.
+- **Dowody `risk-high` (`parallel-work.md` §1.11):** review sprawdza, czy zaktualizowano `docs/security/threat-model.md` (identyfikatory `T-xx` bez zmian, nowe zagrożenia na końcu, „Control today” zweryfikowane z `plik:linia`) i czy każda nowa granica dostępu ma kartę dowodową „trzech sprawdzeń” z `engineering-standards.md` §10 (kontrola pozytywna dla obu kont, odmowa odczytu, odmowa zapisu, stan po próbie). Brak któregokolwiek to bloker, nie uwaga. Przejście authz z `review-checklists.md` odwzorowuje §10.
 - Przejścia specjalistyczne (`review-checklists.md`: authz, Next.js/React, baza, API, testy, obserwowalność, dokumentacja) to **dodatkowe przebiegi w świeżym kontekście**, jeden pod-agent na przejście, uruchamiane na większych lub ryzykownych PR-ach. Ustalenia z wielu przebiegów scala agent nadrzędny, deduplikuje i podaje właścicielowi z liczbą przebiegów, które je znalazły.
 - Recenzent dostaje **paczkę recenzenta, nie uzasadnienie autora** (§5).
 
@@ -90,4 +91,4 @@ Stan sprawdzony `gh api repos/NiedzielX/wine/branches/main/protection` (2026-11-
 
 ## 8. Odbiór zadania (definicja „gotowe do właściciela”)
 
-PR trafia do `ready-for-owner` (etykieta `merge-queue`) dopiero gdy: review świeżego kontekstu bez otwartych blokerów (liczba review wg §2), wszystkie checki zielone dla obecnego head, dowody dla ryzyka (SDLC.md), `needs-qa` ma `qa-approved` dla obecnego head, brak `blocked`/`do-not-merge`. Właściciel dostaje skrót (tabela z `nightly-review-routine.md`) i decyduje.
+PR trafia do `ready-for-owner` (etykieta `merge-queue`) dopiero gdy: review świeżego kontekstu bez otwartych blokerów (liczba review wg §2), wszystkie checki zielone dla obecnego head, dowody dla ryzyka (`SDLC.md`; przy `risk-high` także zaktualizowany `docs/security/threat-model.md` i karty „trzech sprawdzeń”, `parallel-work.md` §1.11), `needs-qa` ma `qa-approved` dla obecnego head, brak `blocked`/`do-not-merge`. Właściciel dostaje skrót (tabela z `nightly-review-routine.md`) i decyduje.
