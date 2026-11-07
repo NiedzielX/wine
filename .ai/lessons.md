@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-07] [Granica dostępu: kontrola pozytywna dla obu kont, odmowa odczytu i zapisu, stan po próbie](lessons/2026-11-07-access-boundary-three-checks.md) — test odmowy bez dowodu, że dane się nie ruszyły (całe ładunki, skrót tabel) i bez mutacji, która go czerwieni, nie dowodzi granicy.
 - [2026-11-06] [Polecenie operatora drukujące sekret](lessons/2026-11-06-operator-command-printing-a-secret.md) — strażnik przed kontenerem, link jedyną linią stdout, błąd niedomenowy bez treści, adres sprawdzony przed wystawieniem tokenu.
 - [2026-11-06] [Liczby z adresu](lessons/2026-11-06-calculator-numbers-from-urls.md) — mnóż przed dzieleniem, czyść do 14 cyfr, wejście do 6 miejsc po przecinku.
 - [2026-11-06] [Rodzaj wiersza zapisuj jawnie: nie wnioskuj „konto platformy” z braku członkostwa](lessons/2026-11-06-mark-the-kind-never-infer-it-from-a-missing-row.md) — wyjątek od dostępu to kolumna ustawiana jedną ścieżką, brak wiersza to odmowa, ocena przy użyciu jak przy tworzeniu.
