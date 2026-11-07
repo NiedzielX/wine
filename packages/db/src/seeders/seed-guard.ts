@@ -45,3 +45,21 @@ export async function assertSeedAllowed(em: EntityManager, demoSlug: string, env
     throw new SeedRefusedError('Refusing to load the demo restaurant: this database already holds a restaurant that is not the demo one, so it is a real installation. Nothing was written.');
   }
 }
+
+/**
+ * The same environment rule for the operator command `npm run user:invite` (spec E12 F2, "skrypt demo"): it hands out a link that
+ * creates a dashboard account, so it follows the seeder's rule for what counts as protected (`isProtectedEnvironment`, fail closed)
+ * and needs the same explicit `ALLOW_DEMO_DATA=true` there (a trial instance on purpose). It does NOT repeat the seeder's second rule
+ * (a database with a real restaurant): inviting people to a real restaurant is exactly what the command is for, and the service
+ * checks that the inviter may do it. Runs before anything is read from or written to the database.
+ */
+export function assertInviteCommandAllowed(environment: Environment = process.env, warn: (message: string) => void = (m) => { process.stderr.write(`${m}\n`); }): void {
+  if (blank(environment.NODE_ENV)) {
+    warn('Warning: NODE_ENV is not set, so user:invite cannot tell whether this is production. It runs as in development. On a real installation set NODE_ENV=production: the command then refuses.');
+    return;
+  }
+  if (!isProtectedEnvironment(environment)) return;
+  if (environment.ALLOW_DEMO_DATA?.trim() !== 'true') {
+    throw new SeedRefusedError(`Refusing to issue an invitation with NODE_ENV=${environment.NODE_ENV!.trim()}: this command is for development and trial instances. Nothing was written. Set ALLOW_DEMO_DATA=true only on a trial instance; on a real installation the owner invites in the panel (A15).`);
+  }
+}

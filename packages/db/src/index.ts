@@ -13,6 +13,7 @@ export { PgAuthRepository } from './repositories/auth';
 export { PgImportRepository } from './repositories/import';
 export { PgAuthAuditRepository, PgTeamRepository } from './repositories/team';
 export { PgInvitationRepository } from './repositories/invitations';
+export { SeedRefusedError, assertInviteCommandAllowed } from './seeders/seed-guard';
 
 import type { EntityManager, MikroORM } from '@mikro-orm/postgresql';
 /** What @wine-match/db adds to the DI container when DATA_SOURCE=postgres. */
