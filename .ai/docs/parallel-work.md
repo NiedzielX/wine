@@ -14,6 +14,7 @@
 8. **Nie więcej agentów niż pracy.** Narzut komunikacji rośnie szybciej niż liczba agentów, więc dzielimy zadanie tylko tak, jak wymaga tego jego struktura.
 9. **Miara postępu:** zamknięte PR-y, które przeszły bramkę QA (`SDLC.md`), i czas od zlecenia do merge. Nie liczba agentów, tokenów ani PR-ów.
 10. **Przy kodzie o dużym znaczeniu** (silnik, uprawnienia, pieniądze) wolno wygenerować 2–3 warianty i wybrać najlepszy; do review idzie tylko wybrany.
+11. **Bramka `risk-high`** (lekcja 16, dodana 2026-11-07 po PR #127): faza oznaczona `risk-high` (E12 F3–F6, E21, E15 i każda nowa powierzchnia auth, tenanta albo płatności) nie przechodzi do „gotowe”, dopóki `docs/security/threat-model.md` nie jest zaktualizowany (stabilne identyfikatory `T-xx` bez zmian, nowe zagrożenia dopisane na końcu, każde „Control today” ponownie zweryfikowane z `plik:linia`) i dopóki każda nowa granica dostępu nie ma karty dowodowej „trzech sprawdzeń” (`.ai/docs/engineering-standards.md` §10: kontrola pozytywna dla obu kont, odmowa odczytu, odmowa zapisu, stan po próbie). QA reviewer sprawdza oba przed zgodą na merge, obok bramki `risk-high` z `SDLC.md`.
 
 ## 2. Typy zadań
 

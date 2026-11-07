@@ -1,0 +1,62 @@
+%% Wine Match: data-flow diagram with trust boundaries (lesson 16). Companion of threat-model.md; IDs T-xx are the rows of its threat table.
+flowchart LR
+  subgraph TB0["TB0 Internet (untrusted)"]
+    Guest["Guest (QR, phone, no account)"]
+    Waiter["Waiter (public staff view, no sign-in)"]
+    Visitor["Showcase visitor (link)"]
+    Attacker["Attacker (any of the above, scripted)"]
+  end
+  subgraph TB1["TB1 Signed-in staff (session cookie + CSRF token)"]
+    Owner["Owner / General Manager"]
+    Somm["Wine Director"]
+    Invitee["Invitee (one-time link)"]
+  end
+  subgraph TB2["TB2 Reverse proxy / TLS (E11, not in the repo)"]
+    Proxy["Proxy: TLS, HSTS, access log without query"]
+  end
+  subgraph TB3["TB3 Next.js app (one process)"]
+    GuestPages["Guest pages /r/slug/** (URL-state: sid, prefs)"]
+    StaffAction["Staff action: mark code (public server action)"]
+    ShowcasePages["Showcase /demo/** (calculator, no data)"]
+    Panel["Panel /admin/** (requireAccess, server actions)"]
+    Api["REST /api/v1/** (handle: session, CSRF, authorize)"]
+    Accept["/admin/accept (invitation form)"]
+    Health["/api/v1/health, /api/v1/metrics (bearer)"]
+    Services["core services (slug to restaurantId, hierarchy rules)"]
+  end
+  subgraph TB4["TB4 Database (credentials in env)"]
+    Pg[("PostgreSQL: restaurant-scoped rows, session, auth_token (hashes), auth_event")]
+  end
+  subgraph TB5["TB5 Operator host (trusted, local shell)"]
+    Seeder["db:seed, restaurant:create, user:create, user:invite (guards)"]
+    Ci["CI: lint, audit:gate, secrets:scan, CodeQL"]
+  end
+
+  Guest --> Proxy
+  Waiter --> Proxy
+  Visitor --> Proxy
+  Attacker -.-> Proxy
+  Owner --> Proxy
+  Somm --> Proxy
+  Invitee --> Proxy
+  Proxy --> GuestPages
+  Proxy --> StaffAction
+  Proxy --> ShowcasePages
+  Proxy --> Panel
+  Proxy --> Api
+  Proxy --> Accept
+  Proxy --> Health
+  GuestPages --> Services
+  StaffAction --> Services
+  Panel --> Services
+  Api --> Services
+  Accept --> Services
+  Services --> Pg
+  Seeder --> Pg
+  Ci -.-> TB3
+
+  Api -. "T-01 T-02 T-06 T-23" .- Services
+  Accept -. "T-03 T-04 T-12" .- Services
+  GuestPages -. "T-10 T-11 T-13" .- Services
+  Panel -. "T-05 T-15 T-16" .- Services
+  Pg -. "T-08 T-20" .- Seeder

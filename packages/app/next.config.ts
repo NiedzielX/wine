@@ -7,6 +7,8 @@ const rootEnv = fileURLToPath(new URL('../../.env', import.meta.url));
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const nextConfig: NextConfig = {
+  // no `X-Powered-By: Next.js` banner (T-14): it tells a scanner which framework and so which advisories to try
+  poweredByHeader: false,
   // Internal packages ship TypeScript sources; Next compiles them.
   transpilePackages: ['@wine-match/core', '@wine-match/db', '@wine-match/ui'],
   // MikroORM and the pg driver load drivers dynamically: keep them as Node externals.
@@ -27,13 +29,17 @@ const nextConfig: NextConfig = {
   async headers() {
     const baseline = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
-      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' }
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      // never framed, anywhere (T-15): the staff view has a public "Ordered" button and the panel holds sessions, so clickjacking is a real
+      // route. X-Frame-Options for old browsers, `frame-ancestors` for the rest. The other CSP directives need no nonce and close
+      // the usual injection routes (`<base>`, plug-ins, a form posting to another host). A full `script-src` needs a per-request nonce
+      // (Next.js inline scripts): open item T-16 in docs/security/threat-model.md.
+      { key: 'X-Frame-Options', value: 'DENY' },
+      { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
+      { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()' }
     ];
-    // the dashboard and the auth API hold personal data and sessions: never cached, never framed
-    const sensitive = [
-      { key: 'Cache-Control', value: 'private, no-store' },
-      { key: 'X-Frame-Options', value: 'DENY' }
-    ];
+    // the dashboard and the auth API hold personal data and sessions: never cached (framing is refused for every path in `baseline`)
+    const sensitive = [{ key: 'Cache-Control', value: 'private, no-store' }];
     return [
       { source: '/:path*', headers: baseline },
       { source: '/admin/:path*', headers: sensitive },
