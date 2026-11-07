@@ -185,6 +185,9 @@ describe('the showcase in demo mode (F2)', () => {
       expect((await get('/demo/roi', undefined, demo.url)).res.status).toBe(200);
       // the main instance (calculator mode) shows no ribbon on its guest pages
       expect((await get('/r/halka')).html).not.toContain('data-demo-ribbon');
+      // negative control for noindex: a real installation stays indexable
+      expect((await get('/r/halka')).html).not.toMatch(/<meta name="robots"/);
+      expect((await get('/admin/login')).html).not.toMatch(/<meta name="robots"/);
     } finally {
       await demo.stop();
     }
@@ -206,6 +209,7 @@ describe('the showcase in demo mode (F2)', () => {
       expect(page.res.status).toBe(200);
       expect(textOf(page.html)).toContain('read-only');
       expect(page.html).not.toContain('type="password"');
+      expect(page.html).toContain('<meta name="robots" content="noindex, nofollow"/>');
       expect(hrefs(page.html)).toContain('/demo?lang=en');
       for (const path of ['/demo', '/demo/tour', '/admin/login', '/r/halka']) {
         const { html } = await get(path, undefined, demo.url);
@@ -261,7 +265,7 @@ describe('the showcase in demo mode (F2)', () => {
     }
   });
 
-  it('refuses the sign-in form action and an invitation in a built demo instance, and sets no session', async () => {
+  it('refuses the sign-in form action, the invitation action and dashboard writes in a built demo instance, and sets no session', async () => {
     const demo = await startBuiltApp({ cwd: appDir, readyPath: '/demo', logFile: `${appDir}/test-results/e2e-showcase-demo-actions.log`, env: demoEnv });
     try {
       const login = await invokeAction(demo.url, '/admin/login', 'login', { email: 'marta@halka.pl', password: DEMO_PASSWORD });
@@ -269,16 +273,19 @@ describe('the showcase in demo mode (F2)', () => {
       expect(login.headers.get('location')).toBe('/admin/login?error=showcase_read_only');
       expect(login.headers.getSetCookie()).toEqual([]);
 
-      // no invitation can exist (there is no one to send it), so a made-up token creates nothing and opens no session
+      // the invitation action is refused at its door whatever the token (unit test: a REAL invitation is not accepted and nothing is created)
       const accept = await invokeAction(demo.url, '/admin/accept', 'acceptInvitation', { token: 'x'.repeat(43), name: 'Eve', password: 'a-long-enough-password' });
-      expect(accept.status).toBeLessThan(500);
+      expect(accept.status).toBe(303);
+      expect(accept.headers.get('location')).toBe('/admin/login?error=showcase_read_only');
       expect(accept.headers.getSetCookie()).toEqual([]);
-      const accepted = await guestGet(demo.url, `/admin/accept?token=${'x'.repeat(43)}`);
-      expect(accepted.res.status).toBeLessThan(500);
-      expect(accepted.html).not.toContain('type="password"');
-      const after = await fetch(`${demo.url}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'eve@example.com', password: 'a-long-enough-password' }) });
-      await after.arrayBuffer();
-      expect(after.status).toBe(403);
+      // and the dashboard API refuses a write before it asks for a session
+      const invite = await fetch(`${demo.url}/api/v1/restaurants/halka/invitations`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'eve@example.com', role: 'manager' }) });
+      expect(invite.status).toBe(403);
+      expect(await invite.json()).toMatchObject({ error: { code: 'showcase_read_only' } });
+      // the invitation page of a made-up link shows no password field
+      const page = await guestGet(demo.url, `/admin/accept?token=${'x'.repeat(43)}`);
+      expect(page.res.status).toBeLessThan(500);
+      expect(page.html).not.toContain('type="password"');
     } finally {
       await demo.stop();
     }

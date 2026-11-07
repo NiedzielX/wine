@@ -1,4 +1,4 @@
-import { ValidationError, authorize, parseWith, type Actor, type Permission, type Principal } from '@wine-match/core';
+import { ShowcaseReadOnlyError, ValidationError, authorize, parseWith, type Actor, type Permission, type Principal } from '@wine-match/core';
 import type { z } from 'zod';
 import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
@@ -6,6 +6,7 @@ import { apiError } from './api';
 import { SESSION_COOKIE, toActor } from './auth';
 import { createRequestScope, type Cradle } from './container';
 import { domainError } from './domain-errors';
+import { env } from './env';
 import { logger } from './logger';
 import { countUnhandledError, recordHttpRequest } from './metrics';
 
@@ -131,6 +132,8 @@ export async function handleUnscoped(req: NextRequest, opts: { route: string }, 
  */
 export async function handle(req: NextRequest, opts: { write: boolean; route: string; slug?: string; permission?: Permission }, handler: (ctx: ApiContext) => Promise<NextResponse>): Promise<NextResponse> {
   return instrumented(req, opts.route, async () => {
+    // the public demo is read-only (E22 R9): every dashboard write is refused before anything else, so this holds even if an account existed
+    if (opts.write && env().showcaseMode === 'demo') throw new ShowcaseReadOnlyError();
     if (opts.write && isCrossSite(req)) return apiError(403, 'csrf', 'Cross-site requests are not allowed.');
     return withScope((scope) => authenticated(scope));
   });

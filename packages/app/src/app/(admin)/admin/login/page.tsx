@@ -12,7 +12,8 @@ import { getI18n } from '@/server/i18n';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getI18n()).t.admin.meta.signIn };
+  // the demo instance is not for search engines on any page (E22 R11), the sign-in page included
+  return { title: (await getI18n()).t.admin.meta.signIn, ...(env().showcaseMode === 'demo' ? { robots: { index: false, follow: false } } : {}) };
 }
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };

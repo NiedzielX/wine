@@ -29,7 +29,7 @@ On the demo instance the guest's path to the waiter works end to end: a code app
 
 ## Then
 
-1. Every page answers 200, sets no cookie and says "do not index".
+1. Every page answers 200, sets no cookie and says "do not index" (on the main instance the same pages do not).
 2. The selected-wine page shows a code (not "Code unavailable") and sets no cookie.
 3. The waiter's action redirects back with `marked=confirmed`, and with `codeError=not_found` for the unknown code; neither sets a cookie.
 

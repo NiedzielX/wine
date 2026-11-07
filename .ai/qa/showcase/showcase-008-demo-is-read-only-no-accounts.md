@@ -30,7 +30,7 @@ The public demo instance must not let anyone change the invented restaurant: the
 ## Then
 
 1. The answer is 403 with the code `showcase_read_only`, sets no cookie, and does not repeat the password.
-2. The sign-in page has a message that the demo is read-only, no password field, and a link back to the guide that carries the language; no page contains the published password or AI wording.
+2. The sign-in page has a message that the demo is read-only, no password field, and a link back to the guide that carries the language, and says do not index; no page contains the published password or AI wording.
 3. The dashboard address redirects to the sign-in page: there is no way to get a session.
 
 ## Edge cases covered

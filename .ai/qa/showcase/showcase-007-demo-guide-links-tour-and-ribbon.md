@@ -34,7 +34,7 @@ A restaurant that gets the link of the demo instance can walk through the steps 
 2. Three steps are links (a dish with the sommelier's seal, the whole table, the waiter's lookup); each answers 200, carries the language and no session id, shows the "demonstration data" strip with a link back that carries the language only; the dish page shows "Para sommeliera".
 3. The panel and KPI addresses answer 404 (later phase); the guide marks those two steps as coming.
 4. The tour has five sections, a link to the explainer for guests, and no AI wording.
-5. The guest page of the main instance has no demonstration strip.
+5. The guest page and the sign-in page of the main instance have no demonstration strip and no robots rule (they stay indexable).
 
 ## Edge cases covered
 

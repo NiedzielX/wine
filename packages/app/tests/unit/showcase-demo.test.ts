@@ -1,12 +1,12 @@
-import { DEMO_PASSWORD, DEMO_USERS } from '@wine-match/core';
+import { DEMO_PASSWORD, DEMO_USERS, type MemoryStore } from '@wine-match/core';
 import { createElement, type FunctionComponent } from 'react';
 import { prerender } from 'react-dom/static';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { visibleText } from '../../../../scripts/lib/visible-text.mjs';
 import { jsonReq } from './helpers';
 import { login as loginAction } from '@/app/(admin)/admin/auth-actions';
-import LoginPage from '@/app/(admin)/admin/login/page';
-import GuestLayout from '@/app/(guest)/layout';
+import LoginPage, { generateMetadata as loginMetadata } from '@/app/(admin)/admin/login/page';
+import GuestLayout, { generateMetadata as guestMetadata } from '@/app/(guest)/layout';
 import DemoHubPage from '@/app/(showcase)/demo/page';
 import TourPage from '@/app/(showcase)/demo/tour/page';
 import MenuPage from '@/app/(guest)/r/[slug]/menu/page';
@@ -14,6 +14,9 @@ import TablePage from '@/app/(guest)/r/[slug]/table/page';
 import WinesPage from '@/app/(guest)/r/[slug]/dish/[dishId]/wines/page';
 import StaffTablePage from '@/app/(guest)/r/[slug]/staff/table/page';
 import { POST as loginPost } from '@/app/api/v1/auth/login/route';
+import { acceptInvitation } from '@/app/(admin)/admin/accept-actions';
+import { DELETE as invitationDelete } from '@/app/api/v1/restaurants/[slug]/invitations/[invitationId]/route';
+import { POST as invitationCreate } from '@/app/api/v1/restaurants/[slug]/invitations/route';
 import { createRequestScope } from '@/server/container';
 import { issueCodeForPage } from '@/server/recommendation-code';
 import { hubSteps, pickShowcaseDish } from '@/server/showcase-hub';
@@ -207,6 +210,23 @@ describe('the ribbon (Q3, R6, AC9)', () => {
   });
 });
 
+describe('noindex on the whole demo instance (R11), with negative controls', () => {
+  const robots = async (meta: () => Promise<{ robots?: unknown }>) => { next().headers.clear(); return (await meta()).robots; };
+
+  it('demo: guest pages and the sign-in page say do not index', async () => {
+    expect(await robots(guestMetadata)).toEqual({ index: false, follow: false });
+    expect(await robots(loginMetadata)).toEqual({ index: false, follow: false });
+  });
+
+  it('off and calculator: guest pages and the sign-in page carry NO robots rule (a real installation stays indexable)', async () => {
+    for (const m of ['off', 'calculator'] as const) {
+      mode.value = m;
+      expect(await robots(guestMetadata), m).toBeUndefined();
+      expect(await robots(loginMetadata), m).toBeUndefined();
+    }
+  });
+});
+
 describe('read-only (R9, Q5, AC13)', () => {
   it('the container of the demo instance has no account at all, not even the published demo ones', async () => {
     const c = (await createRequestScope()).cradle;
@@ -246,6 +266,43 @@ describe('read-only (R9, Q5, AC13)', () => {
     }
   });
 
+  it('defence in depth: a REAL invitation cannot be accepted in demo (nothing is created, the invitation stays pending), whatever the form says', async () => {
+    const c = (await createRequestScope()).cradle;
+    const menu = (await c.catalogService.publishedMenu('halka'))!;
+    // a REAL invitation needs a live inviter, so the test gives the empty demo store one owner (the demo itself never has one) and
+    // invites through the service, the way the dashboard would
+    const store = (c.authRepository as unknown as { store: MemoryStore }).store;
+    const owner = { id: '00000000-0000-4000-8000-0000000000f1', name: 'Olga Owner' };
+    store.users.push({ id: owner.id, email: 'olga@demo.test', name: owner.name, passwordHash: 'x', failedAttempts: 0, lockedUntil: null, lastLoginAt: null });
+    store.memberships.push({
+      userId: owner.id, membershipId: '00000000-0000-4000-8000-0000000000f2', restaurantId: menu.restaurant.id, restaurantSlug: 'halka', restaurantName: 'Halka',
+      role: 'owner', status: 'active', version: 1, createdAt: '2026-10-01T08:00:00.000Z', deactivatedAt: null, deactivatedBy: null
+    });
+    const issued = await c.invitationService.invite('halka', { email: 'eve@example.com', role: 'manager' }, owner);
+    const token = issued.token;
+    const form = new FormData();
+    form.set('token', token);
+    form.set('name', 'Eve Owner');
+    form.set('password', 'a-long-enough-passphrase');
+    await expect(acceptInvitation(form)).rejects.toMatchObject({ url: '/admin/login?error=showcase_read_only' });
+    expect(await c.authRepository.findUserByEmail('eve@example.com')).toBeNull();
+    expect(await c.invitationService.offer(token)).not.toBeNull();
+    expect(next().cookies.size).toBe(0);
+    store.users.splice(store.users.findIndex((u) => u.id === owner.id), 1);
+    store.memberships.splice(store.memberships.findIndex((m) => m.userId === owner.id), 1);
+  });
+
+  it('defence in depth: the dashboard API refuses every write with 403 showcase_read_only, before it asks for a session; reads are untouched', async () => {
+    const url = 'http://localhost:3000/api/v1/restaurants/halka/invitations';
+    const p = { params: Promise.resolve({ slug: 'halka' }) };
+    const created = await invitationCreate(jsonReq(url, { email: 'x@example.com', role: 'manager' }), p);
+    expect(created.status).toBe(403);
+    expect(await created.json()).toMatchObject({ error: { code: 'showcase_read_only' } });
+    const removed = await invitationDelete(jsonReq(`${url}/00000000-0000-4000-8000-000000000001`, {}, 'DELETE'), { params: Promise.resolve({ slug: 'halka', invitationId: '00000000-0000-4000-8000-000000000001' }) });
+    expect(removed.status).toBe(403);
+    expect(await removed.json()).toMatchObject({ error: { code: 'showcase_read_only' } });
+  });
+
   it('the guide, the tour and the sign-in page never contain the demo password', async () => {
     for (const page of [DemoHubPage, TourPage, LoginPage]) expect(await render(page)).not.toContain(DEMO_PASSWORD);
   });
@@ -265,24 +322,35 @@ describe('read-only (R9, Q5, AC13)', () => {
     expect(shouldRecord({ get: (n: string) => (n.toLowerCase() === 'user-agent' ? 'Mozilla/5.0 (iPhone) Safari' : null) })).toBe(true);
   });
 
-  it('records no guest event: page views of the menu, the dish, the table and the waiter leave the table of interactions as it was', async () => {
+  it('records no guest event: the same page views that DO record in mode off leave the table of interactions as it was in demo', async () => {
     const chrome = { get: (n: string) => ({ 'user-agent': 'Mozilla/5.0 (iPhone) Safari' })[n.toLowerCase()] ?? null };
     // the request filter is about the request; `trackUsage` is what switches events off in demo (below)
     expect(shouldRecord(chrome)).toBe(true);
 
     const c = (await createRequestScope()).cradle;
     const menu = (await c.catalogService.publishedMenu('halka'))!;
-    const sid = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
-    const count = async () => (await c.guestInteractionRepository.listBySession(menu.restaurant.id, sid)).length;
-    const before = await count();
-    for (let i = 0; i < 3; i++) await render(MenuPage, { params: Promise.resolve({ slug: 'halka' }), searchParams: Promise.resolve({ sid }) });
-    // the pages that record the most on a normal instance: the dish page, the table page and the staff table result
     const dishId = menu.dishes.find((d) => d.name === 'Duck breast')!.id;
-    await render(WinesPage, { params: Promise.resolve({ slug: 'halka', dishId }), searchParams: Promise.resolve({ sid }) });
-    await render(TablePage, { params: Promise.resolve({ slug: 'halka' }), searchParams: Promise.resolve({ sid }) });
-    await render(StaffTablePage, { params: Promise.resolve({ slug: 'halka' }), searchParams: Promise.resolve({ sid }) });
-    await Promise.all(next().afterTasks.splice(0));
-    expect(await count()).toBe(before);
-    expect(before).toBe(0);
+    const count = async (sid: string) => (await c.guestInteractionRepository.listBySession(menu.restaurant.id, sid)).length;
+    // the pages that record the most on a normal instance: the menu, the dish page, the table page and the staff table result
+    const visit = async (sid: string) => {
+      const props = { params: Promise.resolve({ slug: 'halka' }), searchParams: Promise.resolve({ sid }) };
+      for (let i = 0; i < 3; i++) await render(MenuPage, props);
+      await render(WinesPage, { params: Promise.resolve({ slug: 'halka', dishId }), searchParams: Promise.resolve({ sid }) });
+      await render(TablePage, props);
+      await render(StaffTablePage, props);
+      await Promise.all(next().afterTasks.splice(0));
+    };
+
+    // positive control: with the mode switched off the very same visit DOES write, so a test that sees nothing in demo is not blind
+    const control = '2b7c1d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e';
+    mode.value = 'off';
+    await visit(control);
+    expect(await count(control)).toBeGreaterThan(0);
+
+    mode.value = 'demo';
+    const sid = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+    expect(await count(sid)).toBe(0);
+    await visit(sid);
+    expect(await count(sid)).toBe(0);
   });
 });
