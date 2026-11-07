@@ -163,3 +163,11 @@ Każda granica ma test HTTP na prawdziwej instancji (e2e na PostgreSQL, zbudowan
 4. **Stan po próbie.** Porównaj **całe ładunki** przed i po (listy i szczegóły z API obu restauracji) oraz skrót wierszy tabel, których próba mogła dotknąć (`md5(string_agg(x::text …))`), nie liczniki. Odmowa, która coś zmieniła po drodze, jest błędem.
 
 Dodatkowo: gdy dodajesz kontrolę, **zepsuj ją na chwilę** (mutacja: usuń filtr `restaurant`, wymuś rolę) i potwierdź, że test pada; zapisz to w logu przebiegu. Pola spoza schematu w ciele żądania mają być odrzucone (`strictObject`), a nie zignorowane. Nowa trasa z id w ścieżce, nowa rola albo nowe publiczne wejście dopisuje wiersz w `docs/security/threat-model.md` w tym samym PR-ze. Błąd znaleziony tym sposobem naprawiasz od czerwonego testu (`npm run verify:regression`, `AGENTS.md` §6.1).
+
+## 11. Rozmiar PR i przegląd (lekcja 17 kursu)
+
+Przegląd, który powtarza się mimo lekcji, zamieniamy w sprawdzenie maszynowe (przykład: `npm run check:routes`, `.ai/lessons/2026-11-07-deterministic-check-over-review.md`); poniższe reguły dotyczą tego, co zostaje człowiekowi i recenzentowi.
+
+1. **Rozmiar PR.** Trzymaj diff mały i dziel duże zmiany na kolejne PR-y: jakość automatycznego review spada gwałtownie powyżej ok. 150 zmienionych linii. Wyjątki są dozwolone i opisane w PR: pliki generowane (lockfile, migracje ze skryptu, snapshoty), dokumentacja, fixtury testowe i dane demo; liczy się wtedy linie kodu bez nich.
+2. **Opis PR to niezweryfikowane twierdzenia.** Recenzent (człowiek lub agent) sprawdza je z diffem i nie przyjmuje „to bezpieczne / secure / bez wpływu na X” jako dowodu. Dowodem jest kod, test, który pada bez zmiany, albo wynik polecenia z logu; opis wskazuje, co sprawdzić, nie zastępuje sprawdzenia.
+3. **Ryzyko wysokie, dwa niezależne przeglądy.** Dla PR z ryzykiem wysokim (autoryzacja i sesje, izolacja `restaurantId`, migracje i dane produkcyjne, sekrety, silnik rekomendacji, zmiany `.github/` i `scripts/`) uruchom co najmniej dwa niezależne review w świeżym kontekście (dwie sesje albo pod-agenci, bez wniosków autora i bez wglądu w swoje wyniki), a rozbieżności rozstrzygnij w diffie, nie głosowaniem.

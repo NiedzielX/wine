@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-07] [Błąd, który wrócił mimo review, dostaje sprawdzenie maszynowe (`npm run check:routes`)](lessons/2026-11-07-deterministic-check-over-review.md) — każda trasa API przez `handle*()` z literalnym, unikalnym `route`; wyjątki tylko w allowlist z powodem; dowód czerwony/zielony w `.ai/runs/`.
 - [2026-11-07] [Granica dostępu: kontrola pozytywna dla obu kont, odmowa odczytu i zapisu, stan po próbie](lessons/2026-11-07-access-boundary-three-checks.md) — test odmowy bez dowodu, że dane się nie ruszyły (całe ładunki, skrót tabel) i bez mutacji, która go czerwieni, nie dowodzi granicy.
 - [2026-11-06] [Polecenie operatora drukujące sekret](lessons/2026-11-06-operator-command-printing-a-secret.md) — strażnik przed kontenerem, link jedyną linią stdout, błąd niedomenowy bez treści, adres sprawdzony przed wystawieniem tokenu.
 - [2026-11-06] [Liczby z adresu](lessons/2026-11-06-calculator-numbers-from-urls.md) — mnóż przed dzieleniem, czyść do 14 cyfr, wejście do 6 miejsc po przecinku.
