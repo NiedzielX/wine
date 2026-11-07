@@ -7,7 +7,7 @@ Date 2026-11-07, base `39d695b` (`main`) plus branch `sec/lesson-16-security-rev
 | Check | What it covers | Result | Not covered |
 |---|---|---|---|
 | `npm run lint` (oxlint, `--deny-warnings`) | no `any`, empty `catch`, `console.*`, package import limits | 0 findings | no taint tracking; not a security rule set |
-| `.github/workflows/codeql.yml` (CodeQL `javascript-typescript`, `build-mode: none`, PR + push + weekly) | data flow from request input to SQL, paths, HTML | **configuration reviewed, NOT run** (no CodeQL CLI here; GitHub runs it). `security-extended` queries are not enabled, only the default suite | whether the check is required for merge is a branch protection setting I cannot see |
+| `.github/workflows/codeql.yml` (CodeQL `javascript-typescript`, `build-mode: none`, PR + push + weekly, **`security-extended` query suite since 2026-11-07**) | data flow from request input to SQL, paths, HTML, plus the broader `security-extended` queries (more coverage, more false positives than the default suite) | **configuration reviewed, NOT run locally** (no CodeQL CLI here; GitHub runs it). Any new alert the extended suite raises on PR #127 is reported here and in the PR, not mass-suppressed | whether the check is required for merge is a branch protection setting I cannot see |
 | `npm run audit:gate` | high and critical advisories in production dependencies | passed, high 0, critical 0 | dev dependencies; advisories newer than the registry snapshot |
 | `npm run secrets:scan` | tracked files for key and token patterns | 21 matches, all on the allowlist (16 entries) | git history |
 | grep for dangerous sinks in `app`, `core`, `db`, `ui` source (`dangerouslySetInnerHTML`, `eval(`, `new Function(`, `child_process`, `innerHTML`) | classic XSS and injection sinks | 0 hits | indirect sinks through libraries |
@@ -37,5 +37,6 @@ Runs in the existing `e2e` CI job against the built app (`next start`), plain `f
 - **No fuzzing of import files** (zip bombs, malformed XLSX/PDF) (T-19).
 - **No authenticated crawl** of every panel page for headers beyond the sampled ones; the headers are set by one `source: '/:path*'` rule, so a page cannot opt out, but I sampled, not enumerated.
 - **No mobile or print flow, no cache-poisoning test, no HTTP request smuggling test** (proxy-dependent).
-- **CodeQL not run**; its findings (if any) are in the GitHub Security tab, which I cannot read.
+- **CodeQL not run locally**; its findings (if any), including from the `security-extended` suite enabled 2026-11-07, are in the GitHub Security tab and the PR's checks, which I cannot read from here.
+- **CSP `script-src` (T-16).** Decided (D2, PR #127): the partial CSP stays; a nonce-based strict `script-src` is a tracked follow-up after E11 F1 ships, not done in this review.
 - Server-action endpoints were only probed with a forged id (404 "Server action not found."); the Origin check of Next.js for actions was relied on, not re-tested beyond the existing invitation test.
