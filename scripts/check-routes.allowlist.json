@@ -1,0 +1,14 @@
+{
+  "_comment": "Allowlist of scripts/check-routes.mjs. Every entry needs a written reason. publicRoutes: files that may use handlePublic()/handleUnscoped() (no session). exceptions: route files that skip the wrapper entirely. A stale entry fails the check.",
+  "publicRoutes": [
+    { "file": "packages/app/src/app/api/v1/auth/login/route.ts", "helper": "handlePublic", "reason": "Sign-in has no session yet; write: true still refuses cross-site requests." },
+    { "file": "packages/app/src/app/api/v1/dishes/[dishId]/recommendations/route.ts", "helper": "handlePublic", "reason": "Guest API (menu dish recommendations), public by product design; reads published data only." },
+    { "file": "packages/app/src/app/api/v1/public/restaurants/[slug]/menu/route.ts", "helper": "handlePublic", "reason": "Guest API: the published menu of a restaurant, public by product design." },
+    { "file": "packages/app/src/app/api/v1/recommendations/table/route.ts", "helper": "handlePublic", "reason": "Guest API: table recommendations; a POST that only reads, so no CSRF token (no session)." },
+    { "file": "packages/app/src/app/api/v1/health/route.ts", "helper": "handleUnscoped", "reason": "Health check must not open a request scope (the database failure it reports is 503, not 500); see api-auth.ts." }
+  ],
+  "exceptions": [
+    { "file": "packages/app/src/app/api/v1/import-samples/[kind]/route.ts", "reason": "Static public CSV (force-static, generateStaticParams): no request scope, no data, nothing to log per request at runtime." },
+    { "file": "packages/app/src/app/api/v1/metrics/route.ts", "reason": "The metrics endpoint itself: must work with the database down and a scrape must not count in http_requests_total (see the comment in the route); guarded by its own bearer token." }
+  ]
+}
