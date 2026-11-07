@@ -43,3 +43,16 @@ Dziennik dostępowy proxy **musi obcinać query string**: `sid=`, `diet=` i `wit
 ## Kontakt dyżurny
 
 Do uzupełnienia przez operatora przed pierwszym klientem: imię, telefon i kanał zgłoszeń osoby dyżurnej oraz zastępcy. Aplikacja nie przechowuje tych danych.
+
+## Przed włączeniem pierwszego prawdziwego najemcy
+
+Decyzja właściciela na PR #127 (2026-11-07, `docs/security/threat-model.md` T-07/T-13): poniższe musi być zrobione, zanim na instancji stanie pierwszy prawdziwy (nie demo) najemca. Lista rośnie wraz z kolejnymi fazami E11 i E21; nie usuwaj wiersza bez decyzji właściciela.
+
+| Pozycja | Wymaga | Status |
+|---|---|---|
+| Limit żądań per IP (logowanie, publiczne API gościa) | E21 F3 (`rate_limited` już zarezerwowane w `guest_code_issue_total` i `rate_limit_denied_total` wyżej w tym pliku) | **wymagane, niezaimplementowane** |
+| TLS i `Strict-Transport-Security` na proxy terminującym | E11 (poza tym repozytorium: ustawienie proxy, nie aplikacji) | do potwierdzenia przy wdrożeniu |
+| Obcięcie query string w logu dostępowym proxy (sekcja „Logi” wyżej) | E11 | do potwierdzenia przy wdrożeniu |
+| Kopia bazy z przećwiczonym odtworzeniem | E21 F2 | niezaimplementowane |
+
+Pełny kontekst i numeracja zagrożeń: `docs/security/threat-model.md` (T-07, T-13, decyzja D4).

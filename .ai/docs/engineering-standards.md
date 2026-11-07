@@ -151,7 +151,20 @@ Reguły `oxlint` w `.oxlintrc.json`: brak `any` (`typescript/no-explicit-any`), 
 7. Testy (reguły, kontrakt na obu magazynach, trasa), wpis do `scripts/smoke.mjs`, dokumentacja w `docs/`.
 8. Nie twórz `modules/<pojęcie>/`, plików `setup.ts` ani automatycznego wykrywania.
 
-## 10. Rozmiar PR i przegląd (lekcja 17 kursu)
+## 10. Granice dostępu: reguła trzech sprawdzeń
+
+Źródło: lekcja 16 kursu (bezpieczeństwo), `docs/security/threat-model.md`. „Odmowa” bez dowodu, że dane się nie ruszyły, i test bez kontroli pozytywnej to nie jest sprawdzenie granicy. Granica dostępu to: izolacja tenantów (slug i id obiektu), hierarchia ról, flaga i token zaproszenia, tryb tylko do odczytu pokazu, każde nowe wejście, które ktoś zamyka przed kimś.
+
+Każda granica ma test HTTP na prawdziwej instancji (e2e na PostgreSQL, zbudowana aplikacja, prawdziwe sesje; szablon: `packages/app/tests/e2e/access-boundaries.e2e.test.ts`), a w nim:
+
+1. **Kontrola pozytywna dla OBU kont.** To samo wywołanie, które ma zostać odmówione, działa dla właściciela danych (200), w obie strony (A→B i B→A). Bez tego 404 może znaczyć „zepsute wywołanie”, nie „granica”.
+2. **Odmowa odczytu.** Obce konto czyta cudze dane: 403 (obcy slug) albo 404 (cudze id pod własnym slugiem), a ciało odpowiedzi nie zawiera żadnej wartości z cudzych danych.
+3. **Odmowa zapisu.** Każda metoda zapisu (PATCH, DELETE, POST) z cudzym id lub za wysoką rolą: 403/404/422, nigdy 2xx.
+4. **Stan po próbie.** Porównaj **całe ładunki** przed i po (listy i szczegóły z API obu restauracji) oraz skrót wierszy tabel, których próba mogła dotknąć (`md5(string_agg(x::text …))`), nie liczniki. Odmowa, która coś zmieniła po drodze, jest błędem.
+
+Dodatkowo: gdy dodajesz kontrolę, **zepsuj ją na chwilę** (mutacja: usuń filtr `restaurant`, wymuś rolę) i potwierdź, że test pada; zapisz to w logu przebiegu. Pola spoza schematu w ciele żądania mają być odrzucone (`strictObject`), a nie zignorowane. Nowa trasa z id w ścieżce, nowa rola albo nowe publiczne wejście dopisuje wiersz w `docs/security/threat-model.md` w tym samym PR-ze. Błąd znaleziony tym sposobem naprawiasz od czerwonego testu (`npm run verify:regression`, `AGENTS.md` §6.1).
+
+## 11. Rozmiar PR i przegląd (lekcja 17 kursu)
 
 Przegląd, który powtarza się mimo lekcji, zamieniamy w sprawdzenie maszynowe (przykład: `npm run check:routes`, `.ai/lessons/2026-11-07-deterministic-check-over-review.md`); poniższe reguły dotyczą tego, co zostaje człowiekowi i recenzentowi.
 
