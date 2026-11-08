@@ -372,6 +372,7 @@ export class PgOpportunityDismissalRepository implements OpportunityDismissalRep
   constructor({ em }: Deps) { this.em = em; }
 
   async listActive(restaurantId: string, now: Date) {
+    if (!isUuid(restaurantId)) return [];
     const rows = await this.em.find(
       OpportunityDismissalEntity,
       { restaurant: restaurantId, expiresAt: { $gt: now } },
@@ -391,6 +392,7 @@ export class PgOpportunityDismissalRepository implements OpportunityDismissalRep
   }
 
   async remove(restaurantId: string, key: string) {
+    if (!isUuid(restaurantId)) return false;
     return (await this.em.nativeDelete(OpportunityDismissalEntity, { restaurant: restaurantId, key })) > 0;
   }
 }
@@ -413,11 +415,13 @@ export class PgGuestInteractionRepository implements GuestInteractionRepository 
   }
 
   async listBySession(restaurantId: string, sessionId: string) {
+    if (!isUuid(restaurantId) || !isUuid(sessionId)) return [];
     const rows = await this.em.find(GuestInteractionEntity, { restaurant: restaurantId, sessionId }, { orderBy: { id: 'asc' } });
     return rows.map(toGuestInteraction);
   }
 
   async countGuestSessions(restaurantId: string, range: { from: Date; to: Date }) {
+    if (!isUuid(restaurantId)) return 0;
     const rows = await this.em.getConnection().execute<Array<{ n: string }>>(
       `select count(distinct session_id)::text as n from guest_interaction
         where restaurant_id = ? and name = 'guest_session_started' and created_at >= ? and created_at < ?`,
@@ -428,6 +432,7 @@ export class PgGuestInteractionRepository implements GuestInteractionRepository 
 
   /** One statement over the window's rows (index `(restaurant_id, created_at)`); guest figures only for sessions started in it. */
   async usageTotals(restaurantId: string, range: { from: Date; to: Date }): Promise<UsageTotals> {
+    if (!isUuid(restaurantId)) return { sessions: 0, recommendationViews: 0, sessionsWithViews: 0, sessionsWithSelection: 0, staffLookups: 0 };
     const rows = await this.em.getConnection().execute<Array<Record<keyof UsageTotals, number>>>(
       `with ev as (
          select session_id, name, dish_id, props from guest_interaction
@@ -466,6 +471,7 @@ export class PgGuestInteractionRepository implements GuestInteractionRepository 
    * (the later write). Ids are ordered byte-wise (`collate "C"`), as the in-memory source orders them.
    */
   async pairingStats(restaurantId: string, range: { from: Date; to: Date }): Promise<PairingStat[]> {
+    if (!isUuid(restaurantId)) return [];
     const rows = await this.em.getConnection().execute<Array<{ dishId: string; wineId: string; source: PairingStat['source']; shown: number; chosen: number }>>(
       `with ev as (
          select id, session_id, name, dish_id, wine_id, props, created_at from guest_interaction
@@ -558,6 +564,7 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async findByCode(restaurantId: string, serviceDay: string, code: string): Promise<RecommendationCodeRecord | null> {
+    if (!isUuid(restaurantId)) return null;
     const rows = await this.run<RecommendationCodeSqlRow>(
       `select ${CODE_COLUMNS} from recommendation_code where restaurant_id = ? and service_day = ? and code = ?`,
       [restaurantId, serviceDay, code]
@@ -566,6 +573,7 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async setConfirmed(restaurantId: string, serviceDay: string, code: string, at: Date | null, by: string | null) {
+    if (!isUuid(restaurantId)) return null;
     // R7: one statement; a second confirmation keeps the first time and author
     const rows = await this.run<RecommendationCodeSqlRow>(
       at === null
@@ -579,6 +587,7 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async countBySession(restaurantId: string, serviceDay: string, sessionId: string) {
+    if (!isUuid(restaurantId) || !isUuid(sessionId)) return 0;
     const rows = await this.run<{ n: string }>(
       'select count(*)::text as n from recommendation_code where restaurant_id = ? and service_day = ? and session_id = ?',
       [restaurantId, serviceDay, sessionId]
@@ -587,6 +596,7 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async pairStats(restaurantId: string, period: ServiceDayPeriod) {
+    if (!isUuid(restaurantId)) return [];
     const rows = await this.run<{ dish_id: string; wine_id: string; context: 'dish' | 'table'; issued: string; confirmed: string; matched: string; ordered: string }>(
       `with ${POS_MATCHES}
        select d.dish_id, r.wine_id, r.context, count(*)::text as issued, count(r.confirmed_at)::text as confirmed,
@@ -606,6 +616,7 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async totals(restaurantId: string, period: ServiceDayPeriod) {
+    if (!isUuid(restaurantId)) return { issued: 0, staffConfirmed: 0, posMatched: 0, ordered: 0 };
     const rows = await this.run<{ issued: string; confirmed: string; matched: string; ordered: string }>(
       `with ${POS_MATCHES}
        select count(*)::text as issued, count(r.confirmed_at)::text as confirmed,
@@ -622,6 +633,7 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async unmatchedPosCodes(restaurantId: string, period: ServiceDayPeriod) {
+    if (!isUuid(restaurantId)) return 0;
     const rows = await this.run<{ n: string }>(
       `select count(*)::text as n from (
          select distinct s.business_date, s.recommendation_code as code from sales_record s
@@ -635,6 +647,7 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async countUnmatched(restaurantId: string, pairs: Array<{ businessDate: string; code: string }>) {
+    if (!isUuid(restaurantId)) return 0;
     if (!pairs.length) return 0;
     const rows = await this.run<{ n: string }>(
       `select count(*)::text as n from (select distinct p.day, p.code from jsonb_to_recordset(?::jsonb) as p(day date, code text)) p
@@ -663,6 +676,7 @@ export class PgSalesRepository implements SalesRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async checkTotals(restaurantId: string, period: SalesPeriod): Promise<CheckTotals[]> {
+    if (!isUuid(restaurantId)) return [];
     const rows = await this.em.getConnection().execute<Array<{
       business_date: string; check_id: string; covers: number | null; food: string; glass_q: string; glass_a: string; bottle_q: string; bottle_a: string;
     }>>(
@@ -685,6 +699,7 @@ export class PgSalesRepository implements SalesRepository {
   }
 
   async dataRange(restaurantId: string): Promise<SalesPeriod | null> {
+    if (!isUuid(restaurantId)) return null;
     const rows = await this.em.getConnection().execute<Array<{ from: string | null; to: string | null }>>(
       'select min(business_date)::text as "from", max(business_date)::text as "to" from sales_record where restaurant_id = ? and replaced_at is null',
       [restaurantId]
@@ -694,6 +709,7 @@ export class PgSalesRepository implements SalesRepository {
   }
 
   async countChecks(restaurantId: string, keys: CheckKey[]) {
+    if (!isUuid(restaurantId)) return 0;
     if (!keys.length) return 0;
     const rows = await this.em.getConnection().execute<Array<{ n: string }>>(
       `select count(*)::text as n from (select distinct k.day, k.check_id from jsonb_to_recordset(?::jsonb) as k(day date, check_id text)) k

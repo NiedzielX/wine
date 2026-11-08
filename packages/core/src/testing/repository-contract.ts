@@ -302,6 +302,36 @@ export function repositoryContract(
       t.expect(await repo.pairingStats(ds.restaurant.id, { from: at('2033-03-01T00:00:00.000Z'), to: at('2033-03-29T00:00:00.000Z') })).toEqual([]);
     });
 
+    /* ---------- ids that are not UUIDs (lesson 2026-11-05-url-ids-vs-uuid-columns, threat model T-25 .. T-32) ---------- */
+    t.it('treats a restaurant or session id that is not a UUID as unknown in every lookup of dismissals, usage, codes and sales (never a driver error)', async () => {
+      const BAD = ['abc', '', "x'; drop table dish; --", '00000000-0000-4000-8000-00000000000g'];
+      const now = new Date('2026-10-20T00:00:00.000Z');
+      const range = { from: now, to: new Date('2026-10-21T00:00:00.000Z') };
+      const period = { from: '2032-01-01', to: '2032-01-31' };
+      const zeroUsage = { sessions: 0, recommendationViews: 0, sessionsWithViews: 0, sessionsWithSelection: 0, staffLookups: 0 };
+      for (const bad of BAD) {
+        t.expect(await repos.opportunityDismissalRepository.listActive(bad, now), bad).toEqual([]);
+        t.expect(await repos.opportunityDismissalRepository.remove(bad, 'wine_unpaired:x'), bad).toBe(false);
+        t.expect(await repos.guestInteractionRepository.listBySession(bad, bad), bad).toEqual([]);
+        t.expect(await repos.guestInteractionRepository.listBySession(ds.restaurant.id, bad), bad).toEqual([]);
+        t.expect(await repos.guestInteractionRepository.countGuestSessions(bad, range), bad).toBe(0);
+        t.expect(await repos.guestInteractionRepository.usageTotals(bad, range), bad).toEqual(zeroUsage);
+        t.expect(await repos.guestInteractionRepository.pairingStats(bad, range), bad).toEqual([]);
+        const codes = repos.recommendationCodeRepository;
+        t.expect(await codes.findByCode(bad, '2032-01-01', 'W7K'), bad).toBeNull();
+        t.expect(await codes.setConfirmed(bad, '2032-01-01', 'W7K', null, null), bad).toBeNull();
+        t.expect(await codes.countBySession(bad, '2032-01-01', bad), bad).toBe(0);
+        t.expect(await codes.countBySession(ds.restaurant.id, '2032-01-01', bad), bad).toBe(0);
+        t.expect(await codes.pairStats(bad, period), bad).toEqual([]);
+        t.expect(await codes.totals(bad, period), bad).toEqual({ issued: 0, staffConfirmed: 0, posMatched: 0, ordered: 0 });
+        t.expect(await codes.unmatchedPosCodes(bad, period), bad).toBe(0);
+        t.expect(await codes.countUnmatched(bad, [{ businessDate: '2032-01-01', code: 'W7K' }]), bad).toBe(0);
+        t.expect(await repos.salesRepository.checkTotals(bad, { from: '2033-01-01', to: '2033-12-31' }), bad).toEqual([]);
+        t.expect(await repos.salesRepository.dataRange(bad), bad).toBeNull();
+        t.expect(await repos.salesRepository.countChecks(bad, [{ businessDate: '2033-04-01', checkId: 'T1' }]), bad).toBe(0);
+      }
+    });
+
     /* ---------- recommendation codes (spec 2026-10-16-recommendation-code) ---------- */
     recommendationCodeContract(t, () => ({ repos, ds }));
 
