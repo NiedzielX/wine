@@ -38,6 +38,7 @@ beforeAll(() => {
   put('.ai/specs/2026-11-08-approved.md', spec('approved'));
   put('.ai/specs/2026-11-08-progress.md', spec('in-progress'));
   put('.ai/specs/2026-11-08-crlf.md', spec('draft').replace(/\n/g, '\r\n'));
+  put('.ai/specs/2026-11-08-crlf-approved.md', spec('approved').replace(/\n/g, '\r\n'));
   put('.ai/specs/product-brief.md', '# Brief\n\nNo frontmatter here.\n');
   put('.ai/specs/implemented/2026-11-01-done.md', spec('implemented'));
   put('.ai/specs/archive/2026-11-01-old.md', spec('abandoned'));
@@ -101,6 +102,14 @@ const BLOCKED: Array<[string, () => Payload]> = [
   ['an anchor and an alias', () => write('.ai/specs/2026-11-09-anchor.md', '---\nbase: &b {status: approved}\nmeta: *b\n---\n')],
   ['a nested status', () => write('.ai/specs/2026-11-09-nested.md', '---\nmeta:\n  status: approved\n---\n')],
   ['a flow sequence line', () => write('.ai/specs/2026-11-09-seq.md', '---\n[a, b]\nstatus: draft\n---\n')],
+  // YAML forms that parse to `approved` without the plain text `status: approved`
+  ['a complex key (? status / : approved)', () => write('.ai/specs/2026-11-09-complex.md', '---\n? status\n: approved\n---\n')],
+  ['a line that starts with a colon', () => write('.ai/specs/2026-11-09-colon.md', '---\n: approved\n---\n')],
+  ['an escaped key', () => write('.ai/specs/2026-11-09-esckey.md', '---\n"stat\\x75s": approved\n---\n')],
+  ['an escaped value', () => write('.ai/specs/2026-11-09-escval.md', '---\nstatus: "\\x61pproved"\n---\n')],
+  ['a double-quoted value folded over two lines', () => write('.ai/specs/2026-11-09-fold.md', '---\nstatus: "appr\\\noved"\n---\n')],
+  ['a single-quoted value folded over two lines', () => write('.ai/specs/2026-11-09-fold1.md', "---\nstatus: 'appr\noved'\n---\n")],
+  ['a CRLF edit (CRLF in old_string) that approves', () => edit('.ai/specs/2026-11-08-crlf.md', 'status: draft\r\ncreated', 'status: approved\r\ncreated')],
   ['an alias on a value line', () => write('.ai/specs/2026-11-09-alias.md', '---\nstatus: *b\n---\n')],
   ['a dangling symlink to a new spec', () => write('other/dangling.md', spec('approved'))],
   // malformed frontmatter under .ai/specs: the status cannot be verified, so it is refused
@@ -141,6 +150,10 @@ const ALLOWED: Array<[string, () => Payload]> = [
   ['body prose with braces, anchors and an indented status line', () => edit(DRAFT, 'Body.', 'Use {status: approved} or &x and *y or\n  status: approved\nin prose only.')],
   ['a dangling symlink to a harmless target', () => write('other/harmless.md', spec('approved'))],
   ['a spec header with a block list of related files', () => write('.ai/specs/2026-11-09-list.md', '---\nstatus: in-progress\nrelated:\n  - .ai/specs/a.md\n  - b\n---\n')],
+  ['a CRLF approved -> in-progress edit with CRLF in old_string and new_string', () => edit('.ai/specs/2026-11-08-crlf-approved.md', 'status: approved\r\ncreated', 'status: in-progress\r\ncreated')],
+  ['a CRLF body edit of a draft that quotes a status line in the body (must match, not be judged as unmatched)', () => edit('.ai/specs/2026-11-08-crlf.md', 'Body.\r\n', 'Body.\r\n\r\nstatus: approved\r\n')],
+  ['a CRLF body edit that spans two lines', () => edit('.ai/specs/2026-11-08-crlf-approved.md', '# Title\r\n\r\nBody.', '# Title\r\n\r\nBody 2.')],
+  ['quoted plain values and a value with an escape-free quote', () => write('.ai/specs/2026-11-09-quoted.md', '---\nstatus: "in-progress"\ntitle: "a \\ b"\n---\n')],
   ['a CRLF spec body edit', () => edit('.ai/specs/2026-11-08-crlf.md', 'Body.', 'Body 2.')]
 ];
 

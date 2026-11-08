@@ -28,7 +28,14 @@ Audyt projektu końcowego: (a) co najmniej jeden skill dopasowany do projektu, (
 5. Ten log (Weryfikacja poniżej), nagłówek bez „bez push i PR”, skill `wine-match-new-api-route`: „Spec is `approved` (set by a human) or `in-progress`”.
 6. `security-notes.md` §2: zastrzeżenie, że zamknięcie zawodzące dotyczy form nagłówka, które hook czyta (lista); §4 „Znane luki spec-status-guard” (normalizacja cudzysłowów w Edit niezweryfikowana, pętla dowiązań > 8, nieznana forma YAML, dowiązanie wiszące tylko przy zapisie przez Write/Edit/MultiEdit).
 
-## Weryfikacja (po poprawkach, 2026-11-08)
+### Druga runda review PR #132 (red najpierw)
+- **Formy YAML czytane jako `approved`, a przepuszczane:** klucz złożony (`? status` + `: approved`), klucz z ucieczką (`"stat\x75s"`), wartość z ucieczką (`"\x61pproved"`), wartość w cudzysłowie złożona przez dwie linie (podwójnym i pojedynczym). 6 testów blokujących czerwonych (`6 failed | 108 passed`), potem `specStatus()` odmawia: linii od `?` lub `:`, klucza w `"..."` z ukośnikiem, wartości `status` w cudzysłowie niezamkniętej w linii lub (w podwójnym) z ukośnikiem. Kontrole dozwolone zielone (zwykłe nagłówki, `title: "a \ b"`, przegląd prawdziwych nagłówków `.ai/specs/`).
+- **CRLF:** `old_string` i `new_string` są normalizowane do `\n` jak treść pliku (wcześniej `old_string` z `\r\n` nie pasował i edycja była oceniana jako niedopasowana). Test czerwony: edycja treści szkicu CRLF cytująca w treści linię `status: approved` była błędnie blokowana; zielony po poprawce. Testy w obie strony: edycja zatwierdzająca w CRLF nadal blokowana, `approved` → `in-progress` i edycja treści przez dwie linie w CRLF dozwolone.
+- **`...` jako koniec nagłówka:** nie przyjmowane, opisane w `security-notes.md` §4 (odmowa, luka użyteczności, nie bezpieczeństwa).
+- `security-notes.md` §2 (lista odmawianych form) i §4 „Znane luki” zaktualizowane.
+- Wynik: `npm run lint` 0 uwag; typecheck bez błędów; `npm test`: core 743, db 84, ui 62, app 500, testkit 367 zielone; `check:context` 0 błędów; `check:qa` 97 OK; `check:routes` OK; `secrets:scan` OK (po commicie).
+
+## Weryfikacja (po poprawkach pierwszej rundy, 2026-11-08)
 - `npm run lint`: 0 uwag. `npm run typecheck`: bez błędów.
 - `npm test`: core 743, db 84, ui 62, app 500, testkit 356 zielone (w tym `spec-status-guard.test.ts` 104 i `agent-guardrails.test.ts`).
 - `npm run check:context`: 0 błędów, 11 ostrzeżeń (istniejące). `npm run check:qa`: 97 scenariuszy OK. `npm run check:routes`: OK (25 handlerów, 21 tras). `npm run secrets:scan`: OK (21 trafień, wszystkie na allowliście).

@@ -10,7 +10,9 @@
  *
  * Header forms that are judged: a plain `status: value` at column 0 (plain or quoted scalar). Refused as unverifiable (exit 2): an
  * indented `status`, any line that starts with `{` or `[`, a `status` key inside a flow map, YAML anchors and aliases (`&x`, `*x`), a value
- * on the next line, block scalars, tags, two `status` keys, a header without its closing `---`. Known gaps: an Edit whose old_string only
+ * on the next line, block scalars, tags, two `status` keys, a header without its closing `---`, a line that starts with `?` or `:`, a
+ * double-quoted key with a backslash, a quoted `status` value that is not closed on its line or (in double quotes) has a backslash.
+ * Only `---` closes a header; `...` is not accepted (a header closed that way is read as unclosed and refused). Known gaps: an Edit whose old_string only
  * matches through the editing tool's own quote normalisation is judged by its new_string alone (unverified); symlink loops are not
  * followed past 8 links (the path is then judged as written).
  *
@@ -67,7 +69,8 @@ const defaultDeps = {
   read: (path) => (existsSync(path) ? readFileSync(path, 'utf8') : null)
 };
 
-const normalize = (text) => text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+const unix = (text) => text.replace(/\r\n?/g, '\n');
+const normalize = (text) => unix(text.replace(/^﻿/, ''));
 const UNPARSEABLE_START = /^[|>&*![{?%@`]/;
 
 /**
@@ -86,6 +89,8 @@ export function specStatus(text) {
     if (/^[ \t]*[{[]/.test(line)) throw new Error('nagłówek zawiera mapę lub listę zapisaną w nawiasach (flow)');
     if (/(^|[\s:,[{])[&*][A-Za-z0-9_-]+/.test(line)) throw new Error('nagłówek zawiera kotwicę lub alias YAML (&, *)');
     if (/[{[].*["']?status["']?[ \t]*:/.test(line)) throw new Error('pole status wewnątrz mapy w nawiasach');
+    if (/^[ \t]*[?:]/.test(line)) throw new Error('linia zaczyna się od ? lub : (klucz złożony)');
+    if (/^[ \t]*"[^"]*\\/.test(line)) throw new Error('klucz w cudzysłowie z ukośnikiem (ucieczka znaku)');
     const m = /^([ \t]*)["']?status["']?[ \t]*:(.*)$/.exec(line);
     if (!m) return;
     if (m[1] !== '') throw new Error('pole status z wcięciem (zagnieżdżone lub przesunięte)');
@@ -93,20 +98,27 @@ export function specStatus(text) {
   });
   if (found.length === 0) return null;
   if (found.length > 1) throw new Error('nagłówek ma dwa pola status');
-  let value = found[0].raw.replace(/\s+#.*$/, '').trim();
-  if (value === '') {
+  const raw = found[0].raw.trim();
+  if (raw === '' || raw.startsWith('#')) {
     if (found[0].next !== undefined && /^\s+\S/.test(found[0].next)) throw new Error('wartość status w osobnej linii');
     return null;
   }
+  if (raw[0] === '"' || raw[0] === "'") {
+    // a quoted scalar must close on the same line and, in double quotes, carry no escape (`"\x61pproved"`, a folded `"appr\<newline>oved"`)
+    const closed = (raw[0] === '"' ? /^"([^"\\]*)"[ \t]*(?:#.*)?$/ : /^'([^']*)'[ \t]*(?:#.*)?$/).exec(raw);
+    if (!closed) throw new Error('wartość status w cudzysłowie niezamknięta w tej samej linii lub z ucieczką znaku');
+    return closed[1].trim().toLowerCase();
+  }
+  const value = raw.replace(/[ \t]+#.*$/, '').trim();
   if (UNPARSEABLE_START.test(value)) throw new Error('wartość status w formie, której hook nie rozumie');
-  const quoted = /^(["'])(.*)\1$/.exec(value);
-  if (quoted) value = quoted[2].trim();
   return value.toLowerCase();
 }
 
 function applyEdit(content, edit) {
   if (!edit || typeof edit.old_string !== 'string' || typeof edit.new_string !== 'string') throw new Error('edycja bez old_string i new_string');
-  const { old_string: from, new_string: to } = edit;
+  // the file text is normalised to \n, so the edit must be too, or a CRLF old_string never matches and a legitimate edit is judged as unmatched
+  const from = unix(edit.old_string);
+  const to = unix(edit.new_string);
   if (from === '') return content === null || content === '' ? { text: to, matched: true } : { text: content, matched: false };
   if (content === null) return { text: '', matched: false };
   const at = content.indexOf(from);
@@ -127,7 +139,7 @@ function outcome(name, input, current) {
   const unmatched = [];
   for (const edit of edits) {
     const r = applyEdit(text, edit);
-    if (!r.matched) unmatched.push(edit.new_string);
+    if (!r.matched) unmatched.push(unix(edit.new_string));
     text = r.text;
   }
   return { text: text ?? '', unmatched };
