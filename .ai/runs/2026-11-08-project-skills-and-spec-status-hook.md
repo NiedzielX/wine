@@ -35,6 +35,11 @@ Audyt projektu końcowego: (a) co najmniej jeden skill dopasowany do projektu, (
 - `security-notes.md` §2 (lista odmawianych form) i §4 „Znane luki” zaktualizowane.
 - Wynik: `npm run lint` 0 uwag; typecheck bez błędów; `npm test`: core 743, db 84, ui 62, app 500, testkit 367 zielone; `check:context` 0 błędów; `check:qa` 97 OK; `check:routes` OK; `secrets:scan` OK (po commicie).
 
+### Trzecia runda review PR #132 (HIGH, red najpierw)
+- **Obejście przez samotne `\r`:** normalizacja `\r\n?` → `\n` stosowana osobno do `old_string` i `new_string` pozwalała, by na pliku CRLF edycja `old_string = "status: draft\r"`, `new_string = "status: approved"` pasowała dosłownie w narzędziu (wynik `approved`, bez końca linii), a hook widział `approvedcreated` i przepuszczał. Dodałem 7 testów blokujących (samotne `\r` na końcu i na początku `old_string`, na końcu `new_string`, oba brzegi z początkiem nagłówka, `old_string` od `\n`, MultiEdit, `replace_all`); 5 było czerwonych (`5 failed | 117 passed`).
+- **Poprawka (wariant preferowany):** `applyEdit()` dopasowuje najpierw `old_string` do surowych bajtów pliku i podstawia na surowym tekście; dopiero przy braku dopasowania próbuje po normalizacji obu stron (edycja, którą narzędzie mogłoby dopasować inaczej); normalizacja wyniku dzieje się wyłącznie w `specStatus()`. Wcześniejsze przypadki CRLF (approved → in-progress, edycja treści, cytat `status: approved` w treści szkicu, edycja zatwierdzająca) zostają zielone.
+- Wynik: lint 0 uwag; typecheck czysty; `npm test` (testkit 374) zielone; `check:context`, `check:qa`, `check:routes`, `secrets:scan` OK (zob. polecenia poniżej, powtórzone po poprawce). `security-notes.md` §4 luka (1) uzupełniona o kolejność dopasowania. Nie pushowane (decyzja koordynatora i właściciela).
+
 ## Weryfikacja (po poprawkach pierwszej rundy, 2026-11-08)
 - `npm run lint`: 0 uwag. `npm run typecheck`: bez błędów.
 - `npm test`: core 743, db 84, ui 62, app 500, testkit 356 zielone (w tym `spec-status-guard.test.ts` 104 i `agent-guardrails.test.ts`).

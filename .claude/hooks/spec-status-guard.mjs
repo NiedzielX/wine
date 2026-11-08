@@ -117,14 +117,21 @@ export function specStatus(text) {
 function applyEdit(content, edit) {
   if (!edit || typeof edit.old_string !== 'string' || typeof edit.new_string !== 'string') throw new Error('edycja bez old_string i new_string');
   // the file text is normalised to \n, so the edit must be too, or a CRLF old_string never matches and a legitimate edit is judged as unmatched
-  const from = unix(edit.old_string);
-  const to = unix(edit.new_string);
-  if (from === '') return content === null || content === '' ? { text: to, matched: true } : { text: content, matched: false };
+  const replace = (text, from, to) => {
+    const at = text.indexOf(from);
+    if (at === -1) return null;
+    return edit.replace_all === true ? text.split(from).join(to) : text.slice(0, at) + to + text.slice(at + from.length);
+  };
+  if (edit.old_string === '') return content === null || content === '' ? { text: edit.new_string, matched: true } : { text: content, matched: false };
   if (content === null) return { text: '', matched: false };
-  const at = content.indexOf(from);
-  if (at === -1) return { text: content, matched: false };
-  const text = edit.replace_all === true ? content.split(from).join(to) : content.slice(0, at) + to + content.slice(at + from.length);
-  return { text, matched: true };
+  // First the bytes the tool was given against the bytes on disk: that is what the tool does, and normalising only one side lets a lone \r
+  // at the edge of old_string swallow a line break (`status: draft\r` -> `status: approved` leaves `approved`). Only the RESULT is normalised
+  // later, for the header scan. Second, with both sides normalised, for an edit the tool may still match through its own normalisation.
+  const exact = replace(content, edit.old_string, edit.new_string);
+  if (exact !== null) return { text: exact, matched: true };
+  const loose = replace(unix(content), unix(edit.old_string), unix(edit.new_string));
+  if (loose !== null) return { text: loose, matched: true };
+  return { text: content, matched: false };
 }
 
 /** The text a tool call would leave in the file, and the new text of every edit that did not match (the tool will reject those itself). */
@@ -165,7 +172,7 @@ export function decide(payload, deps = defaultDeps) {
   if (!isGuarded(abs) && !isGuarded(real)) return null;
 
   const current = deps.read(abs);
-  const { text, unmatched } = outcome(name, input, current === null ? null : normalize(current));
+  const { text, unmatched } = outcome(name, input, current); // raw text: specStatus() normalises the result
   let currentApproved = false;
   if (current !== null) {
     try { currentApproved = specStatus(current) === APPROVED; } catch { currentApproved = false; }
