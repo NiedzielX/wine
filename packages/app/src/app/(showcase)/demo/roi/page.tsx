@@ -19,7 +19,7 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 /** DM2: the return calculator. State is the query string; the form is a plain GET; nothing is stored (spec 2026-11-04-sales-demo-and-roi-calculator, R2-R4). */
 export default async function RoiPage({ searchParams }: Props) {
-  showcaseGate('calculator');
+  const mode = showcaseGate('calculator');
   const sp = await searchParams;
   const { locale, t } = await getI18n();
   const parsed = parseRoiInputs(Object.entries(sp));
@@ -33,7 +33,7 @@ export default async function RoiPage({ searchParams }: Props) {
   logShowcaseView('roi');
   return (
     <>
-      <ShowcaseHeader path="/demo/roi" query={new URLSearchParams(query)} locale={locale} t={t} />
+      <ShowcaseHeader path="/demo/roi" query={new URLSearchParams(query)} locale={locale} t={t} mode={mode} />
       <main className="mx-auto grid max-w-5xl gap-6 px-4 py-8 sm:px-6">
         <div className="grid gap-2">
           <h1 className="font-serif text-4xl leading-tight">{t.showcase.roi.title}</h1>

@@ -1,6 +1,7 @@
 import type { GuestSessionRef, UsageEvent, UsageEventService } from '@wine-match/core';
 import { headers } from 'next/headers';
 import { after } from 'next/server';
+import { env } from './env';
 import { logger } from './logger';
 import { countUsageWriteFailed } from './metrics';
 import { PREFETCH_HEADER } from './prefetch';
@@ -53,6 +54,9 @@ export async function trackUsage(
   session: GuestSessionRef,
   events: UsageEvent[]
 ): Promise<void> {
+  // the public demo instance records no guest events at all (spec 2026-11-04-sales-demo-and-roi-calculator, R9): nothing may push its
+  // synthetic data out of memory. Only events: recommendation codes are still issued there (`issueCodeForPage` uses `shouldRecord` alone).
+  if (env().showcaseMode === 'demo') return;
   if (!shouldRecord(await headers())) return;
   if (!events.length && !(session.isNew && session.source !== 'staff')) return;
   const service = services.usageEventService;
