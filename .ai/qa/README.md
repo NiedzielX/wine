@@ -99,3 +99,11 @@ One sentence, user-visible behaviour.
 5. Open the linked test and confirm the title matches and the assertions support the Then steps. Anything vague goes under "Notes for the reviewer" and into a follow-up.
 
 The scenarios were written from reading the tests as they are. Where a test name promises more than it asserts, the scenario says what is asserted and the difference is in the notes.
+
+## Protocol, templates and knowledge base
+
+Scenarios describe automated tests. The manual-with-agents QA session (plan with oracles, real browser, independent verifier, report) is in [`.ai/docs/qa-protocol.md`](../docs/qa-protocol.md). Companion files here:
+
+- [`bug-template.md`](bug-template.md): the bug report of a QA session.
+- [`prompts.md`](prompts.md): ready prompts (start a session on PR N, rank the `needs-qa` queue, analyse a spec, confirm the environment, seed).
+- [`knowledge/`](knowledge/README.md): one entry per QA session, also with zero bugs. It is not an area of scenarios; `check:qa` skips it.

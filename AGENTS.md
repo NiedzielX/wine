@@ -25,6 +25,7 @@ Czytaj tyle, ile wymaga zadanie; §1.2–§1.6 (pełne: `.ai/docs/architecture-r
 | standardy kodu | `.ai/docs/engineering-standards.md` |
 | planowanie pracy równoległej, kolejność zadań | `.ai/docs/parallel-work.md` |
 | naprawa błędu, zgłoszenie błędu, weryfikacja poprawki | `.ai/docs/fix-verification.md` |
+| QA zmiany (`needs-qa`, `risk-high`), testowanie w przeglądarce | `.ai/docs/qa-protocol.md`, `.ai/qa/README.md` |
 | agent, skille, MCP, sekrety | `security-notes.md` |
 | bezpieczeństwo produktu, granice dostępu, nowa trasa z id w ścieżce | `docs/security/threat-model.md`, `.ai/docs/engineering-standards.md` §10 |
 <!-- routing:end -->
