@@ -155,11 +155,16 @@ function exportedHandlers(masked) {
   return { handlers, unsupported };
 }
 
+/** Escapes every regular-expression metacharacter (backslash included), so the text matches literally. */
+export function escapeRegExp(text) {
+  return text.replace(/[\\^$.*+?()[\]{}|/]/g, (ch) => `\\${ch}`);
+}
+
 /** Names imported (without `as`) from the wrapper module, and the names imported under an alias. */
 function wrapperImports(noComments) {
   const names = new Set();
   const aliased = new Set();
-  const re = new RegExp(`import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s*from\\s*['"]${WRAPPER_MODULE.replace(/[/]/g, '\\/')}['"]`, 'g');
+  const re = new RegExp(`import\\s+(?:type\\s+)?\\{([^}]*)\\}\\s*from\\s*['"]${escapeRegExp(WRAPPER_MODULE)}['"]`, 'g');
   for (const m of noComments.matchAll(re)) {
     for (const part of m[1].split(',').map((s) => s.trim()).filter(Boolean)) {
       if (/\bas\b/.test(part)) aliased.add(part.split(/\s+as\s+/)[0].trim());

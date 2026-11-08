@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { checkRoutes, expectedRoute, mask } from '../../../scripts/check-routes.mjs';
+import { checkRoutes, escapeRegExp, expectedRoute, mask } from '../../../scripts/check-routes.mjs';
 
 /**
  * `scripts/check-routes.mjs`: every API route handler goes through handle()/handlePublic()/handleUnscoped() with a
@@ -140,5 +140,22 @@ describe('check-routes', () => {
 
   it('the real allowlist is consistent with the real tree (no stale entry, every reason written)', () => {
     expect(() => execFileSync(process.execPath, [SCRIPT, '--root', REPO], { stdio: 'pipe' })).not.toThrow();
+  });
+});
+
+describe('escapeRegExp (CodeQL js/incomplete-sanitization: backslash must be escaped too)', () => {
+  const tricky = ['@/server/api-auth', 'a\\b', 'a\\/b', '\\', '\\\\', 'a.b*c+d?e', '(x|y)[z]{1,2}^$', '/', 'x\\.y'];
+
+  it.each(tricky)('matches the text %j literally and nothing else', (text) => {
+    const re = new RegExp(`^${escapeRegExp(text)}$`);
+    expect(re.test(text)).toBe(true);
+    expect(re.test(`${text}x`)).toBe(false);
+    expect(re.test(`x${text}`)).toBe(false);
+  });
+
+  it('escapes the backslash before it can swallow the next escape (the exact CodeQL finding)', () => {
+    // A slash-only escape turns `a\/b` into `a\\/b`, i.e. an escaped backslash followed by an unescaped slash.
+    expect(escapeRegExp('a\\/b')).toBe('a\\\\\\/b');
+    expect(new RegExp(escapeRegExp('a\\/b')).test('a\\/b')).toBe(true);
   });
 });
