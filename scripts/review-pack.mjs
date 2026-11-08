@@ -3,11 +3,11 @@
  * review:pack: the package a reviewer gets for one pull request (diff, spec section, checklist for the risk, CI),
  * without the author's title, description, comments or commit messages (lesson 17; `.ai/docs/review-protocol.md`).
  *
- * Usage: npm run review:pack -- <pr number> [--repo owner/name] [--out file] [--max-diff-bytes N]
+ * Usage: npm run review:pack -- <pr number> [--repo owner/name] [--out file [--force]] [--max-diff-bytes N]
  * Read-only: `gh api` GET requests (REST only). Needs `gh` signed in; the token is never read or printed here.
  */
 import { execFileSync } from 'node:child_process';
-import { realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, realpathSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { DEFAULT_REPO, MAX_DIFF_BYTES, buildReviewPack, createGhFetcher } from './lib/review-pack.mjs';
 
@@ -29,15 +29,27 @@ export async function main(argv) {
     return 2;
   }
   const repo = value('--repo') ?? process.env.GITHUB_REPOSITORY ?? repoFromRemote();
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
-    process.stderr.write('review:pack: --repo must look like owner/name\n');
+  // owner/name only; "." and ".." segments would walk the API path (repos/o/../x)
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || repo.split('/').some((s) => s === '.' || s === '..')) {
+    process.stderr.write('review:pack: --repo must look like owner/name (no "." or ".." segments)\n');
     return 2;
   }
-  const maxDiffBytes = value('--max-diff-bytes') ? Number(value('--max-diff-bytes')) : MAX_DIFF_BYTES;
+  const rawMax = value('--max-diff-bytes');
+  if (rawMax !== undefined && !/^[1-9]\d{0,9}$/.test(rawMax)) {
+    process.stderr.write('review:pack: --max-diff-bytes must be a positive integer\n');
+    return 2;
+  }
+  const maxDiffBytes = rawMax === undefined ? MAX_DIFF_BYTES : Number(rawMax);
+  const out = value('--out');
+  const force = argv.includes('--force');
+  // fail before any request: an existing file is never overwritten without --force
+  if (out && !force && existsSync(out)) {
+    process.stderr.write(`review:pack: ${out} already exists; pass --force to overwrite it\n`);
+    return 2;
+  }
   try {
     const pack = await buildReviewPack({ pr, repo, fetcher: createGhFetcher(), maxDiffBytes });
-    const out = value('--out');
-    if (out) writeFileSync(out, pack);
+    if (out) writeFileSync(out, pack, { flag: force ? 'w' : 'wx' });
     else process.stdout.write(pack);
     return 0;
   } catch (error) {

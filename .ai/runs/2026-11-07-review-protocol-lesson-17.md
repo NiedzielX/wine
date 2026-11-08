@@ -30,5 +30,8 @@ Zapisać protokół review (trzy warstwy bramek, triage kolejki, ochrona gałęz
 ## Wynik
 Protokół, listy kontrolne, tabela etykiet, opis rutyny nocnej i paczka recenzenta gotowe. Rutyny w chmurze nie zmieniano. Do decyzji właściciela: elementy z `review-protocol.md` §7 (CodeQL jako wymagany check, 2FA, alerty Dependabot).
 
+## Poprawki po review PR #129 (2026-11-08)
+Scalono `origin/main` (#126, bez konfliktów). Review bezpieczeństwa wejścia: specyfikacje tylko z bazy, ostrzeżenie „dane nieufne” przed i po diffie, nazwy plików w bloku kodu i oczyszczone, `fenceFor` bez `Math.max(...)`, lista dozwolonych znaków w nazwach checków, walidacja CLI (`--max-diff-bytes`, `--repo`, `--out` bez nadpisania, `--force`), ucięcie na granicy znaku z listą plików poza cięciem; 11 nowych testów było czerwonych przed zmianą kodu. Review spójności procesu: zrzeczenie właściciela, zakres `merge-queue`, rutyna tylko komentarze, filtr kolejki, nagłówek `## 5` w `parallel-work.md`, odwołanie do `AGENTS.md` §6.1.
+
 ## Lekcje
 `.ai/lessons/2026-11-07-review-pack-not-author-story.md`
