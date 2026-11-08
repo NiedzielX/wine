@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-08] [Obraz `migrator`: `migration:up` zapisuje snapshot w źródłach, katalog musi być zapisywalny dla `node`](lessons/2026-11-08-migration-up-writes-snapshot-into-source.md) — `COPY --chown=node:node` w celu `migrator`; kroki obrazu uruchamiaj najpierw w kopii układu plików i porównuj `find -newer`.
 - [2026-11-07] [Recenzent dostaje paczkę, nie opis PR-a](lessons/2026-11-07-review-pack-not-author-story.md) — `npm run review:pack`: diff, spec, lista kontrolna, CI bez deklaracji autora; auto-approve nie jest decyzją o merge; etykieta to decyzja z jednej chwili.
 - [2026-11-07] [Błąd, który wrócił mimo review, dostaje sprawdzenie maszynowe (`npm run check:routes`)](lessons/2026-11-07-deterministic-check-over-review.md) — każda trasa API przez `handle*()` z literalnym, unikalnym `route`; wyjątki tylko w allowlist z powodem; dowód czerwony/zielony w `.ai/runs/`.
 - [2026-11-06] [W worktree pod `.claude/worktrees/` CLI MikroORM bierze pakiety z `node_modules` głównego checkoutu](lessons/2026-11-06-mikro-orm-cli-in-nested-worktree.md) — przed `migration:up` i `test:e2e` dowiąż `@mikro-orm/{migrations,postgresql,seeder,sql}` symlinkami do korzenia worktree.

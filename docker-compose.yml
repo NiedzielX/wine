@@ -1,0 +1,114 @@
+# Wine Match on one VM (spec .ai/specs/2026-10-15-production-deployment.md, phase F2; runbook: docs/DEPLOYMENT.md).
+#
+#   cp .env.example .env     # then edit it: see the "Production" block in .env.example. Never commit .env.
+#   docker compose build
+#   docker compose run --rm migrate                                   # migrations (`up` also runs them, see below)
+#   docker compose run --rm migrate npm run migration:pending -w @wine-match/db   # must say "No pending migrations"
+#   docker compose up -d app
+#
+# Default services (db, migrate, app) are the PRODUCTION profile: PostgreSQL, no demo data, no demo accounts.
+# The optional `demo` profile starts ONE extra service, `app-demo` (the public read-only showcase on in-memory data,
+# docs/OPERATIONS.md "Instancja demo"); run it on a separate host or project, never next to real restaurants:
+#   docker compose --profile demo up -d app-demo      (on the demo host; its .env holds DEMO_PUBLIC_BASE_URL, see docs/DEPLOYMENT.md section 12)
+#
+# The app never migrates by itself: `app` waits for the one-shot `migrate` job to exit 0. TLS and HSTS belong to the reverse
+# proxy on the host (docs/DEPLOYMENT.md, section "Reverse proxy"); the ports below are bound to 127.0.0.1 on purpose.
+# Configuration comes from `.env` (the variables of .env.example) plus a few values fixed here so that a copied
+# .env.example cannot weaken production (cookie flag, local-address escape hatch, demo data).
+
+name: wine-match
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  DATA_SOURCE: postgres
+  # the password goes into a URL: use letters and digits only (`openssl rand -hex 24`)
+  DATABASE_URL: postgres://${POSTGRES_USER:-winematch}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-winematch}
+  # fixed, not read from .env: the template .env.example has AUTH_COOKIE_SECURE=false for local runs
+  AUTH_COOKIE_SECURE: "true"
+  ALLOW_LOCAL_BASE_URL: "false"
+  ALLOW_DEMO_DATA: "false"
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env to the public https:// address, before any QR code is printed}
+
+x-hardening: &hardening
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  db:
+    image: postgres:16.14-bookworm@sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-winematch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-winematch}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # no `ports:`: PostgreSQL is reachable only from this Compose network (backups: `docker compose exec db pg_dump`)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  migrate:
+    # one-shot operator image (migrations, restaurant:create, user:create, user:invite); runs `npm run db:migrate` by default
+    build:
+      context: .
+      target: migrator
+    image: wine-match-migrator:${WINE_MATCH_TAG:-local}
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment: *app-environment
+    <<: *hardening
+
+  app:
+    build:
+      context: .
+      target: runtime
+    image: wine-match:${WINE_MATCH_TAG:-local}
+    restart: unless-stopped
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    env_file: .env
+    environment: *app-environment
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    tmpfs:
+      - /tmp
+    stop_grace_period: 20s
+    <<: *hardening
+
+  app-demo:
+    # OPTIONAL, profile `demo`: the public read-only showcase of the invented restaurant Halka on in-memory data.
+    # Own environment: no env_file, so no DATABASE_URL, no METRICS_TOKEN, nothing from the production .env.
+    profiles: [demo]
+    build:
+      context: .
+      target: runtime
+    image: wine-match:${WINE_MATCH_TAG:-local}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      SHOWCASE_MODE: demo
+      DATA_SOURCE: memory
+      ALLOW_DEMO_DATA: "true"
+      AUTH_COOKIE_SECURE: "true"
+      ALLOW_LOCAL_BASE_URL: "false"
+      PUBLIC_BASE_URL: ${DEMO_PUBLIC_BASE_URL:?set DEMO_PUBLIC_BASE_URL to the https:// address of the demo (its own domain)}
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-3001}:3000"
+    tmpfs:
+      - /tmp
+    <<: *hardening
+
+volumes:
+  pgdata:
