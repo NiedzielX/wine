@@ -647,7 +647,8 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
   }
 
   async countUnmatched(restaurantId: string, pairs: Array<{ businessDate: string; code: string }>) {
-    if (!isUuid(restaurantId)) return 0;
+    // no restaurant, no codes: every distinct pair is unmatched, as for any restaurant without codes
+    if (!isUuid(restaurantId)) return new Set(pairs.map((x) => `${x.businessDate}|${x.code}`)).size;
     if (!pairs.length) return 0;
     const rows = await this.run<{ n: string }>(
       `select count(*)::text as n from (select distinct p.day, p.code from jsonb_to_recordset(?::jsonb) as p(day date, code text)) p

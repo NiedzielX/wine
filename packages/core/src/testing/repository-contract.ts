@@ -310,25 +310,25 @@ export function repositoryContract(
       const period = { from: '2032-01-01', to: '2032-01-31' };
       const zeroUsage = { sessions: 0, recommendationViews: 0, sessionsWithViews: 0, sessionsWithSelection: 0, staffLookups: 0 };
       for (const bad of BAD) {
-        t.expect(await repos.opportunityDismissalRepository.listActive(bad, now), bad).toEqual([]);
-        t.expect(await repos.opportunityDismissalRepository.remove(bad, 'wine_unpaired:x'), bad).toBe(false);
-        t.expect(await repos.guestInteractionRepository.listBySession(bad, bad), bad).toEqual([]);
-        t.expect(await repos.guestInteractionRepository.listBySession(ds.restaurant.id, bad), bad).toEqual([]);
-        t.expect(await repos.guestInteractionRepository.countGuestSessions(bad, range), bad).toBe(0);
-        t.expect(await repos.guestInteractionRepository.usageTotals(bad, range), bad).toEqual(zeroUsage);
-        t.expect(await repos.guestInteractionRepository.pairingStats(bad, range), bad).toEqual([]);
+        t.expect(await repos.opportunityDismissalRepository.listActive(bad, now)).toEqual([]);
+        t.expect(await repos.opportunityDismissalRepository.remove(bad, 'wine_unpaired:x')).toBe(false);
+        t.expect(await repos.guestInteractionRepository.listBySession(bad, bad)).toEqual([]);
+        t.expect(await repos.guestInteractionRepository.listBySession(ds.restaurant.id, bad)).toEqual([]);
+        t.expect(await repos.guestInteractionRepository.countGuestSessions(bad, range)).toBe(0);
+        t.expect(await repos.guestInteractionRepository.usageTotals(bad, range)).toEqual(zeroUsage);
+        t.expect(await repos.guestInteractionRepository.pairingStats(bad, range)).toEqual([]);
         const codes = repos.recommendationCodeRepository;
-        t.expect(await codes.findByCode(bad, '2032-01-01', 'W7K'), bad).toBeNull();
-        t.expect(await codes.setConfirmed(bad, '2032-01-01', 'W7K', null, null), bad).toBeNull();
-        t.expect(await codes.countBySession(bad, '2032-01-01', bad), bad).toBe(0);
-        t.expect(await codes.countBySession(ds.restaurant.id, '2032-01-01', bad), bad).toBe(0);
-        t.expect(await codes.pairStats(bad, period), bad).toEqual([]);
-        t.expect(await codes.totals(bad, period), bad).toEqual({ issued: 0, staffConfirmed: 0, posMatched: 0, ordered: 0 });
-        t.expect(await codes.unmatchedPosCodes(bad, period), bad).toBe(0);
-        t.expect(await codes.countUnmatched(bad, [{ businessDate: '2032-01-01', code: 'W7K' }]), bad).toBe(0);
-        t.expect(await repos.salesRepository.checkTotals(bad, { from: '2033-01-01', to: '2033-12-31' }), bad).toEqual([]);
-        t.expect(await repos.salesRepository.dataRange(bad), bad).toBeNull();
-        t.expect(await repos.salesRepository.countChecks(bad, [{ businessDate: '2033-04-01', checkId: 'T1' }]), bad).toBe(0);
+        t.expect(await codes.findByCode(bad, '2032-01-01', 'W7K')).toBeNull();
+        t.expect(await codes.setConfirmed(bad, '2032-01-01', 'W7K', null, null)).toBeNull();
+        t.expect(await codes.countBySession(bad, '2032-01-01', bad)).toBe(0);
+        t.expect(await codes.countBySession(ds.restaurant.id, '2032-01-01', bad)).toBe(0);
+        t.expect(await codes.pairStats(bad, period)).toEqual([]);
+        t.expect(await codes.totals(bad, period)).toEqual({ issued: 0, staffConfirmed: 0, posMatched: 0, ordered: 0 });
+        t.expect(await codes.unmatchedPosCodes(bad, period)).toBe(0);
+        t.expect(await codes.countUnmatched(bad, [{ businessDate: '2032-01-01', code: 'W7K' }])).toBe(1);
+        t.expect(await repos.salesRepository.checkTotals(bad, { from: '2033-01-01', to: '2033-12-31' })).toEqual([]);
+        t.expect(await repos.salesRepository.dataRange(bad)).toBeNull();
+        t.expect(await repos.salesRepository.countChecks(bad, [{ businessDate: '2033-04-01', checkId: 'T1' }])).toBe(0);
       }
     });
 
