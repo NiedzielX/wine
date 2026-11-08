@@ -122,10 +122,9 @@ export class RecommendationCodeService {
     for (const length of [3, 4] satisfies CodeLength[]) {
       for (let attempt = 0; attempt < CODE_ATTEMPTS_PER_LENGTH; attempt++) {
         const id = this.deps.idGenerator.uuid();
-        const result = await codes.tryIssue(restaurant.id, { ...base, id, code: codeFromUuid(id, length) });
-        if (result.status !== 'code_taken') {
-          return { code: result.record.code, serviceDay: result.record.serviceDay, issuedAt: result.record.issuedAt };
-        }
+        const result = await codes.tryIssue(restaurant.id, { ...base, id, code: codeFromUuid(id, length) }, limit);
+        if (result.status === 'session_limit') return null;
+        if (result.status !== 'code_taken') return { code: result.record.code, serviceDay: result.record.serviceDay, issuedAt: result.record.issuedAt };
       }
     }
     this.deps.logger.warn('recommendation code space exhausted', { restaurantId: restaurant.id, serviceDay: day });

@@ -256,9 +256,13 @@ export interface ServiceDayPeriod { from: string; to: string }
  * most 10 000 recommendations.
  */
 export interface RecommendationCodeRepository {
-  /** inserts unless (serviceDay, code) or the choice exists; `existing` returns the stored record of the same choice */
-  tryIssue(restaurantId: string, input: RecommendationCodeInput):
-    Promise<{ status: 'created' | 'existing'; record: RecommendationCodeRecord } | { status: 'code_taken' }>;
+  /**
+   * inserts unless (serviceDay, code) or the choice exists; `existing` returns the stored record of the same choice.
+   * `sessionLimit` (R13): `session_limit` when the session already has that many codes that day, counted and inserted
+   * under one lock, so parallel requests of one session cannot pass the cap together.
+   */
+  tryIssue(restaurantId: string, input: RecommendationCodeInput, sessionLimit?: number):
+    Promise<{ status: 'created' | 'existing'; record: RecommendationCodeRecord } | { status: 'code_taken' } | { status: 'session_limit' }>;
   /** the whole code only, never a prefix */
   findByCode(restaurantId: string, serviceDay: string, code: string): Promise<RecommendationCodeRecord | null>;
   /** `at` set: confirmed_at = coalesce(confirmed_at, at) (idempotent); `at` null: clears it. Null for an unknown code. */
