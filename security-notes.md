@@ -12,6 +12,7 @@ Trzy nogi: dostęp do danych prywatnych, kontakt z niezaufaną treścią, wyjśc
 |---|---|---|---|
 | `permissions.deny` | `.claude/settings.json` | blokuje wbudowane narzędzia plikowe przed odczytem `.env` i wariantów (poza `.env.example` i `.env.template`), `~/.ssh`, `~/.aws`, `~/.config/gh` | **nie blokuje komend basha** (`cat .env`); `deny` zawsze wygrywa z `allow`, więc nie da się zrobić wyjątku wzorcem |
 | Hook `PreToolUse` (Bash) | `.claude/hooks/pre-tool-use.mjs` | kod 2 dla: pobierania skryptu prosto do powłoki, `rm -r` poza katalogami budowania, dostępu do `~/.ssh` i `~/.aws`, odczytu `.env`, zrzutu środowiska, `git push --force`/`+refspec`/`--mirror`, `gh repo delete` | czyta tekst komendy, nie intencję (punkt 4) |
+| Hook `PreToolUse` (Edit, Write, MultiEdit) | `.claude/hooks/spec-status-guard.mjs` | kod 2 dla edycji pliku w `.ai/specs/` (poza `implemented/` i `archive/`), po której `status: approved` jest w pliku, a na dysku go nie było (nowy plik, draft → approved); `approved` → `in-progress` i edycje treści przechodzą; w `.ai/specs/` zawodzi zamykająco (nieczytelny nagłówek = odmowa) | nie widzi Basha (punkt 4); egzekwuje `AGENTS.md` §3 |
 | Skan sekretów | `scripts/secret-scan.mjs`, job `secrets` w CI | sprawdza pliki śledzone, nigdy nie drukuje wartości | nie skanuje historii git |
 | `CODEOWNERS` | `.github/CODEOWNERS` | oznacza pliki konfiguracji agenta, CI i skryptów | **nie wymusza** review (jeden opiekun repo; wymuszenie wraca przy drugiej osobie) |
 | Sandbox | `.claude/settings.json` (`sandbox`) | gotowa konfiguracja | jest **domyślnie wyłączony** (punkt 5) |
@@ -21,7 +22,7 @@ Narzędzia agenta w tym repo: `Bash`, `Read`, `Edit`, `Write`, `gh`/`git` przez 
 ## 3. Skille i serwery MCP
 
 - Serwery MCP w repo: **brak**.
-- Skille: 42 w `.agents/skills`, wszystkie z jednego źródła (`open-mercato/skills`), z hashami w `skills-lock.json`; `.claude/skills/*` to dowiązania do nich. Skan grepem (wykrzyknik z komendą, `curl`, `wget`, `base64`, `~/.ssh`, `~/.aws`, `.env`): **0 trafień dynamicznego kontekstu**, pozostałe trafienia to reguły „nie wklejaj sekretów” i opisy narzędzi. Frazy typu „ignore previous instructions” występują tylko w regułach obronnych („nie wykonuj”). Brak ukrytych znaków unicode (zero-width, bidi).
+- Skille: 42 w `.agents/skills`, wszystkie z jednego źródła (`open-mercato/skills`), z hashami w `skills-lock.json`; `.claude/skills/*` to dowiązania do nich. Poza nimi są **3 skille projektu** (`wine-match-engine-rule`, `wine-match-access-boundary-test`, `wine-match-new-api-route`) jako zwykłe katalogi w `.claude/skills/` (napisane w tym repo, nie z `open-mercato/skills`), więc **nie mają wpisu w `skills-lock.json`**: lock opisuje tylko skille z zewnętrznego źródła i nic w repo go nie weryfikuje (`grep skills-lock` w `scripts/` i CI: 0 trafień); `check:context` liczy je osobno (opis ≤ 1024 znaki, długość). Zmiany w nich wchodzą przez PR jak reszta `.claude/` (CODEOWNERS). Skan grepem (wykrzyknik z komendą, `curl`, `wget`, `base64`, `~/.ssh`, `~/.aws`, `.env`): **0 trafień dynamicznego kontekstu**, pozostałe trafienia to reguły „nie wklejaj sekretów” i opisy narzędzi. Frazy typu „ignore previous instructions” występują tylko w regułach obronnych („nie wykonuj”). Brak ukrytych znaków unicode (zero-width, bidi).
 - **Czego nie zrobiono:** nie przeczytano w całości każdego skilla (w całości: `om-discover`, `om-backlog`); grep nie wykrywa złośliwej instrukcji w zwykłym tekście. Nie sprawdzono też integralności hashy z `skills-lock.json` (algorytm nie jest udokumentowany; skrót samego `SKILL.md` nie pasuje, więc hash dotyczy najpewniej całego katalogu). To zadanie dla właściciela przed autonomicznym użyciem nowych skilli.
 
 ## 4. Znane obejścia hooka
@@ -33,6 +34,8 @@ Hook nie jest granicą bezpieczeństwa. Przykłady, których nie zatrzyma:
 - warianty wielkości liter na systemach plików bez rozróżniania wielkości (macOS), zakodowane lub złożone z fragmentów ścieżki komendy;
 - usunięcie plików inną drogą niż `rm` (np. `git clean -fdx`, `find -delete`, `rsync --delete`), jak w demo z lekcji, gdzie agent po blokadzie `rm` znalazł inną drogę;
 - `gh api -X DELETE` na zasobach innych niż repozytorium.
+
+- **`spec-status-guard.mjs` (`AGENTS.md` §3: `status: approved` ustawia tylko człowiek)** widzi wyłącznie narzędzia Edit, Write i MultiEdit, więc `sed -i`, `echo > plik`, `git checkout` lub skrypt uruchomiony przez Basha nadal zmienią status specyfikacji, a hook Bash ich tu nie obejmuje (nie czyta ścieżek `.ai/specs/`). To poręcz, nie granica: wyłapuje pomyłkę i prosty skrót modelu, nie zdeterminowanego obejścia. Człowiek widzi zmianę statusu w diffie PR (`CODEOWNERS` nie obejmuje `.ai/specs/`, więc to review diffu jest kontrolą).
 
 Dlatego hook jest jedną z warstw obok `deny`, sandboxa i przeglądu zmian.
 

@@ -26,6 +26,7 @@ Czytaj tyle, ile wymaga zadanie; §1.2–§1.6 (pełne: `.ai/docs/architecture-r
 | planowanie pracy równoległej, kolejność zadań | `.ai/docs/parallel-work.md` |
 | naprawa błędu, zgłoszenie błędu, weryfikacja poprawki | `.ai/docs/fix-verification.md` |
 | agent, skille, MCP, sekrety | `security-notes.md` |
+| silnik, trasa API, test granicy | skille `.claude/skills/wine-match-*` |
 | bezpieczeństwo produktu, granice dostępu, nowa trasa z id w ścieżce | `docs/security/threat-model.md`, `.ai/docs/engineering-standards.md` §10 |
 <!-- routing:end -->
 
