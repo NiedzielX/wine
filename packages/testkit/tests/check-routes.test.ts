@@ -18,7 +18,7 @@ const IMPORT = "import { handle, handlePublic, handleUnscoped } from '@/server/a
 const roots: string[] = [];
 afterAll(() => { for (const r of roots) rmSync(r, { recursive: true, force: true }); });
 
-type Allowlist = { publicRoutes?: { file: string; helper: string; reason: string }[]; exceptions?: { file: string; reason: string }[] };
+type Allowlist = { publicRoutes?: { file: string; helper: string; methods?: string[]; reason: string }[]; exceptions?: { file: string; methods?: string[]; reason: string }[] };
 
 /** Writes `{ 'v1/x/route.ts': source }` under a fresh root and checks it. */
 function check(files: Record<string, string>, allowlist: Allowlist = {}) {
@@ -77,7 +77,7 @@ describe('check-routes', () => {
     const bad = check({ 'v1/open/route.ts': pub });
     expect(bad.messages).toHaveLength(1);
     expect(bad.messages[0]).toContain('opens a door without a session');
-    const listed = check({ 'v1/open/route.ts': pub }, { publicRoutes: [{ file, helper: 'handlePublic', reason: 'Guest API, public by product design.' }] });
+    const listed = check({ 'v1/open/route.ts': pub }, { publicRoutes: [{ file, helper: 'handlePublic', methods: ['GET'], reason: 'Guest API, public by product design.' }] });
     expect(listed.messages).toEqual([]);
   });
 
@@ -104,12 +104,47 @@ describe('check-routes', () => {
   it('lets an allowlisted exception skip the wrapper, and fails a stale, reasonless or dangling entry', () => {
     const bare = `export async function GET() {\n  return new Response('csv');\n}\n`;
     const file = `${API}/v1/static/route.ts`;
-    const entry = (reason: string) => ({ exceptions: [{ file, reason }] });
+    const entry = (reason: string) => ({ exceptions: [{ file, methods: ['GET'], reason }] });
     expect(check({ 'v1/static/route.ts': bare }, entry('Static public CSV, nothing to log at runtime.')).messages).toEqual([]);
     expect(check({ 'v1/static/route.ts': bare }, entry('')).messages.join('\n')).toContain('needs a written `reason`');
     expect(check({ 'v1/static/route.ts': good('/api/v1/static') }, entry('Static public CSV, nothing to log at runtime.')).messages.join('\n')).toContain('remove the stale exception');
     expect(check({ 'v1/other/route.ts': good('/api/v1/other') }, entry('Static public CSV, nothing to log at runtime.')).messages.join('\n')).toContain('does not exist; remove the entry');
     expect(check({ 'v1/static/route.ts': bare }, { exceptions: [] }).messages).toHaveLength(1);
+  });
+
+  describe('allowlist entries are per method', () => {
+    const file = `${API}/v1/static/route.ts`;
+    const bare = (methods: string[]) => methods.map((m) => `export async function ${m}() {\n  return new Response('x');\n}\n`).join('');
+    const exc = (methods?: string[]) => ({ exceptions: [{ file, ...(methods ? { methods } : {}), reason: 'Static public CSV, nothing to log at runtime.' }] });
+    const pub = (m: string) => `export async function ${m}(req) {\n  return handlePublic(req, { route: '/api/v1/static' }, async () => ok());\n}\n`;
+    const pubEntry = (methods?: string[]) => ({ publicRoutes: [{ file, helper: 'handlePublic', ...(methods ? { methods } : {}), reason: 'Guest API, public by product design.' }] });
+
+    it('passes when the exported methods are exactly the listed ones', () => {
+      expect(check({ 'v1/static/route.ts': bare(['GET']) }, exc(['GET'])).messages).toEqual([]);
+      expect(check({ 'v1/static/route.ts': `${IMPORT}${pub('GET')}` }, pubEntry(['GET'])).messages).toEqual([]);
+    });
+
+    it('fails a method added later to an allowlisted exception file', () => {
+      const m = check({ 'v1/static/route.ts': bare(['GET', 'POST']) }, exc(['GET'])).messages.join('\n');
+      expect(m).toContain('v1/static/route.ts:4: POST is exported by an allowlisted file but not listed in its "methods"');
+    });
+
+    it('fails a method added later to a public-route file', () => {
+      const src = `${IMPORT}${pub('GET')}${good('/api/v1/static', 'POST', 'true').replace(IMPORT, '')}`;
+      expect(check({ 'v1/static/route.ts': src }, pubEntry(['GET'])).messages.join('\n')).toContain('POST is exported by an allowlisted file but not listed in its "methods"');
+    });
+
+    it('fails a listed method the file no longer exports', () => {
+      expect(check({ 'v1/static/route.ts': bare(['GET']) }, exc(['GET', 'HEAD'])).messages.join('\n')).toContain('lists HEAD but the file does not export it');
+      expect(check({ 'v1/static/route.ts': `${IMPORT}${pub('GET')}` }, pubEntry(['GET', 'POST'])).messages.join('\n')).toContain('lists POST but the file does not export it');
+    });
+
+    it('requires a valid `methods` array on every entry', () => {
+      expect(check({ 'v1/static/route.ts': bare(['GET']) }, exc()).messages.join('\n')).toContain('needs `methods`');
+      expect(check({ 'v1/static/route.ts': bare(['GET']) }, exc([])).messages.join('\n')).toContain('needs `methods`');
+      expect(check({ 'v1/static/route.ts': bare(['GET']) }, exc(['FETCH'])).messages.join('\n')).toContain('unknown method FETCH');
+      expect(check({ 'v1/static/route.ts': `${IMPORT}${pub('GET')}` }, pubEntry()).messages.join('\n')).toContain('needs `methods`');
+    });
   });
 
   it('fails a route file that exports no HTTP method, and an empty tree', () => {
