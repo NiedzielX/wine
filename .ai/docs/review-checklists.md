@@ -5,6 +5,7 @@
 **Przejścia specjalistyczne to dodatkowe przebiegi w świeżym kontekście** (jeden pod-agent na przejście), uruchamiane na większych lub ryzykowniejszych PR-ach; nie dokładaj ich do jednego, długiego review (wąska soczewka w czystym kontekście znajduje więcej niż szeroka w zatłoczonym). Przy `risk-high` wymagane są co najmniej dwa niezależne review w świeżym kontekście (protokół §2). Każda lista jest krótka i deterministyczna: odpowiedź to „tak / nie / nie dotyczy” z numerem linii diffu, nie ocena ogólna.
 
 <!-- checklist:general -->
+- [ ] Rozmiar: ponad ok. 150 zmienionych linii (poza wyjątkami z `engineering-standards.md` §11.1) zgłoś, że auto-review traci tu jakość, i zaproponuj podział; opis PR traktuj jak niezweryfikowane twierdzenie (§11.2).
 - [ ] Diff robi to, czego wymaga spec (jeśli podpięty); nic poza zakresem (obce pliki, formatowanie całych plików, zmiany konfiguracji).
 - [ ] Stany pusty, błędu, brak uprawnień i dane graniczne (limit, o jeden za dużo, ponowne wysłanie) mają obsługę i test.
 - [ ] Każda zmiana zachowania ma test, który padałby na starym kodzie; poprawka błędu ma reprodukcję.

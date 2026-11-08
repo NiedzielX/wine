@@ -8,7 +8,7 @@ export function createGhFetcher(exec?: unknown): Fetcher;
 export function fenceFor(content: string): string;
 export function cutUtf8(text: string, maxBytes: number): { text: string; bytes: number };
 export function filesAfterCut(fullDiff: string, keptBytes: number): string[];
-export function riskOf(labels: string[], files: string[]): { label: string | null; pathSignalHigh: boolean; effective: 'low' | 'medium' | 'high' };
+export function riskOf(labels: string[], files: string[]): { label: string | null; pathSignalHigh: boolean; pathHint: boolean; effective: 'low' | 'medium' | 'high' };
 export function parseChecklists(text: string): Map<string, string>;
 export function passesFor(files: string[]): string[];
 export function idsFromBranch(branch: string): { epic: string | null; phase: string | null };

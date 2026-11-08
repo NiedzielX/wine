@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { buildReviewPack, cutUtf8, fenceFor, idsFromBranch, parseChecklists, passesFor, riskOf, specExcerpt, type Fetcher } from '../../../scripts/lib/review-pack.mjs';
+import { buildReviewPack, cutUtf8, fenceFor, filesAfterCut, idsFromBranch, parseChecklists, passesFor, riskOf, specExcerpt, type Fetcher } from '../../../scripts/lib/review-pack.mjs';
 
 /**
  * Lesson 17: the review pack carries the diff, the spec, the checklist and CI, and NEVER the author's claims. A fake
@@ -259,7 +259,42 @@ describe('review pack hardening (injection-safety review of PR 129)', () => {
   });
 });
 
+describe('risk signals and truncation edge cases (verifier findings, engineering-standards 11.3)', () => {
+  it('API route changes are a risk-high path signal', () => {
+    expect(riskOf(['risk-low'], ['packages/app/src/app/api/v1/restaurants/route.ts']).effective).toBe('high');
+  });
+
+  it('scripts/, .github/ and .claude/ are only a hint: they do not raise the risk (SDLC.md defines risk-high)', async () => {
+    for (const f of ['scripts/x.mjs', '.github/workflows/ci.yml', '.claude/settings.json']) {
+      const r = riskOf(['risk-low'], [f]);
+      expect(r.effective, f).toBe('low');
+      expect(r.pathHint, f).toBe(true);
+    }
+    const pack = await buildReviewPack({ pr: 7, repo: 'o/r', fetcher: fake({ labels: ['risk-low'], files: ['scripts/x.mjs'] }).fetcher });
+    expect(pack).toContain('effective: risk-low');
+    expect(pack).toMatch(/path hint[^\n]*does not change the risk/i);
+  });
+
+  it('lists a file whose diff header straddles the cut, and quoted git headers', () => {
+    const one = 'diff --git a/one.ts b/one.ts\n+a\n';
+    const two = 'diff --git a/two.ts b/two.ts\n+b\n';
+    expect(filesAfterCut(one + two, Buffer.byteLength(one) + 10)).toEqual(['two.ts']); // header cut in the middle
+    expect(filesAfterCut(one + two, Buffer.byteLength(one))).toEqual(['two.ts']); // header wholly after
+    expect(filesAfterCut(one + two, Buffer.byteLength(one) + Buffer.byteLength(two))).toEqual([]);
+    const quoted = 'diff --git a/one.ts b/one.ts\n+a\ndiff --git "a/sp\\303\\251 x.ts" "b/sp\\303\\251 x.ts"\n+b\n';
+    expect(filesAfterCut(quoted, Buffer.byteLength(one))).toEqual(['sp\\303\\251 x.ts']);
+  });
+});
+
 describe('review:pack command line validation', () => {
+  it('rejects --out - (it would write a file named "-"; omit --out for stdout)', () => {
+    for (const args of [['7', '--out', '-'], ['7', '--out=-']]) {
+      const r = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' });
+      expect(r.status, args.join(' ')).toBe(2);
+      expect(r.stderr).toContain('--out');
+    }
+  });
+
   const run = (...args: string[]) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' });
 
   it('rejects a --max-diff-bytes that is not a positive integer', () => {

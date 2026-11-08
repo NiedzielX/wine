@@ -62,6 +62,10 @@ export async function main(argv) {
   }
   const maxDiffBytes = rawMax === undefined ? MAX_DIFF_BYTES : Number(rawMax);
   const out = value('--out');
+  if (out === '-') {
+    process.stderr.write('review:pack: --out - is not supported (it would create a file named "-"); omit --out to write to stdout\n');
+    return 2;
+  }
   const force = opts.force;
   // fail before any request: an existing file is never overwritten without --force
   if (out && !force && existsSync(out)) {
