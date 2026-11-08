@@ -29,7 +29,7 @@ const printDate = (iso: string, locale: Locale) => {
  * the screen controls hide on paper (`print:hidden`), and the print button exists only with a script (R5).
  */
 export default async function RoiSummaryPage({ searchParams }: Props) {
-  showcaseGate('calculator');
+  const mode = showcaseGate('calculator');
   const sp = await searchParams;
   const { locale, t } = await getI18n();
   const parsed = parseRoiInputs(Object.entries(sp));
@@ -44,7 +44,7 @@ export default async function RoiSummaryPage({ searchParams }: Props) {
   logShowcaseView('roi_summary');
   return (
     <>
-      <ShowcaseHeader path="/demo/roi/summary" query={new URLSearchParams(roiQuery(parsed.inputs, { d: date ?? undefined }))} locale={locale} t={t} />
+      <ShowcaseHeader path="/demo/roi/summary" query={new URLSearchParams(roiQuery(parsed.inputs, { d: date ?? undefined }))} locale={locale} t={t} mode={mode} />
       <main className="mx-auto grid max-w-3xl gap-5 px-4 py-8 sm:px-6 print:max-w-none print:gap-3 print:p-0">
         <section aria-label={s.controls} className="grid gap-3 rounded-lg border border-border bg-card p-4 print:hidden" data-print-controls>
           <div className="flex flex-wrap items-center gap-3">

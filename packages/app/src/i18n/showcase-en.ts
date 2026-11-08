@@ -22,7 +22,8 @@ export const showcaseEn = {
   header: {
     brand: 'Wine Match',
     language: 'Language',
-    skip: 'Skip to the content'
+    skip: 'Skip to the content',
+    links: { guide: 'Demo guide', tour: 'How it works', roi: 'Calculator' }
   },
   roi: {
     title: 'Return calculator',
@@ -98,6 +99,42 @@ export const showcaseEn = {
         breakEvenGuests: 'P ÷ (m × s)'
       }
     }
+  },
+  ribbon: {
+    text: 'Demonstration data: an invented restaurant',
+    back: 'Back to the demo guide'
+  },
+  hub: {
+    title: 'Demo: the invented restaurant Halka',
+    lead: 'Walk through Wine Match in five steps, the way a guest, a waiter and a sommelier meet it. No sign-in, no personal data. Everything here is invented: the restaurant, its menu, its prices and its people.',
+    stepWord: (n: number) => `Step ${n}`,
+    soon: 'Coming in the next version of the demo',
+    open: 'Open',
+    steps: {
+      guest: { title: 'A guest picks a dish', see: 'What you will see: the wines that go with one dish, with the sommelier’s seal where the sommelier has decided.' },
+      table: { title: 'The whole table', see: 'What you will see: one wine that suits every dish chosen at the table.' },
+      waiter: { title: 'The waiter’s lookup', see: 'What you will see: the pairings for a dish or a table, ready for the person who serves the wine.' },
+      panel: { title: 'The sommelier’s panel', see: 'What you will see: the wine and dish cards of the restaurant with the sommelier’s decisions, read-only.' },
+      kpi: { title: 'What sells', see: 'What you will see: wine sales and use of the guest pages, on invented data that is marked as such.' }
+    },
+    more: { title: 'Also', tour: 'How it works for a restaurant', roi: 'Return calculator' },
+    note: 'Halka is a fictional restaurant. The wines on its list are entries of real estates, used only as realistic examples: they do not mean any partnership or endorsement.',
+    metaTitle: 'Demo'
+  },
+  tour: {
+    metaTitle: 'How it works for a restaurant',
+    title: 'How Wine Match works for a restaurant',
+    lead: 'Five short points about what the product does and what it leaves alone.',
+    sections: [
+      { id: 'sommelier', title: 'The sommelier has the last word', text: 'Your sommelier approves the pairings of wines and dishes. A guest sees the seal “Sommelier’s pairing” only next to a pairing the sommelier approved or changed. Where the sommelier has not decided yet, the guest gets the best proposal from the rules, labelled “Recommended for your dish”, without a seal.' },
+      { id: 'guest', title: 'The guest gets a wine from your list', text: 'A guest scans the code on the table and chooses a dish, or the whole table. The suggestions come only from your own wine list and only from wines you offer today.' },
+      { id: 'waiter', title: 'The waiter does not have to guess', text: 'The waiter has a plain lookup of the pairings for a dish or a table, so a guest’s question is answered with the same pairing the guest saw.' },
+      { id: 'sales', title: 'You see what sells', text: 'After you import sales from your till, the dashboard shows how many bills include wine and how the pairings perform. The numbers come from your own data.' },
+      { id: 'not', title: 'What we do not do', text: 'We do not sell places on the list and there are no paid positions: the order follows the rules and the sommelier’s decisions. A guest’s request is not sent to any outside service.' }
+    ],
+    howLink: 'How we calculate a match',
+    roiLink: 'Return calculator',
+    demoLink: 'Back to the demo guide'
   },
   summary: {
     title: 'Assumptions summary: Wine Match return calculator',

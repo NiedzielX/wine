@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { SESSION_COOKIE, getPrincipal, sessionCookieOptions } from '@/server/auth';
 import { createRequestScope } from '@/server/container';
 import { domainError } from '@/server/domain-errors';
+import { env } from '@/server/env';
 import { logger } from '@/server/logger';
 import { scrubbedError } from '@/server/scrub-error';
 
@@ -15,6 +16,8 @@ import { scrubbedError } from '@/server/scrub-error';
  * kind (unknown, used, cancelled, expired, its inviter gone) ends on the same "not valid" page, without the token in the address.
  */
 export async function acceptInvitation(form: FormData) {
+  // the public demo is read-only (E22 R9): defence in depth, because no invitation can exist there. Nothing is looked up, created or signed in.
+  if (env().showcaseMode === 'demo') redirect('/admin/login?error=showcase_read_only');
   const token = String(form.get('token') ?? '');
   const name = String(form.get('name') ?? '');
   const password = String(form.get('password') ?? '');
