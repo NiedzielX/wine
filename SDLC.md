@@ -79,7 +79,7 @@ When `om-discover` has written `.ai/specs/product-brief.md`, its **Non-goals**, 
 Pipeline labels are mutually exclusive: a PR carries at most one, and it names where the PR sits in the flow.
 
 - A ready, non-draft PR carries `review`.
-- The reviewer moves it: request changes → `changes-requested`; after fixes it returns to `review`; approval → `merge-queue`.
+- The reviewer moves it: request changes → `changes-requested`; after fixes it returns to `review`; approval → `merge-queue`. For sweep and nightly reviewers (comment-only, see `.ai/docs/review-protocol.md`) the reviewer does not set `merge-queue`: the parent session sets it after verifying the conditions (a narrowing of this rule, not a contradiction).
 - `merge-queue` is routing, not proof of QA: a `needs-qa` PR legitimately sits there until QA signs off.
 - Only a QA reviewer sets the `qa` pipeline label. They move a queued `needs-qa` PR from `merge-queue` to `qa` while testing, then back to `merge-queue` with `qa-approved` on pass, or to `qa-failed` on failure. Automated skills request QA with `needs-qa`; they never set `qa`.
 - `blocked` and `do-not-merge` are set and cleared by humans and stop the flow wherever it is.

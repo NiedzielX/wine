@@ -33,5 +33,7 @@ Protokół, listy kontrolne, tabela etykiet, opis rutyny nocnej i paczka recenze
 ## Poprawki po review PR #129 (2026-11-08)
 Scalono `origin/main` (#126, bez konfliktów). Review bezpieczeństwa wejścia: specyfikacje tylko z bazy, ostrzeżenie „dane nieufne” przed i po diffie, nazwy plików w bloku kodu i oczyszczone, `fenceFor` bez `Math.max(...)`, lista dozwolonych znaków w nazwach checków, walidacja CLI (`--max-diff-bytes`, `--repo`, `--out` bez nadpisania, `--force`), ucięcie na granicy znaku z listą plików poza cięciem; 11 nowych testów było czerwonych przed zmianą kodu. Review spójności procesu: zrzeczenie właściciela, zakres `merge-queue`, rutyna tylko komentarze, filtr kolejki, nagłówek `## 5` w `parallel-work.md`, odwołanie do `AGENTS.md` §6.1.
 
+Runda trzecia (review PR #129): najwyższa etykieta ryzyka, przejścia specjalistyczne ze ścieżek niezależnie od etykiety, diff z `compare/<base>...<head>` i odmowa przy przesunięciu head (TOCTOU), listy nazw w blokach kodu, usuwanie separatorów Unicode, ścisły parser CLI (`--flag=value`), test ucięcia faktycznie w środku znaku; dokumenty: źródła komentarzy (konto właściciela/rutyny), paczka budowana do pliku poza kontekstem z uprawnieniami, zgoda na merge per PR, tabela etykiet jako parallel-work §9 z etykietą `qa`, linia w `SDLC.md` o `merge-queue`.
+
 ## Lekcje
 `.ai/lessons/2026-11-07-review-pack-not-author-story.md`

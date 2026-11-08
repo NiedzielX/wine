@@ -112,9 +112,11 @@ Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktu
 4. Po zgodzie właściciela: nocny automatyczny review (§5).
 5. Wszystkie zadania implementacyjne z kryteriami akceptacji mają scenariusze `.ai/qa` (reguła z lekcji 12), więc automatyczne sprawdzenie zastępuje część ręcznego QA.
 
-## 8. Znaczenie etykiet PR (ściągawka z lekcji 17)
+## 9. Znaczenie etykiet PR (ściągawka z lekcji 17)
 
-Etykieta zapisuje decyzję z jednej chwili; przed działaniem sprawdź historię PR-a (kto mówił ostatni, nowe commity, CI): `.ai/docs/review-protocol.md` §3. Pełna taksonomia i bramka QA: `SDLC.md`. W naszym układzie wyjście z review nazywa się „ready-for-owner”, a jego etykietą jest istniejące `merge-queue`. Ustawia je sesja nadrzędna po własnym sprawdzeniu warunków z §8 protokołu (nigdy nocna rutyna ani recenzent zbiorczy); ta tabela doprecyzowuje `SDLC.md` („approval → `merge-queue`”), nie jest z nim sprzeczna. **`merge-queue` nie oznacza zgody na merge** (ta pada w rozmowie). Nocna rutyna nie ustawia ani nie zdejmuje żadnej etykiety.
+Numeracja: w tym pliku powtarzają się nagłówki „§6” i „§7” (stan z `main`, nie ruszane tutaj), więc tabela ma numer 9; odwołania „protokół §N” dotyczą `review-protocol.md`, „parallel-work §N” tego pliku.
+
+Etykieta zapisuje decyzję z jednej chwili; przed działaniem sprawdź historię PR-a (kto mówił ostatni, nowe commity, CI): `.ai/docs/review-protocol.md` §3. Pełna taksonomia i bramka QA: `SDLC.md`. W naszym układzie wyjście z review nazywa się „ready-for-owner”, a jego etykietą jest istniejące `merge-queue`. Ustawia je sesja nadrzędna po własnym sprawdzeniu warunków z protokół §8 (nigdy nocna rutyna ani recenzent zbiorczy); ta tabela doprecyzowuje `SDLC.md` („approval → `merge-queue`”), nie jest z nim sprzeczna. **`merge-queue` nie oznacza zgody na merge** (ta pada w rozmowie). Nocna rutyna nie ustawia ani nie zdejmuje żadnej etykiety.
 
 | Etykieta | Kto ustawia | Znaczy | Na kogo czeka | Uwaga |
 |---|---|---|---|---|
@@ -122,6 +124,7 @@ Etykieta zapisuje decyzję z jednej chwili; przed działaniem sprawdź historię
 | `changes-requested` | recenzent/sesja nadrzędna | są blokery | na autora; po nowych commitach na nas | filtr kolejki go nie podejmuje (protokół §4) |
 | `merge-queue` (ready-for-owner) | sesja nadrzędna | review i bramki spełnione, czeka decyzja właściciela | na właściciela | tylko dla obecnego head; nowy commit unieważnia |
 | `needs-qa` / `qa-approved` | sesja nadrzędna / tester | zmiana widoczna dla użytkownika wymaga QA; QA zaliczone | na QA / na właściciela | `qa-approved` jest przypięte do commitu (`QA head: <sha>`), nowy push je starzeje; `skip-qa` dla zmian bez UI |
+| `qa` | tylko QA reviewer (`SDLC.md`) | tester testuje ten PR teraz | na testera | agenci jej nie ustawiają; nie scalaj pod aktywnym testerem |
 | `qa-failed` | tester | QA nie przeszło | na autora | twarda blokada |
 | `in-progress` | sesja pracująca | ktoś nad PR-em pracuje teraz | na tę sesję | review zbiorcze go pomija; nie przejmuj bez uzgodnienia |
 | `ci-monitoring` | sesja pracująca | czeka na CI | na CI | po zakończeniu zdjąć |

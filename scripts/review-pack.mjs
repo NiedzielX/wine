@@ -20,14 +20,35 @@ function repoFromRemote() {
   }
 }
 
+const VALUE_FLAGS = new Set(['--repo', '--out', '--max-diff-bytes']);
+
+/** Strict parsing: `--flag value` and `--flag=value`; unknown flags, missing values, values that look like flags, extra positionals are errors. */
+export function parseArgs(argv) {
+  const opts = { force: false };
+  const positional = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (!arg.startsWith('--')) { positional.push(arg); continue; }
+    const eq = arg.indexOf('=');
+    const flag = eq === -1 ? arg : arg.slice(0, eq);
+    if (flag === '--force' && eq === -1) { opts.force = true; continue; }
+    if (!VALUE_FLAGS.has(flag)) return { error: `unknown argument ${flag.slice(0, 40)}` };
+    const val = eq === -1 ? argv[++i] : arg.slice(eq + 1);
+    if (val === undefined || val === '' || val.startsWith('--')) return { error: `${flag} needs a value` };
+    opts[flag.slice(2)] = val;
+  }
+  if (positional.length !== 1 || !/^\d+$/.test(positional[0])) return { error: 'give the pull request number, e.g. npm run review:pack -- 126' };
+  return { opts, pr: positional[0] };
+}
+
 export async function main(argv) {
-  const value = (flag) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : undefined; };
-  const flagValues = new Set(['--repo', '--out', '--max-diff-bytes'].map((f) => argv.indexOf(f) + 1).filter((i) => i > 0));
-  const pr = argv.find((a, i) => !a.startsWith('--') && !flagValues.has(i));
-  if (!pr || !/^\d+$/.test(pr)) {
-    process.stderr.write('review:pack: give the pull request number, e.g. npm run review:pack -- 126\n');
+  const parsed = parseArgs(argv);
+  if (parsed.error) {
+    process.stderr.write(`review:pack: ${parsed.error}\n`);
     return 2;
   }
+  const { pr, opts } = parsed;
+  const value = (flag) => opts[flag.slice(2)];
   const repo = value('--repo') ?? process.env.GITHUB_REPOSITORY ?? repoFromRemote();
   // owner/name only; "." and ".." segments would walk the API path (repos/o/../x)
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || repo.split('/').some((s) => s === '.' || s === '..')) {
@@ -41,7 +62,7 @@ export async function main(argv) {
   }
   const maxDiffBytes = rawMax === undefined ? MAX_DIFF_BYTES : Number(rawMax);
   const out = value('--out');
-  const force = argv.includes('--force');
+  const force = opts.force;
   // fail before any request: an existing file is never overwritten without --force
   if (out && !force && existsSync(out)) {
     process.stderr.write(`review:pack: ${out} already exists; pass --force to overwrite it\n`);
