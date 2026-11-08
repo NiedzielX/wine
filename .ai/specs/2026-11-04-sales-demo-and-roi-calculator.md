@@ -3,6 +3,8 @@ status: in-progress
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E22, D19), .ai/specs/product-brief.md (D05, D13, D14, D18, A02, A05, N01–N04), .ai/specs/2026-10-15-production-deployment.md (R4, R5, Q10), .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-16-how-it-works-explanations.md, docs/PRODUCT_CONCEPT.md (§5, §6, §8), docs/SCREEN_MAP.md, docs/DESIGN_SYSTEM.md]
+author_model: "not recorded (eleven agents wrote one spec each; model not stated in .ai/runs/2026-11-04-product-completion-plan.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Demo sprzedażowe i kalkulator zwrotu (E22)
@@ -167,6 +169,9 @@ F1: (1) `roi.ts` + testy AC3–AC5 → (2) `env.ts` + testy AC1 → (3) layout i
 - **Q15 (otwarte, decyzja właściciela)** Czy demo ma pokazywać syntetyczny wzrost odsetka wina między oknami (R8)? Ryzyko: odbiorca czyta to jako wynik. Domyślnie tak, z przyklejonym banerem i opisem; bezpieczniejsza wersja to oba okna o podobnym poziomie.
 
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
 

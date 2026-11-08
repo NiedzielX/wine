@@ -3,6 +3,8 @@ status: implemented
 created: 2026-10-15
 owner: Filip
 related: [issue #19, #20, #21, #22, .ai/runs/2026-10-18-e04-f1-usage-kpis.md, .ai/runs/2026-10-19-e04-f3-pairing-kpis.md, .ai/runs/2026-10-19-e04-f2-sales-kpis.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/product-brief.md]
+author_model: claude-opus-5-5
+reviewed_by: claude-sonnet-5-5
 ---
 
 # Dashboard KPI w panelu (E04)
@@ -271,6 +273,7 @@ Dokumentacja (A1, §Analytics, `packages/app/AGENTS.md`) — checklista PR (CODE
 - 2026-10-15 — grill: 27 questions, 1 left for owner (Q12); Q3 i Q7 zdjęte z ⚠.
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 - 2026-10-19 — F2 (#21) zrealizowana; wszystkie AC spełnione → `implemented`, plik w `implemented/`.
+- 2026-10-15 — Autor/recenzent: claude-opus-5-5 / claude-sonnet-5-5 (źródło: .ai/runs/2026-10-15-specs-technical-backlog.md; recenzent zgodnie z wpisem „cross-model review (Sonnet 5.5)” w Changelog).
 
 ## Realizacja
 

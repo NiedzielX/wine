@@ -3,6 +3,8 @@ status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E15), .ai/specs/product-brief.md (D02, D07, D13, D18, A02, N01, N02, N04), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12), .ai/specs/2026-11-04-platform-admin-and-multi-venue.md (E14), .ai/specs/2026-11-04-platform-quality-and-compliance.md (E21), .ai/specs/2026-11-04-sales-demo-and-roi-calculator.md (E22), .ai/specs/2026-10-15-production-deployment.md (E11), docs/PRODUCT_CONCEPT.md §5, security-notes.md]
+author_model: "not recorded (eleven agents wrote one spec each; model not stated in .ai/runs/2026-11-04-product-completion-plan.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Subskrypcje i rozliczenia: plany, trial, Stripe, zawieszenie (E15)
@@ -175,6 +177,9 @@ Kolejność pracy: F1 → F2 → F3 → F4 → F5 → F6 → F7; F5 i F6 mogą r
   - Otwarte: zgoda właściciela na trzy wyjątki Q15 (plan, sekcja 7), na zależność `stripe`, decyzja fail-open na stronach gościa przy błędzie odczytu subskrypcji (obecnie sprzeczna z „fail closed”), brak okresowego uzgadniania z dostawcą po wyczerpaniu ponowień webhooka (propozycja: polecenie operatora `billing:reconcile`, dry-run domyślnie, poza zakresem tego szkicu), retencja `billing_event`, `subscription_change` i faktur (wpis w E21 Q10, faktury: okres księgowy do potwierdzenia).
 
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, logi przebiegu, odstępstwa od projektu.)

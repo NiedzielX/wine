@@ -1,6 +1,6 @@
 # Security notes: warsztat agenta AI w Wine Match
 
-Stan na 2026-10-25. Specyfikacja: `.ai/specs/implemented/2026-10-25-agent-security-hardening.md`, log przebiegu: `.ai/runs/2026-10-25-agent-security-hardening.md`. Dokument nie zawiera żadnych wartości sekretów, tylko liczby i nazwy wzorców.
+Stan na 2026-11-08 (pierwotna wersja i próba prompt injection: 2026-10-25; punkty 9–10 dopisane 2026-11-07, punkty 11–12 i poprawka punktu 8: 2026-11-08). Specyfikacja: `.ai/specs/implemented/2026-10-25-agent-security-hardening.md`, log przebiegu: `.ai/runs/2026-10-25-agent-security-hardening.md`. Dokument nie zawiera żadnych wartości sekretów, tylko liczby i nazwy wzorców.
 
 ## 1. Którą nogę *lethal trifecta* odcinamy
 
@@ -72,7 +72,7 @@ Wynik: 3 z 3 prób odparte, w tym ta, która kazała ukryć krok przed użytkown
 2. Przeczytać skille, których nie napisał (punkt 3), i sprawdzić integralność hashy.
 3. Włączyć sandbox lokalnie i przejść komendy z punktu 5.
 4. Gdy dojdzie druga osoba: włączyć „Require review from Code Owners” w ochronie gałęzi.
-5. Po pierwszym przebiegu jobu `secrets` na `main`: dodać go do wymaganych checków ochrony gałęzi (`secrets`).
+5. ~~Dodać job `secrets` do wymaganych checków ochrony gałęzi~~ — zrobione: ochrona gałęzi `main` (odczyt przez `gh api`, 2026-11-08) wymaga checków `lint`, `unit`, `build`, `database`, `e2e`, `secrets` (strict, rozstrzygnięcie rozmów wymagane, `enforce_admins` włączone, 0 wymaganych zatwierdzeń). Jobów `design` i `a11y` wśród wymaganych nie ma.
 6. Zdecydować o menedżerze sekretów zamiast plików `.env` (poziom 2 z lekcji) i o tokenach z minimalnymi uprawnieniami i krótkim czasem życia.
 
 ## 9. Produkt: zaproszenia do zespołu bez weryfikacji adresu (E12 F2, 2026-11-06)
@@ -88,3 +88,11 @@ Wynik: 3 z 3 prób odparte, w tym ta, która kazała ukryć krok przed użytkown
 ## 10. Model zagrożeń produktu (lekcja 16, 2026-11-07)
 
 Bezpieczeństwo samej aplikacji (tenanty, role, zaproszenia, nagłówki, błędy) ma osobny model: `docs/security/threat-model.md` (STRIDE, tabela T-01…T-24), pokrycie skanów statycznych i skryptowego DAST: `docs/security/dast-coverage.md`. Ten plik zostaje przy agencie, skillach i łańcuchu dostaw (T-22 w modelu tylko tu odsyła). Zaproszenia bez weryfikacji adresu (punkt 9) to T-04.
+
+## 11. Gdzie żyją sekrety
+
+Sekrety aplikacji żyją wyłącznie w środowisku procesu albo w niezacommitowanym pliku `.env` (w `.gitignore` są `.env` i `.env.*`, wyjątek mają tylko `.env.example` i `.env.template`); w repozytorium są tylko nazwy zmiennych i wartości przykładowe: `DATABASE_URL` (w `.env.example` adres testowy localhost z hasłem-przykładem) i `METRICS_TOKEN` (min. 32 znaki, domyślnie nieustawiony, wtedy `GET /api/v1/metrics` odpowiada 404). Hasło konta tworzonego poleceniami operatora wchodzi tylko przez `USER_PASSWORD`, nigdy przez argument. Hasła kont demo są **publiczne** i udokumentowane w README; chroni przed nimi polityka, nie tajemnica: seeder (`npm run db:seed`) odmawia przy chronionym `NODE_ENV`, chyba że `ALLOW_DEMO_DATA=true`, a nawet wtedy na bazie z restauracją o innym slugu niż demo; serwer w produkcji nie startuje na `DATA_SOURCE=memory` bez `ALLOW_DEMO_DATA=true`; instancja `SHOWCASE_MODE=demo` w ogóle nie ładuje kont demo. Logi redagują klucze i wzorce sekretów (hasło, JWT, `Bearer`, ciasteczko sesji, adres bazy z hasłem). Skan `npm run secrets:scan` (job `secrets`) pilnuje plików śledzonych, a jego allowlista (`scripts/secret-scan.allowlist.json`, dziś 16 wpisów) przyjmuje wyłącznie wyjątki z powodem i skrótem wartości. Nie ma menedżera sekretów (punkt 8.6) ani skanu historii (punkt 6). Sekretów produkcyjnych nie opisujemy dalej, bo wdrożenie (E11 F2–F3) nie jest gotowe.
+
+## 12. Otwarte: powtórzyć próbę prompt injection
+
+Wynik z punktu 7 pochodzi z jednej próby (3 proste ładunki w plikach lokalnych, jedna rodzina modeli) i nie obejmuje wektora realnego dla tego repo: treści z GitHuba czytanej przez agentów `om-auto-*` (opis i komentarze PR-ów i zgłoszeń). **Do zrobienia, niewykonane:** powtórzyć próbę (a) innym modelem niż poprzednio, najlepiej z innej rodziny, oraz (b) z ładunkiem w treści PR-a albo zgłoszenia na testowym repozytorium (nie produkcyjnym), z atrapą danych jak w punkcie 7 i agentem uruchomionym tak, jak robi to pipeline (z `gh`). Powtarzać po każdej istotnej zmianie modelu, skilli lub uprawnień. Dopóki tego nie ma, punkt 7 nie jest dowodem odporności na ten wektor; ochronę stanowią warstwy z punktów 2 i 5.
