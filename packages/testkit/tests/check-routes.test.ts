@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { checkRoutes, escapeRegExp, expectedRoute, mask } from '../../../scripts/check-routes.mjs';
+import { checkRoutes, escapeRegExp, expectedRoute, main, mask } from '../../../scripts/check-routes.mjs';
 
 /**
  * `scripts/check-routes.mjs`: every API route handler goes through handle()/handlePublic()/handleUnscoped() with a
@@ -238,6 +238,74 @@ describe('check-routes', () => {
       const pub = `${IMPORT}export async function GET(req) {\n  return handlePublic(req, { route: '/api/v1/a', write: false }, async () => ok());\n}\n`;
       expect(msgs({ 'v1/a/route.ts': pub }, { publicRoutes: [{ file: f, helper: 'handleUnscoped', methods: ['GET'], reason }] })).toContain('but scripts/check-routes.allowlist.json lists');
       expect(msgs(src, { exceptions: [{ file: f, methods: ['GET', 'GET'], reason }] })).toContain('a method is listed twice');
+    });
+  });
+
+  describe('mutation guards: each rule has its own red test', () => {
+    const wrap = "return handle(req, { route: '/api/v1/m', write: false }, async () => ok());";
+    const withPrelude = (prelude: string) => `${IMPORT}export async function GET(req) {\n  ${prelude}\n  ${wrap}\n}\n`;
+    const msgs = (files: Record<string, string>, a: Allowlist = {}) => check(files, a).messages.join('\n');
+
+    it.each([
+      ['return', 'const f = () => { return 1; };'],
+      ['throw', 'const f = () => { throw 1; };'],
+      ['else', 'else { }'],
+      ['for', 'for (const a of b) { }'],
+      ['while', 'while (x) { }'],
+      ['switch', 'switch (x) { }'],
+      ['do', 'do { } while (x);'],
+      ['try', 'try { } catch { }']
+    ])('fails `%s` before the wrapper', (keyword, prelude) => {
+      expect(msgs({ 'v1/m/route.ts': withPrelude(prelude) })).toContain(`GET has \`${keyword}\` before handle()`);
+    });
+
+    it('does not read keyword-like words or property names as control flow', () => {
+      expect(msgs({ 'v1/m/route.ts': withPrelude('const a = obj.return + obj.if + format + doIt + tryOut + elsewhere;') })).toBe('');
+    });
+
+    it('fails `export const POST` inside an exceptions file', () => {
+      const src = `export async function GET() {\n  return new Response('x');\n}\nexport const POST = async () => new Response('y');\n`;
+      const entry = { exceptions: [{ file: `${API}/v1/m/route.ts`, methods: ['GET'], reason: 'Static public CSV, nothing to log at runtime.' }] };
+      expect(msgs({ 'v1/m/route.ts': src }, entry)).toContain('`export const POST` is not understood');
+    });
+
+    it('ignores keywords, wrapper names and `route:` inside strings, templates and regex literals', () => {
+      const prelude = [
+        'const s = "return throw if handle(x) route: \'/api/v1/zzz\'";',
+        'const t = `else for while handle(y) route: \'/api/v1/zzz\'`;',
+        'const r = /switch|try|do|handle\\(z\\)|route: \'x\'/;'
+      ].join('\n  ');
+      expect(msgs({ 'v1/m/route.ts': withPrelude(prelude) })).toBe('');
+      const noRoute = `${IMPORT}export async function GET(req) {\n  return handle(req, { write: false, label: "route: '/api/v1/m'" }, async () => ok());\n}\n`;
+      expect(msgs({ 'v1/m/route.ts': noRoute })).toContain('have no `route`');
+      expect(mask('a("x"); /* c */ // d\nb', true)).not.toMatch(/x|\bc\b|\bd\b/);
+    });
+
+    it('accepts `return await handle(...)`', () => {
+      const src = `${IMPORT}export async function GET(req) {\n  return await handle(req, { route: '/api/v1/m', write: false }, async () => ok());\n}\n`;
+      expect(msgs({ 'v1/m/route.ts': src })).toBe('');
+    });
+
+    it('does not treat `.handle(` or `$handle(` as the wrapper', () => {
+      for (const callee of ['other.handle', '$handle']) {
+        const src = `${IMPORT}export async function GET(req) {\n  return ${callee}(req, { route: '/api/v1/m', write: false }, async () => ok());\n}\n`;
+        expect(msgs({ 'v1/m/route.ts': src })).toContain('GET does not go through handle()');
+      }
+    });
+
+    it('main(): 0 on the real tree, 1 with file:line on a bad one, 2 on a bad argument or allowlist', () => {
+      const lines: string[] = [];
+      const out = { log: (m: string) => lines.push(`log ${m}`), error: (m: string) => lines.push(`err ${m}`) };
+      expect(main(['--root', REPO], out)).toBe(0);
+      expect(lines.join('\n')).toContain('log check:routes OK');
+      lines.length = 0;
+      const bad = check({ 'v1/bare/route.ts': 'export async function GET() {\n  return null;\n}\n' });
+      const allowlist = join(bad.root, 'al.json');
+      writeFileSync(allowlist, JSON.stringify({}));
+      expect(main(['--root', bad.root, '--allowlist', allowlist], out)).toBe(1);
+      expect(lines.join('\n')).toContain('v1/bare/route.ts:1: GET does not go through');
+      expect(main(['--bogus', 'x'], out)).toBe(2);
+      expect(main(['--root', bad.root, '--allowlist', join(bad.root, 'missing.json')], out)).toBe(2);
     });
   });
 

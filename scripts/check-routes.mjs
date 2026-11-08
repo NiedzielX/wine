@@ -9,8 +9,9 @@
  * Contract, per exported HTTP method (GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE):
  *  1. exactly one `handle()`, `handlePublic()` or `handleUnscoped()` call, imported by that name from
  *     `@/server/api-auth`, at the top level of the function body and RETURNED (`return handle(...)`);
- *  2. the wrapper is the first statement: no `return`, `throw`, `if`, `else`, loop, `switch` or `try` before it
- *     (a path that leaves earlier has no log line and no metric); validate inside the wrapper's callback;
+ *  2. no control-flow keyword (`return`, `throw`, `if`, `else`, `for`, `while`, `switch`, `do`, `try`) before the
+ *     wrapper (a path that leaves earlier has no log line and no metric); validate inside the wrapper's callback.
+ *     This is NOT "the wrapper is the first statement": see the known limits below;
  *  3. the helper is `handle` (session, CSRF, permission) unless the file is listed under `publicRoutes` in the
  *     allowlist with a reason: a public or unscoped door is a decision, not a default;
  *  4. the options carry `route: '<literal>'` (`as const` allowed): non-empty, a plain string literal, equal to the
@@ -26,9 +27,18 @@
  * later to a listed file is not exempt, and a listed method the file no longer exports fails. Entries that no longer
  * match reality (file gone, wrapper now used, no early code left) fail too, so the list cannot rot.
  *
- * Known false-positive/negative shapes (text scan, no TypeScript API): a bare object type as the return type
- * (`GET(): { a: 1 } {`) is read as the body; a `return`/`if` inside a callback that runs before the wrapper counts as
- * early code (allowlist it). Server actions are not route handlers (they use `authorizeAction`).
+ * Known limits (a text scan, not a TypeScript AST; a real fix would parse the AST). Parsing is fail-closed where it
+ * can be: what it does not understand fails, and the way out is an allowlist entry with a reason.
+ *  - Still PASS (false negatives): a call that throws, or a helper that returns a response, before the wrapper (no
+ *    keyword involved); a throwing default parameter; post-processing of the wrapper result (`.catch`, `.then`,
+ *    comma expression); a parameter or an import that shadows the wrapper name; wrapper names or `route:` written only
+ *    inside strings are ignored on purpose; `export const { POST } = x` and multi-declarator exports are not flagged
+ *    when another real handler exists in the file.
+ *  - FAIL although harmless (false positives, allowlist them): an object literal with keys `if`/`return` before the
+ *    wrapper, a `return`/`if` inside a callback that runs before the wrapper, a regex literal right after `++`/`--`
+ *    (the masking heuristic misreads it), a return type that is a bare object type or a function type returning one
+ *    (`GET(): { a: 1 } {`, `(): () => { a: 1 }`) which is read as the body.
+ *  - Server actions are not route handlers (they use `authorizeAction`).
  *
  * Usage: node scripts/check-routes.mjs [--root <dir>] [--allowlist <file>]
  */
