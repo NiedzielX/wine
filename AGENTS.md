@@ -12,7 +12,7 @@ Czytaj tyle, ile wymaga zadanie; §1.2–§1.6 (pełne: `.ai/docs/architecture-r
 | poprawka błędu | `.ai/docs/commands.md` (§6.1: najpierw test, który pada) |
 | nowa funkcja | `.ai/specs/` (specyfikacja przed kodem: §3), `.ai/docs/process-templates.md` |
 | refaktoryzacja | `.ai/docs/architecture-rules.md` |
-| review | `CODE_REVIEW.md`, `SDLC.md` |
+| review | `CODE_REVIEW.md`, `SDLC.md`, `.ai/docs/review-protocol.md` |
 | `app` (strony, API, akcje, DI) | `packages/app/AGENTS.md`, `.ai/docs/architecture-rules.md`, `.ai/docs/app-details.md` (sesja gościa, kod polecenia, język, import) |
 | `core` (domena, serwisy) | `packages/core/AGENTS.md`; nowy serwis wzoruj na `packages/core/src/services/sales/sales-kpi-service.ts` |
 | silnik rekomendacji | `docs/RECOMMENDATION_ENGINE.md`, `packages/core/AGENTS.md` |
