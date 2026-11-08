@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -100,5 +101,64 @@ describe('secret-scan: the allowlist', () => {
     const list = join(d, '..', 'no-reason.json');
     writeFileSync(list, JSON.stringify({ entries: [{ file: 'a.txt', pattern: 'jwt', valueSha256: 'a'.repeat(64) }] }));
     expect(scan(['--root', d, '--allowlist', list]).code).toBe(1);
+  });
+});
+
+describe('secret-scan --history', () => {
+  const git = (cwd: string, ...args: string[]) => {
+    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.test', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' });
+    expect(r.status, `git ${args.join(' ')}: ${r.stderr}`).toBe(0);
+    return r.stdout.trim();
+  };
+
+  /** main: a clean file; side branch: a commit that adds a secret, then a commit that removes it. */
+  function repoWithRemovedSecret(name: string, sample: string) {
+    const d = fresh(name);
+    git(d, 'init', '-q', '-b', 'main');
+    writeFileSync(join(d, 'clean.txt'), 'nothing\n');
+    git(d, 'add', '-A');
+    git(d, 'commit', '-q', '-m', 'clean');
+    git(d, 'checkout', '-q', '-b', 'side');
+    writeFileSync(join(d, 'leak file.txt'), `value: ${sample}\n`);
+    git(d, 'add', '-A');
+    git(d, 'commit', '-q', '-m', 'add');
+    const sha = git(d, 'rev-parse', 'HEAD');
+    git(d, 'rm', '-q', 'leak file.txt');
+    git(d, 'commit', '-q', '-m', 'remove');
+    git(d, 'checkout', '-q', 'main');
+    return { d, sha };
+  }
+
+  it('finds a secret that a later commit removed and that lives only on another branch, and never prints the value', () => {
+    const { d, sha } = repoWithRemovedSecret('history-find', SAMPLES['github-token']);
+    expect(scan(['--root', d]).code).toBe(0); // the current files are clean
+    const r = scan(['--history', '--repo', d]);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain(sha.slice(0, 12));
+    expect(r.out).toContain('leak file.txt');
+    expect(r.out).toContain('github-token');
+    expect(r.out).not.toContain(SAMPLES['github-token']);
+  });
+
+  it('passes on a clean history', () => {
+    const d = fresh('history-clean');
+    git(d, 'init', '-q', '-b', 'main');
+    writeFileSync(join(d, 'a.txt'), 'nothing\n');
+    git(d, 'add', '-A');
+    git(d, 'commit', '-q', '-m', 'a');
+    expect(scan(['--history', '--repo', d]).code).toBe(0);
+  });
+
+  it('honours the allowlist by file, pattern and hash', () => {
+    const { d } = repoWithRemovedSecret('history-allow', SAMPLES['anthropic-key']);
+    const hash = createHash('sha256').update(SAMPLES['anthropic-key']).digest('hex');
+    const list = join(d, '..', 'history-allow.json');
+    writeFileSync(list, JSON.stringify({ entries: [{ file: 'leak file.txt', pattern: 'anthropic-key', valueSha256: hash, reason: 'placeholder in a test' }] }));
+    expect(scan(['--history', '--repo', d, '--allowlist', list]).code).toBe(0);
+    expect(scan(['--history', '--repo', d]).code).toBe(1);
+  });
+
+  it('fails outside a git repository', () => {
+    expect(scan(['--history', '--repo', fresh('history-not-git')]).code).toBe(1);
   });
 });

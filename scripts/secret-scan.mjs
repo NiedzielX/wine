@@ -7,12 +7,16 @@
  *   node scripts/secret-scan.mjs --root <dir>          scan every file under <dir> (tests; skips node_modules and .git)
  *   node scripts/secret-scan.mjs --allowlist <file>    use another allowlist than scripts/secret-scan.allowlist.json
  *   node scripts/secret-scan.mjs --print-allowlist     print allowlist entries (hashes only) for what the scan found
+ *   node scripts/secret-scan.mjs --history [--repo <dir>]
+ *                                                      scan the lines ADDED by every commit of every branch and tag
+ *                                                      (same patterns and allowlist); a finding is commit, path,
+ *                                                      pattern and a hash prefix of the value
  *
- * The scan covers the files as they are now, not the history: a secret in an old commit needs a separate scan and a
- * rotation. It never prints a value: findings are file, line and pattern name; allowlist entries are keyed by file,
+ * Without --history the scan covers the files as they are now: a secret in an old commit needs the history mode and,
+ * if one is found, a rotation (removing it from a later commit does not make it safe). It never prints a value: findings are file, line and pattern name; allowlist entries are keyed by file,
  * pattern and the SHA-256 of the value, so a changed value is a new finding.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { closeSync, lstatSync, openSync, readFileSync, readSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
@@ -38,11 +42,13 @@ const err = (text) => process.stderr.write(`${text}\n`);
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 
 function options(argv) {
-  const o = { root: null, allowlist: null, print: false };
+  const o = { root: null, allowlist: null, print: false, history: false, repo: null };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--root') o.root = resolve(argv[++i] ?? '');
     else if (argv[i] === '--allowlist') o.allowlist = resolve(argv[++i] ?? '');
     else if (argv[i] === '--print-allowlist') o.print = true;
+    else if (argv[i] === '--history') o.history = true;
+    else if (argv[i] === '--repo') o.repo = resolve(argv[++i] ?? '');
     else throw new Error(`unknown argument: ${argv[i]}`);
   }
   return o;
@@ -90,6 +96,28 @@ function scanFiles({ base, files }) {
   return findings;
 }
 
+/** Added lines of every commit reachable from any ref. Merge commits are skipped: their lines were added by a parent. */
+function scanHistory(repo) {
+  const r = spawnSync('git', ['log', '--all', '--no-merges', '--no-color', '--no-ext-diff', '--no-renames', '-p', '-U0', '--format=@@commit %H'], { cwd: repo, encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 });
+  if (r.status !== 0) throw new Error('git log failed (is this a git repository?)');
+  const findings = new Map();
+  let commit = '';
+  let file = null;
+  for (const line of r.stdout.split('\n')) {
+    if (line.startsWith('@@commit ')) { commit = line.slice(9).trim(); file = null; continue; }
+    if (line.startsWith('+++ ')) { const p = line.slice(4).replace(/\t.*$/, ''); file = p === '/dev/null' ? null : p.replace(/^"?b\//, '').replace(/"$/, ''); continue; }
+    if (line.startsWith('--- ') || line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('@@')) continue;
+    if (!line.startsWith('+') || file === null || SKIPPED_FILES.has(file.slice(file.lastIndexOf('/') + 1))) continue;
+    for (const { name, re } of PATTERNS) {
+      for (const match of line.slice(1).matchAll(re)) {
+        const hash = sha256(match[0]);
+        findings.set(`${commit}|${file}|${name}|${hash}`, { commit, file, pattern: name, hash });
+      }
+    }
+  }
+  return [...findings.values()];
+}
+
 function readAllowlist(path) {
   if (!path) return [];
   const entries = JSON.parse(readFileSync(path, 'utf8')).entries ?? [];
@@ -102,7 +130,25 @@ function readAllowlist(path) {
 
 function main() {
   const o = options(process.argv.slice(2));
-  const allowlistPath = o.allowlist ?? (o.root ? null : join(REPO, 'scripts', 'secret-scan.allowlist.json'));
+  const allowlistPath = o.allowlist ?? ((o.root || o.repo) ? null : join(REPO, 'scripts', 'secret-scan.allowlist.json'));
+  if (o.history) {
+    // history-only values (files that no longer exist, old versions of a line) live in their own list, because the
+    // plain scan reports an entry that matches nothing in HEAD as unused
+    const historyList = o.allowlist || o.repo ? null : join(REPO, 'scripts', 'secret-scan.history-allowlist.json');
+    const entries = [...readAllowlist(allowlistPath), ...readAllowlist(historyList)];
+    const allowed = new Set(entries.map((e) => `${e.file}|${e.pattern}|${e.valueSha256}`));
+    const all = scanHistory(o.repo ?? REPO);
+    if (o.print) {
+      const unique = new Map(all.map((f) => [`${f.file}|${f.pattern}|${f.hash}`, f]));
+      out(JSON.stringify({ entries: [...unique.values()].map((f) => ({ file: f.file, pattern: f.pattern, valueSha256: f.hash, reason: 'TODO: why this is not a secret' })) }, null, 2));
+      return 0;
+    }
+    const open = all.filter((f) => !allowed.has(`${f.file}|${f.pattern}|${f.hash}`));
+    for (const f of open) err(`${f.commit.slice(0, 12)}  ${f.file}  ${f.pattern}  sha256:${f.hash.slice(0, 12)}`);
+    if (open.length) { err(`secret-scan --history: ${open.length} finding(s) in the history (${all.length} before the allowlist). Values are never printed. A secret found here must be rotated, not only removed.`); return 1; }
+    out(`secret-scan --history: ${all.length} match(es), all on the allowlist; no other secret patterns in the history.`);
+    return 0;
+  }
   const findings = scanFiles(listFiles(o.root));
 
   if (o.print) {

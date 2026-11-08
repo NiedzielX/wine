@@ -24,15 +24,19 @@ const PROGRAM_FIRST = new Set(['grep', 'egrep', 'fgrep', 'rg', 'awk', 'sed']); /
 const MESSAGE_FLAG = /^(-m|--message|--body|-b|--title|-t|--notes|-[a-zA-Z]*m)$/;
 const SAFE_DIRS = new Set(['node_modules', '.next', 'dist', 'coverage', 'test-results', 'storybook-static']);
 const HOME_DIR = String.raw`(?:~[A-Za-z0-9_-]*|\$\{?HOME\}?|/root|/home/[^/]+)`;
-const SECRET_DIRS = new RegExp(String.raw`${HOME_DIR}/(?:\.ssh|\.aws|\.config/gh)(?:/|$)`);
+// credential stores of the tools an agent session uses; matched case-insensitively (macOS and Windows file systems are)
+const SECRET_DIRS = new RegExp(String.raw`${HOME_DIR}/(?:\.ssh|\.aws|\.config/gh|\.config/gcloud|\.kube|\.npmrc|\.git-credentials|\.netrc|\.pypirc)(?:/|$)`, 'i');
+// printing the value of a variable whose name says it holds a credential
+const SECRET_VARIABLE = /\$\{?[A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|CREDENTIAL)[A-Za-z0-9_]*/i;
+const PRINTERS = new Set(['echo', 'printf']);
 
 const isAssignment = (t) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(t);
 const baseName = (t) => t.slice(t.lastIndexOf('/') + 1);
 
 /** `.env` or `.env.<suffix>`, except exactly `.env.example` and `.env.template` (which hold no secrets). */
 function isSecretEnv(path) {
-  const name = baseName(path);
-  if (!/^\.env(\.[A-Za-z0-9_.-]+)?$/.test(name)) return false;
+  const name = baseName(path).toLowerCase();
+  if (!/^\.env(\.[a-z0-9_.-]+)?$/.test(name)) return false;
   return name !== '.env.example' && name !== '.env.template';
 }
 
@@ -151,8 +155,10 @@ function inspect({ cmd, args, bare }, depth) {
     const sub = token.indexOf('$(') !== -1 ? token.slice(token.indexOf('$(') + 2, token.lastIndexOf(')') > 0 ? token.lastIndexOf(')') : undefined)
       : token.includes('`') ? token.replace(/`/g, ' ') : null;
     if (sub !== null && depth < 2) { const reason = decide(sub, depth + 1); if (reason) return reason; }
-    if (SECRET_DIRS.test(token)) return 'dostęp do kluczy i poświadczeń (~/.ssh, ~/.aws, ~/.config/gh)';
+    if (SECRET_DIRS.test(token)) return 'dostęp do kluczy i poświadczeń (~/.ssh, ~/.aws, ~/.config/gh i gcloud, ~/.kube, ~/.npmrc, ~/.git-credentials, ~/.netrc)';
   }
+  if (PRINTERS.has(cmd) && own.some((a) => SECRET_VARIABLE.test(a))) return 'wypisanie zmiennej z poświadczeniem (token, hasło, klucz)';
+  if ((cmd === 'export' && own.includes('-p')) || (cmd === 'declare' && own.some((a) => a === '-x' || a === '-p' || a === '-px'))) return 'zrzut zmiennych środowiskowych (mogą zawierać sekrety)';
 
   if (SHELLS.has(cmd)) {
     const at = own.findIndex((a) => /^-[a-zA-Z]*c[a-zA-Z]*$/.test(a));
@@ -173,12 +179,15 @@ function inspect({ cmd, args, bare }, depth) {
 
   if (cmd === 'git') {
     const { name, rest } = subcommand(own);
+    if (name === 'credential' && rest[0] === 'fill') return 'odczyt poświadczeń z menedżera git (git credential fill)';
     if (name === 'push' && rest.some((a) => a === '--force' || a === '--mirror' || /^-[a-zA-Z]*f[a-zA-Z]*$/.test(a) || /^\+/.test(a)))
       return 'wymuszony push (użyj --force-with-lease)';
   }
   if (cmd === 'gh') {
     const words = own.filter((a) => !a.startsWith('-'));
     if (words.some((w, i) => w === 'repo' && words[i + 1] === 'delete')) return 'usuwanie repozytorium (gh repo delete)';
+    if (words.some((w, i) => w === 'auth' && words[i + 1] === 'token')) return 'wypisanie tokenu gh (gh auth token)';
+    if (words.some((w, i) => w === 'auth' && words[i + 1] === 'status') && args.some((a) => a === '--show-token' || /^-[a-zA-Z]*t[a-zA-Z]*$/.test(a))) return 'wypisanie tokenu gh (gh auth status --show-token)';
   }
   return null;
 }

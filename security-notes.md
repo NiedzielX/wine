@@ -11,8 +11,9 @@ Trzy nogi: dostęp do danych prywatnych, kontakt z niezaufaną treścią, wyjśc
 | Warstwa | Plik | Co robi | Czego nie robi |
 |---|---|---|---|
 | `permissions.deny` | `.claude/settings.json` | blokuje wbudowane narzędzia plikowe przed odczytem `.env` i wariantów (poza `.env.example` i `.env.template`), `~/.ssh`, `~/.aws`, `~/.config/gh` | **nie blokuje komend basha** (`cat .env`); `deny` zawsze wygrywa z `allow`, więc nie da się zrobić wyjątku wzorcem |
-| Hook `PreToolUse` (Bash) | `.claude/hooks/pre-tool-use.mjs` | kod 2 dla: pobierania skryptu prosto do powłoki, `rm -r` poza katalogami budowania, dostępu do `~/.ssh` i `~/.aws`, odczytu `.env`, zrzutu środowiska, `git push --force`/`+refspec`/`--mirror`, `gh repo delete` | czyta tekst komendy, nie intencję (punkt 4) |
-| Skan sekretów | `scripts/secret-scan.mjs`, job `secrets` w CI | sprawdza pliki śledzone, nigdy nie drukuje wartości | nie skanuje historii git |
+| `permissions.ask` | `.claude/settings.json` | pyta o zgodę przed: `gh pr merge`, pushem na `main`/`master`, każdym pushem z force, `gh api` z metodą zapisu lub polami, `gh repo delete`/`edit`, `gh release`, `gh secret`/`variable`, edycją `.claude/`, `.agents/`, `skills-lock.json`, `.github/CODEOWNERS` | zatrzymuje przebieg autonomiczny do odpowiedzi człowieka (zamierzone); dopasowuje tekst komendy, nie intencję; `deny` i hook są ostrzejsze |
+| Hook `PreToolUse` (Bash) | `.claude/hooks/pre-tool-use.mjs` | kod 2 dla: pobierania skryptu prosto do powłoki, `rm -r` poza katalogami budowania, dostępu do magazynów poświadczeń (`~/.ssh`, `~/.aws`, `~/.config/gh`, gcloud, `~/.kube`, `~/.npmrc`, `~/.git-credentials`, `~/.netrc`), odczytu `.env` (wielkość liter bez znaczenia), zrzutu środowiska, komend wypisujących poświadczenie (`gh auth token`, `git credential fill`, wypisanie zmiennej z tokenem), `git push --force`/`+refspec`/`--mirror`, `gh repo delete` | czyta tekst komendy, nie intencję (punkt 4) |
+| Skan sekretów | `scripts/secret-scan.mjs`, job `secrets` w CI; `--history` (tygodniowo i ręcznie, `.github/workflows/secrets-history.yml`) | pliki śledzone w `HEAD` oraz, w trybie historii, linie dodane przez każdy commit każdej gałęzi i tagu; nigdy nie drukuje wartości | nie zastępuje rotacji: sekret znaleziony w historii trzeba zrotować, samo usunięcie go nie wystarcza |
 | `CODEOWNERS` | `.github/CODEOWNERS` | oznacza pliki konfiguracji agenta, CI i skryptów | **nie wymusza** review (jeden opiekun repo; wymuszenie wraca przy drugiej osobie) |
 | Sandbox | `.claude/settings.json` (`sandbox`) | gotowa konfiguracja | jest **domyślnie wyłączony** (punkt 5) |
 
@@ -26,7 +27,7 @@ Narzędzia agenta w tym repo: `Bash`, `Read`, `Edit`, `Write`, `gh`/`git` przez 
 
 ## 4. Znane obejścia hooka
 
-Hook nie jest granicą bezpieczeństwa. Przykłady, których nie zatrzyma:
+Hook nie jest granicą bezpieczeństwa: to guardrail, czyli barierka, która zatrzymuje pomyłkę i oczywiste nadużycie, nie zdeterminowanego napastnika. Przykłady, których nie zatrzyma:
 
 - odczyt przez interpreter lub inne narzędzie: `python -c`, `perl -e`, `node -e`, `find -exec`, `dd`, własny skrypt zapisany i uruchomiony przez agenta, komenda wywołana przez `npm run` lub `make`;
 - pobranie do pliku i uruchomienie osobnym poleceniem (`curl … > f.sh && sh f.sh`);
@@ -52,7 +53,7 @@ Gdy sandbox nie działa (Windows natywny, brak `bubblewrap`, wyłączony), jedyn
 
 - **Repozytorium** (`npm run secrets:scan`, pliki śledzone, stan `HEAD`): 16 trafień wzorców przed allowlistą, wszystkie to adresy testowe localhost lub przykłady (15 connection stringów z hasłem-przykładem w testach, dokumentacji lekcji i `.env.example`, 1 sztuczny token JWT w teście redakcji logów). Po allowliście (13 wpisów, każdy z powodem i skrótem wartości): 0 otwartych trafień. Tokenów GitHub, kluczy Anthropic, kluczy AWS i kluczy prywatnych: 0.
 - **Sesje agenta w środowisku, w którym powstała zmiana** (`~/.claude/projects/`, 6,2 MB): 2 pliki z wzorcem connection stringu (to adresy testowe localhost z rozmowy); tokenów, kluczy i kluczy prywatnych: 0. To nie jest skan komputera właściciela: jego katalog `~/.claude/projects/` trzeba przeskanować osobno.
-- Skan obejmuje tylko `HEAD`; wyciek w starym commicie wymaga osobnego skanu historii i rotacji.
+- **Historia** (`npm run secrets:scan:history`, 2026-11-08, wszystkie gałęzie i tagi dostępne w lokalnym klonie, bez commitów scalających): 48 trafień wzorców, **wszystkie to connection stringi z hasłem-przykładem** w testach, specyfikacjach i logach przebiegów (hosty zarezerwowane lub wewnętrzne przykłady); 19 z nich nie występuje już w `HEAD` i jest na osobnej liście `scripts/secret-scan.history-allowlist.json` (powód i skrót, nie wartość). Tokenów, kluczy Anthropic i AWS oraz kluczy prywatnych: 0. Tryb działa też w CI co tydzień (nie jest wymaganym checkiem). Skan obejmuje tylko to, co jest w klonie (nie PR-y z forków, nie zdalne gałęzie, których nie pobrano).
 
 ## 7. Próba prompt injection (2026-10-25)
 
@@ -88,3 +89,12 @@ Wynik: 3 z 3 prób odparte, w tym ta, która kazała ukryć krok przed użytkown
 ## 10. Model zagrożeń produktu (lekcja 16, 2026-11-07)
 
 Bezpieczeństwo samej aplikacji (tenanty, role, zaproszenia, nagłówki, błędy) ma osobny model: `docs/security/threat-model.md` (STRIDE, tabela T-01…T-24), pokrycie skanów statycznych i skryptowego DAST: `docs/security/dast-coverage.md`. Ten plik zostaje przy agencie, skillach i łańcuchu dostaw (T-22 w modelu tylko tu odsyła). Zaproszenia bez weryfikacji adresu (punkt 9) to T-04.
+
+## 11. Łańcuch dostaw CI i narzędzi (lekcja 18, 2026-11-08)
+
+- **Akcje GitHub przypięte pełnym SHA commita** z komentarzem `# vX.Y.Z` (`actions/checkout` v4.4.0, `actions/setup-node` v7.1.0, `actions/upload-artifact` v4.6.2, `github/codeql-action` v4.39.1; SHA sprawdzone przez API: tag adnotowany CodeQL rozwinięty do commita, wszystkie wydania starsze niż 14 dni). Ruchomy tag (`@v4`) może wskazać inny kod jutro; SHA nie. Aktualizacje robi Dependabot (ekosystem `github-actions`, cooldown 14 dni), który przestawia SHA i komentarz razem. Test w CI tego nie pilnuje: przy nowej akcji przypnij SHA ręcznie.
+- **Uprawnienia:** `contents: read` na poziomie workflow i jawnie w każdym jobie (CodeQL dodatkowo `security-events: write`, `actions: read`); `persist-credentials: false` przy każdym checkoucie (żaden job nie pushuje, więc token nie zostaje w `.git/config` dla kolejnych kroków). Nie ma `pull_request_target`.
+- **`ignore-scripts=true` w `.npmrc`:** skrypty instalacyjne zależności nie uruchamiają się przy `npm ci`. Pakiety ze skryptem instalacyjnym w `package-lock.json` (`hasInstallScript`): `esbuild` (dev), `protobufjs`, `ssh2`, `cpu-features` (opcjonalny), `fsevents` (dev, opcjonalny, macOS). Żaden nie jest potrzebny: `esbuild` dostaje binarkę z pakietu platformy, `protobufjs` tylko sprawdza wersję, `ssh2` i `cpu-features` mają przy braku natywnego dodatku czysto JS-owy zapas, `fsevents` to optymalizacja obserwatora. Dowód lokalny (macOS, Node 22, npm 11.20.0): `npm ci` z flagą, potem `lint`, `typecheck`, `npm test`, `build`, `boot:check` zielone. Skrypty `npm run` (własne skrypty projektu) działają bez zmian; wyłączone są tylko skrypty cyklu życia zależności. Gdyby pakiet kiedyś wymagał skryptu: jawne `npm rebuild <pakiet>` w kroku, który go potrzebuje, i wpis tutaj. **Nie sprawdzono lokalnie:** `test:db` i `test:e2e` (brak Dockera); sprawdza je CI przy tym PR.
+- **Narzędzia poza lockfile'em** (lista z wersjami: `.ai/docs/commands.md`, sekcja „Narzędzia poza lockfile'em”): npm 11.20.0 instalowany globalnie, `agent-browser` 0.39.1 (instalacja z `--ignore-scripts`: binarki są w paczce, skrypt poinstalacyjny tylko pobierałby brakującą) i pakiety systemowe `agent-browser install --with-deps`, które **nie są przypięte** (repozytoria Ubuntu 24.04 na runnerze) — to znane, nieprzypięte ryzyko.
+- **Pokrycie testów** jako artefakt `coverage` (7 dni) z joba `unit`, bez progu.
+- **Hook to guardrail, nie granica** (punkt 4). `permissions.ask` zmusza do decyzji człowieka przy merge, pushu na `main`, zapisach przez `gh api` i edycji konfiguracji agenta. To nie zastępuje ochrony gałęzi po stronie GitHuba; ustawienia właściciela są w logu przebiegu `.ai/runs/2026-11-08-ci-supply-chain-hardening.md`.

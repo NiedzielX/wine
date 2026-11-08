@@ -75,7 +75,35 @@ const BLOCKED: Array<[string, string]> = [
   ['git push --force in a chain', 'git add -A && git push origin main --force'],
   // 6. deleting a repository
   ['gh repo delete', 'gh repo delete NiedzielX/wine --yes'],
-  ['gh repo delete with a flag first', 'gh -R x repo delete']
+  ['gh repo delete with a flag first', 'gh -R x repo delete'],
+  // 7. file names are case-insensitive on macOS and Windows
+  ['cat .ENV', 'cat .ENV'],
+  ['cat .Env.Local', 'cat packages/app/.Env.Local'],
+  ['head .ENV.PRODUCTION', 'head .ENV.PRODUCTION'],
+  ['lookalike of the example in capitals', 'cat .ENV.EXAMPLE.local'],
+  // 8. commands that print a credential
+  ['gh auth token', 'gh auth token'],
+  ['gh auth token for a host', 'gh auth token --hostname github.com'],
+  ['gh auth status with the token shown', 'gh auth status --show-token'],
+  ['gh auth status with the short flag', 'gh auth status -t'],
+  ['git credential fill', 'git credential fill'],
+  ['git credential fill fed from echo', 'printf "protocol=https\\nhost=github.com\\n" | git credential fill'],
+  ['echo of GH_TOKEN', 'echo $GH_TOKEN'],
+  ['echo of GITHUB_TOKEN in quotes', 'echo "$GITHUB_TOKEN"'],
+  ['printf of a braced token variable', 'printf "%s" "${NPM_TOKEN}"'],
+  ['echo of an API key variable', 'echo "$ANTHROPIC_API_KEY"'],
+  ['echo of a secret variable in a chain', 'ls && echo $AWS_SECRET_ACCESS_KEY'],
+  ['export -p', 'export -p'],
+  ['declare -x', 'declare -x'],
+  // 9. credential stores of other tools
+  ['~/.npmrc', 'cat ~/.npmrc'],
+  ['$HOME/.npmrc', 'cat "$HOME/.npmrc"'],
+  ['~/.git-credentials', 'cat ~/.git-credentials'],
+  ['~/.config/gcloud', 'ls ~/.config/gcloud'],
+  ['gcloud credentials file', 'cat /home/someone/.config/gcloud/application_default_credentials.json'],
+  ['~/.kube', 'cat ~/.kube/config'],
+  ['~/.netrc', 'cat ~/.netrc'],
+  ['upper-case path', 'cat ~/.NPMRC']
 ];
 
 const ALLOWED: Array<[string, string]> = [
@@ -97,7 +125,16 @@ const ALLOWED: Array<[string, string]> = [
   ['reading through gh api', 'gh api repos/NiedzielX/wine/pulls --jq ".[].number"'],
   ['env with a command', 'env NODE_ENV=test npm test'],
   ['curl without a pipe to a shell', 'curl -sS https://example.test/data.json -o /tmp/data.json'],
-  ['npm scripts', 'npm run lint && npm run typecheck']
+  ['npm scripts', 'npm run lint && npm run typecheck'],
+  ['the example file in capitals', 'cat .ENV.EXAMPLE'],
+  ['gh auth status without the token', 'gh auth status'],
+  ['gh auth login help', 'gh auth --help'],
+  ['git credential helper setting is not a credential', 'git config --get credential.helper'],
+  ['echo of a plain variable', 'echo "$NODE_ENV"'],
+  ['echo of text that mentions a token', 'echo "rotate the token today"'],
+  ['npm config registry', 'npm config get registry'],
+  ['listing the project kube-like folder', 'ls docs/kube'],
+  ['commit message that mentions gh auth token', 'git commit -m "docs: never run gh auth token"']
 ];
 
 describe('the PreToolUse hook blocks what the policy names (exit code 2)', () => {
@@ -164,7 +201,7 @@ describe('the PreToolUse hook fails closed', () => {
 
 describe('.claude/settings.json (R1, R2)', () => {
   const settings = JSON.parse(readFileSync(root('.claude/settings.json'), 'utf8')) as {
-    permissions?: { deny?: string[] };
+    permissions?: { deny?: string[]; ask?: string[]; allow?: string[] };
     sandbox?: {
       enabled?: boolean; allowUnsandboxedCommands?: boolean; failIfUnavailable?: boolean; excludedCommands?: string[];
       filesystem?: { denyRead?: string[] }; network?: { allowedDomains?: string[]; deniedDomains?: string[] };
@@ -182,6 +219,19 @@ describe('.claude/settings.json (R1, R2)', () => {
     // deny always wins over allow, so a broad rule would hide the example file as well
     expect(deny.filter((r) => /\.env\.(example|template)/.test(r))).toEqual([]);
     expect(deny).not.toContain('Read(**/.env.*)');
+  });
+
+  it('asks before the actions that change the shared state of the repository, and the rules are not shadowed by allow', () => {
+    const ask = settings.permissions?.ask ?? [];
+    for (const rule of [
+      'Bash(gh pr merge *)', 'Bash(git push * main)', 'Bash(git push * master)', 'Bash(git push --force *)', 'Bash(git push * --force-with-lease*)',
+      'Bash(gh api * -X *)', 'Bash(gh api * --method *)', 'Bash(gh repo delete *)', 'Bash(gh release *)',
+      'Edit(/.claude/**)', 'Edit(/.agents/**)', 'Edit(/skills-lock.json)', 'Edit(/.github/CODEOWNERS)'
+    ]) expect(ask, rule).toContain(rule);
+    // deny wins over ask and allow wins over nothing here: a rule listed in two places is a mistake
+    const deny = settings.permissions?.deny ?? [];
+    expect(ask.filter((r) => deny.includes(r) || (settings.permissions?.allow ?? []).includes(r))).toEqual([]);
+    expect(new Set(ask).size).toBe(ask.length);
   });
 
   it('has a ready sandbox that is off by default, with the keys from the Claude Code docs', () => {
@@ -219,6 +269,10 @@ describe('.gitignore (R6)', () => {
   it('ignores every env file and key material except the documented example and template', () => {
     for (const l of ['.env', '.env.*', '!.env.example', '!.env.template', '*.pem', '*.key', 'id_rsa*']) expect(lines, l).toContain(l);
   });
+
+  it('ignores the local agent state: worktrees and personal settings', () => {
+    for (const l of ['.claude/worktrees/', '.claude/settings.local.json']) expect(lines, l).toContain(l);
+  });
 });
 
 describe('security-notes.md (R8)', () => {
@@ -226,6 +280,11 @@ describe('security-notes.md (R8)', () => {
 
   it('tells how to switch the sandbox on, what it needs and why it is not on by default', () => {
     for (const word of ['bubblewrap', 'socat', '/sandbox', 'domyślnie wyłączony', 'excludedCommands']) expect(notes, word).toContain(word);
+  });
+
+  it('says that the hook is a guardrail and not a security boundary', () => {
+    expect(notes).toMatch(/Hook nie jest granicą bezpieczeństwa/);
+    expect(notes).toMatch(/guardrail/);
   });
 
   it('records the prompt injection test with its date and outcome', () => {
