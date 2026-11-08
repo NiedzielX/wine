@@ -15,29 +15,55 @@ const blank = (value: string | undefined) => value === undefined || value.trim()
 /** The repository's `.env` (this file lives in packages/db/src, the commands in packages/db/scripts or scripts/ read the same file). */
 const REPO_DOTENV = fileURLToPath(new URL('../../../.env', import.meta.url));
 
-/** `host:port/dbname` of a connection string; never the user, password or query. */
+const INVALID = '(DATABASE_URL is not a valid URL)';
+const HOST = /^(\[[0-9a-fA-F:.]+\]|[A-Za-z0-9._~-]+|(?:%2[Ff][A-Za-z0-9._~%-]*))(?::(\d{1,5}))?$/;
+
+/**
+ * `host:port/dbname` of a connection string; never the user, password or query, and never any part of a value that cannot be read
+ * unambiguously (a password with an unescaped `/`, `?` or `#` makes WHATWG `URL` take the user as the host and the password as the port,
+ * so the string is parsed here instead: the authority ends at the first `/`, `?` or `#`, the userinfo at the last `@` inside it).
+ */
 export function describeDbTarget(url: string | undefined): string {
   if (blank(url)) return '(DATABASE_URL is not set)';
-  try {
-    const parsed = new URL(url!.trim());
-    if (!parsed.hostname) return '(DATABASE_URL is not a valid URL)';
-    const name = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
-    return `${parsed.hostname}:${parsed.port || '5432'}/${name || '(no database name)'}`;
-  } catch {
-    return '(DATABASE_URL is not a valid URL)';
+  const rest = /^postgres(?:ql)?:\/\/(.*)$/is.exec(url!.trim())?.[1];
+  if (rest === undefined) return INVALID;
+  const cut = rest.search(/[/?#]/);
+  const authority = cut === -1 ? rest : rest.slice(0, cut);
+  // an `@` only after the delimiter means the password (or user) contains a delimiter: the split is a guess, so say nothing about it
+  if (!authority.includes('@') && rest.slice(authority.length).includes('@')) return INVALID;
+  const hostPort = authority.slice(authority.lastIndexOf('@') + 1);
+  if (hostPort === '') return rest.slice(authority.length).includes('@') ? INVALID : '(DATABASE_URL has no host)';
+  const m = HOST.exec(hostPort);
+  if (!m) return INVALID;
+  let name = '';
+  if (cut !== -1 && rest[cut] === '/') {
+    try {
+      name = decodeURIComponent(rest.slice(cut + 1).split(/[?#]/)[0]);
+    } catch {
+      return INVALID;
+    }
   }
+  const database = name || '(no database name)';
+  if (m[1].toLowerCase().startsWith('%2f')) {
+    let socket: string;
+    try { socket = decodeURIComponent(m[1]); } catch { return INVALID; }
+    return `unix socket ${socket}${m[2] ? ` (port ${m[2]})` : ''}/${database}`;
+  }
+  return `${m[1]}:${m[2] ?? '5432'}/${database}`;
 }
 
-/** The value of `key` in dotenv text: `KEY=value`, optional `export`, quotes, inline ` #` comments; the last assignment wins. */
+// the same pattern as Node's own dotenv parser (lib/internal/util/parse_env): quoted values may span lines
+const DOTENV_LINE = /^\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?$/gm;
+
+/** The value of `key` in dotenv text, read like Node's `loadEnvFile` (quotes, `\n` in double quotes, multi-line values, inline comments; the last assignment wins). No variable expansion. */
 export function parseDotenvValue(text: string, key: string): string | undefined {
   let found: string | undefined;
-  for (const line of text.split(/\r?\n/)) {
-    const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
-    if (!m || m[1] !== key) continue;
-    let value = m[2].trim();
-    const quoted = /^(["'])(.*?)\1/.exec(value);
-    if (quoted) value = quoted[2];
-    else value = value.replace(/\s+#.*$/, '').trim();
+  for (const m of text.replace(/\r\n?/g, '\n').matchAll(DOTENV_LINE)) {
+    if (m[1] !== key) continue;
+    let value = (m[2] ?? '').trim();
+    const quote = value[0];
+    if ((quote === '"' || quote === "'" || quote === '`') && value.endsWith(quote) && value.length >= 2) value = value.slice(1, -1);
+    if (quote === '"') value = value.replace(/\\n/g, '\n');
     found = value;
   }
   return found;
@@ -45,9 +71,12 @@ export function parseDotenvValue(text: string, key: string): string | undefined 
 
 /** A loud warning when the process value differs from the `.env` one (the process value wins); null when there is nothing to say. */
 export function shadowWarning(processUrl: string | undefined, dotenvUrl: string | undefined): string | null {
-  if (blank(processUrl) || blank(dotenvUrl) || processUrl!.trim() === dotenvUrl!.trim()) return null;
-  const actual = describeDbTarget(processUrl);
+  if (processUrl === undefined || blank(dotenvUrl)) return null;
   const filed = describeDbTarget(dotenvUrl);
+  // `process.loadEnvFile` does not override a variable that is set, even to the empty string
+  if (blank(processUrl)) return `WARNING: DATABASE_URL is set but empty in the process environment, so it hides the value in .env (${filed}). The empty value wins. If that is not what you meant, run "unset DATABASE_URL" and try again.`;
+  if (processUrl.trim() === dotenvUrl!.trim()) return null;
+  const actual = describeDbTarget(processUrl);
   const detail = actual === filed
     ? `Both point at the same database (${actual}) but with different credentials.`
     : `This command acts on ${actual}, NOT on ${filed} from .env.`;
@@ -74,7 +103,7 @@ export function announceDbTarget(options: AnnounceOptions): void {
   const write = options.write ?? ((line: string) => { process.stderr.write(`${line}\n`); });
   let dotenvUrl: string | undefined;
   try {
-    dotenvUrl = parseDotenvValue(readFileSync(options.dotenvPath ?? REPO_DOTENV, 'utf8'), 'DATABASE_URL');
+    dotenvUrl = parseDotenvValue(readFileSync(options.dotenvPath ?? environment.DB_TARGET_DOTENV ?? REPO_DOTENV, 'utf8'), 'DATABASE_URL');
   } catch {
     dotenvUrl = undefined; // no .env (CI, container) or unreadable: nothing to compare with
   }

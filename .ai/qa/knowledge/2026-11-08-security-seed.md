@@ -12,10 +12,10 @@ bugs: 0
 Wpis wyjściowy zebrany z istniejących scenariuszy i modelu zagrożeń. **Nikt nie przeprowadził jeszcze sesji QA w prawdziwej przeglądarce dla tego obszaru; wszystko poniżej to stan testów automatycznych, nie wynik testowania.**
 
 ## Pokryte
-Dziewięć scenariuszy `.ai/qa/security/` (`security-001` … `security-009`), testy `access-boundaries.e2e.test.ts` i `security-headers.e2e.test.ts` w `packages/app/tests/e2e/`. Wyrocznie: `docs/security/threat-model.md` (T-01 obcy id obiektu pod własnym slugiem; T-02 eskalacja ról; T-03 fałszowanie formularza zaproszenia; T-05 flagi ciasteczka sesji; T-18 metryki i health) oraz `.ai/docs/engineering-standards.md` §10.
+Dziewięć scenariuszy `.ai/qa/security/` (`security-001` … `security-009`, w tym `security-004`), testy `access-boundaries.e2e.test.ts` i `security-headers.e2e.test.ts` w `packages/app/tests/e2e/`. Wyrocznie: `docs/security/threat-model.md` (T-01 obcy id obiektu pod własnym slugiem; T-02 eskalacja ról; T-03 fałszowanie formularza zaproszenia; T-05 flagi ciasteczka sesji; T-18 metryki i health) oraz `.ai/docs/engineering-standards.md` §10.
 - `security-001`: id innej restauracji pod własnym slugiem daje 404, obcy slug 403, ładunki obu restauracji i skrót 12 tabel bez zmian po 11 próbach zapisu.
 - `security-002` i `security-003`: hierarchia ról na każdym szczeblu; formularz zaproszenia nie zmienia roli ani restauracji, drugi post przekierowuje na stronę martwego linku.
-- `security-005` … `security-009`: nagłówki bazowe, `no-store` dla strony zaproszenia i panelu, flagi ciasteczka sesji, brak szczegółów w błędach, metryki zamknięte (401 + `WWW-Authenticate`), health bez nazw bazy i wersji.
+- ``security-004`: publiczne strony kalkulatora niczego nie zapisują i nie ustawiają ciasteczka, niezależnie od metody. `security-005` … `security-009`: nagłówki bazowe, `no-store` dla strony zaproszenia i panelu, flagi ciasteczka sesji, brak szczegółów w błędach, metryki zamknięte (401 + `WWW-Authenticate`), health bez nazw bazy i wersji.
 
 ## Wynik sesji
 Brak sesji QA. Jedyny zapisany dowód skuteczności testu to mutacja z logu `.ai/runs/2026-11-07-lesson-16-security.md`: usunięcie filtra `restaurant` w `PgImportRepository.find` zrobiło `access-boundaries` czerwonym (nie powtórzona w tej sesji).
