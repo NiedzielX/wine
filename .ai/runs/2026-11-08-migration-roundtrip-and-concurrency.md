@@ -30,7 +30,8 @@ related: [.ai/runs/2026-11-07-check-routes.md]
 ## Karta dowodu (wyścig R13)
 - Test: `packages/db/tests/concurrency.integration.test.ts` > „the per-session cap on codes (R13) holds for parallel requests”.
 - Przed poprawką: `expected 32 to be less than or equal to 30`. Po poprawce: zielony, także w 10 kolejnych przebiegach.
-- Dowód `verify:regression`: wynik wpisany niżej po uruchomieniu.
+- `npm run verify:regression -- packages/db/tests/concurrency.integration.test.ts --base main`: BEFORE the fix FAIL (31 > 30), AFTER PASS, working tree restored, verdict OK.
+- Stabilność: oba nowe pliki 5 razy z rzędu zielone (11 testów, 6-14 s na przebieg obu plików); `npm run build` zielony.
 
 ## Wynik
 Co działa: migracje odwracalne i sprawdzane maszynowo, osiem scenariuszy współbieżności zielonych. Poza zakresem: zwykły test e2e HTTP (brak zmiany zachowania), `initial` bez `down` (wyjątek jawny).
