@@ -30,7 +30,7 @@ A route parses input, calls a `core` service and returns JSON. It holds no busin
 8. **e2e and QA scenario.** Test in `packages/app/tests/e2e/`, scenario `.ai/qa/<area>/<area>-NNN-slug.md` and a row in `.ai/qa/INDEX.md` (`.ai/qa/README.md`); `npm run check:qa`.
 
 ## Done when
-- [ ] Spec approved by a human and linked in the run log.
+- [ ] Spec is `approved` (set by a human) or `in-progress` (`AGENTS.md` §3) and linked in the run log.
 - [ ] A failing test existed first; unit and e2e are green.
 - [ ] Schema is `strictObject` with a rejection test.
 - [ ] `restaurantId` comes only from the slug on the server and every repository call carries it.

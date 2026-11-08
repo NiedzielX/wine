@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -46,6 +46,11 @@ beforeAll(() => {
   put('with space/.ai/specs/2026-11-08-approved.md', spec('approved'));
   mkdirSync(at('.ai/specs/a-directory.md'), { recursive: true });
   symlinkSync(at('.ai/specs'), at('alias'));
+  put('.ai/specs/2026-11-08-twice.md', '---\ntitle: draft\nstatus: draft\n---\n\nBody.\n');
+  mkdirSync(at('other'), { recursive: true });
+  symlinkSync('../.ai/specs/ghost.md', at('other/dangling.md')); // dangling: the target does not exist yet
+  symlinkSync('../docs/ghost.md', at('other/harmless.md'));
+  put('cwd-only/.ai/specs/2026-11-08-only-here.md', spec('approved'));
 });
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -87,6 +92,17 @@ const BLOCKED: Array<[string, () => Payload]> = [
   ['through a symlink to the specs directory', () => write('alias/2026-11-09-link.md', spec('approved'))],
   ['a directory with a space in its name', () => edit('with space/.ai/specs/2026-11-08-draft.md', 'status: draft', 'status: approved')],
   ['an approved spec that is first made draft: the second step is the one blocked', () => edit(DRAFT, 'status: draft', 'status: approved\nstatus: draft')],
+  ['replace_all over a header where "draft" occurs twice (the first match alone would not approve)', () => edit('.ai/specs/2026-11-08-twice.md', 'draft', 'approved', { replace_all: true })],
+  ['MultiEdit replace_all over the same header', () => multi('.ai/specs/2026-11-08-twice.md', [E('draft', 'approved', { replace_all: true })])],
+  // valid YAML header forms a column-0 regex would miss: refused, the status cannot be verified
+  ['an indented header', () => write('.ai/specs/2026-11-09-indent.md', '---\n  status: approved\n---\n')],
+  ['a flow map with a title', () => write('.ai/specs/2026-11-09-flow1.md', '---\n{title: x, status: approved}\n---\n')],
+  ['a flow map', () => write('.ai/specs/2026-11-09-flow2.md', '---\n{status: approved}\n---\n')],
+  ['an anchor and an alias', () => write('.ai/specs/2026-11-09-anchor.md', '---\nbase: &b {status: approved}\nmeta: *b\n---\n')],
+  ['a nested status', () => write('.ai/specs/2026-11-09-nested.md', '---\nmeta:\n  status: approved\n---\n')],
+  ['a flow sequence line', () => write('.ai/specs/2026-11-09-seq.md', '---\n[a, b]\nstatus: draft\n---\n')],
+  ['an alias on a value line', () => write('.ai/specs/2026-11-09-alias.md', '---\nstatus: *b\n---\n')],
+  ['a dangling symlink to a new spec', () => write('other/dangling.md', spec('approved'))],
   // malformed frontmatter under .ai/specs: the status cannot be verified, so it is refused
   ['unterminated frontmatter', () => write('.ai/specs/2026-11-09-bad.md', '---\nstatus: draft\n\n# no closing line\n')],
   ['two status keys', () => write('.ai/specs/2026-11-09-two.md', '---\nstatus: draft\nstatus: approved\n---\n')],
@@ -121,6 +137,10 @@ const ALLOWED: Array<[string, () => Payload]> = [
   ['a spec in a directory with a space (body edit)', () => edit('with space/.ai/specs/2026-11-08-approved.md', 'Body.', 'Body 2.')],
   ['a Windows-style path outside .ai/specs', () => ({ tool_name: 'Write', cwd: dir, tool_input: { file_path: 'docs\\x.md', content: spec('approved') } })],
   ['a tool the hook does not guard', () => ({ tool_name: 'Read', cwd: dir, tool_input: { file_path: at(DRAFT) } })],
+  ['a normal draft header written whole', () => write('.ai/specs/2026-11-09-plain.md', '---\nstatus: draft\ncreated: 2026-11-09\nrelated: [.ai/specs/a.md (E1), b]\nowner: R&D team\n---\n\n# x\n')],
+  ['body prose with braces, anchors and an indented status line', () => edit(DRAFT, 'Body.', 'Use {status: approved} or &x and *y or\n  status: approved\nin prose only.')],
+  ['a dangling symlink to a harmless target', () => write('other/harmless.md', spec('approved'))],
+  ['a spec header with a block list of related files', () => write('.ai/specs/2026-11-09-list.md', '---\nstatus: in-progress\nrelated:\n  - .ai/specs/a.md\n  - b\n---\n')],
   ['a CRLF spec body edit', () => edit('.ai/specs/2026-11-08-crlf.md', 'Body.', 'Body 2.')]
 ];
 
@@ -232,10 +252,38 @@ describe('spec-status-guard as a command (what Claude Code runs)', () => {
     expect(r.status).toBe(2);
   });
 
-  it('resolves a relative path against the cwd Claude Code reports', () => {
-    const r = cli({ tool_name: 'Write', cwd: dir, tool_input: { file_path: '.ai/specs/2026-11-09-rel.md', content: spec('approved') } });
-    expect(r.code).toBe(2);
-    expect(existsSync(at('.ai/specs/2026-11-09-rel.md'))).toBe(false);
+  // the spec exists ONLY under the reported cwd and is approved: keeping it approved is allowed when the hook finds it there, and a hook
+  // that resolved the path against its own cwd would see a new file (or an unmatched edit) with `approved` and block
+  it('resolves a relative path against the cwd Claude Code reports, not against its own', () => {
+    const rel = '.ai/specs/2026-11-08-only-here.md';
+    expect(existsSync(join(process.cwd(), rel))).toBe(false);
+    const payload: Payload = { tool_name: 'Edit', cwd: at('cwd-only'), tool_input: { file_path: rel, old_string: 'status: approved', new_string: 'status: approved\nnote: x' } };
+    expect(cli(payload).code).toBe(0);
+    expect(cli({ ...payload, tool_input: { ...payload.tool_input, new_string: 'status: draft' } }).code).toBe(0);
+    expect(cli({ tool_name: 'Write', cwd: at('cwd-only'), tool_input: { file_path: '.ai/specs/2026-11-09-new-rel.md', content: spec('approved') } }).code).toBe(2);
+    expect(existsSync(at('cwd-only/.ai/specs/2026-11-09-new-rel.md'))).toBe(false);
+  });
+
+  it('does the same in decide()', async () => {
+    const { decide } = await load();
+    const edit1 = { tool_name: 'Edit', cwd: at('cwd-only'), tool_input: { file_path: '.ai/specs/2026-11-08-only-here.md', old_string: 'status: approved', new_string: 'status: approved\nnote: x' } };
+    expect(decide(edit1)).toBeNull();
+  });
+
+  it('is linear: 200k blank lines in an edit that does not match finish in under a second', async () => {
+    const { decide } = await load();
+    const started = performance.now();
+    decide(edit(DRAFT, 'not in the file', '\n'.repeat(200_000)));
+    decide(write('.ai/specs/2026-11-09-blank.md', `---\nstatus: draft\n${'\n'.repeat(200_000)}---\n`));
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it('reads every real spec header of this repository without refusing it', async () => {
+    const { specStatus } = await load();
+    const specs = root('.ai/specs');
+    for (const name of readdirSync(specs).filter((n) => n.endsWith('.md'))) {
+      expect(() => specStatus(readFileSync(join(specs, name), 'utf8')), name).not.toThrow();
+    }
   });
 });
 
@@ -259,7 +307,11 @@ describe('.claude/settings.json wires the spec-status guard', () => {
 
 describe('security-notes.md documents the spec-status guard', () => {
   const notes = readFileSync(root('security-notes.md'), 'utf8');
-  it('says what it enforces, that it is a guardrail, and the Bash bypass', () => {
-    for (const word of ['spec-status-guard.mjs', 'status: approved', 'sed -i', 'nie jest granicą']) expect(notes, word).toContain(word);
+  // strings that exist only in the paragraphs written for this hook (the words `sed -i` and `status: approved` were in the file before)
+  it('says what it enforces, that it is a guardrail, the Bash bypass and the remaining gaps', () => {
+    for (const word of [
+      'spec-status-guard.mjs', 'Znane luki spec-status-guard', 'poręcz, nie granica', 'formy nagłówka, które hook czyta',
+      'normalizacji cudzysłowów', 'wartość w osobnej linii'
+    ]) expect(notes, word).toContain(word);
   });
 });

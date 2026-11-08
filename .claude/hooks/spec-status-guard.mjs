@@ -8,13 +8,19 @@
  * directories. For a file under `.ai/specs/` the hook fails closed: a header it cannot read, an edit it cannot apply or a file it cannot
  * open is refused. For other paths it never reads the disk, so it cannot fail for them.
  *
+ * Header forms that are judged: a plain `status: value` at column 0 (plain or quoted scalar). Refused as unverifiable (exit 2): an
+ * indented `status`, any line that starts with `{` or `[`, a `status` key inside a flow map, YAML anchors and aliases (`&x`, `*x`), a value
+ * on the next line, block scalars, tags, two `status` keys, a header without its closing `---`. Known gaps: an Edit whose old_string only
+ * matches through the editing tool's own quote normalisation is judged by its new_string alone (unverified); symlink loops are not
+ * followed past 8 links (the path is then judged as written).
+ *
  * Claude Code passes the tool call as JSON on stdin; exit code 2 blocks and sends stderr to the model, 0 lets it through. Any other
  * non-zero code only lets the call run, so every failure path ends in 2.
  *
  * It is a guardrail, not a boundary: it sees Edit, Write and MultiEdit, not Bash (`sed -i`, `echo >`, `git checkout`), so a model
  * can still change a spec through the shell (security-notes.md §4).
  */
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -34,12 +40,21 @@ function isGuarded(absPath) {
   return false;
 }
 
-/** The real path of a file that may not exist yet: the real path of its nearest existing ancestor plus the rest. */
-function realPath(path) {
+/**
+ * The real path of a file that may not exist yet: the real path of its nearest existing ancestor plus the rest. A dangling symlink
+ * (`x.md -> ../.ai/specs/ghost.md`, target not created yet) is followed through `readlink`, because a Write through it creates the target.
+ */
+function realPath(path, depth = 0) {
   const tail = [];
   let cur = path;
   for (;;) {
     if (existsSync(cur)) return join(realpathSync(cur), ...tail.reverse());
+    let link = null;
+    try { link = lstatSync(cur).isSymbolicLink() ? readlinkSync(cur) : null; } catch { link = null; }
+    if (link !== null) {
+      if (depth > 8) throw new Error('za dużo dowiązań symbolicznych');
+      return realPath(join(resolve(dirname(cur), link), ...tail.reverse()), depth + 1);
+    }
     const parent = dirname(cur);
     if (parent === cur) return path;
     tail.push(basename(cur));
@@ -67,8 +82,14 @@ export function specStatus(text) {
   const header = lines.slice(1, end);
   const found = [];
   header.forEach((line, i) => {
-    const m = /^["']?status["']?\s*:(.*)$/.exec(line);
-    if (m) found.push({ raw: m[1], next: header[i + 1] });
+    // forms a YAML parser reads but this line scan does not follow: refuse instead of guessing
+    if (/^[ \t]*[{[]/.test(line)) throw new Error('nagłówek zawiera mapę lub listę zapisaną w nawiasach (flow)');
+    if (/(^|[\s:,[{])[&*][A-Za-z0-9_-]+/.test(line)) throw new Error('nagłówek zawiera kotwicę lub alias YAML (&, *)');
+    if (/[{[].*["']?status["']?[ \t]*:/.test(line)) throw new Error('pole status wewnątrz mapy w nawiasach');
+    const m = /^([ \t]*)["']?status["']?[ \t]*:(.*)$/.exec(line);
+    if (!m) return;
+    if (m[1] !== '') throw new Error('pole status z wcięciem (zagnieżdżone lub przesunięte)');
+    found.push({ raw: m[2], next: header[i + 1] });
   });
   if (found.length === 0) return null;
   if (found.length > 1) throw new Error('nagłówek ma dwa pola status');
@@ -112,7 +133,8 @@ function outcome(name, input, current) {
   return { text: text ?? '', unmatched };
 }
 
-const NEW_APPROVED = /^\s*["']?status["']?\s*:\s*["']?approved/im;
+// `[ \t]*`, not `\s*`: with `\s*` many blank lines make the match quadratic and the hook slow enough to time out (a timeout does not block)
+const NEW_APPROVED = /^[ \t]*["']?status["']?[ \t]*:[ \t]*["']?approved/im;
 
 /**
  * The reason a tool call is blocked, or null. `payload` is what Claude Code sends (`tool_name`, `tool_input`, `cwd`). Throws when a call
@@ -126,7 +148,9 @@ export function decide(payload, deps = defaultDeps) {
   if (typeof file !== 'string' || file === '') throw new Error('brak tool_input.file_path');
   const cwd = typeof payload.cwd === 'string' && payload.cwd !== '' ? payload.cwd : process.cwd();
   const abs = resolve(cwd, file);
-  if (!isGuarded(abs) && !isGuarded(deps.real(abs))) return null;
+  let real = abs;
+  try { real = deps.real(abs); } catch { real = abs; } // a symlink loop must not make a harmless path fail; the path as written is still judged
+  if (!isGuarded(abs) && !isGuarded(real)) return null;
 
   const current = deps.read(abs);
   const { text, unmatched } = outcome(name, input, current === null ? null : normalize(current));
