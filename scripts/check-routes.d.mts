@@ -1,8 +1,11 @@
 export interface RouteProblem { file: string; line: number; message: string }
 export interface RouteInfo { file: string; method: string; helper: string; route: string }
+/** Fields are optional in the type because the checker itself reports a missing one as a problem. */
+export interface AllowlistEntry { file?: string; helper?: string; methods?: string[]; reason?: string }
 export interface Allowlist {
-  publicRoutes?: { file: string; helper: string; reason: string }[];
-  exceptions?: { file: string; reason: string }[];
+  publicRoutes?: AllowlistEntry[];
+  exceptions?: AllowlistEntry[];
+  earlyReturns?: AllowlistEntry[];
 }
 export function mask(src: string, strings: boolean): string;
 export function expectedRoute(apiDirRelativeFile: string): string;

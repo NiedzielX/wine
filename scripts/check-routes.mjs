@@ -9,23 +9,31 @@
  * Contract, per exported HTTP method (GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE):
  *  1. exactly one `handle()`, `handlePublic()` or `handleUnscoped()` call, imported by that name from
  *     `@/server/api-auth`, at the top level of the function body and RETURNED (`return handle(...)`);
- *  2. the helper is `handle` (session, CSRF, permission) unless the file is listed under `publicRoutes` in the
+ *  2. the wrapper is the first statement: no `return`, `throw`, `if`, `else`, loop, `switch` or `try` before it
+ *     (a path that leaves earlier has no log line and no metric); validate inside the wrapper's callback;
+ *  3. the helper is `handle` (session, CSRF, permission) unless the file is listed under `publicRoutes` in the
  *     allowlist with a reason: a public or unscoped door is a decision, not a default;
- *  3. the options carry `route: '<literal>'`: non-empty, a plain string literal, equal to the pattern derived from the
- *     file path (`api/v1/pairings/[id]/route.ts` -> `/api/v1/pairings/{id}`), and not used by any other file;
- *  4. `handle()` has a literal `write`: `true` for POST/PUT/PATCH/DELETE, `false` for GET/HEAD/OPTIONS (a write
- *     declared as a read skips the CSRF check);
- *  5. only `export function METHOD` is understood; `export const GET = ...` or `export { GET }` fails closed.
- * A file may skip all of this only through `scripts/check-routes.allowlist.json` (`exceptions`, one written reason
- * each). Allowlist entries that no longer match reality (file gone, wrapper now used) fail too, so it cannot rot.
+ *  4. the options carry `route: '<literal>'` (`as const` allowed): non-empty, a plain string literal, equal to the
+ *     pattern derived from the file path (`api/v1/pairings/[id]/route.ts` -> `/api/v1/pairings/{id}`), and not used by
+ *     any other file;
+ *  5. `handle()` and `handlePublic()` have a literal `write`; for `handle()` it is `true` for POST/PUT/PATCH/DELETE and
+ *     `false` for GET/HEAD/OPTIONS (a write declared as a read skips the CSRF check);
+ *  6. only `export function METHOD` is understood; `export const GET = ...` or `export { GET }` fails closed;
+ *  7. a `route.{ts,tsx,js,jsx,mts,cts,cjs,mjs}` anywhere under `packages/app/src/app` outside `api/` fails.
+ * A file may skip this only through `scripts/check-routes.allowlist.json`: `exceptions` (no wrapper; also the only way
+ * to keep a route file outside `api/`), `publicRoutes` (may use handlePublic/handleUnscoped), `earlyReturns` (tracked
+ * debt: code before the wrapper). Every entry has a written `reason` and the exact `methods` it covers: a method added
+ * later to a listed file is not exempt, and a listed method the file no longer exports fails. Entries that no longer
+ * match reality (file gone, wrapper now used, no early code left) fail too, so the list cannot rot.
  *
- * Not checked: early `return`s before the wrapper (parameter validation) are not logged; server actions are not
- * route handlers (they use `authorizeAction`, see `.ai/docs/engineering-standards.md`).
+ * Known false-positive/negative shapes (text scan, no TypeScript API): a bare object type as the return type
+ * (`GET(): { a: 1 } {`) is read as the body; a `return`/`if` inside a callback that runs before the wrapper counts as
+ * early code (allowlist it). Server actions are not route handlers (they use `authorizeAction`).
  *
  * Usage: node scripts/check-routes.mjs [--root <dir>] [--allowlist <file>]
  */
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const API_DIR = 'packages/app/src/app/api';
@@ -130,8 +138,31 @@ function* routeFiles(dir) {
   for (const e of entries) {
     const p = join(dir, e);
     if (statSync(p).isDirectory()) yield* routeFiles(p);
-    else if (/^route\.(ts|tsx|js|jsx|mjs)$/.test(e)) yield p;
+    else if (/^route\.(ts|tsx|js|jsx|mts|cts|cjs|mjs)$/.test(e)) yield p;
   }
+}
+
+/** Index of the `{` that opens a function body, skipping a return type annotation (`: Promise<{ a: 1 } | Response>`). */
+function bodyBrace(text, i) {
+  let k = i;
+  while (k < text.length && /\s/.test(text[k])) k++;
+  if (text[k] !== ':') return text.indexOf('{', i);
+  let angle = 0;
+  let paren = 0;
+  for (k += 1; k < text.length; k++) {
+    const c = text[k];
+    if (c === '<') angle++;
+    else if (c === '>' && text[k - 1] !== '=') angle--;
+    else if (c === '(' || c === '[') paren++;
+    else if (c === ')' || c === ']') paren--;
+    else if (c === '{') {
+      if (angle === 0 && paren === 0) return k;
+      const end = skipBalanced(text, k);
+      if (end < 0) return -1;
+      k = end - 1;
+    }
+  }
+  return -1;
 }
 
 /** The exported handlers of one file, found on masked text: `{ method, offset, body: [start, end) }` or an unsupported form. */
@@ -142,7 +173,7 @@ function exportedHandlers(masked) {
   for (const m of masked.matchAll(fn)) {
     const open = masked.indexOf('(', m.index + m[0].length);
     const afterParams = open < 0 ? -1 : skipBalanced(masked, open);
-    const brace = afterParams < 0 ? -1 : masked.indexOf('{', afterParams);
+    const brace = afterParams < 0 ? -1 : bodyBrace(masked, afterParams);
     const end = brace < 0 ? -1 : skipBalanced(masked, brace);
     if (end < 0) unsupported.push({ offset: m.index, what: `cannot find the body of ${m[1]}` });
     else handlers.push({ method: m[1], offset: m.index, body: [brace + 1, end - 1] });
@@ -175,13 +206,18 @@ function wrapperImports(noComments) {
 }
 
 function validateAllowlist(allowlist, rootDir, problems, allowlistName) {
-  const entries = { publicRoutes: new Map(), exceptions: new Map() };
+  const entries = { publicRoutes: new Map(), exceptions: new Map(), earlyReturns: new Map() };
   const add = (list, kind, helperRequired) => {
     for (const [i, e] of (Array.isArray(list) ? list : []).entries()) {
       const where = `${allowlistName}: ${kind}[${i}]`;
       if (!e || typeof e.file !== 'string' || e.file === '') { problems.push({ file: allowlistName, line: 1, message: `${where} has no \`file\`` }); continue; }
       if (typeof e.reason !== 'string' || e.reason.trim().length < MIN_REASON) problems.push({ file: allowlistName, line: 1, message: `${where} (${e.file}) needs a written \`reason\` (at least ${MIN_REASON} characters): no silent skips` });
       if (helperRequired && !['handlePublic', 'handleUnscoped'].includes(e.helper)) problems.push({ file: allowlistName, line: 1, message: `${where} (${e.file}) needs \`helper\`: "handlePublic" or "handleUnscoped"` });
+      if (!Array.isArray(e.methods) || e.methods.length === 0) problems.push({ file: allowlistName, line: 1, message: `${where} (${e.file}) needs \`methods\`: a non-empty array of the HTTP methods the entry covers` });
+      else {
+        for (const m of e.methods) if (!METHODS.includes(m)) problems.push({ file: allowlistName, line: 1, message: `${where} (${e.file}): unknown method ${m}` });
+        if (new Set(e.methods).size !== e.methods.length) problems.push({ file: allowlistName, line: 1, message: `${where} (${e.file}): a method is listed twice` });
+      }
       if (entries[kind].has(e.file)) problems.push({ file: allowlistName, line: 1, message: `${where}: ${e.file} is listed twice` });
       if (!existsSync(join(rootDir, e.file))) problems.push({ file: allowlistName, line: 1, message: `${where}: ${e.file} does not exist; remove the entry` });
       entries[kind].set(e.file, e);
@@ -189,6 +225,7 @@ function validateAllowlist(allowlist, rootDir, problems, allowlistName) {
   };
   add(allowlist.publicRoutes, 'publicRoutes', true);
   add(allowlist.exceptions, 'exceptions', false);
+  add(allowlist.earlyReturns, 'earlyReturns', false);
   for (const f of entries.exceptions.keys()) if (entries.publicRoutes.has(f)) problems.push({ file: allowlistName, line: 1, message: `${f} is both an exception and a public route` });
   return entries;
 }
@@ -197,15 +234,14 @@ function validateAllowlist(allowlist, rootDir, problems, allowlistName) {
  * Checks every route file under `<root>/<apiDir>`. Returns `{ problems, routes }`; a problem is `{ file, line, message }`
  * with `file` relative to `root` (slash-separated). Pure apart from reading files.
  */
-export function checkRoutes({ root, apiDir = API_DIR, allowlist = { publicRoutes: [], exceptions: [] }, allowlistName = DEFAULT_ALLOWLIST }) {
+export function checkRoutes({ root, apiDir = API_DIR, allowlist = { publicRoutes: [], exceptions: [], earlyReturns: [] }, allowlistName = DEFAULT_ALLOWLIST }) {
   const problems = [];
   const routes = [];
   const entries = validateAllowlist(allowlist, root, problems, allowlistName);
   const base = join(root, apiDir);
-  const files = [...routeFiles(base)];
-  if (files.length === 0) problems.push({ file: apiDir, line: 1, message: `no route files found under ${apiDir} (wrong --root?)` });
+  const files = [...routeFiles(join(root, dirname(apiDir)))];
+  if (!files.some((f) => !relative(base, f).startsWith('..'))) problems.push({ file: apiDir, line: 1, message: `no route files found under ${apiDir} (wrong --root?)` });
   const seen = new Map(); // route -> first { file, line }
-  const used = { publicRoutes: new Set(), exceptions: new Set() };
 
   for (const abs of files) {
     const file = relative(root, abs).split(sep).join('/');
@@ -215,19 +251,29 @@ export function checkRoutes({ root, apiDir = API_DIR, allowlist = { publicRoutes
     const problem = (offset, message) => problems.push({ file, line: lineOf(original, offset), message });
     const calls = [...masked.matchAll(new RegExp(`(?<![.\\w$])(${HELPERS.join('|')})\\s*\\(`, 'g'))];
 
+    const { handlers, unsupported } = exportedHandlers(masked);
+    const entryMethods = (entry, what) => {
+      for (const h of handlers) if (!entry.methods?.includes(h.method)) problem(h.offset, `${h.method} is exported by an allowlisted file but not listed in its "methods" (${what}): a method added later is not exempt`);
+      for (const m of entry.methods ?? []) if (!handlers.some((h) => h.method === m)) problems.push({ file: allowlistName, line: 1, message: `${what} entry for ${file} lists ${m} but the file does not export it; remove it` });
+    };
+
     if (entries.exceptions.has(file)) {
-      used.exceptions.add(file);
+      for (const u of unsupported) problem(u.offset, u.what);
       if (calls.length > 0) problem(calls[0].index, `${file} is listed under exceptions but calls ${calls[0][1]}(); remove the stale exception`);
+      entryMethods(entries.exceptions.get(file), 'exceptions');
       continue;
     }
 
-    const { handlers, unsupported } = exportedHandlers(masked);
+    if (relative(base, abs).startsWith('..')) { problem(0, `route handler outside ${apiDir}: it is not covered by the wrapper contract; move it under api/ or list it under "exceptions" with a reason`); continue; }
     for (const u of unsupported) problem(u.offset, u.what);
     if (handlers.length === 0 && unsupported.length === 0) problem(0, 'exports no HTTP method handler (GET, POST, ...); a route file must export one');
     const imports = wrapperImports(noComments);
     const publicEntry = entries.publicRoutes.get(file);
     const expected = expectedRoute(relative(base, abs));
     let publicSeen = false;
+    const earlyEntry = entries.earlyReturns.get(file);
+    const earlySeen = new Set();
+    if (publicEntry) entryMethods(publicEntry, 'publicRoutes');
 
     for (const h of handlers) {
       const here = calls.filter((c) => c.index >= h.body[0] && c.index < h.body[1]);
@@ -239,6 +285,12 @@ export function checkRoutes({ root, apiDir = API_DIR, allowlist = { publicRoutes
       if (!imports.names.has(helper)) problem(at, `${helper}() is not imported by that name from '${WRAPPER_MODULE}'${imports.aliased.has(helper) ? ' (an alias hides it from this check)' : ''}`);
       const before = masked.slice(h.body[0], at).trimEnd();
       if (!/(?:^|[^\w$])return(?:\s+await)?$/.test(before)) problem(at, `${helper}() result is not returned directly (\`return ${helper}(...)\`)`);
+      const retAt = h.body[0] + before.lastIndexOf('return');
+      const early = /(?<![\w$.])(return|throw|if|else|for|while|switch|do|try)(?![\w$])/.exec(masked.slice(h.body[0], retAt));
+      if (early) {
+        earlySeen.add(h.method);
+        if (!earlyEntry?.methods.includes(h.method)) problem(h.body[0] + early.index, `${h.method} has \`${early[1]}\` before ${helper}(): that path leaves the handler without a request log line or metric; make ${helper}() the first statement (validate inside its callback) or list ${h.method} under "earlyReturns" with a reason`);
+      }
       let depth = 0;
       for (let k = h.body[0]; k < at; k++) { if (masked[k] === '{') depth++; else if (masked[k] === '}') depth--; }
       if (depth !== 0) problem(at, `${helper}() must be called at the top level of ${h.method}, not inside a block or callback, or another path skips it`);
@@ -268,7 +320,7 @@ export function checkRoutes({ root, apiDir = API_DIR, allowlist = { publicRoutes
         const m = /^\s*route\s*:\s*(['"`])/.exec(masked.slice(routeProp[0], routeProp[1]));
         const valueStart = m ? routeProp[0] + m[0].length : -1;
         const valueEnd = m ? masked.indexOf(m[1], valueStart) : -1;
-        const tail = m && valueEnd >= 0 ? masked.slice(valueEnd + 1, routeProp[1]).trim() : 'x';
+        const tail = m && valueEnd >= 0 ? masked.slice(valueEnd + 1, routeProp[1]).trim().replace(/^as\s+const$/, '') : 'x';
         const value = m && valueEnd >= 0 ? original.slice(valueStart, valueEnd) : '';
         if (!m || valueEnd < 0 || tail !== '' || value.includes('${')) problem(routeProp[0], `\`route\` must be a plain string literal (the PATTERN, never the URL), not an expression`);
         else if (value.trim() === '') problem(routeProp[0], '`route` is empty');
@@ -281,15 +333,15 @@ export function checkRoutes({ root, apiDir = API_DIR, allowlist = { publicRoutes
         }
       }
 
-      if (helper === 'handle') {
+      if (helper !== 'handleUnscoped') {
         const writeProp = prop('write');
         const w = writeProp ? /^\s*write\s*:\s*(true|false)\s*$/.exec(masked.slice(writeProp[0], writeProp[1])) : null;
-        if (!w) problem(writeProp ? writeProp[0] : objStart, `handle() needs \`write: true\` or \`write: false\` as a literal`);
-        else if ((w[1] === 'true') === SAFE_METHODS.has(h.method)) problem(writeProp[0], `${h.method} is ${SAFE_METHODS.has(h.method) ? 'a read' : 'a change'} but handle() says write: ${w[1]}${w[1] === 'false' ? ' (the CSRF check would be skipped)' : ''}`);
+        if (!w) problem(writeProp ? writeProp[0] : objStart, `${helper}() needs \`write: true\` or \`write: false\` as a literal`);
+        else if (helper === 'handle' && ((w[1] === 'true') === SAFE_METHODS.has(h.method))) problem(writeProp[0], `${h.method} is ${SAFE_METHODS.has(h.method) ? 'a read' : 'a change'} but handle() says write: ${w[1]}${w[1] === 'false' ? ' (the CSRF check would be skipped)' : ''}`);
       }
     }
+    for (const m of earlyEntry?.methods ?? []) if (!earlySeen.has(m)) problems.push({ file: allowlistName, line: 1, message: `earlyReturns entry for ${file} lists ${m}, which has no code before the wrapper any more; remove the stale entry` });
     if (publicEntry && !publicSeen) problems.push({ file: allowlistName, line: 1, message: `${file} is listed under publicRoutes but uses no ${publicEntry.helper}(); remove the stale entry` });
-    if (publicEntry) used.publicRoutes.add(file);
   }
 
   problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);

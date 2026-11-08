@@ -18,7 +18,7 @@ const IMPORT = "import { handle, handlePublic, handleUnscoped } from '@/server/a
 const roots: string[] = [];
 afterAll(() => { for (const r of roots) rmSync(r, { recursive: true, force: true }); });
 
-type Allowlist = { publicRoutes?: { file: string; helper: string; methods?: string[]; reason: string }[]; exceptions?: { file: string; methods?: string[]; reason: string }[] };
+type Allowlist = { publicRoutes?: { file?: string; helper?: string; methods?: string[]; reason?: string }[]; exceptions?: { file?: string; methods?: string[]; reason?: string }[]; earlyReturns?: { file: string; methods?: string[]; reason?: string }[] };
 
 /** Writes `{ 'v1/x/route.ts': source }` under a fresh root and checks it. */
 function check(files: Record<string, string>, allowlist: Allowlist = {}) {
@@ -72,7 +72,7 @@ describe('check-routes', () => {
   });
 
   it('fails handlePublic/handleUnscoped on a route that is not listed as public, passes once it is listed', () => {
-    const pub = `${IMPORT}export async function GET(req) {\n  return handlePublic(req, { route: '/api/v1/open' }, async () => ok());\n}\n`;
+    const pub = `${IMPORT}export async function GET(req) {\n  return handlePublic(req, { route: '/api/v1/open', write: false }, async () => ok());\n}\n`;
     const file = `${API}/v1/open/route.ts`;
     const bad = check({ 'v1/open/route.ts': pub });
     expect(bad.messages).toHaveLength(1);
@@ -116,7 +116,7 @@ describe('check-routes', () => {
     const file = `${API}/v1/static/route.ts`;
     const bare = (methods: string[]) => methods.map((m) => `export async function ${m}() {\n  return new Response('x');\n}\n`).join('');
     const exc = (methods?: string[]) => ({ exceptions: [{ file, ...(methods ? { methods } : {}), reason: 'Static public CSV, nothing to log at runtime.' }] });
-    const pub = (m: string) => `export async function ${m}(req) {\n  return handlePublic(req, { route: '/api/v1/static' }, async () => ok());\n}\n`;
+    const pub = (m: string) => `export async function ${m}(req) {\n  return handlePublic(req, { route: '/api/v1/static', write: false }, async () => ok());\n}\n`;
     const pubEntry = (methods?: string[]) => ({ publicRoutes: [{ file, helper: 'handlePublic', ...(methods ? { methods } : {}), reason: 'Guest API, public by product design.' }] });
 
     it('passes when the exported methods are exactly the listed ones', () => {
@@ -144,6 +144,100 @@ describe('check-routes', () => {
       expect(check({ 'v1/static/route.ts': bare(['GET']) }, exc([])).messages.join('\n')).toContain('needs `methods`');
       expect(check({ 'v1/static/route.ts': bare(['GET']) }, exc(['FETCH'])).messages.join('\n')).toContain('unknown method FETCH');
       expect(check({ 'v1/static/route.ts': `${IMPORT}${pub('GET')}` }, pubEntry()).messages.join('\n')).toContain('needs `methods`');
+    });
+  });
+
+  describe('early code before the wrapper', () => {
+    const file = `${API}/v1/e/route.ts`;
+    const early = (guard: string) => `${IMPORT}export async function GET(req) {\n  ${guard}\n  return handle(req, { route: '/api/v1/e', write: false }, async () => ok());\n}\n`;
+    const entry = (methods = ['GET']) => ({ earlyReturns: [{ file, methods, reason: 'tracked: fixed by refuseEarly() in the api-robustness branch (K3); remove when that lands' }] });
+
+    it('fails a validation return before the wrapper', () => {
+      const r = check({ 'v1/e/route.ts': early('if (!req.slug) { return apiError(422); }') });
+      expect(r.messages).toHaveLength(1);
+      expect(r.messages[0]).toContain('GET has `if` before handle()');
+    });
+    it('fails a throw and a braceless `if (x) return handle(...)`', () => {
+      expect(check({ 'v1/e/route.ts': early('throw new Error("x");') }).messages.join('\n')).toContain('has `throw` before handle()');
+      const braceless = `${IMPORT}export async function GET(req) {\n  if (x) return handle(req, { route: '/api/v1/e', write: false }, async () => ok());\n  return NextResponse.json({});\n}\n`;
+      expect(check({ 'v1/e/route.ts': braceless }).messages.join('\n')).toContain('before handle()');
+    });
+    it('allows plain statements (destructuring params) before the wrapper', () => {
+      expect(check({ 'v1/e/route.ts': early('const { slug } = await req.params;') }).messages).toEqual([]);
+    });
+    it('passes an allowlisted early return, fails a stale entry and an unlisted method', () => {
+      expect(check({ 'v1/e/route.ts': early('if (!x) return apiError(422);') }, entry()).messages).toEqual([]);
+      expect(check({ 'v1/e/route.ts': early('const a = 1;') }, entry()).messages.join('\n')).toContain('no code before the wrapper any more; remove the stale entry');
+      const two = `${early('if (!x) return apiError(422);')}${early('if (!x) return apiError(422);').replace(IMPORT, '').replace('GET', 'DELETE').replace('write: false', 'write: true')}`;
+      expect(check({ 'v1/e/route.ts': two }, entry()).messages.join('\n')).toContain('DELETE has `if` before handle()');
+    });
+  });
+
+  describe('write literal on public routes, scope and parsing details', () => {
+    const pubSrc = (opts: string) => `${IMPORT}export async function POST(req) {\n  return handlePublic(req, { route: '/api/v1/p'${opts} }, async () => ok());\n}\n`;
+    const pubAllow = { publicRoutes: [{ file: `${API}/v1/p/route.ts`, helper: 'handlePublic', methods: ['POST'], reason: 'Guest API: read-only POST, public by product design.' }] };
+
+    it('requires an explicit write literal for handlePublic, true or false', () => {
+      expect(check({ 'v1/p/route.ts': pubSrc('') }, pubAllow).messages.join('\n')).toContain('handlePublic() needs `write: true` or `write: false` as a literal');
+      expect(check({ 'v1/p/route.ts': pubSrc(', write: flag') }, pubAllow).messages.join('\n')).toContain('needs `write: true` or `write: false`');
+      expect(check({ 'v1/p/route.ts': pubSrc(', write: false') }, pubAllow).messages).toEqual([]);
+      expect(check({ 'v1/p/route.ts': pubSrc(', write: true') }, pubAllow).messages).toEqual([]);
+    });
+
+    it('fails a route file outside api/ (any extension) unless it is an exception', () => {
+      const root = mkdtempSync(join(tmpdir(), 'check routes '));
+      roots.push(root);
+      const write = (rel: string, src: string) => { const abs = join(root, 'packages/app/src/app', rel); mkdirSync(dirname(abs), { recursive: true }); writeFileSync(abs, src); };
+      write('api/v1/a/route.ts', good('/api/v1/a'));
+      write('(showcase)/demo/route.mts', `export async function GET() {\n  return new Response('x');\n}\n`);
+      const strays = checkRoutes({ root, allowlist: { publicRoutes: [], exceptions: [] } }).problems.map((p: { file: string; message: string }) => `${p.file}: ${p.message}`);
+      expect(strays.join('\n')).toContain('(showcase)/demo/route.mts: route handler outside packages/app/src/app/api');
+      const listed = checkRoutes({ root, allowlist: { publicRoutes: [], exceptions: [{ file: 'packages/app/src/app/(showcase)/demo/route.mts', methods: ['GET'], reason: 'Static demo redirect, no data, nothing to log.' }] } });
+      expect(listed.problems).toEqual([]);
+    });
+
+    it('reads a return type with braces and `route: ... as const`', () => {
+      const src = `${IMPORT}export async function GET(req): Promise<{ a: 1 } | Response> {\n  return handle(req, { route: '/api/v1/a' as const, write: false }, async () => ok());\n}\n`;
+      expect(check({ 'v1/a/route.ts': src }).messages).toEqual([]);
+    });
+  });
+
+  describe('every rule goes red when its trigger appears', () => {
+    const one = (opts: string, header = IMPORT) => `${header}export async function GET(req) {\n  return handle(req, ${opts}, async () => ok());\n}\n`;
+    const msgs = (files: Record<string, string>, a: Allowlist = {}) => check(files, a).messages.join('\n');
+    const reason = 'A written reason that is long enough.';
+
+    it('options: spread, non-literal second argument, missing second argument', () => {
+      expect(msgs({ 'v1/a/route.ts': one("{ ...base, route: '/api/v1/a', write: false }") })).toContain('options contain a spread');
+      expect(msgs({ 'v1/a/route.ts': one('opts') })).toContain('needs an options object literal as its second argument');
+      expect(msgs({ 'v1/a/route.ts': `${IMPORT}export async function GET(req) {\n  return handle(req);\n}\n` })).toContain('needs an options object literal');
+    });
+
+    it('write: missing or not a literal', () => {
+      expect(msgs({ 'v1/a/route.ts': one("{ route: '/api/v1/a' }") })).toContain('handle() needs `write: true` or `write: false` as a literal');
+      expect(msgs({ 'v1/a/route.ts': one("{ route: '/api/v1/a', write: isWrite }") })).toContain('needs `write: true` or `write: false`');
+    });
+
+    it('helper not imported by that name (no alias, no import at all)', () => {
+      expect(msgs({ 'v1/a/route.ts': one("{ route: '/api/v1/a', write: false }", '') })).toContain("handle() is not imported by that name from '@/server/api-auth'");
+      expect(msgs({ 'v1/a/route.ts': one("{ route: '/api/v1/a', write: false }", "import { handle } from './local-api';\n") })).toContain('is not imported by that name');
+    });
+
+    it('cannot find the body of a handler', () => {
+      expect(msgs({ 'v1/a/route.ts': 'export async function GET(req)' })).toContain('cannot find the body of GET');
+    });
+
+    it('allowlist entries: missing file or helper, listed twice, exception and public at once, stale public entry', () => {
+      const f = `${API}/v1/a/route.ts`;
+      const src = { 'v1/a/route.ts': one("{ route: '/api/v1/a', write: false }") };
+      expect(msgs(src, { exceptions: [{ methods: ['GET'], reason }] })).toContain('has no `file`');
+      expect(msgs(src, { publicRoutes: [{ file: f, methods: ['GET'], reason }] })).toContain('needs `helper`: "handlePublic" or "handleUnscoped"');
+      expect(msgs(src, { exceptions: [{ file: f, methods: ['GET'], reason }, { file: f, methods: ['GET'], reason }] })).toContain('is listed twice');
+      expect(msgs(src, { exceptions: [{ file: f, methods: ['GET'], reason }], publicRoutes: [{ file: f, helper: 'handlePublic', methods: ['GET'], reason }] })).toContain('is both an exception and a public route');
+      expect(msgs(src, { publicRoutes: [{ file: f, helper: 'handlePublic', methods: ['GET'], reason }] })).toContain('is listed under publicRoutes but uses no handlePublic()');
+      const pub = `${IMPORT}export async function GET(req) {\n  return handlePublic(req, { route: '/api/v1/a', write: false }, async () => ok());\n}\n`;
+      expect(msgs({ 'v1/a/route.ts': pub }, { publicRoutes: [{ file: f, helper: 'handleUnscoped', methods: ['GET'], reason }] })).toContain('but scripts/check-routes.allowlist.json lists');
+      expect(msgs(src, { exceptions: [{ file: f, methods: ['GET', 'GET'], reason }] })).toContain('a method is listed twice');
     });
   });
 
