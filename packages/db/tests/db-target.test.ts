@@ -23,7 +23,8 @@ describe('describeDbTarget', () => {
     [pg('u:p', '[::1]:5380/w'), '[::1]:5380/w'],
     [pg('u:p%40ss', `host:5432/my%20db?sslmode=require&password=${SECRET}`), 'host:5432/my db'],
     [pg('', 'host:5432'), 'host:5432/(no database name)'],
-    [pg('u:p', 'host:5432/db?email=a@b.c'), 'host:5432/db']
+    [pg('u:p@w@x', 'host:5432/db'), 'host:5432/db'],
+    [pg('u:p%40w', 'host:5432/db'), 'host:5432/db']
   ])('shows only host:port/dbname of %s', (url, expected) => {
     const text = describeDbTarget(url);
     expect(text).toBe(expected);
@@ -46,11 +47,21 @@ describe('describeDbTarget', () => {
     [pg('', 'admin:1234?x@host:5432/db')],
     [pg('', 'admin:1234#x@host:5432/db')],
     [pg('', 'admin:12345@/abc@host/db')],
+    [pg('u:a', 'b/c@host/db')],
+    [pg('u:ZQXa', 'ZQXb/ZQXc@host/db')],
+    [pg('u:p', 'host:5432/db?email=a@b.c')],
     [pg('admin', 'host name:5432/db')]
   ])('prints only the invalid message for the ambiguous %s', (url) => {
     const text = describeDbTarget(url);
     expect(text).toBe(INVALID);
-    for (const leak of ['12345', '1234', 'admin', 'abc']) expect(text).not.toContain(leak);
+    for (const leak of ['12345', '1234', 'admin', 'abc', 'ZQX', 'b:5432', 'c@host']) expect(text).not.toContain(leak);
+  });
+
+  it('uses the LAST @ of the authority: a password with several @ never reaches the output', () => {
+    const text = describeDbTarget(pg('u:p@w@secretpart', 'host:5432/db'));
+    expect(text).toBe('host:5432/db');
+    expect(text).not.toContain('secretpart');
+    expect(text).not.toContain('@');
   });
 
   it('does not invent port 5432 for a unix socket host', () => {
@@ -76,6 +87,12 @@ describe('parseDotenvValue', () => {
     `DATABASE_URL = ${pg('a:b', 'two:2/y')}`,
     ''
   ].join('\n');
+
+  it('scales linearly with blank lines (a large .env must not stall a command)', () => {
+    const started = Date.now();
+    expect(parseDotenvValue(`${'  \n'.repeat(100_000)}A=1\n`, 'A')).toBe('1');
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
 
   it('reads plain, exported and quoted values, drops inline comments, last assignment wins', () => {
     expect(parseDotenvValue(text, 'DATABASE_URL')).toBe(pg('a:b', 'two:2/y'));

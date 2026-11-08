@@ -29,10 +29,10 @@ export function describeDbTarget(url: string | undefined): string {
   if (rest === undefined) return INVALID;
   const cut = rest.search(/[/?#]/);
   const authority = cut === -1 ? rest : rest.slice(0, cut);
-  // an `@` only after the delimiter means the password (or user) contains a delimiter: the split is a guess, so say nothing about it
-  if (!authority.includes('@') && rest.slice(authority.length).includes('@')) return INVALID;
+  // an `@` anywhere after the authority means a password (or user) that contains a delimiter: the split is a guess, so say nothing about it
+  if (rest.slice(authority.length).includes('@')) return INVALID;
   const hostPort = authority.slice(authority.lastIndexOf('@') + 1);
-  if (hostPort === '') return rest.slice(authority.length).includes('@') ? INVALID : '(DATABASE_URL has no host)';
+  if (hostPort === '') return '(DATABASE_URL has no host)';
   const m = HOST.exec(hostPort);
   if (!m) return INVALID;
   let name = '';
@@ -53,7 +53,7 @@ export function describeDbTarget(url: string | undefined): string {
 }
 
 // the same pattern as Node's own dotenv parser (lib/internal/util/parse_env): quoted values may span lines
-const DOTENV_LINE = /^\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?$/gm;
+const DOTENV_LINE = /^[ \t]*(?:export[ \t]+)?([\w.-]+)(?:[ \t]*=[ \t]*?|:[ \t]+?)([ \t]*'(?:\\'|[^'])*'|[ \t]*"(?:\\"|[^"])*"|[ \t]*`(?:\\`|[^`])*`|[^#\r\n]+)?[ \t]*(?:#.*)?$/gm;
 
 /** The value of `key` in dotenv text, read like Node's `loadEnvFile` (quotes, `\n` in double quotes, multi-line values, inline comments; the last assignment wins). No variable expansion. */
 export function parseDotenvValue(text: string, key: string): string | undefined {
