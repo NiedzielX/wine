@@ -16,6 +16,11 @@
  * matches through the editing tool's own quote normalisation is judged by its new_string alone (unverified); symlink loops are not
  * followed past 8 links (the path is then judged as written).
  *
+ * Assumption about the editing tool, deliberately not settled: we do not know whether it matches old_string byte for byte against the file
+ * or normalises line endings (CRLF) first. So an Edit or MultiEdit chain is evaluated in BOTH models and the call is refused when ANY of
+ * the possible results is newly `approved` (a raw partial match with replace_all cannot hide a normalised one, and the other way round).
+ * A legitimate edit is refused only if one model reads it as approving, which needs mixed or odd line endings in the same file.
+ *
  * Claude Code passes the tool call as JSON on stdin; exit code 2 blocks and sends stderr to the model, 0 lets it through. Any other
  * non-zero code only lets the call run, so every failure path ends in 2.
  *
@@ -114,42 +119,51 @@ export function specStatus(text) {
   return value.toLowerCase();
 }
 
-function applyEdit(content, edit) {
+/**
+ * One edit applied to `content` in ONE of two models of the editing tool, which we cannot tell apart from here: `raw` (old_string must
+ * occur byte for byte in the file) and `loose` (file, old_string and new_string have their line endings normalised first). Normalising
+ * only one side is wrong in both models: a lone \r at the edge of old_string would swallow a line break.
+ */
+function applyEdit(content, edit, loose) {
   if (!edit || typeof edit.old_string !== 'string' || typeof edit.new_string !== 'string') throw new Error('edycja bez old_string i new_string');
-  // the file text is normalised to \n, so the edit must be too, or a CRLF old_string never matches and a legitimate edit is judged as unmatched
-  const replace = (text, from, to) => {
-    const at = text.indexOf(from);
-    if (at === -1) return null;
-    return edit.replace_all === true ? text.split(from).join(to) : text.slice(0, at) + to + text.slice(at + from.length);
-  };
-  if (edit.old_string === '') return content === null || content === '' ? { text: edit.new_string, matched: true } : { text: content, matched: false };
+  const flat = (s) => (loose ? unix(s) : s);
+  const from = flat(edit.old_string);
+  const to = flat(edit.new_string);
+  if (from === '') return content === null || content === '' ? { text: to, matched: true } : { text: content, matched: false };
   if (content === null) return { text: '', matched: false };
-  // First the bytes the tool was given against the bytes on disk: that is what the tool does, and normalising only one side lets a lone \r
-  // at the edge of old_string swallow a line break (`status: draft\r` -> `status: approved` leaves `approved`). Only the RESULT is normalised
-  // later, for the header scan. Second, with both sides normalised, for an edit the tool may still match through its own normalisation.
-  const exact = replace(content, edit.old_string, edit.new_string);
-  if (exact !== null) return { text: exact, matched: true };
-  const loose = replace(unix(content), unix(edit.old_string), unix(edit.new_string));
-  if (loose !== null) return { text: loose, matched: true };
-  return { text: content, matched: false };
+  const text = flat(content);
+  const at = text.indexOf(from);
+  if (at === -1) return { text, matched: false };
+  return { text: edit.replace_all === true ? text.split(from).join(to) : text.slice(0, at) + to + text.slice(at + from.length), matched: true };
 }
 
-/** The text a tool call would leave in the file, and the new text of every edit that did not match (the tool will reject those itself). */
+/** A whole edit chain (one Edit, or the MultiEdit list in order) in one model. */
+function runChain(edits, current, loose) {
+  let text = current;
+  const hits = [];
+  for (const edit of edits) {
+    const r = applyEdit(text, edit, loose);
+    hits.push(r.matched);
+    text = r.text;
+  }
+  return { text: text ?? '', hits };
+}
+
+/**
+ * Every text the tool call could leave in the file (one per model of the tool, see applyEdit; a Write has exactly one), and the new text of
+ * every edit that matched in NEITHER model (the tool will reject those itself, but only the new text is left to judge).
+ */
 function outcome(name, input, current) {
   if (name === 'Write') {
     if (typeof input.content !== 'string') throw new Error('Write bez content');
-    return { text: input.content, unmatched: [] };
+    return { texts: [input.content], unmatched: [] };
   }
   const edits = name === 'MultiEdit' ? input.edits : [input];
   if (!Array.isArray(edits) || edits.length === 0) throw new Error('MultiEdit bez edits');
-  let text = current;
-  const unmatched = [];
-  for (const edit of edits) {
-    const r = applyEdit(text, edit);
-    if (!r.matched) unmatched.push(unix(edit.new_string));
-    text = r.text;
-  }
-  return { text: text ?? '', unmatched };
+  const raw = runChain(edits, current, false);
+  const loose = runChain(edits, current, true);
+  const unmatched = edits.filter((_, i) => !raw.hits[i] && !loose.hits[i]).map((e) => unix(e.new_string));
+  return { texts: raw.text === loose.text ? [raw.text] : [raw.text, loose.text], unmatched };
 }
 
 // `[ \t]*`, not `\s*`: with `\s*` many blank lines make the match quadratic and the hook slow enough to time out (a timeout does not block)
@@ -172,19 +186,22 @@ export function decide(payload, deps = defaultDeps) {
   if (!isGuarded(abs) && !isGuarded(real)) return null;
 
   const current = deps.read(abs);
-  const { text, unmatched } = outcome(name, input, current); // raw text: specStatus() normalises the result
+  const { texts, unmatched } = outcome(name, input, current); // raw text: specStatus() normalises each result
   let currentApproved = false;
   if (current !== null) {
     try { currentApproved = specStatus(current) === APPROVED; } catch { currentApproved = false; }
   }
 
-  let status;
-  try {
-    status = specStatus(text);
-  } catch (e) {
-    return `nie mogę odczytać nagłówka specyfikacji ${file} (${e instanceof Error ? e.message : 'błąd'}), więc nie sprawdzę statusu; popraw nagłówek (--- status: draft ---)`;
+  // blocked when ANY possible result is approved: which model of the editing tool is real is not known here
+  let approves = unmatched.some((t) => NEW_APPROVED.test(t));
+  for (const text of texts) {
+    try {
+      if (specStatus(text) === APPROVED) approves = true;
+    } catch (e) {
+      if (text === current) continue; // an edit that changed nothing does not make an old header worse
+      return `nie mogę odczytać nagłówka specyfikacji ${file} (${e instanceof Error ? e.message : 'błąd'}), więc nie sprawdzę statusu; popraw nagłówek (--- status: draft ---)`;
+    }
   }
-  const approves = status === APPROVED || unmatched.some((t) => NEW_APPROVED.test(t));
   if (approves && !currentApproved) {
     return `status: approved w ${file} ustawia tylko człowiek (AGENTS.md §3). Zapisz specyfikację jako draft i poproś właściciela o akceptację; po niej wolno zmienić approved na in-progress`;
   }

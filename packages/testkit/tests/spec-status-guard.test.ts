@@ -39,6 +39,9 @@ beforeAll(() => {
   put('.ai/specs/2026-11-08-progress.md', spec('in-progress'));
   put('.ai/specs/2026-11-08-crlf.md', spec('draft').replace(/\n/g, '\r\n'));
   put('.ai/specs/2026-11-08-crlf-approved.md', spec('approved').replace(/\n/g, '\r\n'));
+  // mixed line endings: a header in CRLF and a body line in LF that both read `status: draft`
+  put('.ai/specs/2026-11-08-mixed.md', '---\r\nstatus: draft\r\n---\r\nnote\nstatus: draft\n');
+  put('.ai/specs/2026-11-08-mixed-approved.md', '---\r\nstatus: approved\r\n---\r\nnote\n');
   put('.ai/specs/product-brief.md', '# Brief\n\nNo frontmatter here.\n');
   put('.ai/specs/implemented/2026-11-01-done.md', spec('implemented'));
   put('.ai/specs/archive/2026-11-01-old.md', spec('abandoned'));
@@ -117,6 +120,11 @@ const BLOCKED: Array<[string, () => Payload]> = [
   ['CRLF: old_string begins with \\n only', () => edit('.ai/specs/2026-11-08-crlf.md', '\nstatus: draft', '\nstatus: approved')],
   ['CRLF: MultiEdit with a lone \\r at the edge', () => multi('.ai/specs/2026-11-08-crlf.md', [E('# Title', '# Other'), E('status: draft\r', 'status: approved')])],
   ['CRLF: replace_all with a lone \\r', () => edit('.ai/specs/2026-11-08-crlf.md', 'draft\r', 'approved', { replace_all: true })],
+  // we cannot tell whether the editing tool matches the raw bytes or normalises line endings first, so BOTH outcomes are judged: a raw
+  // partial match with replace_all (only the LF body line) must not hide the normalised one (the CRLF header line too)
+  ['mixed endings: replace_all matches only the LF line raw, but the header once normalised', () => edit('.ai/specs/2026-11-08-mixed.md', 'status: draft\n', 'status: approved\n', { replace_all: true })],
+  ['mixed endings: MultiEdit chain with such a replace_all', () => multi('.ai/specs/2026-11-08-mixed.md', [E('note', 'note 2'), E('status: draft\n', 'status: approved\n', { replace_all: true })])],
+  ['mixed endings: the first edit of a chain only matches in one model', () => multi('.ai/specs/2026-11-08-mixed.md', [E('---\nstatus: draft', '---\nstatus: approved')])],
   ['a CRLF edit (CRLF in old_string) that approves', () => edit('.ai/specs/2026-11-08-crlf.md', 'status: draft\r\ncreated', 'status: approved\r\ncreated')],
   ['an alias on a value line', () => write('.ai/specs/2026-11-09-alias.md', '---\nstatus: *b\n---\n')],
   ['a dangling symlink to a new spec', () => write('other/dangling.md', spec('approved'))],
@@ -158,6 +166,10 @@ const ALLOWED: Array<[string, () => Payload]> = [
   ['body prose with braces, anchors and an indented status line', () => edit(DRAFT, 'Body.', 'Use {status: approved} or &x and *y or\n  status: approved\nin prose only.')],
   ['a dangling symlink to a harmless target', () => write('other/harmless.md', spec('approved'))],
   ['a spec header with a block list of related files', () => write('.ai/specs/2026-11-09-list.md', '---\nstatus: in-progress\nrelated:\n  - .ai/specs/a.md\n  - b\n---\n')],
+  ['mixed endings: a body edit of a draft', () => edit('.ai/specs/2026-11-08-mixed.md', 'note', 'note 2')],
+  ['mixed endings: replace_all of a body-only line in a draft', () => edit('.ai/specs/2026-11-08-mixed.md', 'note\n', 'note 3\n', { replace_all: true })],
+  ['mixed endings: approved -> in-progress with an LF old_string', () => edit('.ai/specs/2026-11-08-mixed-approved.md', 'status: approved', 'status: in-progress')],
+  ['mixed endings: a MultiEdit chain that keeps an approved spec approved', () => multi('.ai/specs/2026-11-08-mixed-approved.md', [E('note\n', 'note 2\n'), E('status: approved\n', 'status: approved\n', { replace_all: true })])],
   ['a CRLF approved -> in-progress edit with CRLF in old_string and new_string', () => edit('.ai/specs/2026-11-08-crlf-approved.md', 'status: approved\r\ncreated', 'status: in-progress\r\ncreated')],
   ['a CRLF body edit of a draft that quotes a status line in the body (must match, not be judged as unmatched)', () => edit('.ai/specs/2026-11-08-crlf.md', 'Body.\r\n', 'Body.\r\n\r\nstatus: approved\r\n')],
   ['a CRLF body edit that spans two lines', () => edit('.ai/specs/2026-11-08-crlf-approved.md', '# Title\r\n\r\nBody.', '# Title\r\n\r\nBody 2.')],
