@@ -1,0 +1,108 @@
+{
+  "_comment": "Allowlist of scripts/check-routes.mjs. Every entry needs `methods` (the exact HTTP methods it covers; a method added later is not exempt, a listed method the file no longer exports fails) and a written reason. publicRoutes: files that may use handlePublic()/handleUnscoped() (no session). exceptions: route files that skip the wrapper entirely (also the only way to keep a route.* outside api/). earlyReturns: handlers with code that can return or throw before the wrapper (tracked debt). A stale entry fails the check.",
+  "publicRoutes": [
+    {
+      "file": "packages/app/src/app/api/v1/auth/login/route.ts",
+      "helper": "handlePublic",
+      "methods": [
+        "POST"
+      ],
+      "reason": "Sign-in has no session yet; write: true still refuses cross-site requests."
+    },
+    {
+      "file": "packages/app/src/app/api/v1/dishes/[dishId]/recommendations/route.ts",
+      "helper": "handlePublic",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Guest API (menu dish recommendations), public by product design; reads published data only."
+    },
+    {
+      "file": "packages/app/src/app/api/v1/public/restaurants/[slug]/menu/route.ts",
+      "helper": "handlePublic",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Guest API: the published menu of a restaurant, public by product design."
+    },
+    {
+      "file": "packages/app/src/app/api/v1/recommendations/table/route.ts",
+      "helper": "handlePublic",
+      "methods": [
+        "POST"
+      ],
+      "reason": "Guest API: table recommendations; a POST that only reads, so no CSRF token (no session)."
+    },
+    {
+      "file": "packages/app/src/app/api/v1/health/route.ts",
+      "helper": "handleUnscoped",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Health check must not open a request scope (the database failure it reports is 503, not 500); see api-auth.ts."
+    }
+  ],
+  "exceptions": [
+    {
+      "file": "packages/app/src/app/api/v1/import-samples/[kind]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "reason": "Static public CSV (force-static, generateStaticParams): no request scope, no data, nothing to log per request at runtime."
+    },
+    {
+      "file": "packages/app/src/app/api/v1/metrics/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "reason": "The metrics endpoint itself: must work with the database down and a scrape must not count in http_requests_total (see the comment in the route); guarded by its own bearer token."
+    }
+  ],
+  "earlyReturns": [
+    {
+      "file": "packages/app/src/app/api/v1/imports/[ref]/confirm/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "reason": "tracked: fixed by refuseEarly() in the api-robustness branch (K3); remove this entry when that lands (validates ?restaurant= / the id before the wrapper, so a 404/422 there leaves no log line or metric)"
+    },
+    {
+      "file": "packages/app/src/app/api/v1/imports/[ref]/route.ts",
+      "methods": [
+        "POST",
+        "GET",
+        "DELETE"
+      ],
+      "reason": "tracked: fixed by refuseEarly() in the api-robustness branch (K3); remove this entry when that lands (validates ?restaurant= / the id before the wrapper, so a 404/422 there leaves no log line or metric)"
+    },
+    {
+      "file": "packages/app/src/app/api/v1/imports/[ref]/rows/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "reason": "tracked: fixed by refuseEarly() in the api-robustness branch (K3); remove this entry when that lands (validates ?restaurant= / the id before the wrapper, so a 404/422 there leaves no log line or metric)"
+    },
+    {
+      "file": "packages/app/src/app/api/v1/pairings/[id]/route.ts",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "reason": "tracked: fixed by refuseEarly() in the api-robustness branch (K3); remove this entry when that lands (validates ?restaurant= / the id before the wrapper, so a 404/422 there leaves no log line or metric)"
+    },
+    {
+      "file": "packages/app/src/app/api/v1/pairings/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "reason": "tracked: fixed by refuseEarly() in the api-robustness branch (K3); remove this entry when that lands (validates ?restaurant= / the id before the wrapper, so a 404/422 there leaves no log line or metric)"
+    },
+    {
+      "file": "packages/app/src/app/api/v1/wines/[id]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "reason": "tracked: fixed by refuseEarly() in the api-robustness branch (K3); remove this entry when that lands (validates ?restaurant= / the id before the wrapper, so a 404/422 there leaves no log line or metric)"
+    }
+  ]
+}

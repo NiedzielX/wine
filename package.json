@@ -44,6 +44,7 @@
     "check:design": "node scripts/check-design.mjs",
     "check:context": "node scripts/check-context.mjs",
     "check:qa": "node scripts/check-qa-scenarios.mjs",
+    "check:routes": "node scripts/check-routes.mjs",
     "verify:regression": "node scripts/verify-regression.mjs",
     "review:pack": "node scripts/review-pack.mjs",
     "test-env:up": "sh .ai/scripts/test-env-up.sh",

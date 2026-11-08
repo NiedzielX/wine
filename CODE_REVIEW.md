@@ -82,4 +82,4 @@ CI dodatkowo uruchamia `audit:gate`, `test:db`, `boot:check` i `test:e2e`. Czerw
 | **Minor** | czytelność, nazewnictwo, drobny duplikat | komentarz, nie blokuje |
 | **Nit** | preferencja | opcjonalne, oznaczone `nit:` |
 
-Uwaga podaje plik i linię, opisuje skutek dla użytkownika lub systemu i proponuje poprawkę. PR z `risk-high` bez wymaganych dowodów (patrz [SDLC.md](SDLC.md)) blokujemy, chyba że maintainer zrezygnuje z wymogu w komentarzu na PR-ze.
+Uwaga podaje plik i linię, opisuje skutek dla użytkownika lub systemu i proponuje poprawkę. PR z `risk-high` bez wymaganych dowodów (patrz [SDLC.md](SDLC.md)) blokujemy, chyba że maintainer zrezygnuje z wymogu w komentarzu na PR-ze. Reguły rozmiaru PR, opisu PR jako niezweryfikowanych twierdzeń i dwóch niezależnych przeglądów dla `risk-high` (wyniki jako komentarze „Review 1/2”): `.ai/docs/engineering-standards.md` §11.
