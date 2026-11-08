@@ -138,16 +138,16 @@ W mockupie oba konta demonstracyjne mają pełny dostęp; ograniczenia ról GM d
 
 ## Showcase (E22, publiczne strony sprzedażowe)
 
-Spec `2026-11-04-sales-demo-and-roi-calculator`. Identyfikatory DM0–DM5 przydzielone w planie (`G` i `A` są zajęte, `P1–P6` to E14, `D0–D5` myliłoby się z decyzjami D01–D19). Wszystkie ekrany są publiczne (bez logowania), `noindex`, `Cache-Control: private, no-store`; gdy tryb jest za niski, odpowiadają **404**. Zmienna `SHOWCASE_MODE`: `off` (domyślnie), `calculator` (faza F1), `demo` (F2, jeszcze niedostępne).
+Spec `2026-11-04-sales-demo-and-roi-calculator`. Identyfikatory DM0–DM5 przydzielone w planie (`G` i `A` są zajęte, `P1–P6` to E14, `D0–D5` myliłoby się z decyzjami D01–D19). Wszystkie ekrany są publiczne (bez logowania), `noindex`, `Cache-Control: private, no-store`; gdy tryb jest za niski, odpowiadają **404**. Zmienna `SHOWCASE_MODE`: `off` (domyślnie), `calculator` (faza F1), `demo` (F2: DM0, DM1 i pasek na stronach gościa; osobna instancja z `DATA_SOURCE=memory` i `ALLOW_DEMO_DATA=true`, bez kont i bez logowania).
 
 ```
 DM0 Przewodnik demo ........................... /demo                  (F2, tryb demo)
-DM1 Jak to działa dla restauracji ............. /demo/tour             (F2)
+DM1 Jak to działa dla restauracji ............. /demo/tour             (F2, tryby calculator i demo)
 DM2 Kalkulator zwrotu ......................... /demo/roi?customers=&attachRate=&wineSpend=&margin=&attachChange=&spendChange=&planPrice=   (F1, tryb calculator)
  └─ DM3 Wersja do druku / PDF ................. /demo/roi/summary?…&d=RRRR-MM-DD   (F1)
 DM4 Panel sommeliera, tylko odczyt ............ /demo/panel            (F3, tryb demo)
 DM5 KPI na danych syntetycznych ............... /demo/kpi              (F3, tryb demo)
 ```
 
-Stan implementacji: **DM2 i DM3 (F1)**. W trybie `off` wszystkie adresy `/demo/*` dają 404; w `calculator` DM0, DM1, DM4, DM5 też (nie istnieją do swoich faz).
+Stan implementacji: **DM2 i DM3 (F1), DM0 i DM1 (F2)**. W trybie `off` wszystkie adresy `/demo/*` dają 404; w `calculator` działają DM1, DM2, DM3, a DM0, DM4, DM5 dają 404; w `demo` działają DM0–DM3 (DM4 i DM5 to F3, do tego czasu 404, a kroki 4 i 5 przewodnika są oznaczone „wkrótce”, bez linku). Na stronach gościa (`/r/{slug}/…`) w trybie `demo` stoi pasek „Dane demonstracyjne” z linkiem do DM0 (tylko `lang`, bez `sid`). `/admin/login` w trybie `demo` nie ma formularza, tylko komunikat „demo tylko do odczytu” i link do DM0.
 

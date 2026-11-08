@@ -518,8 +518,10 @@ export const pl = {
       errors: {
         invalid_credentials: 'Nieprawidłowy e-mail lub hasło albo konto jest chwilowo zablokowane.',
         no_panel_access: 'To konto nie ma dostępu do panelu. Kelnerzy korzystają z podglądu parowań.',
-        unexpected: 'Logowanie nie powiodło się. Spróbuj ponownie za chwilę.'
+        unexpected: 'Logowanie nie powiodło się. Spróbuj ponownie za chwilę.',
+        showcase_read_only: 'To demo jest tylko do odczytu: logowanie jest wyłączone, więc nie ma hasła do wpisania.'
       },
+      showcaseBack: 'Wróć do przewodnika po demo',
       notices: { account_created: 'Konto zostało założone i dołączyłeś do restauracji. Zaloguj się hasłem, które przed chwilą wybrałeś.' } as Record<'account_created', string>
     },
     accept: {
