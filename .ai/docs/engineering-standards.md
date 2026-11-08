@@ -119,7 +119,7 @@ Reguły `oxlint` w `.oxlintrc.json`: brak `any` (`typescript/no-explicit-any`), 
 **Struktura i konwencje**
 - [ ] Folder pojęcia zgodny z §2; encja i serwis występują parami.
 - [ ] Żaden import nie łamie kierunku zależności ani nie sięga do wnętrza innego pojęcia (tylko do jego publicznego serwisu).
-- [ ] Nowa trasa używa `handle()` / `handlePublic()` i `parseBody()`, nie ma własnego `try/catch`.
+- [ ] Nowa trasa używa `handle()` / `handlePublic()` i `parseBody()`, nie ma własnego `try/catch`. Przy zmianie trasy `npm run check:routes` musi przejść (wrapper jako pierwsza instrukcja, literalne `route` i `write`; wyjątki tylko w `scripts/check-routes.allowlist.json` z powodem i listą metod); zob. §11.
 - [ ] Wejście ma schemat w `core/validators/<pojęcie>/` i test odrzucenia nieznanych pól.
 - [ ] `npm run lint`, `typecheck`, `test`, `build` przechodzą; przy zmianach bazy też `test:db`.
 
@@ -163,3 +163,11 @@ Każda granica ma test HTTP na prawdziwej instancji (e2e na PostgreSQL, zbudowan
 4. **Stan po próbie.** Porównaj **całe ładunki** przed i po (listy i szczegóły z API obu restauracji) oraz skrót wierszy tabel, których próba mogła dotknąć (`md5(string_agg(x::text …))`), nie liczniki. Odmowa, która coś zmieniła po drodze, jest błędem.
 
 Dodatkowo: gdy dodajesz kontrolę, **zepsuj ją na chwilę** (mutacja: usuń filtr `restaurant`, wymuś rolę) i potwierdź, że test pada; zapisz to w logu przebiegu. Pola spoza schematu w ciele żądania mają być odrzucone (`strictObject`), a nie zignorowane. Nowa trasa z id w ścieżce, nowa rola albo nowe publiczne wejście dopisuje wiersz w `docs/security/threat-model.md` w tym samym PR-ze. Błąd znaleziony tym sposobem naprawiasz od czerwonego testu (`npm run verify:regression`, `AGENTS.md` §6.1).
+
+## 11. Rozmiar PR i przegląd (lekcja 17 kursu)
+
+Przegląd, który powtarza się mimo lekcji, zamieniamy w sprawdzenie maszynowe (przykład: `npm run check:routes`, `.ai/lessons/2026-11-07-deterministic-check-over-review.md`); poniższe reguły dotyczą tego, co zostaje człowiekowi i recenzentowi.
+
+1. **Rozmiar PR.** Trzymaj diff mały i dziel duże zmiany na kolejne PR-y: jakość automatycznego review spada gwałtownie powyżej ok. 150 zmienionych linii. Wyjątki są dozwolone i opisane w PR (jedno zdanie: która klasa): (a) pliki generowane (lockfile, migracje ze skryptu, snapshoty); (b) dokumentacja; (c) fixtury testowe i dane demo; (d) **nowy, samodzielny skrypt narzędziowy razem z testami i dokumentacją, jeden na PR** (np. `scripts/check-routes.mjs` + `check-routes.test.ts` + wiersz w `commands.md` + lekcja): liczy się wtedy kod poza tym zestawem, a recenzent czyta skrypt przez jego testy. Zmiana zachowania aplikacji nie korzysta z wyjątku (d).
+2. **Opis PR to niezweryfikowane twierdzenia.** Recenzent (człowiek lub agent) sprawdza je z diffem i nie przyjmuje „to bezpieczne / secure / bez wpływu na X” jako dowodu. Dowodem jest kod, test, który pada bez zmiany, albo wynik polecenia z logu; opis wskazuje, co sprawdzić, nie zastępuje sprawdzenia.
+3. **Ryzyko wysokie, dwa niezależne przeglądy.** „Ryzyko wysokie” znaczy to, co w [SDLC.md](../../SDLC.md) (etykieta `risk-high` albo diff dotykający uwierzytelniania i sesji, zakresu danych, pieniędzy, migracji schematu, wspólnych kontraktów, szerokich zmian przekrojowych); tutaj nie definiujemy tego drugi raz. Ścieżki `scripts/`, `.github/`, `.claude/`, sekrety i silnik rekomendacji są tylko wskazówką dla paczki przeglądu (review pack, gdy będzie na `main`), nie podnoszą etykiety; chcąc, by liczyły się jako `risk-high`, zmień SDLC.md w osobnym PR. Dla takiego PR uruchom co najmniej dwa niezależne review w świeżym kontekście (dwie sesje albo pod-agenci, bez wniosków autora i bez wglądu w swoje wyniki); każdy wynik wpisz jako komentarz do PR, nazwany „Review 1” i „Review 2” (jak w `AGENTS.md` §6.1 dla poprawek), a rozbieżności rozstrzygnij w diffie, nie głosowaniem.

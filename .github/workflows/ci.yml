@@ -45,6 +45,8 @@ jobs:
         run: npm run check:boundaries
       - name: QA scenarios linked to the e2e tests
         run: npm run check:qa
+      - name: API routes go through the instrumented wrapper (unique literal route, allowlist with reasons)
+        run: npm run check:routes
       - name: Typecheck
         run: npm run typecheck
       - name: Dependency audit (high and critical block; exceptions are listed and dated)
