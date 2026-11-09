@@ -1,6 +1,55 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
+    "ask": [
+      "Bash(gh pr merge)",
+      "Bash(gh pr merge *)",
+      "Bash(git push * main)",
+      "Bash(git push * master)",
+      "Bash(git push * main *)",
+      "Bash(git push * master *)",
+      "Bash(git push * *:refs/heads/main)",
+      "Bash(git push * *:refs/heads/master)",
+      "Bash(git push * *:main)",
+      "Bash(git push * *:master)",
+      "Bash(git push * refs/heads/main)",
+      "Bash(git push * refs/heads/master)",
+      "Bash(git push --force *)",
+      "Bash(git push * --force *)",
+      "Bash(git push * --force)",
+      "Bash(git push * --force-with-lease*)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push -f *)",
+      "Bash(git push --mirror *)",
+      "Bash(git push * --mirror*)",
+      "Bash(gh api * -X *)",
+      "Bash(gh api -X *)",
+      "Bash(gh api * --method *)",
+      "Bash(gh api --method *)",
+      "Bash(gh api * -f *)",
+      "Bash(gh api * -F *)",
+      "Bash(gh api * --field *)",
+      "Bash(gh api * --raw-field *)",
+      "Bash(gh api * --input *)",
+      "Bash(gh repo delete *)",
+      "Bash(gh repo edit *)",
+      "Bash(gh release create *)",
+      "Bash(gh release delete *)",
+      "Bash(gh release delete-asset *)",
+      "Bash(gh release edit *)",
+      "Bash(gh release upload *)",
+      "Bash(gh secret set *)",
+      "Bash(gh secret delete *)",
+      "Bash(gh secret remove *)",
+      "Bash(gh variable set *)",
+      "Bash(gh variable delete *)",
+      "Edit(/.claude/**)",
+      "Edit(/.agents/**)",
+      "Edit(/skills-lock.json)",
+      "Edit(/.mcp.json)",
+      "Edit(/.github/CODEOWNERS)"
+    ],
     "deny": [
       "Read(**/.env)",
       "Read(**/.env.local)",
@@ -19,11 +68,27 @@
     "allowUnsandboxedCommands": false,
     "failIfUnavailable": false,
     "filesystem": {
-      "denyRead": ["~/.ssh", "~/.aws", "~/.config/gh", "~/.kube", "~/.npmrc", "~/.pypirc"]
+      "denyRead": [
+        "~/.ssh",
+        "~/.aws",
+        "~/.config/gh",
+        "~/.kube",
+        "~/.npmrc",
+        "~/.pypirc"
+      ]
     },
     "network": {
-      "allowedDomains": ["github.com", "api.github.com", "codeload.github.com", "objects.githubusercontent.com", "registry.npmjs.org"],
-      "deniedDomains": ["169.254.169.254", "metadata.google.internal"]
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "codeload.github.com",
+        "objects.githubusercontent.com",
+        "registry.npmjs.org"
+      ],
+      "deniedDomains": [
+        "169.254.169.254",
+        "metadata.google.internal"
+      ]
     },
     "excludedCommands": [
       "npm run test:db",
@@ -43,7 +108,10 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-tool-use.mjs" }
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-tool-use.mjs"
+          }
         ]
       },
       {

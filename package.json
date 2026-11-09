@@ -38,6 +38,7 @@
     "restaurant:create": "npm run restaurant:create -w @wine-match/db --",
     "audit:gate": "node scripts/audit-gate.mjs",
     "secrets:scan": "node scripts/secret-scan.mjs",
+    "secrets:scan:history": "node scripts/secret-scan.mjs --history",
     "lint": "oxlint --deny-warnings",
     "boot:check": "node scripts/boot-check.mjs",
     "test:e2e": "npm run test:e2e -w @wine-match/app",
