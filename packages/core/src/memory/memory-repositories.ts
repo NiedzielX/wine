@@ -833,8 +833,9 @@ export class MemoryRecommendationCodeRepository implements RecommendationCodeRep
     return this.rows(restaurantId).filter((r) => r.record.serviceDay >= period.from && r.record.serviceDay <= period.to);
   }
 
-  async tryIssue(restaurantId: string, input: RecommendationCodeInput) {
+  async tryIssue(restaurantId: string, input: RecommendationCodeInput, sessionLimit?: number) {
     const rows = this.rows(restaurantId);
+    if (sessionLimit !== undefined && rows.filter((r) => r.record.serviceDay === input.serviceDay && r.record.sessionId === input.sessionId).length >= sessionLimit) return { status: 'session_limit' as const };
     const existing = rows.find((r) => sameChoice(r.record, input));
     if (existing) return { status: 'existing' as const, record: copy(existing.record) };
     if (rows.some((r) => r.record.serviceDay === input.serviceDay && r.record.code === input.code)) return { status: 'code_taken' as const };

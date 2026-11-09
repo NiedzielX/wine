@@ -103,6 +103,7 @@ export class RecommendationCodeService {
     const now = this.deps.clock.now();
     const day = serviceDay(now);
     const limit = input.source === 'staff' ? MAX_STAFF_CODES_PER_SESSION_DAY : MAX_CODES_PER_SESSION_DAY;
+    // fast path only: it spares the insert attempt for a session already at the cap; `tryIssue(…, limit)` is the source of truth (atomic)
     if ((await codes.countBySession(restaurant.id, day, input.session.id)) >= limit) return null;
 
     const base: Omit<RecommendationCodeRecord, 'code' | 'confirmedAt'> = {
@@ -122,10 +123,9 @@ export class RecommendationCodeService {
     for (const length of [3, 4] satisfies CodeLength[]) {
       for (let attempt = 0; attempt < CODE_ATTEMPTS_PER_LENGTH; attempt++) {
         const id = this.deps.idGenerator.uuid();
-        const result = await codes.tryIssue(restaurant.id, { ...base, id, code: codeFromUuid(id, length) });
-        if (result.status !== 'code_taken') {
-          return { code: result.record.code, serviceDay: result.record.serviceDay, issuedAt: result.record.issuedAt };
-        }
+        const result = await codes.tryIssue(restaurant.id, { ...base, id, code: codeFromUuid(id, length) }, limit);
+        if (result.status === 'session_limit') return null;
+        if (result.status !== 'code_taken') return { code: result.record.code, serviceDay: result.record.serviceDay, issuedAt: result.record.issuedAt };
       }
     }
     this.deps.logger.warn('recommendation code space exhausted', { restaurantId: restaurant.id, serviceDay: day });
