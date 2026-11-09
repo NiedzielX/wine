@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wine-match/review-output/1",
+  "title": "Reviewer output (lesson 21)",
+  "description": "One reviewer's answer to one review-input package. Every finding carries evidence (a failing test, an input with the wrong output, or the requirement it breaks); the orchestrator triages each finding on its own, never by vote. inputDigest is the SHA-256 of the exact input file bytes, so answers to different inputs cannot be merged. Protocol: .ai/docs/review-protocol.md section 9.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "inputDigest", "round", "reviewer", "verdict", "findings", "notChecked"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "review-output" },
+    "inputDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "round": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "model"],
+      "properties": {
+        "family": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$" },
+        "model": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "verdict": { "enum": ["ok-for-owner", "remarks", "changes-required", "cannot-assess"] },
+    "findings": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "location", "claim", "evidence", "suggestion"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^F[0-9]{1,2}$" },
+          "severity": { "enum": ["blocker", "major", "minor", "nit"] },
+          "location": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "claim": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "evidence": { "type": "string", "minLength": 10, "maxLength": 4000 },
+          "suggestion": { "type": "string", "minLength": 1, "maxLength": 2000 }
+        }
+      }
+    },
+    "notChecked": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}

@@ -6,6 +6,7 @@ import { Page, PageHeader } from '../../../_components/admin-shell';
 import { DishStatusBadge, ProfileBadge } from '../../../_components/badges';
 import { PanelExplain } from '../../../_components/explain';
 import { first, zl } from '../../../_components/format';
+import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
@@ -19,6 +20,8 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 /** A2 — menu: every dish with status, taste profile state and pairing coverage. */
 export default async function MenuPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  // the layout's check runs in parallel with the page: without this call the list is read, and streamed into the 403 or the sign-in redirect, for any caller
+  await requireAccess(slug);
   const sp = await searchParams;
   const q = first(sp.q);
   const category = first(sp.category);

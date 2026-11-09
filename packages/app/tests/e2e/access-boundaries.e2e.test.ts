@@ -1,7 +1,7 @@
-import { DEMO_PASSWORD } from '@wine-match/core';
 import { queryDatabase } from '@wine-match/testkit';
 import { afterAll, describe, expect, inject, it } from 'vitest';
 import { NEW_RESTAURANT, NEW_RESTAURANT_TEAM } from './new-restaurant';
+import { BISTRO, HALKA, type Member, type Session, base, bistroManager, bistroOwner, bistroSommelier, db, digest, errorCode, get, halkaManager, halkaSommelier, members, origin, payload, sampleCsv, send, signIn, stageImport } from './boundaries';
 
 /**
  * Lesson 16 (security), docs/security/threat-model.md T-01, T-02, T-03: access boundaries on PostgreSQL, with real sessions and plain
@@ -10,68 +10,7 @@ import { NEW_RESTAURANT, NEW_RESTAURANT_TEAM } from './new-restaurant';
  * and the state AFTER the attempts: whole payloads and a digest of every table the attempts could touch, not a count.
  * Prior art that stays: tenant-isolation (slug level), team (hierarchy), invitations (dead links). These add the object-id level.
  */
-const base = () => inject('e2e').baseUrl;
-const origin = () => new URL(base()).origin;
-const db = () => inject('e2e').databaseUrl;
-const HALKA = 'halka';
-const BISTRO = NEW_RESTAURANT.slug;
 const DOMAIN = 'bound-e2e.example';
-
-type Session = { cookie: string; csrf: string };
-async function signIn(email: string, password: string): Promise<Session> {
-  const res = await fetch(`${base()}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: origin() }, body: JSON.stringify({ email, password }) });
-  expect(res.status, `sign in ${email}`).toBe(200);
-  const token = /wm_session=([^;]+)/.exec(res.headers.get('set-cookie') ?? '')?.[1];
-  return { cookie: `wm_session=${token}`, csrf: ((await res.json()) as { csrfToken: string }).csrfToken };
-}
-const halkaSommelier = () => signIn('marta@halka.pl', DEMO_PASSWORD);
-const halkaManager = () => signIn('tomasz@halka.pl', DEMO_PASSWORD);
-const bistroOwner = () => signIn(NEW_RESTAURANT.ownerEmail, NEW_RESTAURANT.password);
-const bistroManager = () => signIn(NEW_RESTAURANT_TEAM.manager.email, NEW_RESTAURANT_TEAM.password);
-const bistroSommelier = () => signIn(NEW_RESTAURANT_TEAM.sommelier.email, NEW_RESTAURANT_TEAM.password);
-
-const get = (s: Session, path: string) => fetch(`${base()}${path}`, { headers: { cookie: s.cookie }, redirect: 'manual' });
-const send = (s: Session, method: string, path: string, body?: unknown, extra: Record<string, string> = {}) =>
-  fetch(`${base()}${path}`, {
-    method,
-    headers: { cookie: s.cookie, 'x-csrf-token': s.csrf, origin: origin(), ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...extra },
-    body: body === undefined ? undefined : JSON.stringify(body)
-  });
-const errorCode = async (res: Response) => ((await res.json()) as { error?: { code?: string } }).error?.code;
-
-/** A GET answer as text: the whole payload, so "nothing changed" compares everything, not a count. */
-async function payload(s: Session, path: string): Promise<string> {
-  const res = await get(s, path);
-  expect(res.status, path).toBe(200);
-  return res.text();
-}
-
-/** One digest per table the attempts could touch: md5 over every row's text, ordered. Equal before and after means no row changed. */
-const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code'];
-async function digest(): Promise<Record<string, string>> {
-  const out: Record<string, string> = {};
-  for (const t of TABLES) {
-    const rows = await queryDatabase<{ d: string }>(db(), `select coalesce(md5(string_agg(x::text, '|' order by x::text)), 'empty') as d from ${t} x`, []);
-    out[t] = rows[0]!.d;
-  }
-  return out;
-}
-
-async function sampleCsv(kind: string): Promise<string> {
-  const res = await fetch(`${base()}/api/v1/import-samples/${kind}`);
-  expect(res.status).toBe(200);
-  return res.text();
-}
-async function stageImport(s: Session, slug: string, kind: 'wines' | 'menu'): Promise<{ id: string; fileName: string }> {
-  const form = new FormData();
-  form.append('file', new File([await sampleCsv(kind)], `${slug}-${kind}-staged.csv`, { type: 'text/csv' }));
-  const res = await fetch(`${base()}/api/v1/imports/${kind}?restaurant=${slug}`, { method: 'POST', headers: { cookie: s.cookie, 'x-csrf-token': s.csrf, origin: origin() }, body: form });
-  expect(res.status, `stage ${kind} import for ${slug}`).toBe(201);
-  return (await res.json()) as { id: string; fileName: string };
-}
-
-type Member = { membershipId: string; email: string; role: string; status: string; version: number };
-const members = async (s: Session, slug: string) => ((await (await get(s, `/api/v1/restaurants/${slug}/team`)).json()) as { members: Member[] }).members;
 
 const cleanup: Array<() => Promise<void>> = [];
 afterAll(async () => {
