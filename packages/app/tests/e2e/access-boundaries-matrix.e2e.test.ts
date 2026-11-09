@@ -1,6 +1,6 @@
 import { queryDatabase } from '@wine-match/testkit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BISTRO, HALKA, base, bistroManager, bistroOwner, bistroSommelier, db, digest, get, halkaManager, halkaSommelier, members, payload, runAction, send, stageImport, type Session } from './boundaries';
+import { BISTRO, HALKA, snapshotDatabase, base, bistroManager, bistroOwner, bistroSommelier, db, digest, get, halkaManager, halkaSommelier, members, payload, runAction, send, stageImport, type Session } from './boundaries';
 
 /**
  * Lesson 16 (security), docs/security/threat-model.md T-25 .. T-31: the boundaries the first pass (access-boundaries) did not reach,
@@ -16,6 +16,7 @@ const H = {} as Ids;
 const B = {} as Ids;
 let marta: Session; let tomasz: Session; let anna: Session; let marek: Session; let sonia: Session;
 const cleanup: Array<() => Promise<void>> = [];
+let restoreDatabase: () => Promise<void>;
 
 const listPairings = async (s: Session, slug: string) => ((await (await get(s, `/api/v1/restaurants/${slug}/pairings`)).json()) as { data: Pairing[] }).data;
 const confirmSample = async (s: Session, slug: string, kind: 'wines' | 'menu') => {
@@ -33,6 +34,8 @@ const onlyIn = (a: Ids, b: Ids) => [a.name, a.job.fileName, ...a.dishes.map((d) 
 const noLeak = (text: string, secrets: string[], what: string) => { for (const v of secrets) expect(text.includes(v) ? text.slice(Math.max(0, text.indexOf(v) - 200), text.indexOf(v) + 100) : '', `${what} leaks "${v}"`).toBe(''); };
 
 beforeAll(async () => {
+  // this file imports, publishes, approves, ignores and renames: every later file runs on the same database and assumes the seed, so it all goes back at the end
+  restoreDatabase = await snapshotDatabase();
   [marta, tomasz, anna, marek, sonia] = await Promise.all([halkaSommelier(), halkaManager(), bistroOwner(), bistroManager(), bistroSommelier()]);
   // the e2e database is one per run, shared by the files in sequence: import the samples only when no earlier file did, and rename idempotently
   const bistroDishes = await queryDatabase<{ n: string }>(db(), `select count(*)::text as n from dish d join restaurant r on r.id = d.restaurant_id where r.slug = $1`, [BISTRO]);
@@ -52,7 +55,10 @@ beforeAll(async () => {
   expect([...H.dishes, ...H.wines].filter((x) => [...B.dishes, ...B.wines].some((y) => y.name === x.name))).toEqual([]);
   expect(B.pairings.length).toBeGreaterThan(0);
 });
-afterAll(async () => { for (const c of cleanup.reverse()) await c().catch(() => undefined); });
+afterAll(async () => {
+  for (const c of cleanup.reverse()) await c().catch(() => undefined);
+  await restoreDatabase();
+});
 
 /** The whole state a refused attempt could touch, for both restaurants. */
 const snapshot = async () => ({

@@ -92,3 +92,19 @@ export async function runAction(s: Session, exportedName: string, slug: string, 
   }
   throw new Error(`no page hosts the action ${exportedName}`);
 }
+
+/**
+ * The e2e database is one per run and the files share it in sequence, so a file that changes data must leave it as it found it
+ * (kpi-pairings, opportunities and the staff files assume the seed). `snapshotDatabase()` records every row of every table of the
+ * public schema (except the migration log); the returned function puts them back in one transaction: truncate every table, insert
+ * the recorded rows, foreign keys not enforced meanwhile (`session_replication_role = replica`: the test database user is a superuser).
+ */
+export async function snapshotDatabase(): Promise<() => Promise<void>> {
+  const tables = (await queryDatabase<{ table_name: string }>(db(), `select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name not like 'mikro_orm%' order by table_name`, [])).map((t) => t.table_name);
+  const rows: Record<string, unknown> = {};
+  for (const t of tables) rows[t] = (await queryDatabase<{ j: unknown }>(db(), `select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) as j from "${t}" x`, []))[0]!.j;
+  return async () => {
+    const sql = ['begin', 'set local session_replication_role = replica', ...tables.map((t) => `truncate "${t}" cascade`), ...tables.map((t) => `insert into "${t}" select * from jsonb_populate_recordset(null::"${t}", $snap$${JSON.stringify(rows[t])}$snap$::jsonb)`), 'commit'].join(';\n');
+    await queryDatabase(db(), sql, []);
+  };
+}
