@@ -4,7 +4,7 @@ updated:
 area: security
 status: active
 source: .ai/runs/2026-11-08-ci-supply-chain-hardening.md
-promoted:
+promoted: AGENTS.md §9
 ---
 
 # Łańcuch dostaw CI: akcje przypięte SHA, skrypty instalacyjne wyłączone, hook to guardrail
