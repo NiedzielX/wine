@@ -2,7 +2,7 @@
 
 Indeks pamięci długoterminowej agentów AI i zespołu. Zasady prowadzenia: `AGENTS.md`, sekcja 5.
 
-**Każdy agent czyta ten plik na początku sesji.** Pełna treść lekcji: `.ai/lessons/`.
+**Każdy agent czyta ten plik na początku sesji.** Pełna treść lekcji (kontekst, przyczyna, szczegóły reguły, sposób sprawdzenia): `.ai/lessons/`. Linia w indeksie to skrót; przed pracą w danym obszarze przeczytaj plik lekcji.
 
 Format linii (najnowsze na górze):
 `- [YYYY-MM-DD] [Tytuł jako reguła](lessons/YYYY-MM-DD-slug.md) — reguła w jednym zdaniu`
@@ -72,6 +72,67 @@ Format linii (najnowsze na górze):
 - [2026-10-14] [Po każdej zmianie reguł silnika przejrzyj pełną macierz dań × win](lessons/2026-10-14-engine-calibration-matrix.md) — `npm run engine:matrix`; każdą anomalię zamień w test (ranking pilnuje `engine-golden`).
 - [2026-10-14] [Drafter importu: konstrukcje „X steak” przed mięsem](lessons/2026-10-14-import-drafter-keyword-order.md) — szczegółowe frazy w `PROTEIN_WORDS` muszą być przed ogólnymi słowami kluczowymi.
 - [2026-10-14] [Dzieci siatki CSS muszą mieć min-width: 0](lessons/2026-10-14-css-grid-min-width.md) — używaj `minmax(0, 1fr)` i sprawdzaj `scrollWidth` przy 390 px.
+- [2026-11-09] [Recenzenci z różnych rodzin modeli](lessons/2026-11-09-reviewers-from-different-model-families.md) — to samo wejście, każda uwaga z dowodem, nie głosowanie.
+- [2026-11-08] [Strona panelu sama woła `requireAccess` przed odczytem danych](lessons/2026-11-08-page-reads-data-in-parallel-with-layout-check.md) — layout i strona renderują się równolegle; test sprawdza ciało odpowiedzi, nie tylko status.
+- [2026-11-08] [Obraz `migrator`: katalog źródeł zapisywalny dla `node`](lessons/2026-11-08-migration-up-writes-snapshot-into-source.md) — `migration:up` zapisuje snapshot; `COPY --chown=node:node`, kroki obrazu testuj w kopii układu.
+- [2026-11-08] [Limit „sprawdź, potem wstaw” wymaga blokady; migracja ma dowód up/down/up](lessons/2026-11-08-concurrency-tests-and-migration-roundtrip.md) — `pg_advisory_xact_lock` w jednej transakcji, bramka `race()`, `down` dla każdej migracji poza bazową.
+- [2026-11-08] [Łańcuch dostaw CI](lessons/2026-11-08-ci-supply-chain-pins.md) — `promoted: AGENTS.md §9`: akcje przypięte SHA, `persist-credentials: false`, `ignore-scripts=true`, skan historii sekretów; hook to guardrail.
+- [2026-11-08] [Reguła bez egzekwowania jest życzeniem](lessons/2026-11-08-project-skills-and-spec-status-hook.md) — regułę procesu chroń hookiem z testowaną `decide()`, powtarzalny proces zapisz jako skill `wine-match-*`.
+- [2026-11-08] [QA agenta: wyrocznia, niezależny weryfikator, znany cel bazy](lessons/2026-11-08-qa-with-agents-protocol.md) — protokół `.ai/docs/qa-protocol.md`; polecenia operatora drukują cel bazy.
+- [2026-11-07] [Recenzent dostaje paczkę, nie opis PR-a](lessons/2026-11-07-review-pack-not-author-story.md) — `npm run review:pack`; auto-approve nie jest decyzją o merge.
+- [2026-11-07] [Błąd, który wrócił mimo review, dostaje sprawdzenie maszynowe](lessons/2026-11-07-deterministic-check-over-review.md) — `npm run check:routes`: każda trasa przez `handle*()` z literalnym, unikalnym `route`.
+- [2026-11-07] [Granica dostępu: trzy sprawdzenia](lessons/2026-11-07-access-boundary-three-checks.md) — `promoted: AGENTS.md §6.1`; test odmowy bez dowodu, że dane się nie ruszyły, i bez mutacji, która go czerwieni, nie dowodzi granicy.
+- [2026-11-06] [CLI MikroORM w worktree pod `.claude/worktrees/` bierze pakiety głównego checkoutu](lessons/2026-11-06-mikro-orm-cli-in-nested-worktree.md) — przed `migration:up` i `test:e2e` dowiąż `@mikro-orm/*` do korzenia worktree.
+- [2026-11-06] [Polecenie operatora drukujące sekret](lessons/2026-11-06-operator-command-printing-a-secret.md) — strażnik przed kontenerem, link jedyną linią stdout, błąd bez treści.
+- [2026-11-06] [Liczby z adresu](lessons/2026-11-06-calculator-numbers-from-urls.md) — mnóż przed dzieleniem, czyść do 14 cyfr, wejście do 6 miejsc po przecinku.
+- [2026-11-06] [Rodzaj wiersza zapisuj jawnie](lessons/2026-11-06-mark-the-kind-never-infer-it-from-a-missing-row.md) — wyjątek od dostępu to kolumna ustawiana jedną ścieżką; brak wiersza to odmowa.
+- [2026-11-06] [Sekret pokazany raz: stan formularza (`useActionState`)](lessons/2026-11-06-show-a-secret-once-with-use-action-state.md) — link wraca w odpowiedzi na POST, nie w URL, ciasteczku ani flashu.
+- [2026-11-06] [Nowa klasa DomainError na listę w `server/domain-errors.ts`](lessons/2026-11-06-new-domain-errors-need-the-app-allowlist.md) — i do mapy HTTP, inaczej aplikacja odpowiada 500.
+- [2026-11-06] [Do komponentu klienckiego nie przekazuj funkcji](lessons/2026-11-06-client-component-props-are-not-functions.md) — szablon z `{miejscami}` zamiast lambdy; potwierdzaj na `next start`.
+- [2026-11-05] [`MikroORM.init` nie łączy się z bazą](lessons/2026-11-05-mikroorm-init-does-not-connect.md) — „baza leży” sprawdzaj `select 1` z limitem czasu, testuj przekaźnikiem TCP.
+- [2026-11-05] [„Produkcja zawodzi zamykająco” psuje lokalne starty produkcji](lessons/2026-11-05-fail-closed-breaks-local-production-starts.md) — grep po `NODE_ENV=production`/`next start` i wyjątki w tym samym PR-ze.
+- [2026-11-05] [`em.getConnection().execute` omija transakcję](lessons/2026-11-05-pg-execute-inside-transaction.md) — w `em.transactional` używaj `em.execute`; blokadę dowódź dwoma połączeniami.
+- [2026-11-05] [Wiersz `MemoryStore.memberships` bez `status` nie daje dostępu](lessons/2026-11-05-memory-store-rows-need-team-fields.md) — test podaje pełny `StoredMembership`.
+- [2026-11-05] [`onRequestError` dostaje URL z query i nagłówki](lessons/2026-11-05-on-request-error-carries-query-and-cookies.md) — loguj metodę, ścieżkę bez query i wzorzec trasy.
+- [2026-11-05] [Niezaznaczone AC nie znaczy niezaimplementowane](lessons/2026-11-05-unticked-acs-audit-before-building.md) — zmapuj każde AC na test i uruchom go przed planowaniem.
+- [2026-11-05] [Strażnik „uruchom main tylko wprost” a ścieżki](lessons/2026-11-05-script-main-guard-vs-paths.md) — porównuj z `pathToFileURL(realpathSync(argv[1]))`.
+- [2026-11-05] [Id z URL nie jest UUID-em](lessons/2026-11-05-url-ids-vs-uuid-columns.md) — wyszukiwanie po złym id zwraca „nie znaleziono”, nie 500.
+- [2026-11-05] [Test nie wpisuje wartości, które może wylosować generator id](lessons/2026-11-05-hand-picked-values-vs-random-ids.md) — wstrzyknij generator omijający literały.
+- [2026-10-25] [Plik wczytywany w każdej sesji ma budżet](lessons/2026-10-25-context-budget-and-routing.md) — szczegóły w `.ai/docs/`, numeracja sekcji stała, pilnuje `npm run check:context`.
+- [2026-10-25] [Podgląd importu czyta zapisane wiersze](lessons/2026-10-25-import-preview-reads-saved-rows.md) — nazwa pozycji POS nigdy nie trafia do `import_job.rows`.
+- [2026-10-25] [Konfiguracja agenta w repo](lessons/2026-10-25-agent-config-in-repo.md) — `promoted: AGENTS.md §9`: granice warstwami, `deny` nie blokuje basha.
+- [2026-10-25] [Przy pytaniu z rekomendacją wykonaj ją](lessons/2026-10-25-recommended-decision-default.md) — pytaj tylko bez rekomendacji albo przy decyzji nieodwracalnej lub zewnętrznej.
+- [2026-10-25] [Nowy advisory czerwieni CI wszystkich PR-ów](lessons/2026-10-25-audit-gate-new-advisories.md) — dateowany wyjątek w `audit-gate` dla nazwanych advisories, potem bump.
+- [2026-10-21] [Testy kontraktu: nowe id linii; test migracji odtwarza późniejsze migracje](lessons/2026-10-21-test-ids-and-migration-replay.md) — ponowne `id` daje fałszywe `duplicate_pairing`.
+- [2026-10-21] [`schema:check` porównuje ze snapshotem nazwanym od bazy](lessons/2026-10-21-schema-check-snapshot-per-database.md) — snapshot w postaci z encji; sprawdzaj każdą bazę.
+- [2026-10-19] [Axe w jsdom nie mierzy kontrastu](lessons/2026-10-19-axe-in-jsdom-limits.md) — kontrast liczy `src/stories/contrast.ts` z tokenów.
+- [2026-10-19] [W świeżym worktree najpierw pełna `npm install`](lessons/2026-10-19-full-install-before-adding-deps.md) — instalacja z `-w` zostawia `node_modules` bez narzędzi roota.
+- [2026-10-18] [Element tylko z JavaScriptem: `useSyncExternalStore`](lessons/2026-10-18-script-only-ui-use-sync-external-store.md) — nie `setState` w `useEffect`.
+- [2026-10-17] [E2E „bez JavaScriptu” w agent-browser](lessons/2026-10-17-e2e-without-javascript.md) — `route '**/*.js' --abort` przed pierwszym `open`, klikaj przez `eval`.
+- [2026-10-17] [`headers()` w Next.js 16 ukrywa nagłówki routera](lessons/2026-10-17-nextjs-headers-hide-router-prefetch.md) — prefetch rozpoznawaj w proxy.
+- [2026-10-16] [Bez Dockera PostgreSQL z `embedded-postgres`](lessons/2026-10-16-postgres-without-docker.md) — poza repozytorium; równoległe agenty: własny katalog i port.
+- [2026-10-16] [Strony serwerowe testuj w Vitest przez `prerender`](lessons/2026-10-16-ssr-page-tests-with-prerender.md) — `react-dom/static` z atrapami `next/headers`.
+- [2026-10-15] [Next.js 16 nadpisuje `Vary` stron](lessons/2026-10-15-nextjs-vary-header-overwritten.md) — sprawdzaj nagłówki `curl -D -` na `next start`.
+- [2026-10-15] [Dokument „do wdrożenia” może dotyczyć innego produktu](lessons/2026-10-15-adopting-a-foreign-standard.md) — zapisz mapowanie reguł i odstępstwa, sprawdź każdą na kodzie.
+- [2026-10-15] [Klucze od klienta](lessons/2026-10-15-client-chosen-keys.md) — `promoted: AGENTS.md §1.6`.
+- [2026-10-15] [Konfiguracja zawodzi zamykająco, budowanie jej nie wymaga](lessons/2026-10-15-config-fails-closed-and-boot-without-env.md) — `promoted: AGENTS.md §1.6`.
+- [2026-10-14] [Import plików](lessons/2026-10-14-import-conventions.md) — `promoted: AGENTS.md §1.3`; pułapki parserów i formularza w pliku lekcji.
+- [2026-10-14] [Nie rozpoznawaj błędów z `core` przez `instanceof`](lessons/2026-10-14-nextjs-duplicate-module-instanceof.md) — `domainError()` po literalnym `name` i `code`.
+- [2026-10-14] [Uwierzytelnianie: każde drzwi sprawdzają same](lessons/2026-10-14-auth-conventions.md) — `promoted: AGENTS.md §1.3`.
+- [2026-10-14] [Po akcji serwerowej `revalidatePath(..., 'layout')`](lessons/2026-10-14-server-action-layout-revalidate.md) — inaczej liczniki w layoucie są nieaktualne.
+- [2026-10-14] [Zapisy: czyste reguły, atomowy commit, błędy domenowe](lessons/2026-10-14-write-path-conventions.md) — `promoted: AGENTS.md §1.3`.
+- [2026-10-14] [`loading.tsx` daje status 200 dla `notFound()` i `redirect()`](lessons/2026-10-14-nextjs-loading-streams-and-http-status.md) — takie strony poza zasięgiem `loading.tsx`.
+- [2026-10-14] [Skopiowane komponenty shadcn sprawdzaj w HTML](lessons/2026-10-14-verify-shadcn-copies-in-html.md) — poprawki lokalne w `packages/ui/AGENTS.md`.
+- [2026-10-14] [Przyklejone paski wymagają `scroll-padding`](lessons/2026-10-14-sticky-bars-scroll-padding.md) — na `html`, równe wysokości pasków.
+- [2026-10-14] [Testy SSR: usuń `<!-- -->` i czekaj na nawigację](lessons/2026-10-14-ssr-html-assertions-and-test-races.md) — czekaj na POST lub stan DOM, nie tylko na URL.
+- [2026-10-14] [Monorepo wymaga npm ≥ 11.6](lessons/2026-10-14-npm-11-for-vitest-5.md) — `promoted: AGENTS.md §1.1`; npm 10 nie instaluje Vitest 5, błąd `edgesOut` = za stary npm.
+- [2026-10-14] [TypeScript 7 nie ma klasycznego API JS](lessons/2026-10-14-typescript-7-toolchain.md) — `promoted: AGENTS.md §1.1`; narzędzia przez CLI `tsc`.
+- [2026-10-14] [W skryptach pisz POSIX](lessons/2026-10-14-posix-shell-in-scripts.md) — `promoted: AGENTS.md §1.5`; `/bin/sh` to często `dash`: bez `{a,b}`, `${PIPESTATUS}`, `[[ ]]`.
+- [2026-10-14] [Obok każdego AGENTS.md umieść CLAUDE.md z @AGENTS.md](lessons/2026-10-14-claude-code-nested-claude-md.md) — pilnuje `npm run check:context`.
+- [2026-10-14] [Mockupy jako jeden plik HTML: `vite-plugin-singlefile`](lessons/2026-10-14-single-file-build-for-sharing.md) — tylko `--no-save`, na kopii pakietu.
+- [2026-10-14] [Po każdej zmianie reguł silnika przejrzyj macierz](lessons/2026-10-14-engine-calibration-matrix.md) — `npm run engine:matrix`; anomalia staje się testem.
+- [2026-10-14] [Drafter importu: „X steak” przed mięsem](lessons/2026-10-14-import-drafter-keyword-order.md) — frazy szczegółowe przed ogólnymi w `PROTEIN_WORDS`.
+- [2026-10-14] [Dzieci siatki CSS mają `min-width: 0`](lessons/2026-10-14-css-grid-min-width.md) — `minmax(0, 1fr)`, sprawdzaj `scrollWidth` przy 390 px.
 
 ## Nieaktualne
 

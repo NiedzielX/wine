@@ -297,6 +297,18 @@ if (chains.length) {
   out('Chains (Codex: root + package AGENTS.md; row: root + CLAUDE.md + instruction files of the routing row):');
   for (const c of chains) out(`  ${c.label.padEnd(44)} ${String(c.bytes).padStart(7)} B  ~${tokens(c.bytes)} tokens`);
 }
+// Headroom: bytes left before the warning and the error limit (negative = over), so a shrinking margin is visible
+// before a new rule or lesson fails CI.
+const headroom = [];
+if (rootAgents) headroom.push({ label: 'AGENTS.md', bytes: rootAgents.bytes, ...BUDGETS.rootAgents });
+const codex = chains.filter((c) => c.label.startsWith('Codex:')).sort((a, b) => b.bytes - a.bytes)[0];
+if (codex) headroom.push({ label: `${codex.label} (largest)`, bytes: codex.bytes, ...BUDGETS.codexChain });
+if (lessons) headroom.push({ label: '.ai/lessons.md', bytes: lessons.bytes, ...BUDGETS.lessonsIndex });
+if (headroom.length) {
+  out('Headroom (bytes left before warning / error):');
+  for (const h of headroom) out(`  ${h.label.padEnd(44)} ${String(h.warnBytes - h.bytes).padStart(7)} B / ${String(h.errorBytes - h.bytes).padStart(7)} B`);
+}
+if (rootAgents) out(`  ${'AGENTS.md lines'.padEnd(44)} ${String(BUDGETS.rootAgents.warnLines - rootAgents.lines).padStart(7)}   / ${String(BUDGETS.rootAgents.errorLines - rootAgents.lines).padStart(7)}`);
 for (const f of findings) out(`${f.level === 'error' ? 'ERROR' : 'warning'}  ${f.file}: ${f.message}`);
 const errors = findings.filter((f) => f.level === 'error').length;
 const warnings = findings.length - errors;
