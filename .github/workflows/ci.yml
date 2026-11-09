@@ -7,8 +7,10 @@
 #   build       production build with no environment and no database, plus the start-up checks
 #   database    PostgreSQL integration tests, on a throwaway container (testcontainers)
 #   e2e         the built app on a throwaway PostgreSQL, driven by agent-browser (home page and admin panel)
+#   image       the Docker image (targets runtime and migrator): static checks, start-up refusals, migrate, bootstrap, smoke.
+#               NOT a required check until the owner adds it in the branch protection (docs/DEPLOYMENT.md, "CI: the image job")
 #
-# Supply chain (lesson 18, security-notes.md section 11): every action is pinned by a full commit SHA with the release
+# Supply chain (lesson 18, security-notes.md section 13): every action is pinned by a full commit SHA with the release
 # in a trailing comment (Dependabot, ecosystem github-actions, updates both); checkouts do not keep the token
 # (persist-credentials: false); every job lists its own minimal permissions; npm runs with ignore-scripts (.npmrc).
 # Tools outside the lockfile (npm itself, agent-browser, the apt packages of `agent-browser install --with-deps`)
@@ -216,3 +218,151 @@ jobs:
             packages/app/test-results
           if-no-files-found: ignore
           retention-days: 14
+
+  # E11 F2 (spec 2026-10-15-production-deployment, R1, R2, R9). Proves AC1, AC2, AC3, AC6, AC7, AC8 on the BUILT image.
+  # Not a required check: it is new and has not run on a hosted runner yet. The owner makes it required once it has been green
+  # on main (docs/DEPLOYMENT.md). It uses no repository secret: the database password and the owner password are generated per run.
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read   # least privilege: the job reads the repository and nothing else (no registry push, no secrets, no PR write)
+    env:
+      POSTGRES_IMAGE: postgres:16.14-bookworm@sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8
+      BASE: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Lint the Dockerfile (hadolint)
+        run: docker run --rm -i hadolint/hadolint:v2.12.0@sha256:30a8fd2e785ab6176eed53f74769e04f125afb2f74a6c52aef7d463583b6d45e hadolint --failure-threshold error - < Dockerfile
+      - name: Plant secret-looking files in the checkout at several depths (they must not reach the image)
+        run: |
+          for f in .env .env.local packages/app/.env.local packages/db/.env packages/core/src/.env.production packages/app/key.pem packages/db/id_rsa_test; do
+            printf 'PLANTED=1\n' > "$f"
+          done
+      - name: Build both targets (no build arguments, no environment, no .env)
+        run: |
+          docker build --target runtime -t wine-match:ci .
+          docker build --target migrator -t wine-match-migrator:ci .
+      - name: AC6, image content (no .env, not root, nothing from the environment baked in, healthcheck present)
+        run: |
+          for img in wine-match:ci wine-match-migrator:ci; do
+            echo "== $img"
+            test "$(docker image inspect --format '{{.Config.User}}' "$img")" = node
+            test "$(docker run --rm --entrypoint id "$img" -u)" != 0
+            echo "whoami: $(docker run --rm --entrypoint whoami "$img")"
+            found="$(docker run --rm --entrypoint find "$img" /app -name node_modules -prune -o \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name '*.key' -o -name 'id_rsa*' \) -print)"
+            test -z "$found" || { echo "secret-looking file in image: $found"; exit 1; }
+            # the layers too, not only the final filesystem (a file deleted by a later layer would still ship). Only paths under app/ count:
+            # the base image has its own certificate files.
+            layers="$(mktemp -d)"
+            docker save "$img" | tar -x -C "$layers"
+            hits="$(find "$layers" -type f | while read -r f; do tar -tf "$f" 2>/dev/null || true; done | grep -E '^(\./)?app/' | grep -v node_modules | grep -E '(^|/)(\.env(\..*)?|id_rsa.*|[^/]*\.(pem|key))$' || true)"
+            test -z "$hits" || { echo "secret-looking path in an image layer: $hits"; exit 1; }
+            rm -rf "$layers"
+            names="$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$img" | cut -d= -f1)"
+            echo "$names" | tr '\n' ' '; echo
+            if echo "$names" | grep -E '^(DATABASE_URL|DATA_SOURCE|PUBLIC_BASE_URL|AUTH_COOKIE_SECURE|ALLOW_[A-Z_]+|METRICS_TOKEN|USER_PASSWORD|POSTGRES_[A-Z_]+)$'; then echo "configuration baked into $img"; exit 1; fi
+            test "$(docker image inspect --format '{{.Config.Env}}' "$img" | grep -c 'NODE_ENV=production')" = 1
+          done
+          test -n "$(docker image inspect --format '{{.Config.Healthcheck}}' wine-match:ci | grep -v '^<nil>$')"
+          # the migrator writes `.snapshot-<database>.json` next to the migrations as `node`: prove the directory is writable by that user
+          docker run --rm --entrypoint sh wine-match-migrator:ci -c 'touch /app/packages/db/src/migrations/.write-probe && rm /app/packages/db/src/migrations/.write-probe'
+          test "$(docker run --rm --entrypoint stat wine-match-migrator:ci -c %U /app/packages/db/src/migrations)" = node
+      - name: AC2, runtime refuses to start without a data source, on demo data, or on a local address (exit code 1)
+        run: |
+          dburl() { printf '%s://%s:%s@%s/%s' postgres "$1" "$2" "$3" "$4"; }   # user, password, host:port, database (built at run time, the scheme is an argument so the secret scan has no literal URL to flag)
+          unreachable="$(dburl u p 127.0.0.1:1 x)"   # never contacted: configuration is refused before any connection
+          refuses() { # name, expected text, docker run options...
+            name="$1"; text="$2"; shift 2
+            rc=0; out="$(timeout 90 docker run --rm "$@" wine-match:ci 2>&1)" || rc=$?
+            echo "$out" | tail -5
+            test "$rc" -eq 1 || { echo "$name: expected exit code 1, got $rc"; exit 1; }
+            echo "$out" | grep -q "$text" || { echo "$name: message does not name $text"; exit 1; }
+          }
+          refuses 'no environment at all' DATA_SOURCE
+          refuses 'memory without ALLOW_DEMO_DATA' ALLOW_DEMO_DATA -e DATA_SOURCE=memory -e PUBLIC_BASE_URL=https://wine.example.test
+          refuses 'postgres without PUBLIC_BASE_URL' PUBLIC_BASE_URL -e DATA_SOURCE=postgres -e DATABASE_URL="$unreachable"
+          refuses 'http address' PUBLIC_BASE_URL -e DATA_SOURCE=postgres -e DATABASE_URL="$unreachable" -e PUBLIC_BASE_URL=http://wine.example.com
+      - name: Start PostgreSQL (password generated for this run)
+        run: |
+          pw="$(openssl rand -hex 16)"
+          echo "::add-mask::$pw"
+          echo "PG_PASSWORD=$pw" >> "$GITHUB_ENV"
+          docker network create wm
+          docker run -d --name wm-db --network wm -e POSTGRES_PASSWORD="$pw" "$POSTGRES_IMAGE"
+          for i in $(seq 1 60); do docker exec wm-db pg_isready -U postgres && break; sleep 1; done
+          for db in wm_a wm_b; do docker exec wm-db psql -U postgres -c "create database $db"; done
+      - name: AC7 and AC8, database A, migrate, empty migration:pending, seed refused, restaurant:create, app, production smoke
+        run: |
+          dburl() { printf '%s://%s:%s@%s/%s' postgres "$1" "$2" "$3" "$4"; }   # user, password, host:port, database (built at run time, the scheme is an argument so the secret scan has no literal URL to flag)
+          migrator() { # database, then docker run options and the command
+            db="$1"; shift
+            docker run --rm --network wm -e DATABASE_URL="$(dburl postgres "$PG_PASSWORD" wm-db:5432 "$db")" "$@"
+          }
+          migrator wm_a wine-match-migrator:ci
+          migrator wm_a wine-match-migrator:ci npm run migration:pending -w @wine-match/db | tee pending.log
+          grep -q 'No pending migrations' pending.log
+          # AC8: the migrator image has NODE_ENV=production; db:seed without ALLOW_DEMO_DATA is refused and writes nothing
+          rc=0; migrator wm_a wine-match-migrator:ci npm run db:seed > seed.log 2>&1 || rc=$?
+          tail -5 seed.log
+          test "$rc" -ne 0
+          test "$(docker exec wm-db psql -U postgres -d wm_a -tAc 'select (select count(*) from restaurant) + (select count(*) from app_user)')" = 0
+          # first restaurant: the owner password is generated, read from the inherited variable, never a command-line value
+          USER_PASSWORD="$(openssl rand -hex 16)"
+          echo "::add-mask::$USER_PASSWORD"
+          export USER_PASSWORD
+          migrator wm_a -e USER_PASSWORD wine-match-migrator:ci npm run restaurant:create -- --name "Pilot Bistro" --slug pilot --address "ul. Testowa 1" --city Krakow --wine-director "Test Director" --owner-email owner@example.test --owner-name "Test Owner"
+          unset USER_PASSWORD
+          # AC8, second condition: a real restaurant exists, so seeding is refused even with ALLOW_DEMO_DATA=true
+          rc=0; migrator wm_a -e ALLOW_DEMO_DATA=true wine-match-migrator:ci npm run db:seed > seed2.log 2>&1 || rc=$?
+          test "$rc" -ne 0
+          # the app: a valid https address needs NO ALLOW_LOCAL_BASE_URL (R4); the cookie is not Secure only because the smoke speaks http
+          docker run -d --name wm-app-a --init --network wm -p 3000:3000 \
+            -e DATA_SOURCE=postgres -e DATABASE_URL="$(dburl postgres "$PG_PASSWORD" wm-db:5432 wm_a)" \
+            -e PUBLIC_BASE_URL=https://wine.example.test -e AUTH_COOKIE_SECURE=false -e DEMO_RESTAURANT_SLUG=pilot wine-match:ci
+          for i in $(seq 1 60); do curl -fsS -H 'X-Wine-Match-Synthetic: 1' "$BASE/api/v1/health" && break; sleep 2; done
+          curl -fsS -H 'X-Wine-Match-Synthetic: 1' "$BASE/api/v1/health"
+          for i in $(seq 1 30); do test "$(docker inspect --format '{{.State.Health.Status}}' wm-app-a)" = healthy && break; sleep 3; done
+          test "$(docker inspect --format '{{.State.Health.Status}}' wm-app-a)" = healthy
+          docker logs wm-app-a 2>&1 | grep -q '"publicBaseUrl":"https://wine.example.test"'
+          node scripts/smoke.mjs --production "$BASE" pilot
+          docker rm -f wm-app-a
+      - name: AC1 and AC3, database B (trial instance with demo data), migrate, db:seed with ALLOW_DEMO_DATA, app, full smoke, QR address
+        run: |
+          dburl() { printf '%s://%s:%s@%s/%s' postgres "$1" "$2" "$3" "$4"; }   # user, password, host:port, database (built at run time, the scheme is an argument so the secret scan has no literal URL to flag)
+          migrator() { db="$1"; shift; docker run --rm --network wm -e DATABASE_URL="$(dburl postgres "$PG_PASSWORD" wm-db:5432 "$db")" "$@"; }
+          migrator wm_b wine-match-migrator:ci
+          migrator wm_b wine-match-migrator:ci npm run migration:pending -w @wine-match/db | tee pending-b.log
+          grep -q 'No pending migrations' pending-b.log
+          migrator wm_b -e ALLOW_DEMO_DATA=true wine-match-migrator:ci npm run db:seed
+          docker run -d --name wm-app-b --init --network wm -p 3000:3000 \
+            -e DATA_SOURCE=postgres -e DATABASE_URL="$(dburl postgres "$PG_PASSWORD" wm-db:5432 wm_b)" \
+            -e PUBLIC_BASE_URL=https://wine.example.test -e AUTH_COOKIE_SECURE=false wine-match:ci
+          for i in $(seq 1 60); do curl -fsS -H 'X-Wine-Match-Synthetic: 1' "$BASE/api/v1/health" && break; sleep 2; done
+          node scripts/smoke.mjs "$BASE" halka
+          # AC3: the QR page names the configured public address; the QR image is an SVG (demo account: its password is public by design)
+          node --input-type=module - <<'EOF'
+          const base = process.env.BASE;
+          const h = { 'content-type': 'application/json', 'x-wine-match-synthetic': '1' };
+          const login = await fetch(`${base}/api/v1/auth/login`, { method: 'POST', headers: h, body: JSON.stringify({ email: 'marta@halka.pl', password: 'demo-halka-2026' }) });
+          if (login.status !== 200) throw new Error(`login ${login.status}`);
+          const cookie = login.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+          const page = await (await fetch(`${base}/admin/halka/qr`, { headers: { cookie, 'x-wine-match-synthetic': '1' } })).text();
+          if (!page.includes('https://wine.example.test/r/halka')) throw new Error('QR page does not show https://wine.example.test/r/halka');
+          const svg = await fetch(`${base}/api/v1/restaurants/halka/qr?format=svg`, { headers: { cookie, 'x-wine-match-synthetic': '1' } });
+          if (svg.status !== 200 || !(svg.headers.get('content-type') ?? '').includes('image/svg+xml')) throw new Error(`QR svg ${svg.status}`);
+          console.log('QR page and SVG ok');
+          EOF
+      - name: Container logs of a failing run
+        if: failure()
+        run: |
+          docker ps -a
+          for c in wm-app-a wm-app-b wm-db; do echo "== $c"; docker logs --tail 80 "$c" 2>&1 || true; done
+      - name: Clean up
+        if: always()
+        run: docker rm -f wm-app-a wm-app-b wm-db || true

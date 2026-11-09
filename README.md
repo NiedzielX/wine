@@ -76,7 +76,7 @@ USER_PASSWORD='długie hasło, min. 12 znaków' npm run restaurant:create -- \
 - Błędy pól i hasła są zgłaszane naraz, zanim polecenie połączy się z bazą. Brak `DATABASE_URL` albo niezastosowane migracje (`npm run db:migrate`) kończą się kodem 1 i niczego nie zapisują. Polecenie nie czyta `DATA_SOURCE`, `ALLOW_DEMO_DATA` ani `PUBLIC_BASE_URL` i nie ładuje danych demo.
 - Zajęty slug albo e-mail istniejącego konta (bez względu na wielkość liter) → kod 1, nic nie zapisane. Flaga `--allow-existing-account` (np. ta sama osoba w drugim lokalu) dodaje istniejącemu kontu tylko członkostwo `owner`; jego hasło się nie zmienia, a `USER_PASSWORD` nie jest potrzebne.
 - Hasło jest wyłącznie w `USER_PASSWORD` (nigdy w argumentach); ani ono, ani `DATABASE_URL` nie trafia na wyjście. Wartość z końcowym znakiem nowej linii jest używana dosłownie, więc nie ustawiaj jej przez `echo` bez `-n`.
-- **W kontenerze** (obraz `migrate`; **plan, nie stan dzisiejszy**: Dockerfile i Compose powstają w E11 F2, w repozytorium ich jeszcze nie ma) hasło wczytaj bez echa i przekaż samą nazwą zmiennej, nigdy `-e USER_PASSWORD=…`, wartością w pliku compose ani flagą:
+- **W kontenerze** (usługa `migrate` z `docker-compose.yml`, obraz `migrator`; pełny runbook: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)) hasło wczytaj bez echa i przekaż samą nazwą zmiennej, nigdy `-e USER_PASSWORD=…`, wartością w pliku compose ani flagą:
 
   ```sh
   stty -echo; printf 'Owner password: '; read -r USER_PASSWORD; stty echo; echo
@@ -110,6 +110,22 @@ Ciasteczko sesji jest w produkcji `Secure`. Żeby uruchomić build produkcyjny l
 **Metryki:** ustaw `METRICS_TOKEN` (min. 32 znaki, np. `openssl rand -hex 32`), a `GET /api/v1/metrics` z `Authorization: Bearer <token>` zwróci metryki procesu w formacie Prometheus; bez tokenu endpoint odpowiada 404. Alerty i runbook: [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
 Konfiguracja jest w jednym pliku `.env` w katalogu głównym; aplikacja, CLI migracji i testy bazy wczytują go same, a zmienne ustawione w środowisku mają pierwszeństwo.
+
+## Wdrożenie produkcyjne
+
+Produkcja to jedna VM z Docker Compose (`docker-compose.yml`: PostgreSQL 16, jednorazowe `migrate`, aplikacja) za reverse proxy z TLS; obraz (`Dockerfile`, cele `runtime` i `migrator`) jest niezależny od dostawcy, a konfiguracja pochodzi wyłącznie z `.env` w czasie uruchomienia (nic nie jest wypalone w obrazie). Szkic (pełne kroki, oczekiwane wyniki i co zrobić przy błędzie: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**):
+
+```sh
+cp .env.example .env            # ustaw PUBLIC_BASE_URL (https), POSTGRES_PASSWORD, DEMO_RESTAURANT_SLUG, METRICS_TOKEN, WINE_MATCH_TAG
+docker compose build
+docker compose up -d db
+docker compose run --rm migrate                                            # migracje (osobny krok, aplikacja nigdy nie migruje)
+docker compose run --rm migrate npm run migration:pending -w @wine-match/db   # ma wypisać "No pending migrations"
+docker compose up -d app
+npm run smoke -- --production https://<domena> <slug>
+```
+
+Runbook zawiera też pierwszą restaurację (`restaurant:create`), ustawienia reverse proxy (TLS i HSTS, log bez query, limit ciała, blokada TRACE), kopie zapasowe i próbę odtworzenia (`pg_dump`/`pg_restore`) oraz **wycofanie** (poprzedni obraz, poprawka w przód, odtworzenie zrzutu; `migration:down` zabronione na produkcji). Monitoring i alerty: [docs/OPERATIONS.md](docs/OPERATIONS.md). Co robić bez agentów AI albo gdy zabraknie budżetu: [docs/CONTINUITY.md](docs/CONTINUITY.md). Job CI `image` buduje obraz i sprawdza go end-to-end (jeszcze nie jest wymaganym sprawdzeniem: decyzja właściciela po zielonych przebiegach na `main`).
 
 Adresy po uruchomieniu (restauracja demo `halka`):
 
@@ -294,7 +310,7 @@ Podsumowanie: sesje w ciasteczku httpOnly (w bazie tylko skrót), hasła scrypt,
 | [docs/SCREEN_MAP.md](docs/SCREEN_MAP.md), [docs/SCREEN_SPECIFICATION.md](docs/SCREEN_SPECIFICATION.md) | mapa i specyfikacja ekranów |
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md), [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md) | encje i relacje (w tym usuwanie danych), REST API v1 |
 | [docs/RECOMMENDATION_ENGINE.md](docs/RECOMMENDATION_ENGINE.md) | silnik: cechy, reguły, wzory, warstwa sommeliera |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md), [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | operacje, alerty, instancja demo; system projektowy |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [docs/OPERATIONS.md](docs/OPERATIONS.md), [docs/CONTINUITY.md](docs/CONTINUITY.md), [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | wdrożenie i wycofanie, operacje i alerty, ciągłość pracy bez agenta, system projektowy |
 | [security-notes.md](security-notes.md), [docs/security/](docs/security/) | bezpieczeństwo agenta i produktu |
 | [.ai/specs/product-brief.md](.ai/specs/product-brief.md), [.ai/specs/backlog.md](.ai/specs/backlog.md) | brief produktu, backlog E01–E22 ze statusem |
 | [.ai/docs/commands.md](.ai/docs/commands.md), [.ai/docs/engineering-standards.md](.ai/docs/engineering-standards.md), [.ai/docs/review-protocol.md](.ai/docs/review-protocol.md) | polecenia, standardy, protokół review |

@@ -1,6 +1,6 @@
 # Eksploatacja: monitoring i runbook (E21 F1)
 
-Wine Match nie używa zewnętrznego SaaS do monitoringu (spec `2026-11-04-platform-quality-and-compliance`, Q1). Operator ma trzy źródła: `GET /api/v1/health`, metryki w formacie Prometheus i logi na stdout (JSON, jedna linia na wpis, sekrety zredagowane). Dalsze fazy E21 dopiszą tu kopie i limity żądań.
+Wine Match nie używa zewnętrznego SaaS do monitoringu (spec `2026-11-04-platform-quality-and-compliance`, Q1). Operator ma trzy źródła: `GET /api/v1/health`, metryki w formacie Prometheus i logi na stdout (JSON, jedna linia na wpis, sekrety zredagowane). Dalsze fazy E21 dopiszą tu kopie i limity żądań. Instalacja, kopie zapasowe, odtworzenie i **wycofanie**: [`docs/DEPLOYMENT.md`](DEPLOYMENT.md). Co robić bez agentów AI: [`docs/CONTINUITY.md`](CONTINUITY.md).
 
 ## Metryki
 
@@ -54,7 +54,7 @@ Publiczne demo fikcyjnej restauracji Halka to **osobna instancja**, nigdy ta, na
 - Na tej instancji uruchamiaj tylko `smoke --showcase`: pełny smoke loguje się kontem demo i ma tu paść z założenia.
 - **Restart** czyści pamięć; instancja nie ma stanu do odtwarzania.
 - **Sprawdzenie:** `npm run smoke -- --showcase https://<domena-dema>` (tylko GET). Odsłony: jedna linia logu `showcase_view` z samą nazwą strony (`hub`, `tour`, `roi`, `roi_summary`).
-- Obraz i Compose dla instancji demo: do czasu E11 F2–F3 uruchamiaj `next start` z powyższymi zmiennymi za reverse proxy z https.
+- Obraz i Compose dla instancji demo: usługa `app-demo` (profil `demo`) w `docker-compose.yml`, opis w [`docs/DEPLOYMENT.md`](DEPLOYMENT.md), sekcja 12.
 
 ## Przed włączeniem pierwszego prawdziwego najemcy
 
@@ -63,8 +63,8 @@ Decyzja właściciela na PR #127 (2026-11-07, `docs/security/threat-model.md` T-
 | Pozycja | Wymaga | Status |
 |---|---|---|
 | Limit żądań per IP (logowanie, publiczne API gościa) | E21 F3 (`rate_limited` już zarezerwowane w `guest_code_issue_total` i `rate_limit_denied_total` wyżej w tym pliku) | **wymagane, niezaimplementowane** |
-| TLS i `Strict-Transport-Security` na proxy terminującym | E11 (poza tym repozytorium: ustawienie proxy, nie aplikacji) | do potwierdzenia przy wdrożeniu |
-| Obcięcie query string w logu dostępowym proxy (sekcja „Logi” wyżej) | E11 | do potwierdzenia przy wdrożeniu |
-| Kopia bazy z przećwiczonym odtworzeniem | E21 F2 | niezaimplementowane |
+| TLS i `Strict-Transport-Security` na proxy terminującym | E11 (poza tym repozytorium: ustawienie proxy, nie aplikacji; przykład i sprawdzenie: `docs/DEPLOYMENT.md` sekcja 6) | do potwierdzenia przy wdrożeniu |
+| Obcięcie query string w logu dostępowym proxy (sekcja „Logi” wyżej) | E11 (przykład: `docs/DEPLOYMENT.md` sekcja 6) | do potwierdzenia przy wdrożeniu |
+| Kopia bazy z przećwiczonym odtworzeniem | ręcznie wg `docs/DEPLOYMENT.md` sekcja 9 (zrzut, próba odtworzenia); automatyzacja i alert: E21 F2 | procedura jest; automatyzacja niezaimplementowana |
 
 Pełny kontekst i numeracja zagrożeń: `docs/security/threat-model.md` (T-07, T-13, decyzja D4).
