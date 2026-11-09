@@ -37,6 +37,7 @@ Zaproszenia (E12 F2) wystawia owner/GM w A15 albo przez `POST /api/v1/restaurant
 | `npm run build` | granice + build mockupów i aplikacji (z typecheckiem Next.js) |
 | `npm run engine:matrix` | przegląd kalibracji silnika: najlepsze wina dla każdego dania demo |
 | `npm run db:migration:create` / `db:migrate` / `db:seed` | migracje i dane demo |
+| `docker compose build` / `run --rm migrate [polecenie]` / `up -d app` | obraz i produkcja na jednej VM (`Dockerfile`, `docker-compose.yml`, E11 F2); polecenia operatora (`restaurant:create`, `migration:pending`) przez usługę `migrate`; runbook, kopie i wycofanie: `docs/DEPLOYMENT.md`. Job CI `image` sprawdza obraz (nie jest wymaganym checkiem) |
 
 Skrypty npm uruchamiają się przez `/bin/sh`, który na Linuksie bywa `dash`: w skryptach i poleceniach powłoki **NIE używaj bashizmów** (`{a,b}`, `${PIPESTATUS}`, `[[ ]]`, `time`). Pisz POSIX albo skrypt Node (`scripts/*.mjs`).
 

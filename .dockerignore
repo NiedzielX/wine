@@ -1,0 +1,41 @@
+# Build context for the Dockerfile. Nothing secret and nothing machine-specific goes into an image.
+# Secrets and local configuration, at ANY depth (a nested packages/app/.env.local must never enter `COPY packages`).
+# CI plants such files in the checkout and asserts they are not in the image (job `image`, AC6).
+**/.env
+**/.env.*
+!.env.example
+!.env.template
+**/*.pem
+**/*.key
+**/id_rsa*
+
+# Dependencies and build output are produced inside the image
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+**/storybook-static
+**/*.tsbuildinfo
+next-env.d.ts
+
+# Repository and agent tooling, never needed to build or run the app
+.git
+.github
+.claude
+.agents
+.ai
+.mcp.json
+skills-lock.json
+agent
+
+# Docs and local files
+*.md
+.DS_Store
+*.log
+
+# Image and Compose files do not belong inside the image
+Dockerfile
+.dockerignore
+docker-compose.yml
