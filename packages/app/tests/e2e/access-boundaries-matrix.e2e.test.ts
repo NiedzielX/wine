@@ -38,6 +38,8 @@ beforeAll(async () => {
   if (bistroDishes[0]!.n === '0') {
     await confirmSample(anna, BISTRO, 'wines');
     await confirmSample(anna, BISTRO, 'menu');
+    // the sample files are the same for every tenant: give Bistro's dishes and wines names of their own, so that a leak of a name is a leak the body checks can see
+    for (const t of ['dish', 'wine']) await queryDatabase(db(), `update ${t} set name = name || ' (Bistro E2E)' where restaurant_id = (select id from restaurant where slug = $1)`, [BISTRO]);
   }
   const hJob = await stageImport(tomasz, HALKA, 'wines');
   const bJob = await stageImport(anna, BISTRO, 'wines');
@@ -45,6 +47,8 @@ beforeAll(async () => {
   Object.assign(H, await load(HALKA, marta, hJob));
   Object.assign(B, await load(BISTRO, sonia, bJob));
   expect(B.dishes.length).toBeGreaterThan(0);
+  // no name is shared between the two tenants, so `onlyIn` drops nothing and every body check bites
+  expect([...H.dishes, ...H.wines].filter((x) => [...B.dishes, ...B.wines].some((y) => y.name === x.name))).toEqual([]);
   expect(B.pairings.length).toBeGreaterThan(0);
 });
 afterAll(async () => { for (const c of cleanup.reverse()) await c().catch(() => undefined); });
@@ -126,14 +130,24 @@ describe('access boundaries, part 1 of the matrix (threat model T-25 .. T-31)', 
 
   it('T-28: recommendations of the public route: another restaurant\'s dish id under your slug is 404 with none of its data; a draft dish is not served', async () => {
     const ask = (slug: string, dishId: string) => fetch(`${base()}/api/v1/dishes/${dishId}/recommendations?restaurant=${slug}`);
-    const published = (await queryDatabase<{ id: string }>(db(), `select d.id from dish d join restaurant r on r.id = d.restaurant_id where r.slug = $1 and d.status = 'published' limit 1`, [HALKA]))[0]!.id;
-    expect((await ask(HALKA, published)).status).toBe(200); // positive control for the owner side; the second restaurant has no published dish (a draft import), see the matrix
+    const publishedOf = async (slug: string) => (await queryDatabase<{ id: string }>(db(), `select d.id from dish d join restaurant r on r.id = d.restaurant_id where r.slug = $1 and d.status = 'published' limit 1`, [slug]))[0]?.id;
+    const published = (await publishedOf(HALKA))!;
+    // a draft dish is not served, even under its own slug
+    expect((await ask(BISTRO, B.dishes[0]!.id)).status).toBe(404);
+    // Bistro gets a published dish (approve all, publish) so that its owner side has a positive control too
+    expect((await send(sonia, 'POST', `/api/v1/restaurants/${BISTRO}/pairings/bulk-decision`, { action: 'approve_all' })).status).toBe(200);
+    expect((await send(sonia, 'POST', `/api/v1/restaurants/${BISTRO}/publish`, {})).status).toBe(201);
+    const bistroPublished = await publishedOf(BISTRO);
+    expect(bistroPublished, 'Bistro has a published dish').toBeDefined();
+    expect((await ask(HALKA, published)).status).toBe(200);
+    expect((await ask(BISTRO, bistroPublished!)).status).toBe(200);
     const before = await snapshot();
     const res = await ask(BISTRO, published);
     expect(res.status).toBe(404);
+    const back = await ask(HALKA, bistroPublished!);
+    expect(back.status).toBe(404);
+    noLeak(await back.text(), [...onlyIn(B, H), ...B.wines.map((w) => w.id)], 'recommendations of a Bistro dish under the Halka slug');
     noLeak(await res.text(), [...onlyIn(H, B), ...H.wines.map((w) => w.id)], 'recommendations');
-    const draft = await ask(BISTRO, B.dishes[0]!.id);
-    expect(draft.status).toBe(404);
     expect(await snapshot()).toEqual(before);
   });
 
@@ -168,13 +182,22 @@ describe('access boundaries, part 1 of the matrix (threat model T-25 .. T-31)', 
         noLeak(await res.text(), onlyIn(other, mine), `${mine.slug} import ${kind} with a foreign job`);
       }
     }
+    // the pairings index redirects to the first dish: it must not do so (or name a dish id) for anyone without access
+    const own = await get(tomasz, `/admin/${HALKA}/pairings`);
+    expect([307, 308]).toContain(own.status);
+    expect(own.headers.get('location')).toContain(`/admin/${HALKA}/pairings/`);
+    for (const [who, res] of [['halka account on bistro', await get(tomasz, `/admin/${BISTRO}/pairings`)], ['bistro account on halka', await get(anna, `/admin/${HALKA}/pairings`)], ['anonymous on halka', await fetch(`${base()}/admin/${HALKA}/pairings`, { redirect: 'manual' })]] as const) {
+      expect(res.headers.get('location') ?? '', who).not.toContain('/pairings/');
+      const text = await res.text();
+      for (const v of [...onlyIn(who.startsWith('halka') ? B : H, who.startsWith('halka') ? H : B)]) if (text.includes(v)) found.push(`${who}, /pairings: "${v}"`);
+    }
     // no session at all: a redirect to sign-in, and the body carries nothing of either restaurant
     for (const ids of [H, B]) {
       for (const path of [...paths(ids), '/team']) {
         const res = await fetch(`${base()}/admin/${ids.slug}${path}`, { redirect: 'manual' });
         const text = await res.text();
         expect([307, 308], `anonymous ${ids.slug}${path}`).toContain(res.status);
-        for (const v of [ids.name, ...ids.dishes.map((d) => d.name)]) if (text.includes(v)) found.push(`anonymous, ${ids.slug}${path}: "${v}"`);
+        for (const v of [ids.name, ...ids.dishes.map((d) => d.name), ...ids.wines.map((w) => w.name)]) if (text.includes(v)) found.push(`anonymous, ${ids.slug}${path}: "${v}"`);
       }
     }
     expect(found, 'a refused page must not carry the other restaurant\'s data').toEqual([]);
@@ -281,6 +304,13 @@ describe('access boundaries, part 1 of the matrix (threat model T-25 .. T-31)', 
       expect((await get(s, `/api/v1/restaurants/${slug}/qr`)).status, `${slug} qr`).toBe(200);
       expect((await get(s, `/api/v1/restaurants/${slug}/pairings`)).status, `${slug} pairings`).toBe(200);
       expect((await bulk(s, slug)).status, `${slug} bulk`).toBe(200);
+      // something to publish: a manual pairing of the restaurant's own (the earlier cases may have published everything)
+      const ids = slug === HALKA ? H : B;
+      const free = ids.dishes.flatMap((d) => ids.wines.map((w) => ({ d, w }))).filter(({ d, w }) => !ids.pairings.some((p) => p.dishId === d.id && p.wineId === w.id))[1]!;
+      const made = await send(s, 'POST', `/api/v1/pairings?restaurant=${slug}`, { dishId: free.d.id, wineId: free.w.id, comment: 'publish control' });
+      expect(made.status, `${slug} pairing to publish`).toBe(201);
+      const madeId = ((await made.json()) as { id: string; version: number });
+      cleanup.push(async () => { await send(s, 'DELETE', `/api/v1/pairings/${madeId.id}?restaurant=${slug}`, undefined, { 'if-match': `"${madeId.version}"` }); });
       expect((await publish(s, slug)).status, `${slug} publish`).toBe(201);
     }
     const before = await snapshot();

@@ -48,7 +48,7 @@ Liczby: wiersze z `-` dla obcego id lub obcego sluga i lukami: PRZED 10 komórek
 - Gość a szkic/ukryte i nieopublikowane (publiczne `r/{slug}/…`, `public/restaurants/{slug}/menu`, recommendations dla dania szkicowego): T-28 sprawdza tylko jeden szkic.
 - Mass assignment (`strictObject`) dla pozostałych schematów: tylko `pairings` POST, zaproszenia, team PATCH.
 - Polityka 403 a 404 (dziś: obce id 404, obcy slug 403 — decyzja do zapisania).
-- Kontrola pozytywna Bistro: brak opublikowanego dania (T-28), brak okazji w panelu (`dismissOpportunity`, `restoreOpportunity` tylko Halka); wymaga danych Bistro z opublikowanym daniem i okazją.
+- Kontrola pozytywna Bistro: brak okazji w panelu (`dismissOpportunity`, `restoreOpportunity` tylko Halka); wymaga danych Bistro z okazją. (Opublikowane danie Bistro jest po przeglądzie: T-28 ma kontrole obu stron.)
 - KPI ze sprzedażą: Halka nie ma w seedzie wierszy sprzedaży (`sales_record` 0), strony KPI sprawdzone z pustymi liczbami; import sprzedaży potwierdzony przez API nie jest wykonywany (zmieniłby stan, na którym polega `kpi-sales`).
 - Role poziomu strony poza `team` (np. Wine Director a `restaurant.edit` na stronie `setup`: sprawdzone tylko przez akcję).
 - `inviteMember` (akcja z `useActionState`) i `login`/`logout`/`language` akcje.
@@ -79,3 +79,11 @@ Mutacja: usunięty filtr `restaurant: restaurantId` w `PgDishRepository.findById
 - `npm run lint` czysty; `npm run typecheck` (przez `build`) czysty; `npm test`: 744 + 84 + 62 + 500 + 252 testów zielone; `npm run test:db` (PostgreSQL 50400): 192 zielone; `npm run check:qa`: 105 scenariuszy; `npm run check:routes` OK (25 handlerów); `npm run check:context`: 0 błędów (11 ostrzeżeń istniejących); `npm run secrets:scan`: OK; `npm run build`: OK.
 - e2e: 12 plików bez przeglądarki zielone (66 testów), 11 plików z agent-browser nie da się uruchomić tutaj (`spawn agent-browser ENOENT`), tak jak w poprzednich przebiegach.
 - Czego nie sprawdziłem: testów przeglądarkowych (e2e z agent-browser), trybu `DATA_SOURCE=memory` (e2e tylko PostgreSQL), CI.
+
+## Poprawki po pierwszym review PR #133 (2026-11-09)
+1. **Nazwy wspólne dla obu tenantów (średnie):** `onlyIn` odrzucał nazwy dań i win obecne u obu, a Bistro importuje te same pliki wzorcowe. Teraz po imporcie nazwy dań i win Bistro dostają przyrostek ` (Bistro E2E)` (UPDATE w bazie w `beforeAll`), a `beforeAll` sprawdza, że żadna nazwa nie jest wspólna. Kontrole ciał w T-29 obejmują też nazwy win, a odpowiedzi anonimowe nazwy dań i win obu restauracji.
+2. **Statusy bez poprawki przechodzą (niskie):** tylko kontrole ciał mogą paść; dowód czerwony/zielony powtórzony z unikalnymi nazwami: bez poprawki menu T-29 czerwony (38 wpisów: m.in. „Grilled cauliflower steak (Bistro E2E)”, „Baked sernik” w ciałach 403 i przekierowań), z poprawką zielony (8/8).
+3. **`countUnmatched`:** komentarz w kontrakcie: brak restauracji = brak kodów, więc para jest niedopasowana (1, jak w pamięci i dla restauracji bez kodów), nie 0 jak w pozostałych wyszukiwaniach; oba adaptery zgodne.
+4. **Opublikowane danie w Bistro:** T-28 zatwierdza wszystkie pary i publikuje Bistro (API), więc ma kontrole pozytywne obu stron i odmowę w obie strony. T-32 przed publikacją tworzy własną parę (inaczej Bistro: 422 `nothing_to_publish`).
+5. **`pairings/page.tsx`:** czytała `adminService.menu(slug)` i przekierowywała do pierwszego dania bez `requireAccess`. Test (T-29: lokalizacja przekierowania i ciało dla obcego konta i anonima) nie wykrył obserwowalnego wycieku na kodzie bez poprawki (layout wygrywa wyścig z przekierowaniem), więc to utwardzenie, nie czerwony-zielony; `requireAccess` dodane przed odczytem, test zostaje jako straż.
+6. **Wiersze T-25..T-32:** są w `docs/security/threat-model.md` (8 wierszy po T-24); T-29 i T-28 zaktualizowane.

@@ -325,7 +325,7 @@ export function repositoryContract(
         t.expect(await codes.pairStats(bad, period)).toEqual([]);
         t.expect(await codes.totals(bad, period)).toEqual({ issued: 0, staffConfirmed: 0, posMatched: 0, ordered: 0 });
         t.expect(await codes.unmatchedPosCodes(bad, period)).toBe(0);
-        t.expect(await codes.countUnmatched(bad, [{ businessDate: '2032-01-01', code: 'W7K' }])).toBe(1);
+        t.expect(await codes.countUnmatched(bad, [{ businessDate: '2032-01-01', code: 'W7K' }])).toBe(1); // no restaurant, so no codes: the pair is unmatched, as in memory and as for a restaurant without codes (not 0 like the other lookups)
         t.expect(await repos.salesRepository.checkTotals(bad, { from: '2033-01-01', to: '2033-12-31' })).toEqual([]);
         t.expect(await repos.salesRepository.dataRange(bad)).toBeNull();
         t.expect(await repos.salesRepository.countChecks(bad, [{ businessDate: '2033-04-01', checkId: 'T1' }])).toBe(0);

@@ -18,13 +18,13 @@ The public recommendations route answers 404 for a dish that is not a published 
 
 ## Given
 
-1. Halka has published dishes; Bistro E2E has only draft dishes (imported, not approved).
+1. Halka has published dishes; Bistro E2E has draft dishes (imported) and, after the test approves all pairings and publishes, a published dish.
 2. Bistro E2E gets the sample wine list and menu (confirmed imports) in `beforeAll` when it has no dishes, so its positive controls read real rows.
 
 ## When
 
-1. Positive control: a published Halka dish under the Halka slug: 200 (Bistro has no published dish, a gap in the run log).
-2. The same Halka dish id under the Bistro slug, and a Bistro draft dish under its own slug.
+1. Positive controls: a published Halka dish under the Halka slug and a published Bistro dish under the Bistro slug: 200. A Bistro draft dish under its own slug: 404.
+2. The Halka dish id under the Bistro slug and the Bistro dish id under the Halka slug.
 
 ## Then
 
