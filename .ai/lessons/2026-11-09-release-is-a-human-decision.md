@@ -18,7 +18,7 @@ Trzy rzeczy z lekcji nie wynikają z kodu, a łatwo je zgubić przy automatyzacj
 2. Zielone testy monorepo nie dowodzą, że działa to, co dostaje odbiorca. Open Mercato testuje opublikowane paczki; naszym odpowiednikiem jest job CI `image` (obraz `runtime` i `migrator`, odmowy startu, migracje, `smoke --production`), który nie jest jeszcze wymaganym checkiem.
 3. Pętla „agent naprawia, aż CI będzie zielone” chętnie przechodzi przez obejście (przykład z lekcji: wyczyszczony adres bazy w `.env.example`). Zielone CI po obejściu to fałszywy dowód.
 
-Przy okazji: `@wine-match/testkit` jest w `packages/app` i `packages/db` przypięty dokładnie (`0.2.0`). Po podniesieniu wersji pakietów npm nie powiązałby go z workspace'em i szukałby tej nazwy w rejestrze (ryzyko *dependency confusion*); `release:version` to wykrywa i odmawia `--set`.
+Przy okazji: `@wine-match/testkit` jest w `packages/app` i `packages/db` przypięty dokładnie (`0.2.0`). Po podniesieniu wersji pakietów npm nie powiązałby go z workspace'em i szukałby tej nazwy w rejestrze (ryzyko *dependency confusion*); `release:version` to wykrywa i odmawia `--set`. Naprawione 2026-11-09: zakresy `"*"`, `--check` odrzuca każdy inny zakres wewnętrzny.
 
 ## Reguła
 - Wydanie (zakres, publikacja, wdrożenie, ogłoszenie) decyduje właściciel. Agent i workflow tylko przygotowują: PR wydania, szkic GitHub Release (`publish: false` domyślnie), notatki. Workflow wydania działa tylko z `main`, tylko ręcznie, nie publikuje pakietów i nie wdraża.

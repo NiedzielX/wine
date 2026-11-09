@@ -33,6 +33,7 @@ Zasada nadrzędna oryginału, którą zachowujemy: *gdy dwie zasady ciągną w r
 | `pino` z redakcją | **Własny logger** `core/logging` (bez nowej zależności) z redakcją kluczy i wzorców w tekście | `core/tests/logging.test.ts` |
 | Konfiguracja z `env.ts` (Zod) | **Tak**: `core/config/env.ts`, `app/src/server/env.ts` | `core/tests/env.test.ts`, `boot:check` |
 | `npm audit` w bramce | **Tak**: `npm run audit:gate` z jawną, datowaną listą wyjątków | CI |
+| Wersje przypięte dokładnie | **Tak** (`save-exact`), poza zależnościami wewnętrznymi `@wine-match/*`: te mają `"*"`, żeby npm zawsze dowiązywał workspace, nie rejestr | `npm run release:version` |
 | ESLint | **`oxlint`** (`typescript-eslint` wymaga TypeScript `<6.1`, mamy 7) | `npm run lint`, CI |
 | Lista kontrolna przeglądu | **Tak**: §6 i `.github/pull_request_template.md` | przegląd |
 

@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@mikro-orm/cli": "7.2.5",
-    "@wine-match/testkit": "0.2.0"
+    "@wine-match/testkit": "*"
   },
   "mikro-orm": {
     "configPaths": [

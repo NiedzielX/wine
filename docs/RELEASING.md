@@ -61,7 +61,7 @@ Na gałęzi `release/vX.Y.Z` z aktualnego `main` (agent lub właściciel):
 1. `npm run release:notes -- check`: `[Unreleased]` ma wpisy i poprawny kształt, wpisy `UPGRADE_NOTES.md` mają cztery pola. Kompletność względem scalonych PR-ów: `om-auto-update-changelog --since v<poprzednia> --dry-run` i porównanie z `[Unreleased]` (zasługa dla autora oryginalnego PR-a, także gdy PR zastąpiono, wg reguły „Supersede Credit” skilla).
 2. **Zmiany łamiące:** każdy wpis „Zmiana łamiąca” / „💥 Breaking” w `CHANGELOG.md` i każda zmiana powierzchni z `BACKWARD_COMPATIBILITY.md` ma wpis w `UPGRADE_NOTES.md`. Jest wpis → wersja co najmniej `0.MINOR+1.0`.
 3. **Migracje:** `git diff v<poprzednia> HEAD --stat -- packages/db/src/migrations`; każda nowa migracja ma dowód up/down/up i plan wycofania w swoim PR-ze (`engineering-standards.md` §12). Migracja *contract* = notatka w `UPGRADE_NOTES.md`, że powrót do poprzedniego obrazu nie jest możliwy (DEPLOYMENT.md §5, §10.2). Na produkcji migracje idą tylko w przód; `migration:down` jest tam zabronione (DEPLOYMENT.md §10.1).
-4. `npm run release:version -- --set X.Y.Z` (plan), potem z `--write`; `npm run release:version -- --check --expect X.Y.Z`. **Przed pierwszą zmianą wersji** `--set` odmówi, bo `packages/app` i `packages/db` przypinają `@wine-match/testkit` dokładnie na `0.2.0` (po zmianie wersji npm szukałby tej nazwy w rejestrze: ryzyko *dependency confusion*). Zmień te dwa zakresy na `"*"` (jak pozostałe zależności wewnętrzne) osobnym, przejrzanym PR-em z `npm install`.
+4. `npm run release:version -- --set X.Y.Z` (plan), potem z `--write`; `npm run release:version -- --check --expect X.Y.Z`. Zależności wewnętrzne (`@wine-match/*`) mają zakres `"*"`: npm 11 dowiązuje wtedy pakiet z workspace przy każdej wersji, a zakres stały po zmianie wersji przestałby pasować i npm szukałby tej nazwy w publicznym rejestrze (*dependency confusion*). `--check` odrzuca każdy inny zakres wewnętrzny, a `--set` wtedy odmawia. `workspace:*` npm nie obsługuje (`EUNSUPPORTEDPROTOCOL`).
 5. `npm run release:notes -- promote X.Y.Z` (podgląd treści wydania), potem z `--write` (data: dziś w Europe/Warsaw albo `--date`). Popraw zdanie wstępne `CHANGELOG.md` o wersji i tagach.
 6. PR „release vX.Y.Z” z etykietami `documentation`, `risk-low` (sama zmiana wersji i notatek; zakres wydania ocenia się na zmianach, które już weszły). W opisie: wynik `release:notes -- render X.Y.Z`, lista migracji, wynik listy QA (§6).
 
@@ -146,7 +146,7 @@ Po oknie obserwacji właściciel ogłasza wydanie restauracjom (co nowego, co zr
 | Włączenie `release.yml` (pierwsze uruchomienie i przegląd `.github/`) | szkic, przegląd `risk-high` (dwa review) | §7 |
 | Środowisko GitHub `release` z regułą gałęzi `main` (i ewentualnie wymaganym recenzentem) | do utworzenia przed pierwszym uruchomieniem `release.yml` | §7: bez niego strażnik gałęzi jest tylko w pliku |
 | Wydania próbne (`-rc`) | dziś odrzucane | §3 |
-| Zakresy `@wine-match/testkit` `0.2.0` → `"*"` | do zrobienia przed pierwszą zmianą wersji | §5 pkt 4 |
+| Zakresy `@wine-match/testkit` `0.2.0` → `"*"` | zrobione 2026-11-09 (`.ai/runs/2026-11-09-workspace-testkit-range.md`) | §5 pkt 4 |
 | Kanał ogłoszeń dla restauracji, kamienie milowe | otwarte | §4, §8 |
 | Próba odtworzenia z taga (raz przed pierwszym prawdziwym wydaniem) | nie wykonana | §12 |
 
