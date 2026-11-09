@@ -1,6 +1,6 @@
 # Protokół review i odbioru zadań
 
-Źródło: lekcja 17 kursu („review i odbiór zadań”: recenzowanie pracy agentów). Uzupełnia `.ai/docs/fix-verification.md` (review poprawek), `.ai/docs/parallel-work.md` (etykiety, kolejka, WIP), `CODE_REVIEW.md` (co sprawdzać), `SDLC.md` (bramka QA). Listy kontrolne: `.ai/docs/review-checklists.md`. Paczka recenzenta: `npm run review:pack -- <pr>`. Wzór instrukcji dla nocnej rutyny: `.ai/docs/nightly-review-routine.md`.
+Źródło: lekcja 17 kursu („review i odbiór zadań”: recenzowanie pracy agentów). Uzupełnia `.ai/docs/fix-verification.md` (review poprawek), `.ai/docs/parallel-work.md` (etykiety, kolejka, WIP), `CODE_REVIEW.md` (co sprawdzać), `SDLC.md` (bramka QA). Listy kontrolne: `.ai/docs/review-checklists.md`. Paczka recenzenta: `npm run review:pack -- <pr>`. Wzór instrukcji dla nocnej rutyny: `.ai/docs/nightly-review-routine.md`. Praca wielomodelowa, niezależność recenzentów, limit rund i kontrakt JSON recenzenta (lekcja 21): §9.
 
 **Nasz układ:** jeden właściciel plus sesje agentów; wszystkie PR-y są otwarte z konta właściciela, więc recenzent-agent i autor to formalnie to samo konto (GitHub nie pozwala autorowi zatwierdzić własnego PR-a, `AGENTS.md` §6.1). Na tym jednak nie opieramy bezpieczeństwa: **review agentów to komentarze** (werdykt jest opinią w treści komentarza, nie formalną decyzją GitHuba; nocna rutyna nie zatwierdza i nie żąda zmian formalnie), a **merge wymaga wyraźnej zgody właściciela w rozmowie**.
 
@@ -99,3 +99,45 @@ Stan sprawdzony `gh api repos/NiedzielX/wine/branches/main/protection` (2026-11-
 ## 8. Odbiór zadania (definicja „gotowe do właściciela”)
 
 PR trafia do `ready-for-owner` (etykieta `merge-queue`) dopiero gdy: review świeżego kontekstu bez otwartych blokerów (liczba review wg §2), wszystkie checki zielone dla obecnego head, dowody dla ryzyka (`SDLC.md`; przy `risk-high` także zaktualizowany `docs/security/threat-model.md` i karty „trzech sprawdzeń”, `parallel-work.md` §1.11), `needs-qa` ma `qa-approved` dla obecnego head, brak `blocked`/`do-not-merge`. Właściciel dostaje skrót (tabela z `nightly-review-routine.md`) i decyduje.
+
+## 9. Różnorodność modeli i niezależność (lekcja 21)
+
+**Role.** *Orkiestrator* (najmocniejszy model, największy kontekst): czyta brief, decyzje produktowe i kod, ustala zakres, pisze spec, zleca review i weryfikuje każdą uwagę. *Implementer* (osobna sesja, osobny worktree): dostaje tylko zatwierdzony spec, wskazania plików i dokumenty architektury; pisze kod i testy, **nie widzi rozumowania autora specyfikacji**. *Recenzenci*: każdy w świeżym kontekście, z identycznym wejściem, nie wiedzą o sobie, działają równolegle (nie zmieniają plików). Spec pisze jeden agent i kod pisze jeden agent: równolegli piszący to konflikty (`parallel-work.md` §1.7).
+
+**Trzy reguły.** Błędy silnych modeli są coraz bardziej skorelowane, recenzent z tej samej rodziny ma te same ślepe plamy i wyżej ocenia tekst własnej rodziny, a recenzent, który zobaczy zdanie autora, zwykle się z nim zgadza. Dlatego:
+1. **Recenzenci z co najmniej dwóch różnych rodzin modeli** (dostawca i linia modelu, nie wersja). Kolejny przebieg tego samego modelu potrafi znaleźć coś nowego, ale **nie jest niezależną opinią**.
+2. **Każdy recenzent dostaje to samo: diff, spec, kryteria akceptacji, reguły repo** (listy kontrolne, skille), **bez uzasadnień i komentarzy autora** (§5) i bez wyników innych recenzentów.
+3. **Sprawdzamy każdą uwagę, nawet zgłoszoną przez jednego recenzenta.** Brak tej uwagi u innych nie czyni jej błędną, a zgoda kilku nie czyni jej prawdziwą (modele potrafią zgodnie potwierdzić wymyślone pojęcie). Orkiestrator odsiewa halucynacje uwaga po uwadze, z dowodem, nigdy głosowaniem: lista „triage” w `review-checklists.md`.
+
+**Jak to wygląda u nas.**
+
+| Element | Stan | Gdzie |
+|---|---|---|
+| Świeży kontekst recenzenta | jest | pod-agent na PR, §5 |
+| Wejście bez uzasadnienia autora | jest | `review:pack`; kontrakt JSON `.ai/schemas/review-input.schema.json` nie ma pola na uzasadnienie (`additionalProperties: false`) |
+| Triage uwaga po uwadze przez agenta głównego | częściowo | §2 kazał scalać i deduplikować z liczbą przebiegów; odtworzenie każdej uwagi z dowodem dopisuje lista „triage” (liczba przebiegów to informacja, nie werdykt) |
+| Wyjście recenzenta ze schematem i dowodem | jest (kontrakt), ręcznie | `.ai/schemas/review-output.schema.json`, `npm run review:validate` |
+| **Druga rodzina modeli** | **brak** | dziś wszystkie sesje i pod-agenty to Claude; „dwa niezależne review” przy `risk-high` (§2) to dziś dwa przebiegi jednej rodziny. Raport podaje to wprost: „review: N, rodziny: 1” |
+| Orkiestracja w kodzie (zapis faz, rozesłanie, czy przyszły odpowiedzi od wszystkich zleconych recenzentów, limit czasu) | brak (`review:validate` sprawdza tylko pliki, które dostanie) | draft `.ai/specs/2026-11-09-multi-family-review-harness.md` |
+
+**Jak właściciel dodaje drugą rodzinę** (bez zmiany reszty procesu): zewnętrzny recenzent (CLI albo API innego dostawcy) dostaje **ten sam plik wejścia** co recenzent Claude (paczka zamieniona na JSON zgodny z `review-input.schema.json`), a jego odpowiedź przechodzi `npm run review:validate -- wejscie.json odpowiedz-*.json` (dokładnie jedno poprawne wejście, schemat, `inputDigest` = SHA-256 wejścia, ta sama runda, różni recenzenci: para rodzina + model unikalna, bez dwukrotnie podanego pliku; podsumowanie podaje liczbę rodzin). Klucze API żyją poza repozytorium (pęk kluczy systemu lub środowisko powłoki właściciela), nigdy w repo, w logu ani w kontekście agenta (`AGENTS.md` §9). Wysyłka diffu do zewnętrznego API to wyjście na zewnątrz: paczka nie może zawierać danych prywatnych (`npm run secrets:scan` przed wysłaniem, bez `.env`, bez danych klientów). Wynik zapisujemy z `reviewer.family` i `reviewer.model` dokładnie tak, jak zwrócił dostawca.
+
+**Rundy: najwyżej 3 dla specyfikacji i 3 dla kodu (razem 6).** Po trzeciej rundzie kolejne znajdują niewiele; zamiast czwartej orkiestrator zapisuje otwarte uwagi w „Ryzyka i otwarte pytania” i pyta właściciela. Schemat ma `round` 1–3.
+
+**Poprawki z dowodem.** Prośba do implementera (albo do recenzenta o ponowne sprawdzenie) zawiera konkretny dowód: padający test, wejście z błędnym wynikiem, numer wymagania. „Sprawdź jeszcze raz swoją odpowiedź” bez dowodu każe modelowi zmieniać poprawne odpowiedzi na błędne.
+
+**Prompt recenzenta.** Prośba o konkretną liczbę ustaleń (np. 7–9, pole `findingsRequested`) daje więcej uwag; bez niej część modeli zgłasza 1–2. Więcej uwag to więcej triage, co jest w porządku, bo każdą sprawdzamy osobno. Żaden prompt nie jest najlepszy dla wszystkich modeli: prompt jest per rodzina, w presecie. Tańszy recenzent też się opłaca, jeśli jego uwagi przechodzą triage; człowiek z recenzentem-modelem znajduje prawie tyle prawdziwych błędów co sam model, przy dużo mniejszej liczbie halucynacji (asymetria: znaleźć błąd względem znanej reguły jest łatwiej, niż napisać funkcję).
+
+**Kiedy pełny przepływ, a kiedy nie.**
+
+| Zmiana | Przepływ |
+|---|---|
+| `risk-low` (docs, testy, literówki), mała poprawka lub funkcja | jeden agent i jego pętla testów; jedno review w świeżym kontekście (§2). Wiele modeli to tu strata tokenów i czasu |
+| `risk-medium`, jeden obszar | jedno review (§2); druga rodzina opcjonalnie, gdy jest dostępna i tania |
+| `risk-high` albo duży moduł z pełną specyfikacją (wiele faz, nowy kontrakt) | pełny przepływ: orkiestrator, osobny implementer, recenzenci z ≥ 2 rodzin (gdy jest druga), do 3 rund spec + 3 rund kodu; najlepiej w nocy; wynik to dobra baza do dopracowania, nie gotowy merge |
+
+**Koszt.** Zapisz w logu przebiegu tokeny (lub koszt) i czas ściany oraz liczbę rund i rodzin. Porównuj koszt z czasem właściciela (koszt alternatywny): pełny przepływ ma sens, gdy oszczędza godziny review i poprawek, nie dla zmiany, którą jeden agent zamyka w kilka minut.
+
+**Presety modeli zamiast routera.** Automatyczny wybór modelu nie wygrywa z prostym, ręcznym przypisaniem rola → model. Preset (np. orkiestrator, implementer, recenzent A, recenzent B) aktualizuje właściciel okresowo, sprawdzając na własnym zadaniu: nowa wersja nie jest automatycznie lepsza w danej roli, dostawca może zmienić model pod tą samą nazwą, a różne endpointy tego samego modelu open-weight potrafią się różnić. Model autora i recenzenta zapisujemy w specyfikacji (`author_model`, `reviewed_by`, `process-templates.md`).
+
+**Orkiestracja w kodzie bije pamięć agenta.** Kroki, których agent główny nie może zapomnieć (zapis fazy, walidacja schematu odpowiedzi, czy przyszły wszystkie odpowiedzi, limit czasu), powinien wykonywać skrypt. Pierwszy krok jest w repo: `review:validate` sprawdza schemat i spójność podanych plików, ale nie wie, ilu recenzentów zlecono, więc kompletu odpowiedzi nie potwierdza; to zadanie harnessu (draft specyfikacji, nie zatwierdzony zakres).
