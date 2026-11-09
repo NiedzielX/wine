@@ -10,11 +10,12 @@
  * --check: the root package.json, every workspace package.json and package-lock.json (`version`, `packages[""]`,
  *   `packages["<workspace>"]`) carry the same plain X.Y.Z version (no prerelease, no +build, no leading zeros) and equal
  *   --expect when given; malformed JSON is reported as "<file>: not valid JSON". An internal dependency
- *   (`@wine-match/*` in any dependency block) whose range the workspace version does not satisfy is a problem too: npm
- *   would fetch that name from the registry instead of linking the workspace (dependency confusion).
+ *   (`@wine-match/*` in any dependency block) with a range other than "*" is a problem too: npm 11 links the workspace
+ *   only while its version satisfies the range, so a fixed range breaks at the next bump and npm then fetches that name
+ *   from the public registry (dependency confusion). `workspace:*` is not supported by npm (EUNSUPPORTEDPROTOCOL).
  * --set: changes ONLY those `version` fields, by editing the text in place (formatting, key order and escapes stay as
  *   they are), and proves it by parsing the result and comparing it with the expected objects. It never touches a
- *   dependency range: when an exact internal pin would stop matching, it refuses and says which one to change by hand.
+ *   dependency range: while an internal range is not "*" it refuses (the --check problem above) and says which one.
  *   Without --write it prints the plan and writes nothing.
  * Exit 0: consistent (or plan applied / printed); 1: a problem; 2: usage (also --check with --set, --expect with --set,
  * --write without --set, a flag given twice).
@@ -88,12 +89,13 @@ function internalPins(tree, versionOf) {
   const problems = [];
   const report = (where, block, name, range) => {
     const target = versionOf.get(name);
-    if (target === undefined) return;
+    if (target === undefined || range === '*') return;
     const ok = satisfies(target, range);
-    if (ok === true) return;
-    problems.push(ok === 'unsupported'
-      ? `${where}${block}["${name}"]: range "${range}" is not one this check understands (use "*")`
-      : `${where}${block}["${name}"]: "${range}" does not match the workspace version ${target}; npm would look for it in the registry (dependency confusion). Change the range to "*" in a reviewed PR`);
+    problems.push(`${where}${block}["${name}"]: ${ok === 'unsupported'
+      ? `range "${range}" is not one this check understands (use "*")`
+      : ok
+        ? `"${range}" matches the workspace version ${target} today, but not after a version bump (npm would then look for it in the registry: dependency confusion). Internal packages use "*"; change it in a reviewed PR`
+        : `"${range}" does not match the workspace version ${target}; npm would look for it in the registry (dependency confusion). Change the range to "*" in a reviewed PR`}`);
   };
   const scan = (where, obj) => {
     for (const block of DEP_BLOCKS) {
@@ -157,10 +159,9 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export function planSet(root, version) {
   if (!isSemver(version)) return { changes: [], files: {}, problems: [`version "${version}" ${NOT_XYZ}`] };
   const tree = readTree(root);
+  // the --check problems include every internal range that is not "*", so nothing here can break a workspace link
   const start = checkVersions(root);
   if (start.problems.length > 0) return { changes: [], files: {}, problems: start.problems };
-  const pins = internalPins(tree, versionMap(tree, version));
-  if (pins.length > 0) return { changes: [], files: {}, problems: pins };
 
   const from = start.version;
   const changes = [];
