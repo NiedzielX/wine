@@ -10,6 +10,8 @@ Format linii (najnowsze na górze):
 ## Aktywne
 
 - [2026-11-08] [Strona panelu sama woła `requireAccess` przed odczytem danych](lessons/2026-11-08-page-reads-data-in-parallel-with-layout-check.md) — layout i strona renderują się równolegle; bez własnego sprawdzenia dane trafiają do ciała 403 i przekierowania; test sprawdza ciało, nie tylko status.
+- [2026-11-08] [Reguła z AGENTS.md bez egzekwowania jest życzeniem: hook dla `status: approved`, skille projektu `wine-match-*`](lessons/2026-11-08-project-skills-and-spec-status-hook.md) — chroń regułę procesu hookiem z testowaną `decide()`, a powtarzalny proces zapisz jako skill projektu.
+- [2026-11-08] [QA agenta: wyrocznia, niezależny weryfikator i znany cel bazy](lessons/2026-11-08-qa-with-agents-protocol.md) — protokół `.ai/docs/qa-protocol.md`; polecenia operatora drukują cel bazy i ostrzegają o cieniu `DATABASE_URL`
 - [2026-11-07] [Recenzent dostaje paczkę, nie opis PR-a](lessons/2026-11-07-review-pack-not-author-story.md) — `npm run review:pack`: diff, spec, lista kontrolna, CI bez deklaracji autora; auto-approve nie jest decyzją o merge; etykieta to decyzja z jednej chwili.
 - [2026-11-07] [Błąd, który wrócił mimo review, dostaje sprawdzenie maszynowe (`npm run check:routes`)](lessons/2026-11-07-deterministic-check-over-review.md) — każda trasa API przez `handle*()` z literalnym, unikalnym `route`; wyjątki tylko w allowlist z powodem; dowód czerwony/zielony w `.ai/runs/`.
 - [2026-11-06] [W worktree pod `.claude/worktrees/` CLI MikroORM bierze pakiety z `node_modules` głównego checkoutu](lessons/2026-11-06-mikro-orm-cli-in-nested-worktree.md) — przed `migration:up` i `test:e2e` dowiąż `@mikro-orm/{migrations,postgresql,seeder,sql}` symlinkami do korzenia worktree.

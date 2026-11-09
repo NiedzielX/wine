@@ -3,6 +3,8 @@ status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-14-phase5-import-and-qr.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/lessons/2026-10-14-import-conventions.md, .ai/lessons/2026-10-25-import-preview-reads-saved-rows.md, .ai/runs/2026-10-25-pos-item-name-privacy.md, BACKWARD_COMPATIBILITY.md, issue #89, issue #90]
+author_model: "not recorded (eleven agents wrote one spec each; model not stated in .ai/runs/2026-11-04-product-completion-plan.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Dane i import: OCR skanów, eksport CSV, przekierowanie po zmianie sluga, wiele kodów, prywatność importu (E20)
@@ -170,6 +172,9 @@ Kolejność: **F1** (najniższe ryzyko, domyka dług prywatności) → **F2** (p
 - Otwarte: akceptacja właściciela dla zależności OCR; kolejność scalania `analytics.export` z E12; E19 musi użyć wspólnej obsługi aliasu dla `/r/{slug}/logo`; `unpdf renderPageAsImage` i binaria `@napi-rs/canvas` niezweryfikowane (F5).
 
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
 (Uzupełnia agent po zatwierdzeniu i implementacji.)

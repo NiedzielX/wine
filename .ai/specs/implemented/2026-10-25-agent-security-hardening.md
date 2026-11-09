@@ -4,6 +4,8 @@ created: 2026-10-25
 owner: Filip
 related: [.ai/runs/2026-10-25-agent-security-hardening.md, .ai/lessons/2026-10-25-recommended-decision-default.md]
 superseded_by:
+author_model: "not recorded"
+reviewed_by: "not recorded (sub-agent in a fresh context, model unknown)"
 ---
 
 # Utwardzenie warsztatu agenta AI (lekcja 9: bezpieczeństwo narzędzi)
@@ -81,6 +83,9 @@ Odrzucone lub odłożone: `Edit` w `deny` dla `.claude/` (poza zakresem, zob. wy
 - `excludedCommands` uruchamia wskazane komendy bez sandboxa; wzorce dopasowują tekst komendy, więc wariant `cd x && npm run test:db` może nie pasować.
 - Wymuszenie Code Owners odłożone (jeden opiekun repo); wraca przy drugiej osobie.
 - Skaner sekretów skanuje tylko `HEAD`: wyciek w starym commicie wymaga osobnego skanu historii i rotacji.
+
+## Changelog
+- 2026-10-25 — Autor/recenzent: not recorded / not recorded (sub-agent in a fresh context, model unknown) (w specyfikacji jest „przegląd niezależny (pod-agent w świeżym kontekście)” bez nazwy modelu).
 
 ## Realizacja
 - Gałąź `chore/agent-security-hardening`, log `.ai/runs/2026-10-25-agent-security-hardening.md`, lekcja `.ai/lessons/2026-10-25-agent-config-in-repo.md`. Zrobione R1–R9; AC1–AC4 i AC6–AC9 spełnione (testy, `lint`, `typecheck`, `test`, `build`, `secrets:scan`). AC5 (`codeowners/errors` bez błędów) i AC10 (job `secrets` w wymaganych checkach `main`, dodany przez właściciela 2026-10-25) spełnione po merge #94. Odstępstwa: sandbox domyślnie wyłączony, „Require Code Owners” nie włączone (jedyny maintainer), jeden PR zamiast dwóch.

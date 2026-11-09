@@ -3,6 +3,8 @@ status: implemented
 created: 2026-10-16
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/specs/2026-10-16-how-it-works-explanations.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/lessons/2026-10-14-write-path-conventions.md]
+author_model: "not recorded (spec written by a sub-agent, model not stated in .ai/runs/2026-10-16-positioning-table-specs.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Okazje w panelu sommeliera (E10)
@@ -483,6 +485,7 @@ Dokumentacja (R10) jest pozycją checklisty PR (CODE_REVIEW §3), a nie AC.
   - rekalibracja przy zmianie `ENGINE_VERSION`.
 
 - 2026-10-19: F3 (S4) zrealizowane; wszystkie AC1–AC12 spełnione, status `implemented` (F5/S6 to osobna, warunkowa specyfikacja).
+- 2026-10-16 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „przegląd krzyżowy / niezależnego agenta” bez nazwy modelu).
 
 ## Zatwierdzenie
 Filip (product owner) 2026-10-16: „Akceptuję rekomendacje we wszystkich decyzjach ⚠” — każda pozycja ⚠ w tej specyfikacji (tabela i Ryzyka) przyjęta zgodnie z rekomendacją.
