@@ -119,6 +119,7 @@ export class PgPairingRepository implements PairingRepository {
   }
 
   async listDecisions(restaurantId: string, filter: { pairingId?: string; dishId?: string } = {}, limit = 50) {
+    if (!isUuid(restaurantId) || (filter.pairingId && !isUuid(filter.pairingId)) || (filter.dishId && !isUuid(filter.dishId))) return [];
     const rows = await this.em.find(
       SommelierDecisionEntity,
       { restaurant: restaurantId, ...(filter.pairingId ? { pairingId: filter.pairingId } : {}), ...(filter.dishId ? { dishId: filter.dishId } : {}) },
@@ -319,6 +320,7 @@ export class PgContentWriteRepository implements ContentWriteRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async setDishTranslations(restaurantId: string, dishId: string, next: DishTranslations, expected?: DishTranslations) {
+    if (!isUuid(dishId)) throw new NotFoundError('Dish');
     try {
       await this.em.transactional(async (em) => {
         const d = await em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
@@ -333,6 +335,7 @@ export class PgContentWriteRepository implements ContentWriteRepository {
   }
 
   async setWineTranslations(restaurantId: string, wineId: string, next: WineTranslations, expected?: WineTranslations) {
+    if (!isUuid(wineId)) throw new NotFoundError('Wine');
     try {
       await this.em.transactional(async (em) => {
         const w = await em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });

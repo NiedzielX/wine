@@ -329,6 +329,10 @@ export function repositoryContract(
         t.expect(await repos.salesRepository.checkTotals(bad, { from: '2033-01-01', to: '2033-12-31' })).toEqual([]);
         t.expect(await repos.salesRepository.dataRange(bad)).toBeNull();
         t.expect(await repos.salesRepository.countChecks(bad, [{ businessDate: '2033-04-01', checkId: 'T1' }])).toBe(0);
+        t.expect(await repos.pairingRepository.listDecisions(ds.restaurant.id, { pairingId: bad })).toEqual([]);
+        t.expect(await repos.pairingRepository.listDecisions(ds.restaurant.id, { dishId: bad })).toEqual([]);
+        await t.expect(repos.contentWriteRepository.setDishTranslations(ds.restaurant.id, bad, {}, undefined)).rejects.toMatchObject({ name: 'NotFoundError' });
+        await t.expect(repos.contentWriteRepository.setWineTranslations(ds.restaurant.id, bad, {}, undefined)).rejects.toMatchObject({ name: 'NotFoundError' });
       }
     });
 

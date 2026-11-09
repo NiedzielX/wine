@@ -24,7 +24,7 @@ Settings, details, content, suggestions, publish, bulk approve and upload are re
 ## When
 
 1. Positive controls: details, content, guest settings, suggestions and publish of the own restaurant: `saved=`.
-2. Each action under the other slug; a rename to the other restaurant's slug; a manager approving pairings; a Wine Director editing details.
+2. Each action under the other slug; a rename to the other restaurant's slug; the team actions (role, deactivate, reactivate, revoke invitation) under the other slug; a manager approving pairings; a Wine Director editing details.
 
 ## Then
 

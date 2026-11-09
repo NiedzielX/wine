@@ -34,13 +34,14 @@ const noLeak = (text: string, secrets: string[], what: string) => { for (const v
 
 beforeAll(async () => {
   [marta, tomasz, anna, marek, sonia] = await Promise.all([halkaSommelier(), halkaManager(), bistroOwner(), bistroManager(), bistroSommelier()]);
+  // the e2e database is one per run, shared by the files in sequence: import the samples only when no earlier file did, and rename idempotently
   const bistroDishes = await queryDatabase<{ n: string }>(db(), `select count(*)::text as n from dish d join restaurant r on r.id = d.restaurant_id where r.slug = $1`, [BISTRO]);
   if (bistroDishes[0]!.n === '0') {
     await confirmSample(anna, BISTRO, 'wines');
     await confirmSample(anna, BISTRO, 'menu');
-    // the sample files are the same for every tenant: give Bistro's dishes and wines names of their own, so that a leak of a name is a leak the body checks can see
-    for (const t of ['dish', 'wine']) await queryDatabase(db(), `update ${t} set name = name || ' (Bistro E2E)' where restaurant_id = (select id from restaurant where slug = $1)`, [BISTRO]);
   }
+  // the sample files are the same for every tenant: give Bistro's dishes and wines names of their own, so that a leak of a name is a leak the body checks can see
+  for (const t of ['dish', 'wine']) await queryDatabase(db(), `update ${t} set name = name || ' (Bistro E2E)' where name not like '% (Bistro E2E)' and restaurant_id = (select id from restaurant where slug = $1)`, [BISTRO]);
   const hJob = await stageImport(tomasz, HALKA, 'wines');
   const bJob = await stageImport(anna, BISTRO, 'wines');
   cleanup.push(async () => { await send(tomasz, 'DELETE', `/api/v1/imports/${hJob.id}?restaurant=${HALKA}`); await send(anna, 'DELETE', `/api/v1/imports/${bJob.id}?restaurant=${BISTRO}`); });
@@ -132,11 +133,14 @@ describe('access boundaries, part 1 of the matrix (threat model T-25 .. T-31)', 
     const ask = (slug: string, dishId: string) => fetch(`${base()}/api/v1/dishes/${dishId}/recommendations?restaurant=${slug}`);
     const publishedOf = async (slug: string) => (await queryDatabase<{ id: string }>(db(), `select d.id from dish d join restaurant r on r.id = d.restaurant_id where r.slug = $1 and d.status = 'published' limit 1`, [slug]))[0]?.id;
     const published = (await publishedOf(HALKA))!;
-    // a draft dish is not served, even under its own slug
-    expect((await ask(BISTRO, B.dishes[0]!.id)).status).toBe(404);
+    // a draft dish is not served, even under its own slug: make one verifiably draft whatever an earlier file did to Bistro
+    const draftId = B.dishes[0]!.id;
+    await queryDatabase(db(), `update dish set status = 'draft' where id = $1`, [draftId]);
+    expect((await ask(BISTRO, draftId)).status).toBe(404);
     // Bistro gets a published dish (approve all, publish) so that its owner side has a positive control too
     expect((await send(sonia, 'POST', `/api/v1/restaurants/${BISTRO}/pairings/bulk-decision`, { action: 'approve_all' })).status).toBe(200);
-    expect((await send(sonia, 'POST', `/api/v1/restaurants/${BISTRO}/publish`, {})).status).toBe(201);
+    const published2 = await send(sonia, 'POST', `/api/v1/restaurants/${BISTRO}/publish`, {});
+    expect([201, 422], 'publish, or nothing to publish after an earlier file published').toContain(published2.status);
     const bistroPublished = await publishedOf(BISTRO);
     expect(bistroPublished, 'Bistro has a published dish').toBeDefined();
     expect((await ask(HALKA, published)).status).toBe(200);
@@ -236,6 +240,8 @@ describe('access boundaries, part 1 of the matrix (threat model T-25 .. T-31)', 
       ok(await run(m, sl, 'saveImportRows', { job: ids.job.id, kind: 'wines', rows: '' }), `${sl} import rows`);
       if (ids === H) ok(await run(s, sl, 'dismissOpportunity', { key: hKey }), `${sl} dismiss`);
     }
+    const invite = async (m: Session, slug: string) => { const r = await send(m, 'POST', `/api/v1/restaurants/${slug}/invitations`, { email: `act-${slug}@bound-e2e.example`, role: 'sommelier' }); expect(r.status).toBe(201); return ((await r.json()) as { id: string }).id; };
+    const hInv = await invite(tomasz, HALKA); const bInv = await invite(anna, BISTRO);
     const before = await snapshot();
     const hv = await cur(marta, H, hp.id); const bv = await cur(sonia, B, bp.id);
     // 2. refused: Bistro's accounts with Halka's ids under the Bistro slug, and Halka's with Bistro's
@@ -254,14 +260,27 @@ describe('access boundaries, part 1 of the matrix (threat model T-25 .. T-31)', 
       for (const name of ['saveImportRows', 'confirmImport', 'cancelImport']) refused(await run(m, sl, name, { job: other.job.id, kind: 'wines', rows: '' }), `${tag}: ${name}`);
     }
     const teamRow = (await members(anna, BISTRO)).find((x) => x.role === 'sommelier')!;
-    for (const [name, fields] of [['changeMemberRole', { role: 'owner' }], ['deactivateMember', {}]] as const) {
+    for (const [name, fields] of [['changeMemberRole', { role: 'owner' }], ['deactivateMember', {}], ['reactivateMember', {}]] as const) {
       refused(await run(tomasz, HALKA, name, { membershipId: teamRow.membershipId, version: String(teamRow.version), ...fields }), `halka manager: ${name} of a Bistro member`);
+    }
+    refused(await run(tomasz, HALKA, 'revokeInvitation', { invitationId: bInv }), 'halka manager revokes a Bistro invitation');
+    refused(await run(anna, BISTRO, 'revokeInvitation', { invitationId: hInv }), 'bistro owner revokes a Halka invitation');
+    // ids that are not UUIDs are unknown ids: the same refusal, never `unexpected` (a driver error)
+    for (const [m, s, sl] of [[tomasz, marta, HALKA], [anna, sonia, BISTRO]] as const) {
+      for (const [name, fields, who] of [
+        ['saveDishTranslations', { dishId: 'abc', name_en: 'x' }, m], ['saveWineTranslations', { wineId: 'abc', region_en: 'x' }, m], ['setWineAvailability', { wineId: 'abc', active: 'false' }, s],
+        ['approvePairing', { pairingId: 'abc', version: '1' }, s], ['deletePairing', { pairingId: 'abc', version: '1' }, s], ['addPairing', { dishId: 'abc', wineId: 'abc' }, s],
+        ['addOpportunitySuggestion', { dishId: 'abc', wineId: 'abc' }, s], ['saveImportRows', { job: 'abc', kind: 'wines', rows: '' }, m], ['cancelImport', { job: 'abc', kind: 'wines' }, m],
+        ['revokeInvitation', { invitationId: 'abc' }, m], ['changeMemberRole', { membershipId: 'abc', role: 'waiter', version: '1' }, m]
+      ] as const) refused(await run(who, sl, name, fields), `${sl}: ${name} with an id that is not a UUID`);
     }
     // 3. state after: nothing of the other restaurant moved (digest includes opportunity_dismissal, import_job, pairing, wine, dish)
     expect(await snapshot()).toEqual(before);
     // clean up: the controls' own pairings, deleted through the same action (a last positive control)
     for (const [s, ids, p] of [[marta, H, hp], [sonia, B, bp]] as const) ok(await run(s, ids.slug, 'deletePairing', { pairingId: p.id, version: await cur(s, ids, p.id) }), `${ids.slug} delete`);
     ok(await run(marta, HALKA, 'restoreOpportunity', { key: hKey }), 'halka restore');
+    ok(await run(tomasz, HALKA, 'revokeInvitation', { invitationId: hInv }), 'halka revoke');
+    ok(await run(anna, BISTRO, 'revokeInvitation', { invitationId: bInv }), 'bistro revoke');
   });
 
   it('T-31: panel server actions by slug and role: the other restaurant\'s slug and a role below the permission are refused (forbidden) and change nothing', async () => {
@@ -287,6 +306,9 @@ describe('access boundaries, part 1 of the matrix (threat model T-25 .. T-31)', 
       const taken = await run(m, mine.slug, 'saveRestaurantDetails', { ...(await details(mine.slug)), newSlug: other.slug });
       expect(taken.location, 'slug takeover').not.toMatch(/saved=/);
     }
+    // team actions under the other slug (the ids are real: the answer must be forbidden, decided before any lookup)
+    const bRow = (await members(anna, BISTRO)).find((x) => x.role === 'sommelier')!;
+    for (const name of ['changeMemberRole', 'deactivateMember', 'reactivateMember', 'revokeInvitation']) forbidden(await run(tomasz, BISTRO, name, { membershipId: bRow.membershipId, invitationId: bRow.membershipId, role: 'owner', version: String(bRow.version) }), `halka manager, ${name} on bistro`);
     // role rungs inside one restaurant: the manager does not decide pairings, the Wine Director does not edit the restaurant's details
     forbidden(await run(tomasz, HALKA, 'approveAllPairings', {}), 'manager approves pairings');
     forbidden(await run(marek, BISTRO, 'approveAllPairings', {}), 'bistro manager approves pairings');

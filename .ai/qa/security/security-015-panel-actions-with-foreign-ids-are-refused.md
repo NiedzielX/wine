@@ -24,7 +24,7 @@ A form posted to a server action of the panel with an id of another restaurant u
 ## When
 
 1. Positive controls: translations of a dish and a wine, wine availability, approve and note of a pairing, correct import rows, ignore an opportunity (Halka): redirect with `saved=`.
-2. The same actions, plus reject, restore, move, delete, role, add pairing, suggestion, confirm and cancel import, restore and ignore of a foreign opportunity key, team role and deactivate of a foreign member, with ids of the other restaurant.
+2. The same actions, plus reject, restore, move, delete, role, add pairing, suggestion, confirm and cancel import, restore and ignore of a foreign opportunity key, team role, deactivate, reactivate and revoke invitation of a foreign member or invitation, and ids that are not UUIDs for dish, wine, pairing, import, invitation and membership, with ids of the other restaurant.
 
 ## Then
 
