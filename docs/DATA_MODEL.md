@@ -26,6 +26,26 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | RecommendationCode (`recommendation_code`, od 2026-10-18) | tak | kody polecenia (spec `2026-10-16-recommendation-code`, F1): jeden wiersz na wybór wina na G8 (sesja `sid`, wino, porcja, dania, dzień serwisu); kod unikalny w (`restaurant_id`, `service_day`); `dish_ids` jsonb **bez FK**; bez danych osobowych |
 | Recommendation, GuestSession, ImportRow (osobna tabela), EngineVersion, CatalogWine | nie | wejdą razem z funkcjami, które ich potrzebują (osobne specyfikacje) |
 
+## Usuwanie danych: co jest dziś
+
+Opis obecnego zachowania (stan na 2026-11-08), nie decyzja o docelowej polityce. Plan: E13 (ręczne tworzenie i edycja dań i win) i E21 F4 (retencja, eksport, usuwanie danych; spec `2026-11-04-platform-quality-and-compliance`) są zaplanowane i niezaimplementowane.
+
+| Encja | Co jest dziś | Plan |
+|---|---|---|
+| Danie (`dish`), wino (`wine`) | **Brak tworzenia i usuwania w panelu.** Pozycje powstają tylko z importu (nowe dania to szkice, publikacja je udostępnia gościom), panel zmienia dostępność wina (`active`) i tłumaczenia; status dania (`draft` / `published` / `hidden`) jest wyświetlany. `DELETE /dishes/{id}` i `DELETE /wines/{id}` z `API_SPECIFICATION.md` to kontrakt docelowy, bez trasy w aplikacji | ręczne tworzenie i edycja profili: E13 (edycja), E19 (dostępność win); usuwanie nie jest zdecydowane |
+| Pairing | `DELETE /pairings/{id}` usuwa tylko własne pary sommeliera (`source=sommelier`); pary silnika się odrzuca (`rejected`), nie usuwa. Wpis w historii decyzji zostaje | bez zmian |
+| Historia decyzji (`sommelier_decision`) | tylko dopisywanie, bez usuwania, bez klucza obcego do pairingu | retencja: E21 F4 |
+| Wersja publikacji (`published_version`) | niezmienna, bez usuwania; nowa publikacja dodaje wersję | historia i przywracanie: E13 F3–F4 |
+| Import (`import_job`) | **anulowanie** (`DELETE /imports/{id}` ustawia `cancelled`), nie usunięcie wiersza; plik nie jest przechowywany | bez zmian |
+| Sprzedaż (`sales_record`) | brak usuwania w aplikacji; ponowny import tych samych rachunków zastępuje je miękko (`replaced_at`); wycofanie jednego importu to ręczne SQL (runbook w sekcji SalesRecord) | retencja: E21 F4 |
+| Zdarzenia gości (`guest_interaction`), kody poleceń (`recommendation_code`) | brak usuwania i retencji w MVP | E21 F4 |
+| Zignorowana okazja (`opportunity_dismissal`) | „Przywróć” usuwa wiersz; inaczej wygasa z `expires_at` | bez zmian |
+| Konto (`app_user`) i członkostwo (`membership`) | **dezaktywacja** członkostwa (`status = deactivated`, osoba i jej ślad zostają), bez usuwania konta; zmiana hasła w panelu jeszcze nie ma | konto i sesje: E12 F3 |
+| Zaproszenie (`auth_token`) | **cofnięcie** (`DELETE …/invitations/{id}` ustawia `revoked_at`); zużyte i wygasłe zostają w tabeli | retencja tabel globalnych: E21 F4 |
+| Sesja (`session`) | usuwana przy wylogowaniu i po wygaśnięciu; w bazie tylko skrót tokenu | bez zmian |
+| Dziennik uwierzytelniania (`auth_event`) | tylko dopisywanie, przeżywa konto | retencja: E21 F4 |
+| Restauracja (`restaurant`) | brak polecenia ani ekranu usuwania; pomyłkę przy zakładaniu cofa ręczna transakcja SQL z README, a użytą restaurację oznacza się `status = 'archived'` w SQL (slug zostaje zajęty) | wstrzymanie i archiwizacja w panelu administratora systemu: E14 F2 |
+
 Poniżej model docelowy.
 
 ## Diagram relacji

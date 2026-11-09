@@ -11,6 +11,8 @@ created: YYYY-MM-DD
 owner: <człowiek odpowiedzialny>
 related: []              # inne specyfikacje, runs, lessons
 superseded_by:           # tylko w archive/
+author_model:            # model, który napisał specyfikację (np. claude-opus-5-5), albo "not recorded"
+reviewed_by:             # model niezależnego recenzenta (inny niż autor), albo "not recorded (independent agent, model unknown)"
 ---
 
 # <Tytuł>
@@ -34,9 +36,14 @@ Pliki, moduły, zmiany w modelu danych / API / regułach silnika, wpływ na ekra
 
 ## Ryzyka i otwarte pytania
 
+## Changelog
+- YYYY-MM-DD — Autor/recenzent: <model autora> / <model recenzenta> (źródło dowodu: log przebiegu albo wpis w specyfikacji).
+
 ## Realizacja
 (Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
 ```
+
+**Konwencja „autor i recenzent” (dowód niezależnego przeglądu).** `author_model` i `reviewed_by` w frontmatterze oraz jedna linia „Autor/recenzent” w sekcji Changelog podają, **który model** napisał specyfikację i który ją przejrzał. Wpisujemy tylko to, co wynika z repozytorium (log przebiegu w `.ai/runs/`, wpis w Changelog); nigdy nie zgadujemy nazwy modelu. Gdy tekst mówi „przegląd niezależny”, a modelu nie podaje, wpisz `reviewed_by: not recorded (independent agent, model unknown)`. Gdy przeglądu nie było albo nie ma po nim śladu, zostaw pola puste lub `not recorded`. Recenzent powinien być innym modelem niż autor (AGENTS.md §3); klucze są opcjonalne dla `check:context`, który nie waliduje frontmattera specyfikacji.
 
 ### Szablon logu
 

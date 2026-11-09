@@ -201,7 +201,7 @@ describe('.claude/settings.json (R1, R2)', () => {
   });
 
   it('wires one Bash hook to an existing script and never enables every project MCP server', () => {
-    const hooks = settings.hooks?.PreToolUse ?? [];
+    const hooks = (settings.hooks?.PreToolUse ?? []).filter((h) => h.matcher === 'Bash'); // the Edit|Write|MultiEdit hook has its own test
     expect(hooks).toHaveLength(1);
     expect(hooks[0].matcher).toBe('Bash');
     const command = hooks[0].hooks?.[0]?.command ?? '';

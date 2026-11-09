@@ -16,6 +16,8 @@ import { parseArgs } from 'node:util';
 import { INVITABLE_ROLES, type AuthRepository, type InvitationService, type Role } from '@wine-match/core';
 import { domainError } from '../packages/app/src/server/domain-errors';
 import { SeedRefusedError, assertInviteCommandAllowed } from '@wine-match/db';
+// not exported from the package index on purpose: it reads the filesystem, and the web bundle must not pull it in
+import { announceDbTarget } from '../packages/db/src/db-target';
 
 type Environment = Record<string, string | undefined>;
 
@@ -90,6 +92,7 @@ export async function run(argv: string[], environment: Environment, deps: Invite
 async function main(): Promise<number> {
   const rootEnv = fileURLToPath(new URL('../.env', import.meta.url));
   if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
+  announceDbTarget({ command: 'user:invite' }); // stderr, before anything is read or written (lesson 18)
   const { createRequestScope } = await import('../packages/app/src/server/container');
   const { env } = await import('../packages/app/src/server/env');
   const { invitationLink } = await import('../packages/app/src/server/invitations');

@@ -20,6 +20,7 @@ const argv = process.argv.slice(2);
 const rootArg = argv.indexOf('--root');
 const root = rootArg === -1 ? REPO : resolve(argv[rootArg + 1] ?? '');
 const E2E_DIR = 'packages/app/tests/e2e';
+const NOT_AREAS = new Set(['knowledge']);
 const NAME = /^([a-z]+)-(\d{3})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/;
 
 const problems = [];
@@ -64,7 +65,8 @@ const scenarios = [];
 for (const area of listDir(qaDir)) {
   const dir = join(qaDir, area);
   // only lowercase-letter folders are areas; tooling folders such as test-env.lock are not scenarios
-  if (!statSync(dir).isDirectory() || !/^[a-z]+$/.test(area)) continue;
+  // `knowledge` is the QA knowledge base (session entries, .ai/qa/knowledge/README.md), not an area of scenarios
+  if (!statSync(dir).isDirectory() || !/^[a-z]+$/.test(area) || NOT_AREAS.has(area)) continue;
   for (const name of listDir(dir)) {
     if (name === '.gitkeep') continue;
     const path = join(dir, name);

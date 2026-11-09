@@ -3,6 +3,8 @@ status: in-progress
 created: 2026-10-15
 owner: Filip
 related: [issue #23, #24, #25, .ai/specs/product-brief.md, .ai/specs/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-pos-sales-import-attach-rate.md]
+author_model: claude-opus-5-5
+reviewed_by: claude-sonnet-5-5
 ---
 
 # Powtarzalne wdrożenie produkcyjne Wine Match (E05-S02)
@@ -210,6 +212,7 @@ unset USER_PASSWORD
 - 2026-10-15 — cross-model review (Sonnet 5.5): 15 accepted, 1 rejected. Accepted: Decision Q6 (osobna zmienna), Decision Q2 (zostaje ⚠), High seeder (Q10/R5), High Q6 fail-open + https + LAN (R4/AC4), Medium start command + build bez makiet, Medium health (503, reset bufora, liveness/readiness, test odzyskania), Medium zależność od E05-S01 + `restaurant:create`, Medium smoke a zdarzenia (R7), Medium uproszczenie sprawdzenia QR, Low osobne pliki env, Low wycofanie/contract/`down`, Low README smoke, Low R4 dla `memory`+demo, Low `DEMO_RESTAURANT_SLUG`, Low `USER_PASSWORD`; z Medium „scope cohesion” przyjęte uproszczenie health. Rejected: podział na osobne specy — fazy są już osobnymi PR-ami (Q1), a jeden plik trzyma wspólne decyzje (R4, Q11). Cross-spec: 1, 2, 3, 4, 5, 6, 7, 9, 10, 11 uwzględnione.
 - 2026-10-15 — grill: 25 questions, 3 left for owner (Q2, Q6 obejmujące #2 i #3)
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
+- 2026-10-15 — Autor/recenzent: claude-opus-5-5 / claude-sonnet-5-5 (źródło: .ai/runs/2026-10-15-specs-technical-backlog.md; recenzent zgodnie z wpisem „cross-model review (Sonnet 5.5)” w Changelog).
 
 ## Adnotacje do runbooku (2026-11-04)
 Dopisane decyzją właściciela (plan `2026-11-04-product-completion-plan.md`, Q19). Nie zmieniają zakresu E11; wchodzą do `docs/DEPLOYMENT.md` w fazie 3 i są wymagane przez E12 F1 i E14 F1.
