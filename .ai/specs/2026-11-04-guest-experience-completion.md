@@ -3,6 +3,8 @@ status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E18), .ai/specs/product-brief.md (D13, D14, D15, D16, D18, N01, N02, N04, R05, R06), .ai/specs/implemented/2026-10-16-whole-table-waiter-path.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-bilingual-content.md, 2026-11-04-engine-v1x-calibration-and-table-optimization.md (E16), 2026-11-04-panel-completion.md (E13), 2026-11-04-platform-quality-and-compliance.md (E21), 2026-11-04-learning-layer-shadow-model.md (E17), 2026-11-04-restaurant-operations.md (E19), 2026-11-04-data-and-import-completion.md (E20), 2026-11-04-staff-accounts-and-roles.md (E12), BACKWARD_COMPATIBILITY.md]
+author_model: "not recorded (eleven agents wrote one spec each; model not stated in .ai/runs/2026-11-04-product-completion-plan.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Doświadczenie gościa: menu degustacyjne, odwrócone parowanie, diety i alergeny, opinia po posiłku, ulubione (E18)
@@ -231,6 +233,9 @@ Kolejność scalania wewnątrz fazy: `core` i migracja, potem UI (plan E11–E22
 - Otwarte: zgoda właściciela na `submitFeedback`; przegląd prawny zastrzeżenia o alergenach; wpływ E19 priorytetu na sekwencję i odwrócone parowanie; kolejność `schema` z E19; plan nie wymienia E13 w „Zależy od” E18 (do poprawienia w planie).
 
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, logi przebiegów, odstępstwa od projektu.)

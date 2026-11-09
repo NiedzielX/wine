@@ -3,6 +3,8 @@ status: in-progress
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E12), .ai/specs/product-brief.md (D03, D13, D16, D19, N01, N03, N04), .ai/specs/implemented/2026-10-14-phase4-authentication.md, .ai/specs/implemented/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-10-15-production-deployment.md, .ai/lessons/2026-10-14-auth-conventions.md, docs/USER_ROLES.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md]
+author_model: "not recorded (eleven agents wrote one spec each; model not stated in .ai/runs/2026-11-04-product-completion-plan.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Konta personelu, PIN kelnera i role (E12)
@@ -173,6 +175,9 @@ Trzy drzwi (layout `requireAccess`, `authorizeAction`, `handle()`) dla każdej n
   - Otwarte: Q-O1 (zgoda właściciela na `wm_staff`), Q-O2 (mailer), Q-O4 (autor akcji kelnera), uzupełnienie planu o `staff.lookup`, ustalenia E21 dla retencji `auth_event`/`auth_token` i usuwania kont (R16).
 
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
 **F1 (2026-11-05), gałąź `feat/e12-f1-team-and-audit`; log: `.ai/runs/2026-11-04-e12-f1-team-and-audit.md`.** Status specyfikacji zostaje `in-progress` do końca F6.

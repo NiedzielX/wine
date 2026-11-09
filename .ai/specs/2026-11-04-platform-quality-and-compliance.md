@@ -3,6 +3,8 @@ status: in-progress
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-15-engineering-standards.md, .ai/lessons/2026-10-19-axe-in-jsdom-limits.md, .ai/lessons/2026-10-15-config-fails-closed-and-boot-without-env.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md, docs/USER_ROLES.md]
+author_model: "not recorded (eleven agents wrote one spec each; model not stated in .ai/runs/2026-11-04-product-completion-plan.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Jakość platformy i zgodność: monitoring, kopie, limity żądań, dostępność, wydajność, RODO (E21)
@@ -158,6 +160,9 @@ F3 i F4 dotykają wspólnych plików (`repositories.ts`, `container.ts`, `memory
   - Otwarte: offboarding całej restauracji (E14/E15 odsyłają tu, nic tego nie pokrywa: decyzja właściciela, osobna faza lub epik), zgoda na rozszerzenie wyjątku „tabele bez dzierżawcy” o porty retencji, wartości retencji do prawnika (zwłaszcza `audit_log` 730 i `auth_event` 400), konflikt z E17 (395 dni vs dłuższy zbiór uczący).
 
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
 - F1 (2026-11-05, log `.ai/runs/2026-11-04-e21-f1-metrics-and-logs.md`): zaimplementowane R1-R4 (AC1-AC3), bez nowych zależności. Odstępstwa: dodatkowa metryka `unhandled_errors_total{source}` (R3: licznik błędów); `route` jest obowiązkowym polem opcji `handle()`/`handlePublic()`; `db_health_check_duration_seconds` i `rate_limit_denied_total` są zdefiniowane, ale **nie mają jeszcze żadnego emitera** (czekają na health z E11 i na F3): seria jest pusta; `guest_code_issue_total` ma wynik `declined` zamiast `limit` (serwis zwraca `null` dla limitu, nieznanego wina, za dużej liczby dań i wyczerpanych kodów i tego nie rozróżnia; `rate_limited` dopiero w F3); jeden wiersz `api request` na żądanie, także dla 401/403 i błędu otwarcia zakresu (nieoczekiwany błąd: poziom `error` z `err` w tym samym wierszu); `/api/v1/metrics` działa bez zakresu żądania i nie jest logowany ani liczony. Zweryfikowano: `onRequestError` w Next 16.3.8 (sygnatura w logu).

@@ -3,6 +3,8 @@ status: implemented
 created: 2026-10-15
 owner: Filip
 related: [issue #15, #16, #17, #18, .ai/specs/product-brief.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/2026-10-15-production-deployment.md]
+author_model: claude-opus-5-5
+reviewed_by: claude-sonnet-5-5
 ---
 
 # Import sprzedaży z POS i Wine Attach Rate (E03)
@@ -327,6 +329,7 @@ Gałąź po scaleniu E02 (Q20). Każdy krok zostawia działającą aplikację.
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
 - 2026-10-19 — in-progress: faza 1 zaimplementowana (gałąź `feat/e03-f1-sales-import`); faza 2 do zrobienia.
 - 2026-10-19 — implemented: faza 2 (gałąź `feat/e03-f2-wine-attach-rate`, #18); wszystkie AC spełnione, przeniesiona do `implemented/`.
+- 2026-10-15 — Autor/recenzent: claude-opus-5-5 / claude-sonnet-5-5 (źródło: .ai/runs/2026-10-15-specs-technical-backlog.md; recenzent zgodnie z wpisem „cross-model review (Sonnet 5.5)” w Changelog).
 
 ## Realizacja
 
