@@ -28,7 +28,15 @@ Wersje w tabeli `AGENTS.md` §1.1 rozjeżdżają się z `package.json` po każdy
 - Nie uruchomiono: `npm run build` (zmiana tylko w skryptach narzędziowych i testach, nie w kodzie aplikacji), CI.
 
 ## Wynik
-Strażnik działa offline i deterministycznie; rozjazd = ostrzeżenie z gotowym poleceniem naprawy. Ograniczenia: `packageManager` (`npm@11.20.0`) nie jest porównywany (tabela podaje minimum `engines`); dokładna wersja npm/Node w tabeli byłaby pominięta; nowa technologia w tabeli wymaga wpisu w `KNOWN`. Ryzyko: risk-medium (`scripts/` pod CODEOWNERS); tylko commit lokalny, bez push i PR.
+Strażnik działa offline i deterministycznie; rozjazd = ostrzeżenie z gotowym poleceniem naprawy. Ograniczenia: `packageManager` (`npm@11.20.0`) nie jest porównywany (tabela podaje minimum `engines`); nowa technologia w tabeli wymaga wpisu w `KNOWN` (do tego czasu ostrzeżenie „not checked”). Ryzyko: risk-medium (`scripts/` pod CODEOWNERS); tylko commit lokalny, bez push i PR.
+
+### Poprawki po review PR #145 (changes needed)
+1. MAJOR: usunięty test rozjazdu na prawdziwym repozytorium (bump Dependabota by go czerwienił). Na repozytorium zostało tylko sprawdzenie parsera: `stack versions checked: N` z N ≥ 9, `skipped` puste, brak dokładnych wersji bez mapowania i zakresów pakietów (bez czytania wersji z `package.json`). Cały rozjazd testowany na drzewach syntetycznych.
+2. `check-context.mjs`: zamiast `existsSync`/`statSync` przed użyciem — `readFileSync`/`readdirSync`/`statSync` w `try/catch` (`orNull`: `null` przy ENOENT/ENOTDIR/EISDIR, inne błędy rzucane dalej), w `read`, `listDir`, trybie `--fix-versions`, ścieżkach routingu, linkach lekcji, specyfikacjach, skillach, 9a. `existsSync` nie jest już importowany.
+3. Komórka, której nie da się porównać, daje ostrzeżenie `§1.1: cell for X not checked: <powód> (line N)`: `~7.0.2`, `^7.0.2`, `7.0.x`; pakiet zapisany jako zakres; więcej gołych wersji niż nazw technologii (raz na komórkę); nieznana technologia z dokładną wersją; npm/Node bez `≥`. Cicho pomijane tylko zakres nie-pakietu (`PG ≥ 16`) i token niebędący wersją (`new-york-v4`). Testy syntetyczne dla każdego przypadku i ostrzeżenie w CLI; prawdziwa tabela: 0 takich ostrzeżeń.
+4. Nagłówek skryptu i `commands.md`: `--write` pisze do `<root>/AGENTS.md` i podąża za dowiązaniem symbolicznym.
+
+Weryfikacja po poprawkach: testkit `check-context.test.ts` 44 passed; pełna lista w odpowiedzi koordynatorowi (lint, typecheck, `npm test`, `check:context` 0 błędów / 9 ostrzeżeń bez §1.1, `check:qa`, `check:routes`, `secrets:scan`).
 
 ## Lekcje
 Brak nowej lekcji (budżet indeksu ciasny; decyzje opisane w `commands.md` i komentarzu skryptu).

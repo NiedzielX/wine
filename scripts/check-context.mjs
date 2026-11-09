@@ -9,12 +9,13 @@
  *                                                 plan (or apply) the AGENTS.md §1.1 version updates from package.json
  *
  * The §1.1 drift is a warning, not an error: a Dependabot bump cannot edit AGENTS.md, so an error would turn every
- * bump red. The maintainer or agent runs the fix command after merging the bump.
+ * bump red. The maintainer or agent runs the fix command after merging the bump. `--write` writes to <root>/AGENTS.md
+ * and follows it when it is a symbolic link (the link target is rewritten, the link stays).
  * Exit code 1 on any error, 0 with warnings only. Sizes are bytes (Buffer.byteLength); lines are counted like `wc -l`
  * plus a last line without a newline. Token counts are an estimate (bytes / 3.5), informational only: `/context all`
  * in a fresh session is the measurement.
  */
-import { existsSync, lstatSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { lstatSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyStackFixes, checkStackVersions, parseStackTable } from './lib/stack-versions.mjs';
@@ -50,11 +51,24 @@ const error = (file, message) => findings.push({ level: 'error', file, message }
 const warn = (file, message) => findings.push({ level: 'warning', file, message });
 
 const normalize = (text) => text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+// Read, list or stat directly and treat "not there" as null: no exists-then-use race (CodeQL js/file-system-race).
+const MISSING = new Set(['ENOENT', 'ENOTDIR', 'EISDIR']);
+function orNull(fn) {
+  try {
+    return fn();
+  } catch (e) {
+    if (MISSING.has(e?.code)) return null;
+    throw e;
+  }
+}
+const readRaw = (path) => orNull(() => readFileSync(path, 'utf8'));
+const statOf = (path) => orNull(() => statSync(path));
 function read(path) {
-  return existsSync(path) && statSync(path).isFile() ? normalize(readFileSync(path, 'utf8')) : null;
+  const text = readRaw(path);
+  return text === null ? null : normalize(text);
 }
 function listDir(path, filter = () => true) {
-  return existsSync(path) && statSync(path).isDirectory() ? readdirSync(path).filter(filter).sort() : [];
+  return (orNull(() => readdirSync(path)) ?? []).filter(filter).sort();
 }
 const lineCount = (text) => text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
 const nonEmpty = (text) => text.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -86,7 +100,7 @@ if (argv.includes('--write') && !argv.includes('--fix-versions')) {
 }
 if (argv.includes('--fix-versions')) {
   const path = join(root, 'AGENTS.md');
-  const raw = existsSync(path) ? readFileSync(path, 'utf8') : null;
+  const raw = readRaw(path);
   const packages = packageFiles();
   if (raw === null || packages[0]?.file !== 'package.json') {
     out('check-context --fix-versions: AGENTS.md or package.json not found');
@@ -138,7 +152,7 @@ else {
 const chains = [];
 for (const name of listDir(join(root, 'packages'))) {
   const dir = join(root, 'packages', name);
-  if (!statSync(dir).isDirectory()) continue;
+  if (!statOf(dir)?.isDirectory()) continue;
   const agents = measure(join(dir, 'AGENTS.md'));
   const claudeMd = read(join(dir, 'CLAUDE.md'));
   if (agents) {
@@ -190,9 +204,10 @@ if (rootAgents) {
       for (const p of routingPaths(cells[2] ?? '')) {
         const abs = join(root, p.replace(/\/$/, ''));
         checked += 1;
-        if (!existsSync(abs)) error('AGENTS.md', `routing row "${label}": path not found: ${p}`);
-        else if (p.endsWith('/') && !statSync(abs).isDirectory()) error('AGENTS.md', `routing row "${label}": ${p} is not a directory`);
-        else if (statSync(abs).isFile() && !READ_BY_SECTION.some((prefix) => p.startsWith(prefix))) bytes += Buffer.byteLength(read(abs) ?? '');
+        const st = statOf(abs);
+        if (!st) error('AGENTS.md', `routing row "${label}": path not found: ${p}`);
+        else if (p.endsWith('/') && !st.isDirectory()) error('AGENTS.md', `routing row "${label}": ${p} is not a directory`);
+        else if (st.isFile() && !READ_BY_SECTION.some((prefix) => p.startsWith(prefix))) bytes += Buffer.byteLength(read(abs) ?? '');
       }
       chains.push({ label: `row: ${label}`, bytes });
     });
@@ -219,7 +234,7 @@ if (lessons) {
     for (const m of line.matchAll(/\]\(lessons\/([^)\s]+\.md)\)/g)) {
       if (linked.has(m[1])) error('.ai/lessons.md', `lesson listed twice: lessons/${m[1]}`);
       linked.add(m[1]);
-      if (!existsSync(join(root, '.ai', 'lessons', m[1]))) error('.ai/lessons.md', `link to a missing lesson: lessons/${m[1]}`);
+      if (!statOf(join(root, '.ai', 'lessons', m[1]))) error('.ai/lessons.md', `link to a missing lesson: lessons/${m[1]}`);
     }
   }
   for (const f of listDir(join(root, '.ai', 'lessons'), (n) => n.endsWith('.md'))) {
@@ -235,7 +250,7 @@ for (const [dirName, skip] of [['lessons', new Set()], ['runs', new Set()], ['sp
   }
 }
 for (const name of listDir(join(root, '.ai', 'specs'), (n) => n.endsWith('.md') && !NOT_SPECS.has(n))) {
-  const bytes = statSync(join(root, '.ai', 'specs', name)).size;
+  const bytes = statOf(join(root, '.ai', 'specs', name))?.size ?? 0;
   if (bytes > BUDGETS.activeSpec.warnBytes) warn(`.ai/specs/${name}`, `${bytes} B is over ${BUDGETS.activeSpec.warnBytes} B: split it so an agent reads less`);
 }
 
@@ -299,13 +314,15 @@ if (scripts) {
 
 // 9a. Stack versions: the AGENTS.md §1.1 table against the exact pins and engines in package.json (warning only)
 let stackChecked = null;
-if (rootAgents && existsSync(join(root, 'package.json'))) {
+const stackPackages = rootAgents ? packageFiles() : [];
+if (rootAgents && stackPackages[0]?.file === 'package.json') {
   const parsed = parseStackTable(rootAgents.text);
   if (parsed) {
     stackChecked = parsed.entries.filter((e) => e.key).length;
     if (stackChecked === 0) warn('AGENTS.md', '§1.1 has no stack table with versions to check');
-    for (const f of checkStackVersions(rootAgents.text, packageFiles())) {
-      warn('AGENTS.md', `§1.1 line ${f.line}: ${f.message}${f.fix ? `; fix: ${FIX_HINT}` : ''}`);
+    for (const f of checkStackVersions(rootAgents.text, stackPackages)) {
+      if (f.unchecked) warn('AGENTS.md', `§1.1: ${f.message} (line ${f.line})`);
+      else warn('AGENTS.md', `§1.1 line ${f.line}: ${f.message}${f.fix ? `; fix: ${FIX_HINT}` : ''}`);
     }
   }
 }
@@ -332,8 +349,8 @@ let skillCount = 0;
 for (const base of ['.agents/skills', '.claude/skills']) {
   for (const name of listDir(join(root, base))) {
     const dir = join(root, base, name);
-    if (lstatSync(dir).isSymbolicLink()) continue;
-    if (!statSync(dir).isDirectory()) continue;
+    if (orNull(() => lstatSync(dir))?.isSymbolicLink() ?? true) continue;
+    if (!statOf(dir)?.isDirectory()) continue;
     const path = join(dir, 'SKILL.md');
     const text = read(path);
     const file = rel(path);

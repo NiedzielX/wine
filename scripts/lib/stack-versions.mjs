@@ -8,7 +8,11 @@
  *   - a known package with an exact version: the exact pins (`dependencies`, `devDependencies`,
  *     `optionalDependencies`) in the root and every packages/<name>/package.json; ranges there (peer ranges) are skipped;
  *   - npm and Node written as `≥ X`: the minimum in the root `engines`.
- * Everything else (PostgreSQL, shadcn/ui, a package written as a range) is not checked.
+ * A range of something that is not a package (`PG ≥ 16`) and a non-version token (`new-york-v4`) are skipped quietly.
+ * Anything else that cannot be compared is a finding with `unchecked: true` ("cell for X not checked: <reason>"): a
+ * version-like token that is neither exact nor `≥` (`~7.0.2`, `^7.0.2`), a package written as a range, more bare
+ * versions than technology names, an exact version of an unknown technology. So the table cannot silently stop being
+ * guarded.
  */
 
 // Table label (lower case) -> where its version lives.
@@ -50,6 +54,7 @@ export function parseStackTable(text) {
   const start = lines.findIndex((l) => /^#{2,4}\s+1\.1[.\s]/.test(l));
   if (start === -1) return null;
   const entries = [];
+  const skipped = [];
   let header = null;
   let inTable = false;
   for (let i = start + 1; i < lines.length; i++) {
@@ -75,16 +80,28 @@ export function parseStackTable(text) {
     const pieces = versionCell.text.split(SEPARATOR);
     const segmentCount = Math.ceil(pieces.length / 2);
     let offset = versionCell.start;
+    let countReported = false;
     pieces.forEach((part, p) => {
       const partStart = offset;
       offset += part.length;
       if (p % 2 === 1) return;
       const lead = part.length - part.trimStart().length;
-      const m = SEGMENT.exec(part.trim());
-      if (!m) return;
+      const segment = part.trim();
+      const m = SEGMENT.exec(segment);
       const position = p / 2;
-      const label = m[1] ?? (techNames.length === segmentCount ? techNames[position] : null);
-      if (!label) return;
+      const positional = techNames.length === segmentCount ? techNames[position] : null;
+      if (!m) {
+        // `new-york-v4` is not a version; `~7.0.2`, `^7.0.2`, `7.0.x` look like one and must not pass silently.
+        if (/\d+\.\d+/.test(segment)) skipped.push({ line: i + 1, label: positional ?? segment, reason: `"${segment}" is neither an exact version nor a ≥ range` });
+        return;
+      }
+      const label = m[1] ?? positional;
+      if (!label) {
+        if (countReported) return; // once per cell
+        countReported = true;
+        skipped.push({ line: i + 1, label: techNames.join(', ') || segment, reason: `${segmentCount} versions for ${techNames.length} technology name(s); label each version (e.g. "React 19.3.1")` });
+        return;
+      }
       const key = label.toLowerCase();
       entries.push({
         line: i + 1,
@@ -97,7 +114,7 @@ export function parseStackTable(text) {
       });
     });
   }
-  return { entries };
+  return { entries, skipped };
 }
 
 function exactPins(packages, match) {
@@ -136,20 +153,33 @@ export function checkStackVersions(text, packages) {
   if (!parsed) return [];
   const rootJson = packages[0]?.json && typeof packages[0].json === 'object' ? packages[0].json : {};
   const findings = [];
+  const notChecked = (line, label, reason, documented = null) =>
+    findings.push({ line, label, documented, actual: null, unchecked: true, message: `cell for ${label} not checked: ${reason}`, fix: null });
+  for (const s of parsed.skipped) notChecked(s.line, s.label, s.reason);
   for (const e of parsed.entries) {
     const target = e.key ? KNOWN.get(e.key) : null;
-    if (!target) continue;
+    if (!target) {
+      // A range of something that is not a package (`PG ≥ 16`) is fine; an exact version nobody compares is not.
+      if (e.kind === 'exact') notChecked(e.line, e.label, `no package mapping for "${e.label}"; add it to KNOWN in scripts/lib/stack-versions.mjs`, e.token);
+      continue;
+    }
     const shown = `${e.label} ${e.operator ? `${e.operator} ` : ''}${e.token}`;
-    const at = (to, message) => findings.push({ line: e.line, label: e.label, documented: e.token, actual: to, message, fix: to ? { line: e.line, column: e.column, from: e.token, to } : null });
+    const at = (to, message) => findings.push({ line: e.line, label: e.label, documented: e.token, actual: to, unchecked: false, message, fix: to ? { line: e.line, column: e.column, from: e.token, to } : null });
     if (target.engine) {
-      if (e.kind !== 'range' || e.operator === null) continue;
+      if (e.kind !== 'range' || e.operator === null) {
+        notChecked(e.line, e.label, `"${shown}": ${e.label} is compared as a ≥ range with package.json engines`, e.token);
+        continue;
+      }
       const declared = rootJson.engines?.[target.engine];
       const m = typeof declared === 'string' ? /^>=\s*v?(\d+(?:\.\d+){0,2})$/.exec(declared.trim()) : null;
       if (!m) at(null, `${shown}: package.json engines.${target.engine} is ${declared === undefined ? 'missing' : `"${declared}", not a >= range`}`);
       else if (!sameVersion(m[1], e.token)) at(inPrecisionOf(m[1], e.token), `${shown}, package.json engines.${target.engine} is ${declared}`);
       continue;
     }
-    if (e.kind !== 'exact') continue;
+    if (e.kind !== 'exact') {
+      notChecked(e.line, e.label, `"${shown}" is a range; write the exact pin from package.json`, e.token);
+      continue;
+    }
     const pins = exactPins(packages, (name) => (target.prefix ? name.startsWith(target.prefix) : target.packages.includes(name)));
     const what = target.prefix ? `${target.prefix}*` : target.packages.join(', ');
     const distinct = [...new Set(pins.map((p) => p.version))];
@@ -157,7 +187,7 @@ export function checkStackVersions(text, packages) {
     else if (distinct.length > 1) at(null, `${shown}: package.json pins of ${what} differ (${pins.map((p) => `${p.name} ${p.version} in ${p.file}`).join(', ')}); align them first`);
     else if (distinct[0] !== e.token) at(distinct[0], `${shown}, package.json pins ${distinct[0]} (${[...new Set(pins.map((p) => `${p.name} in ${p.file}`))].join(', ')})`);
   }
-  return findings;
+  return findings.sort((a, b) => a.line - b.line);
 }
 
 /** Replaces each `from` token at its line and column with `to`; nothing else in the text changes. */

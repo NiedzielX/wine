@@ -414,10 +414,34 @@ describe('check-context: stack versions (AGENTS.md §1.1)', () => {
     expect(missing[0]!.fix).toBeNull();
   });
 
-  it('ignores ranges for packages and labels it cannot map (PG, a package written as a range, peer ranges)', () => {
+  it('quietly skips PG ≥ 16, new-york-v4 and peer ranges; a package written as a range is "not checked", never compared', () => {
+    expect(parseStackTable(DOC)!.skipped).toEqual([]);
     const doc = DOC.replace('| 16.4.3, 19.3.1 |', '| 16.4.3, ≥ 19 |');
     const findings = checkStackVersions(doc, pkgs({ app: { dependencies: { ...APP_PKG.dependencies, react: '19.4.0' } }, ui: { devDependencies: { react: '19.4.0' } } }));
-    expect(findings).toEqual([]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ label: 'React', unchecked: true, fix: null });
+    expect(findings[0]!.message).toMatch(/^cell for React not checked: "React ≥ 19" is a range/);
+  });
+
+  it('reports ~ and ^ ranges as "not checked" instead of dropping them', () => {
+    for (const range of ['~7.0.2', '^7.0.2', '7.0.x']) {
+      const findings = checkStackVersions(DOC.replace('| 7.0.2 |', `| ${range} |`), pkgs());
+      expect(findings).toHaveLength(1);
+      expect(findings[0]).toMatchObject({ label: 'TypeScript', unchecked: true, fix: null });
+      expect(findings[0]!.message).toContain(`cell for TypeScript not checked: "${range}" is neither an exact version nor a ≥ range`);
+    }
+  });
+
+  it('reports more bare versions than technology names, and an exact version of an unknown technology, as "not checked"', () => {
+    const count = checkStackVersions(DOC.replace('| Next.js (App Router, Turbopack), React |', '| Next.js |'), pkgs());
+    expect(count).toHaveLength(1);
+    expect(count[0]).toMatchObject({ unchecked: true, fix: null });
+    expect(count[0]!.message).toMatch(/^cell for Next\.js not checked: 2 versions for 1 technology name\(s\); label each version/);
+    const unknown = checkStackVersions(DOC.replace('| Awilix (tryb `PROXY`) | 13.0.5 |', '| Awilix (tryb `PROXY`), Prisma | 13.0.5, Prisma 6.1.0 |'), pkgs());
+    expect(unknown).toHaveLength(1);
+    expect(unknown[0]!.message).toMatch(/^cell for Prisma not checked: no package mapping for "Prisma"/);
+    const exactNode = checkStackVersions(DOC.replace('Node ≥ 22.17', 'Node 22.17.0'), pkgs());
+    expect(exactNode[0]!.message).toMatch(/^cell for Node not checked/);
   });
 
   it('compares npm and Node with the minimum in engines and keeps the precision of the cell', () => {
@@ -472,6 +496,14 @@ describe('check-context: stack versions (AGENTS.md §1.1)', () => {
     expect(run(tree('16.4.3')).out).not.toMatch(/AGENTS\.md: §1\.1/);
   });
 
+  it('warns (exit 0) about a cell it cannot check, in the "§1.1: cell for X not checked" form', () => {
+    const files = tree('16.4.3');
+    files['AGENTS.md'] = files['AGENTS.md']!.replace('| 7.0.2 |', '| ^7.0.2 |');
+    const r = run(files);
+    expect(r.code).toBe(0);
+    expect(r.out).toMatch(/warning {2}AGENTS\.md: §1\.1: cell for TypeScript not checked: "\^7\.0\.2" is neither/);
+  });
+
   it('--fix-versions is a dry run; --write applies it; a second run has nothing to change', () => {
     const root = write(tree('16.4.4'));
     const original = readFileSync(join(root, 'AGENTS.md'), 'utf8');
@@ -508,10 +540,16 @@ describe('check-context: this repository', () => {
     expect(r.status).toBe(0);
   });
 
-  it('has the AGENTS.md §1.1 versions in line with package.json (fix: npm run check:context -- --fix-versions --write)', () => {
+  // Parser coverage only, never drift: a Dependabot bump cannot edit AGENTS.md and must stay green (drift is tested on
+  // synthetic trees above). Nothing here reads package.json versions.
+  it('still parses the AGENTS.md §1.1 table: at least 9 versions guarded, no cell skipped', () => {
     const r = spawnSync('node', [SCRIPT, '--root', REPO], { encoding: 'utf8' });
-    expect(r.stdout).toContain('stack versions checked:');
-    expect(r.stdout).not.toMatch(/AGENTS\.md: §1\.1/);
+    const count = Number(/stack versions checked: (\d+)/.exec(r.stdout)?.[1] ?? 0);
+    expect(count).toBeGreaterThanOrEqual(9);
+    const parsed = parseStackTable(readFileSync(join(REPO, 'AGENTS.md'), 'utf8'));
+    expect(parsed?.skipped).toEqual([]);
+    expect(parsed?.entries.filter((e) => !e.key && e.kind === 'exact')).toEqual([]);
+    expect(parsed?.entries.filter((e) => e.key && e.kind === 'range' && !['npm', 'node'].includes(e.key))).toEqual([]);
   });
 
   it('keeps the rules that must not be lost when AGENTS.md is cut (each is in the root or in .ai/docs)', () => {
