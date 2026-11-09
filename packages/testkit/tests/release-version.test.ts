@@ -9,7 +9,9 @@ import { checkVersions, planSet } from '../../../scripts/release-version.mjs';
 /**
  * Lesson 22 (release management): one version in the root package.json, every workspace package.json and the
  * workspace entries of package-lock.json. `--check` runs in the release checklist and the release workflow; `--set`
- * changes ONLY the packages' own `version` fields, never a dependency range (exact pins stay as they are).
+ * changes ONLY the packages' own `version` fields, never a dependency range. Internal `@wine-match/*` dependencies must be
+ * `"*"`: npm 11 links the workspace for any range its version satisfies, but a fixed range stops matching after a bump
+ * and npm then looks for the name in the public registry (verified with npm 11.20.0, .ai/runs/2026-11-09-workspace-testkit-range.md).
  */
 const SCRIPT = fileURLToPath(new URL('../../../scripts/release-version.mjs', import.meta.url));
 const REPO = fileURLToPath(new URL('../../../', import.meta.url));
@@ -170,6 +172,24 @@ describe('checkVersions', () => {
     ]);
   });
 
+  it('flags an internal range other than "*" even when it matches today (the next bump would send npm to the registry)', () => {
+    const today = (range: string) => `"${range}" matches the workspace version 0.2.0 today, but not after a version bump (npm would then look for it in the registry: dependency confusion). Internal packages use "*"; change it in a reviewed PR`;
+    for (const range of ['0.2.0', '^0.2.0', '~0.2.0', '']) {
+      expect(checkVersions(repo({ appTestkitRange: range })).problems, range).toEqual([
+        `packages/app/package.json devDependencies["@wine-match/testkit"]: ${today(range)}`,
+        `package-lock.json packages["packages/app"].devDependencies["@wine-match/testkit"]: ${today(range)}`
+      ]);
+    }
+  });
+
+  it('flags a range npm does not resolve to the workspace, or one this check does not understand', () => {
+    for (const range of ['workspace:*', 'file:../testkit', '>=0.2.0']) {
+      expect(checkVersions(repo({ appTestkitRange: range })).problems[0], range).toBe(
+        `packages/app/package.json devDependencies["@wine-match/testkit"]: range "${range}" is not one this check understands (use "*")`
+      );
+    }
+  });
+
   it('passes on this repository', () => {
     const result = checkVersions(REPO);
     expect(result.problems).toEqual([]);
@@ -196,10 +216,22 @@ describe('planSet', () => {
     expect(plan.files['package.json']).toContain('\\u2014');
   });
 
-  it('refuses when an exact internal pin would no longer match', () => {
-    const plan = planSet(repo({ appTestkitRange: '0.2.0' }), '0.3.0');
+  it('refuses while an internal dependency is pinned exactly, and writes nothing', () => {
+    const root = repo({ appTestkitRange: '0.2.0' });
+    const plan = planSet(root, '0.3.0');
     expect(plan.changes).toEqual([]);
-    expect(plan.problems[0]).toContain('packages/app/package.json devDependencies["@wine-match/testkit"]: "0.2.0" does not match the workspace version 0.3.0');
+    expect(plan.files).toEqual({});
+    expect(plan.problems[0]).toContain('packages/app/package.json devDependencies["@wine-match/testkit"]: "0.2.0" matches the workspace version 0.2.0 today, but not after a version bump');
+    const cli = run(['--set', '0.3.0', '--write', '--root', root]);
+    expect(cli.status).toBe(1);
+    expect(read(root, 'packages/app/package.json')).toContain('"version": "0.2.0"');
+  });
+
+  it('accepts "*" for internal dependencies and leaves it as it is', () => {
+    const plan = planSet(repo(), '1.0.0');
+    expect(plan.problems).toEqual([]);
+    expect(plan.files['packages/app/package.json']).toContain('"@wine-match/testkit": "*"');
+    expect(plan.files['package-lock.json']).toContain('"@wine-match/testkit": "*"');
   });
 
   it('refuses a non-semver target and an inconsistent starting point', () => {
