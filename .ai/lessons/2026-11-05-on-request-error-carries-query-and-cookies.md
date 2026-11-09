@@ -1,6 +1,7 @@
 ---
 date: 2026-11-05
 tags: [logging, nextjs, privacy]
+status: active
 ---
 
 # `onRequestError` dostaje pełny URL z query i wszystkie nagłówki

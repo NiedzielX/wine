@@ -65,6 +65,17 @@ describe('check-context: sizes', () => {
     expect(r.out).toContain('warning  AGENTS.md');
   });
 
+  it('prints the headroom before the warning and error limits, negative when over', () => {
+    const ok = run(validTree());
+    expect(ok.out).toMatch(/Headroom \(bytes left before warning \/ error\):/);
+    expect(ok.out).toMatch(/ {2}AGENTS\.md +\d+ B \/ +\d+ B/);
+    expect(ok.out).toMatch(/Codex: root \+ packages\/core \(largest\) +\d+ B \/ +\d+ B/);
+    expect(ok.out).toMatch(/\.ai\/lessons\.md +\d+ B \/ +\d+ B/);
+    const files = validTree();
+    files['.ai/lessons.md'] += `${'x'.repeat(13_000)}\n`;
+    expect(run(files).out).toMatch(/\.ai\/lessons\.md +-\d+ B \/ +\d+ B/);
+  });
+
   it('fails when the root AGENTS.md is over the byte budget or has too many lines', () => {
     const big = validTree();
     big['AGENTS.md'] = agents(DEFAULT_ROW, 'x'.repeat(28_000));
