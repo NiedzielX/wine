@@ -98,6 +98,16 @@ Kontrola, że nic nie zginęło: zliczenie wyróżnień normatywnych (`**MUSISZ*
 | `.ai/docs/process-templates.md` | 3 837 B | 6 363 B |
 | `.ai/docs/architecture-rules.md` | 9 235 B | 9 597 B |
 
+### Poprawki po review (#142, approve with nits)
+
+1. `.ai/lessons.md`: przywrócona reguła jednym krótkim zdaniem przy liniach `promoted:` — granica dostępu (test odmowy bez dowodu niezmienionych danych i bez mutacji, która go czerwieni, nie dowodzi granicy), POSIX (`dash`: bez `{a,b}`, `${PIPESTATUS}`, `[[ ]]`), npm 11 (npm 10 nie instaluje Vitest 5), łańcuch dostaw CI (`persist-credentials: false`, skan historii sekretów).
+2. `AGENTS.md` §6.1: przywrócony warunek „Mając zgłoszenie, padający test lub log, doprowadź naprawę do końca samodzielnie; pytaj tylko o decyzje dotyczące zakresu lub zachowania produktu”.
+3. `AGENTS.md` §6.1: przywrócona nazwa lokalnego rozszerzenia skilla `om-integration-tests` ze ścieżką `.ai/skills/om-integration-tests/`.
+4. `AGENTS.md` §1.3: daty zatwierdzenia przy nazwach wyjątków (2026-10-15, 2026-10-16; 2026-11-06), żeby odwołanie w `usage-events.ts` do §1.3 było oczywiste.
+5. `.ai/docs/process-templates.md`: „bez zmiany treści” → treść przeniesiona z drobnymi zmianami łączników.
+
+Po poprawkach: `AGENTS.md` 22 359 B, 201 linii; root + `app` 30 180 B (2 588 B zapasu do 32 768 B); `.ai/lessons.md` 11 915 B (4 469 B zapasu do błędu, 373 B do ostrzeżenia). `check:context`: 0 błędów, 9 ostrzeżeń (tylko specyfikacje `2026-11-04-*`); testy testkit 448 passed; `npm run lint` exit 0.
+
 ## Wynik
 
 Budżety spełnione bez zmiany reguł i numeracji. Ryzyko: **risk-medium** — `AGENTS.md`, `scripts/` i proces są pod `.github/CODEOWNERS`; zmiana wymaga przeglądu właściciela przez PR (tu: tylko commit lokalny, bez push i PR, zgodnie z poleceniem). Dług: wersje w §1.1 rozjeżdżają się z `package.json` po każdym bumpie Dependabota; tanim strażnikiem byłoby sprawdzenie w `check:context` (tabela §1.1 vs `package.json`), niezrobione, bo wykracza poza zakres.

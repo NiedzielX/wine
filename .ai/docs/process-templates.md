@@ -1,6 +1,6 @@
 # Szablony: specyfikacja, log przebiegu, lekcja
 
-Przeniesione z `AGENTS.md` (§2, §3, §4, §5, §8) bez zmiany treści. Używaj przy zakładaniu nowego pliku w `.ai/`. Reguły zostają w `AGENTS.md`; tu są szablony, drzewo katalogów i uzasadnienia.
+Przeniesione z `AGENTS.md` (§2, §3, §4, §5, §6.1, §8); treść przeniesiona z drobnymi zmianami łączników (nagłówki, odwołania do sekcji). Używaj przy zakładaniu nowego pliku w `.ai/`. Reguły zostają w `AGENTS.md`; tu są szablony, drzewo katalogów i uzasadnienia.
 
 ### Struktura `.ai/` (AGENTS.md §2)
 

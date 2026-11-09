@@ -13,12 +13,12 @@ Format linii (najnowsze na górze):
 - [2026-11-08] [Strona panelu sama woła `requireAccess` przed odczytem danych](lessons/2026-11-08-page-reads-data-in-parallel-with-layout-check.md) — layout i strona renderują się równolegle; test sprawdza ciało odpowiedzi, nie tylko status.
 - [2026-11-08] [Obraz `migrator`: katalog źródeł zapisywalny dla `node`](lessons/2026-11-08-migration-up-writes-snapshot-into-source.md) — `migration:up` zapisuje snapshot; `COPY --chown=node:node`, kroki obrazu testuj w kopii układu.
 - [2026-11-08] [Limit „sprawdź, potem wstaw” wymaga blokady; migracja ma dowód up/down/up](lessons/2026-11-08-concurrency-tests-and-migration-roundtrip.md) — `pg_advisory_xact_lock` w jednej transakcji, bramka `race()`, `down` dla każdej migracji poza bazową.
-- [2026-11-08] [Łańcuch dostaw CI](lessons/2026-11-08-ci-supply-chain-pins.md) — `promoted: AGENTS.md §9`: akcje przypięte SHA, `ignore-scripts=true`, hook to guardrail.
+- [2026-11-08] [Łańcuch dostaw CI](lessons/2026-11-08-ci-supply-chain-pins.md) — `promoted: AGENTS.md §9`: akcje przypięte SHA, `persist-credentials: false`, `ignore-scripts=true`, skan historii sekretów; hook to guardrail.
 - [2026-11-08] [Reguła bez egzekwowania jest życzeniem](lessons/2026-11-08-project-skills-and-spec-status-hook.md) — regułę procesu chroń hookiem z testowaną `decide()`, powtarzalny proces zapisz jako skill `wine-match-*`.
 - [2026-11-08] [QA agenta: wyrocznia, niezależny weryfikator, znany cel bazy](lessons/2026-11-08-qa-with-agents-protocol.md) — protokół `.ai/docs/qa-protocol.md`; polecenia operatora drukują cel bazy.
 - [2026-11-07] [Recenzent dostaje paczkę, nie opis PR-a](lessons/2026-11-07-review-pack-not-author-story.md) — `npm run review:pack`; auto-approve nie jest decyzją o merge.
 - [2026-11-07] [Błąd, który wrócił mimo review, dostaje sprawdzenie maszynowe](lessons/2026-11-07-deterministic-check-over-review.md) — `npm run check:routes`: każda trasa przez `handle*()` z literalnym, unikalnym `route`.
-- [2026-11-07] [Granica dostępu: trzy sprawdzenia](lessons/2026-11-07-access-boundary-three-checks.md) — `promoted: AGENTS.md §6.1`.
+- [2026-11-07] [Granica dostępu: trzy sprawdzenia](lessons/2026-11-07-access-boundary-three-checks.md) — `promoted: AGENTS.md §6.1`; test odmowy bez dowodu, że dane się nie ruszyły, i bez mutacji, która go czerwieni, nie dowodzi granicy.
 - [2026-11-06] [CLI MikroORM w worktree pod `.claude/worktrees/` bierze pakiety głównego checkoutu](lessons/2026-11-06-mikro-orm-cli-in-nested-worktree.md) — przed `migration:up` i `test:e2e` dowiąż `@mikro-orm/*` do korzenia worktree.
 - [2026-11-06] [Polecenie operatora drukujące sekret](lessons/2026-11-06-operator-command-printing-a-secret.md) — strażnik przed kontenerem, link jedyną linią stdout, błąd bez treści.
 - [2026-11-06] [Liczby z adresu](lessons/2026-11-06-calculator-numbers-from-urls.md) — mnóż przed dzieleniem, czyść do 14 cyfr, wejście do 6 miejsc po przecinku.
@@ -62,9 +62,9 @@ Format linii (najnowsze na górze):
 - [2026-10-14] [Skopiowane komponenty shadcn sprawdzaj w HTML](lessons/2026-10-14-verify-shadcn-copies-in-html.md) — poprawki lokalne w `packages/ui/AGENTS.md`.
 - [2026-10-14] [Przyklejone paski wymagają `scroll-padding`](lessons/2026-10-14-sticky-bars-scroll-padding.md) — na `html`, równe wysokości pasków.
 - [2026-10-14] [Testy SSR: usuń `<!-- -->` i czekaj na nawigację](lessons/2026-10-14-ssr-html-assertions-and-test-races.md) — czekaj na POST lub stan DOM, nie tylko na URL.
-- [2026-10-14] [Monorepo wymaga npm ≥ 11.6](lessons/2026-10-14-npm-11-for-vitest-5.md) — `promoted: AGENTS.md §1.1`; błąd `edgesOut` = za stary npm.
+- [2026-10-14] [Monorepo wymaga npm ≥ 11.6](lessons/2026-10-14-npm-11-for-vitest-5.md) — `promoted: AGENTS.md §1.1`; npm 10 nie instaluje Vitest 5, błąd `edgesOut` = za stary npm.
 - [2026-10-14] [TypeScript 7 nie ma klasycznego API JS](lessons/2026-10-14-typescript-7-toolchain.md) — `promoted: AGENTS.md §1.1`; narzędzia przez CLI `tsc`.
-- [2026-10-14] [W skryptach pisz POSIX](lessons/2026-10-14-posix-shell-in-scripts.md) — `promoted: AGENTS.md §1.5`.
+- [2026-10-14] [W skryptach pisz POSIX](lessons/2026-10-14-posix-shell-in-scripts.md) — `promoted: AGENTS.md §1.5`; `/bin/sh` to często `dash`: bez `{a,b}`, `${PIPESTATUS}`, `[[ ]]`.
 - [2026-10-14] [Obok każdego AGENTS.md umieść CLAUDE.md z @AGENTS.md](lessons/2026-10-14-claude-code-nested-claude-md.md) — pilnuje `npm run check:context`.
 - [2026-10-14] [Mockupy jako jeden plik HTML: `vite-plugin-singlefile`](lessons/2026-10-14-single-file-build-for-sharing.md) — tylko `--no-save`, na kopii pakietu.
 - [2026-10-14] [Po każdej zmianie reguł silnika przejrzyj macierz](lessons/2026-10-14-engine-calibration-matrix.md) — `npm run engine:matrix`; anomalia staje się testem.
