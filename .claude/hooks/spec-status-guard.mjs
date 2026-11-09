@@ -13,8 +13,11 @@
  * on the next line, block scalars, tags, two `status` keys, a header without its closing `---`, a line that starts with `?` or `:`, a
  * double-quoted key with a backslash, a quoted `status` value that is not closed on its line or (in double quotes) has a backslash.
  * Only `---` closes a header; `...` is not accepted (a header closed that way is read as unclosed and refused). Known gaps: an Edit whose old_string only
- * matches through the editing tool's own quote normalisation is judged by its new_string alone (unverified); symlink loops are not
- * followed past 8 links (the path is then judged as written).
+ * matches through the editing tool's own quote normalisation is judged by its new_string alone (unverified); a third tool model, one that
+ * matches raw first and falls back to normalised matching PER EDIT, could let a MultiEdit chain slip through on a file with mixed CRLF/LF
+ * endings (exotic; needs tool behaviour nobody confirmed; the both-outcomes rule below covers the two pure models only); symlink loops are
+ * not followed past 8 links (the path is then judged as written). Accepted fail-closed false refusal: any header line the scan cannot read
+ * as a plain scalar is refused even when it is harmless (`title: *draft* x` looks like a YAML alias).
  *
  * Assumption about the editing tool, deliberately not settled: we do not know whether it matches old_string byte for byte against the file
  * or normalises line endings (CRLF) first. So an Edit or MultiEdit chain is evaluated in BOTH models and the call is refused when ANY of

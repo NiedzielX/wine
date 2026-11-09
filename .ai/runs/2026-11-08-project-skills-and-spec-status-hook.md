@@ -45,6 +45,9 @@ Audyt projektu końcowego: (a) co najmniej jeden skill dopasowany do projektu, (
 - Testy: 2 nowe blokujące czerwone (`2 failed | 127 passed`: replace_all na pliku z mieszanymi końcami linii i wariant MultiEdit), plus blokujący łańcuch zależny od modelu i 4 dozwolone kontrole (edycja treści szkicu, `replace_all` linii tylko z treści, approved → in-progress z `old_string` LF, łańcuch zachowujący `approved`). Wszystkie wcześniejsze przypadki (w tym CRLF) zielone.
 - Nagłówek hooka (założenie o narzędziu i reguła „oba wyniki”) i `security-notes.md` §4 luka (1) zaktualizowane; cena: możliwa fałszywa odmowa przy mieszanych końcach linii. Nie pushowane.
 
+### Piąta runda review (tylko dokumentacja, bez zmiany logiki)
+- Do nagłówka hooka i `security-notes.md` §4 dopisane: trzeci model narzędzia (surowe dopasowanie z normalizacją per edycja) może przepuścić łańcuch MultiEdit na pliku z mieszanymi końcami CRLF/LF (egzotyczne, niepotwierdzone; reguła „oba wyniki” obejmuje dwa czyste modele) oraz przyjęta fałszywa odmowa przy nieczytelnej, lecz niewinnej linii nagłówka (`title: *draft* x`). Sprawdzone: `npm test` w testkit (hook), `check:context`, `secrets:scan`.
+
 ## Weryfikacja (po poprawkach pierwszej rundy, 2026-11-08)
 - `npm run lint`: 0 uwag. `npm run typecheck`: bez błędów.
 - `npm test`: core 743, db 84, ui 62, app 500, testkit 356 zielone (w tym `spec-status-guard.test.ts` 104 i `agent-guardrails.test.ts`).
