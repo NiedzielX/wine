@@ -9,16 +9,20 @@
  * The kind of each file comes from its `kind` field. Beyond the schema:
  *  - input: `findingsRequested.min` <= `max`;
  *  - output: finding ids are unique;
- *  - when exactly one input is given with outputs, every output's `inputDigest` is the SHA-256 of that input file's
- *    bytes and its `round` equals the input's (all reviewers of a round answered the same package).
- * Exit 0: all valid; 1: a problem (`file: /pointer: message` on stderr); 2: usage or an unreadable schema.
+ *  - outputs need exactly one input among the files, and it must be valid (none, an unparsable one, an invalid one or
+ *    two fail every output); each output's `inputDigest` is the SHA-256 of that input file's bytes and its `round`
+ *    equals the input's (all reviewers of a round answered the same package);
+ *  - outputs come from distinct reviewers (`reviewer.family` + `reviewer.model` unique) and no output file is passed
+ *    twice (same bytes). The summary line gives the number of model families.
+ * It does NOT know how many reviewers were asked, so it cannot tell whether every answer arrived.
+ * Exit 0: all valid; 1: a problem (`<path as given>: /pointer: message` on stderr; parse errors give only a position,
+ * never file content); 2: usage or an unreadable schema.
  *
  * The schema interpreter supports only the keywords the two schemas use and throws on any other one (fail closed: an
  * unsupported keyword must not be silently ignored).
  */
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
-import { basename } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SCHEMA_DIR = new URL('../.ai/schemas/', import.meta.url);
@@ -94,7 +98,9 @@ export function checkFiles(paths, schemas = loadSchemas()) {
       bytes = readFileSync(file);
       value = JSON.parse(bytes.toString('utf8'));
     } catch (e) {
-      problems.push({ file, message: e instanceof SyntaxError ? `not valid JSON: ${e.message}` : 'cannot read the file' });
+      // Never echo the parser's message: V8 quotes the first bytes of the file, which may be anything (a secret).
+      const pos = e instanceof SyntaxError ? /position (\d+)/.exec(e.message)?.[1] : undefined;
+      problems.push({ file, message: e instanceof SyntaxError ? `not valid JSON${pos ? ` at position ${pos}` : ''}` : 'cannot read the file' });
       continue;
     }
     const kind = typeOf(value) === 'object' ? value.kind : undefined;
@@ -116,17 +122,35 @@ export function checkFiles(paths, schemas = loadSchemas()) {
       });
     }
     for (const message of errors) problems.push({ file, message });
-    docs.push({ file, kind, value, digest: createHash('sha256').update(bytes).digest('hex') });
+    docs.push({ file, kind, value, valid: errors.length === 0, digest: createHash('sha256').update(bytes).digest('hex') });
   }
-  const inputs = docs.filter((d) => d.kind === 'review-input');
-  if (inputs.length === 1) {
-    const [inp] = inputs;
-    for (const d of docs.filter((x) => x.kind === 'review-output')) {
+  const answers = docs.filter((d) => d.kind === 'review-output');
+  const allInputs = docs.filter((d) => d.kind === 'review-input');
+  const validInputs = allInputs.filter((d) => d.valid);
+  // Answers are only meaningful against ONE valid input: with none (missing, unparsable, invalid) or several, a made-up
+  // inputDigest would otherwise pass unchecked. An unparsable file has no kind, so it never counts as a valid input.
+  const oneInput = allInputs.length === 1 && validInputs.length === 1;
+  const families = new Set();
+  const byContent = new Map();
+  const byReviewer = new Map();
+  for (const d of answers) {
+    if (!oneInput) problems.push({ file: d.file, message: `answer needs exactly one valid review-input among the files (found ${validInputs.length})` });
+    else {
+      const [inp] = validInputs;
       if (d.value.inputDigest !== inp.digest) problems.push({ file: d.file, message: 'inputDigest does not match the SHA-256 of the input file' });
       if (d.value.round !== inp.value.round) problems.push({ file: d.file, message: `round ${d.value.round} differs from the input round ${inp.value.round}` });
     }
+    if (byContent.has(d.digest)) problems.push({ file: d.file, message: `same file content as ${byContent.get(d.digest)}` });
+    else byContent.set(d.digest, d.file);
+    const r = d.value.reviewer;
+    if (r && typeof r.family === 'string' && typeof r.model === 'string') {
+      families.add(r.family);
+      const key = `${r.family}/${r.model}`;
+      if (byReviewer.has(key)) problems.push({ file: d.file, message: `same reviewer (${key}) as ${byReviewer.get(key)}: answers must come from distinct reviewers` });
+      else byReviewer.set(key, d.file);
+    }
   }
-  return { problems, checked: docs.length };
+  return { problems, checked: docs.length, inputs: docs.length - answers.length, answers: answers.length, families: families.size };
 }
 
 export function main(argv = process.argv.slice(2), out = console) {
@@ -142,13 +166,13 @@ export function main(argv = process.argv.slice(2), out = console) {
     out.error(`cannot read the schemas in .ai/schemas: ${e instanceof Error ? e.message : e}`);
     return 2;
   }
-  const { problems } = checkFiles(files, schemas);
+  const { problems, inputs, answers, families } = checkFiles(files, schemas);
   if (problems.length > 0) {
-    for (const p of problems) out.error(`${basename(p.file)}: ${p.message}`);
+    for (const p of problems) out.error(`${p.file}: ${p.message}`);
     out.error(`\nreview:validate FAILED: ${problems.length} problem(s). Contract: .ai/schemas/, protocol: .ai/docs/review-protocol.md §9.`);
     return 1;
   }
-  out.log(`review:validate OK: ${files.length} file(s).`);
+  out.log(`review:validate OK: ${files.length} file(s): ${inputs} input, ${answers} answer(s) from ${families} model family(ies).`);
   return 0;
 }
 

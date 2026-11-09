@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -89,30 +89,82 @@ describe('checkFiles (cross-file rules)', () => {
     writeFileSync(join(root, 'in.json'), text);
     writeFileSync(join(root, 'a.json'), JSON.stringify(output(sha(text))));
     writeFileSync(join(root, 'b.json'), JSON.stringify(output(sha(text), { reviewer: { family: 'openai', model: 'gpt-x' } })));
-    expect(checkFiles([join(root, 'in.json'), join(root, 'a.json'), join(root, 'b.json')]).problems).toEqual([]);
+    const result = checkFiles([join(root, 'in.json'), join(root, 'a.json'), join(root, 'b.json')]);
+    expect(result.problems).toEqual([]);
+    expect(result).toMatchObject({ checked: 3, answers: 2, families: 2 });
   });
 
-  it('rejects an answer to a different input, another round, duplicate finding ids and min > max', () => {
+  it('rejects an answer to a different input, another round and duplicate finding ids', () => {
     const root = dir();
-    const text = JSON.stringify(input({ findingsRequested: { min: 9, max: 7 } }));
+    const text = JSON.stringify(input());
     writeFileSync(join(root, 'in.json'), text);
     writeFileSync(join(root, 'a.json'), JSON.stringify(output('b'.repeat(64), { round: 2, findings: [finding(), finding()] })));
     const problems = checkFiles([join(root, 'in.json'), join(root, 'a.json')]).problems.map((p: { file: string; message: string }) => p.message);
     expect(problems).toEqual(expect.arrayContaining([
-      '/findingsRequested: min (9) is greater than max (7)',
       'inputDigest does not match the SHA-256 of the input file',
       'round 2 differs from the input round 1',
       '/findings/1/id: duplicate finding id "F1"'
     ]));
   });
 
-  it('rejects a file without a known kind and unreadable JSON', () => {
+  it('rejects an input whose findingsRequested min is greater than max', () => {
+    const root = dir();
+    writeFileSync(join(root, 'in.json'), JSON.stringify(input({ findingsRequested: { min: 9, max: 7 } })));
+    expect(checkFiles([join(root, 'in.json')]).problems.map((p: { message: string }) => p.message)).toContain('/findingsRequested: min (9) is greater than max (7)');
+  });
+
+  describe('answers need exactly one valid input (review of PR 140)', () => {
+    const NEED_ONE = /needs exactly one valid review-input among the files \(found \d+\)/;
+    it('fails an answer given alone, even with a made-up inputDigest', () => {
+      const root = dir();
+      writeFileSync(join(root, 'o.json'), JSON.stringify(output('c'.repeat(64))));
+      const problems = checkFiles([join(root, 'o.json')]).problems.map((p: { message: string }) => p.message);
+      expect(problems.some((m: string) => NEED_ONE.test(m))).toBe(true);
+    });
+
+    it('fails answers next to two inputs', () => {
+      const root = dir();
+      const text = JSON.stringify(input());
+      writeFileSync(join(root, 'in1.json'), text);
+      writeFileSync(join(root, 'in2.json'), JSON.stringify(input({ round: 2 })));
+      writeFileSync(join(root, 'o.json'), JSON.stringify(output(sha(text))));
+      const problems = checkFiles([join(root, 'in1.json'), join(root, 'in2.json'), join(root, 'o.json')]).problems.map((p: { message: string }) => p.message);
+      expect(problems.some((m: string) => NEED_ONE.test(m))).toBe(true);
+    });
+
+    it('fails answers when the input does not parse or is invalid', () => {
+      const root = dir();
+      writeFileSync(join(root, 'in.json'), '{"kind":"review-input",');
+      writeFileSync(join(root, 'bad-in.json'), JSON.stringify(input({ round: 9 })));
+      writeFileSync(join(root, 'o.json'), JSON.stringify(output('d'.repeat(64))));
+      for (const inp of ['in.json', 'bad-in.json']) {
+        const problems = checkFiles([join(root, inp), join(root, 'o.json')]).problems;
+        expect(problems.some((p: { file: string; message: string }) => p.file.endsWith('o.json') && NEED_ONE.test(p.message)), inp).toBe(true);
+      }
+    });
+  });
+
+  it('rejects two answers from the same reviewer and the same answer file passed twice, and counts families', () => {
+    const root = dir();
+    const text = JSON.stringify(input());
+    writeFileSync(join(root, 'in.json'), text);
+    writeFileSync(join(root, 'a.json'), JSON.stringify(output(sha(text))));
+    writeFileSync(join(root, 'b.json'), JSON.stringify(output(sha(text), { verdict: 'ok-for-owner' })));
+    const result = checkFiles([join(root, 'in.json'), join(root, 'a.json'), join(root, 'b.json'), join(root, 'a.json')]);
+    const messages = result.problems.map((p: { message: string }) => p.message);
+    expect(messages.filter((m: string) => /same reviewer \(anthropic\/claude-opus-5-5\) as /.test(m))).toHaveLength(2);
+    expect(messages.some((m: string) => /same file content as /.test(m))).toBe(true);
+    expect(result.families).toBe(1);
+  });
+
+  it('rejects a file without a known kind and unreadable JSON, without quoting the file content', () => {
     const root = dir();
     writeFileSync(join(root, 'x.json'), '{"kind":"review-verdict"}');
-    writeFileSync(join(root, 'y.json'), '{not json');
+    writeFileSync(join(root, 'y.json'), 'PRIVATE-KEY-abc123 {not json');
     const problems = checkFiles([join(root, 'x.json'), join(root, 'y.json')]).problems.map((p: { message: string }) => p.message);
     expect(problems[0]).toMatch(/kind must be "review-input" or "review-output"/);
-    expect(problems[1]).toMatch(/not valid JSON/);
+    expect(problems[1]).toMatch(/^not valid JSON( at position \d+)?$/);
+    expect(problems.join('\n')).not.toContain('PRIVATE-KEY');
   });
 });
 
@@ -129,6 +181,23 @@ describe('CLI', () => {
     expect(bad.status).toBe(1);
     expect(bad.stderr).toContain('bad.json: /verdict: must be one of');
     expect(spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8' }).status).toBe(2);
+  });
+
+  it('names files by the path given (two same-named files stay distinguishable) and reports the family count', () => {
+    const root = dir();
+    const text = JSON.stringify(input());
+    mkdirSync(join(root, 'r1'));
+    mkdirSync(join(root, 'r2'));
+    writeFileSync(join(root, 'in.json'), text);
+    writeFileSync(join(root, 'r1', 'answer.json'), JSON.stringify(output(sha(text))));
+    writeFileSync(join(root, 'r2', 'answer.json'), JSON.stringify(output(sha(text), { verdict: 'approve', reviewer: { family: 'openai', model: 'gpt-x' } })));
+    const bad = spawnSync(process.execPath, [SCRIPT, join(root, 'in.json'), join(root, 'r1', 'answer.json'), join(root, 'r2', 'answer.json')], { encoding: 'utf8' });
+    expect(bad.status).toBe(1);
+    expect(bad.stderr).toContain(`${join(root, 'r2', 'answer.json')}: /verdict: must be one of`);
+    writeFileSync(join(root, 'r2', 'answer.json'), JSON.stringify(output(sha(text), { reviewer: { family: 'openai', model: 'gpt-x' } })));
+    const ok = spawnSync(process.execPath, [SCRIPT, join(root, 'in.json'), join(root, 'r1', 'answer.json'), join(root, 'r2', 'answer.json')], { encoding: 'utf8' });
+    expect(ok.status).toBe(0);
+    expect(ok.stdout).toContain('review:validate OK: 3 file(s): 1 input, 2 answer(s) from 2 model family(ies).');
   });
 
   it('ships schemas that are valid JSON and name the protocol section', () => {

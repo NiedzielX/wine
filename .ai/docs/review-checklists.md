@@ -77,7 +77,7 @@ Reguła trzech sprawdzeń: `.ai/docs/engineering-standards.md` §10 (granica dos
 
 <!-- checklist:triage -->
 **Triage uwag recenzentów (dla orkiestratora, nie dla recenzenta; lekcja 21, protokół §9).** `review:pack` nie wkleja tej listy do paczki. Dla **każdej** uwagi osobno, także zgłoszonej przez jednego recenzenta z wielu:
-- [ ] Odpowiedź przeszła `npm run review:validate` (schemat, `inputDigest` = paczka tej rundy); odpowiedź niezgodna ze schematem wraca do recenzenta albo jest odrzucona w całości, orkiestrator jej nie „poprawia”.
+- [ ] Odpowiedź przeszła `npm run review:validate` z jedynym wejściem tej rundy (schemat, `inputDigest`, różni recenzenci); kompletu odpowiedzi skrypt nie sprawdza, policz je sam względem zleconych; odpowiedź niezgodna ze schematem wraca do recenzenta albo jest odrzucona w całości, orkiestrator jej nie „poprawia”.
 - [ ] Odtworzona w kodzie: otwarty `plik:linia`, przeczytany kontekst, a gdy się da, uruchomiony test lub wejście z dowodu recenzenta. Bez odtworzenia uwaga nie jest „prawdziwa”.
 - [ ] Klasyfikacja jednym słowem: `prawdziwa` / `halucynacja` / `poza zakresem` (prawdziwa, ale nie w tym PR: backlog lub log) + jedno zdanie dowodu (`plik:linia`, wynik testu, wymaganie R/AC). Nigdy „bo inni tego nie zgłosili” ani „bo dwóch się zgodziło”: decyduje dowód, nie liczba głosów.
 - [ ] Zgodność nie jest dowodem: ta sama uwaga od dwóch przebiegów jednej rodziny modeli to jeden głos, a zgodna uwaga też przechodzi odtworzenie.

@@ -33,5 +33,12 @@ Przenieść lekcję 21 kursu (orkiestrator / implementer / recenzenci, różne r
 ## Wynik
 Gotowe lokalnie na gałęzi `docs/lesson-21-multi-model-review`, bez push i PR. Niezweryfikowane: druga rodzina modeli nie istnieje (opisane jako brak), harness tylko jako draft. Dług: `.ai/lessons.md` ma ~460 B zapasu do limitu: przy następnej lekcji trzeba oznaczyć część lekcji jako nieaktualne albo awansować je do `AGENTS.md`.
 
+## Poprawki po review PR #140 (2026-11-09, ten sam przebieg)
+- Uwagi koordynatora potwierdzone w kodzie: (1) sprawdzenie digestu i rundy działało tylko przy dokładnie jednym wejściu, więc sama odpowiedź z dowolnym `inputDigest` dawała OK; (2) komunikat błędu parsowania przepisywał `e.message` V8, który cytuje początek pliku, a wyjście podawało tylko `basename`; (3) brak sprawdzenia, że odpowiedzi są od różnych recenzentów; (4) za mało miejsca w `.ai/lessons.md`.
+- Najpierw testy: 7 nowych lub zmienionych testów w `review-validate.test.ts` czerwonych na kodzie z `9c2c8e1` (brak wejścia, dwa wejścia, nieparsowalne i niepoprawne wejście, ten sam recenzent i ten sam plik dwa razy, treść pliku w komunikacie, ścieżka jak podana, liczba rodzin w podsumowaniu), potem poprawka: 18/18 zielonych.
+- Poprawka: odpowiedź wymaga dokładnie jednego wejścia i to poprawnego; błąd parsowania ma stały komunikat i tylko pozycję; błędy podają ścieżkę jak podana; para `reviewer.family/model` unikalna, ten sam plik (te same bajty) dwa razy to błąd; podsumowanie podaje liczbę wejść, odpowiedzi i rodzin. §9 i `commands.md` mówią wprost, że skrypt nie sprawdza kompletu odpowiedzi (nie wie, ilu recenzentów zlecono).
+- `.ai/lessons.md`: żadna lekcja nie jest jednoznacznie nieaktualna (sprawdzona najbliższa kandydatka `npm-11-for-vitest-5`: nadal aktualna), więc nic nie przeniesiono do „Nieaktualne”. Skrócone: własna linia i opisy czterech najdłuższych linii indeksu (e2e bez JS, Postgres bez Dockera, testy SSR, macierz silnika) do jednego zdania; pliki lekcji bez zmian. Rozmiar 15921 → 15185 B (zapas 1199 B).
+- Weryfikacja: lint 0, typecheck 0, `npm test` 0 (743 + 126 + 62 + 500 + 447), `check:context` 0 błędów (13 starych ostrzeżeń), `check:qa` OK, `check:routes` OK, `secrets:scan` tylko allowlista.
+
 ## Lekcje
 - `.ai/lessons/2026-11-09-reviewers-from-different-model-families.md`
