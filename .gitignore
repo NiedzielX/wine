@@ -26,3 +26,7 @@ storybook-static
 .ai/qa/test-env-app.log
 .ai/qa/test-env.lock/
 .ai/qa/.test-env-credentials.*.json
+
+# agent: local worktrees and personal settings
+.claude/worktrees/
+.claude/settings.local.json

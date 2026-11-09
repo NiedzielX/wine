@@ -22,6 +22,9 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+  # Every action in .github/workflows is pinned by a full commit SHA with a trailing "# vX.Y.Z" comment. Dependabot
+  # understands that form: it bumps the SHA and the comment together, after the same 14-day cooldown. Review such a
+  # pull request as a change of code that runs in CI with the repository token (lesson 18).
   - package-ecosystem: github-actions
     directory: /
     schedule:
