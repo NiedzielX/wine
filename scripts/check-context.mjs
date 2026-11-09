@@ -5,14 +5,19 @@
  * Usage:
  *   node scripts/check-context.mjs                run on this repository
  *   node scripts/check-context.mjs --root <dir>   run on another tree (tests)
+ *   node scripts/check-context.mjs --fix-versions [--write]
+ *                                                 plan (or apply) the AGENTS.md §1.1 version updates from package.json
  *
+ * The §1.1 drift is a warning, not an error: a Dependabot bump cannot edit AGENTS.md, so an error would turn every
+ * bump red. The maintainer or agent runs the fix command after merging the bump.
  * Exit code 1 on any error, 0 with warnings only. Sizes are bytes (Buffer.byteLength); lines are counted like `wc -l`
  * plus a last line without a newline. Token counts are an estimate (bytes / 3.5), informational only: `/context all`
  * in a fresh session is the measurement.
  */
-import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyStackFixes, checkStackVersions, parseStackTable } from './lib/stack-versions.mjs';
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
 
@@ -53,6 +58,53 @@ function listDir(path, filter = () => true) {
 }
 const lineCount = (text) => text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
 const nonEmpty = (text) => text.split('\n').map((l) => l.trim()).filter(Boolean);
+
+// The root package.json first, then each workspace; files that are missing or not JSON are skipped (section 8
+// reports invalid JSON).
+function packageFiles() {
+  const files = ['package.json', ...listDir(join(root, 'packages')).map((n) => `packages/${n}/package.json`)];
+  const result = [];
+  for (const file of files) {
+    const text = read(join(root, file));
+    if (text === null) continue;
+    try {
+      result.push({ file, json: JSON.parse(text) });
+    } catch {
+      // reported by section 8
+    }
+  }
+  return result;
+}
+
+// --fix-versions [--write]: rewrite the version tokens of the AGENTS.md §1.1 table from package.json and stop. A dry
+// run by default; exit 1 when a drift has no unambiguous fix (pins that disagree or are missing), 2 on bad usage.
+const argv = process.argv.slice(2);
+const FIX_HINT = 'npm run check:context -- --fix-versions --write';
+if (argv.includes('--write') && !argv.includes('--fix-versions')) {
+  out('usage: node scripts/check-context.mjs [--root <dir>] [--fix-versions [--write]]');
+  process.exit(2);
+}
+if (argv.includes('--fix-versions')) {
+  const path = join(root, 'AGENTS.md');
+  const raw = existsSync(path) ? readFileSync(path, 'utf8') : null;
+  const packages = packageFiles();
+  if (raw === null || packages[0]?.file !== 'package.json') {
+    out('check-context --fix-versions: AGENTS.md or package.json not found');
+    process.exit(1);
+  }
+  const findings = checkStackVersions(raw, packages);
+  const fixes = findings.filter((f) => f.fix).map((f) => f.fix);
+  for (const f of findings) {
+    if (f.fix) out(`  AGENTS.md:${f.line}  ${f.fix.from} -> ${f.fix.to}  (${f.label})`);
+    else out(`  cannot fix: AGENTS.md:${f.line}: ${f.message}`);
+  }
+  if (findings.length === 0) out('check-context --fix-versions: AGENTS.md §1.1 matches package.json, nothing to change.');
+  else if (fixes.length && argv.includes('--write')) {
+    writeFileSync(path, applyStackFixes(raw, fixes));
+    out(`check-context --fix-versions: ${fixes.length} version(s) updated in AGENTS.md.`);
+  } else if (fixes.length) out(`check-context --fix-versions: dry run, ${fixes.length} change(s); add --write to apply.`);
+  process.exit(findings.length > fixes.length ? 1 : 0);
+}
 
 const measured = [];
 function measure(path) {
@@ -245,6 +297,19 @@ if (scripts) {
   }
 }
 
+// 9a. Stack versions: the AGENTS.md §1.1 table against the exact pins and engines in package.json (warning only)
+let stackChecked = null;
+if (rootAgents && existsSync(join(root, 'package.json'))) {
+  const parsed = parseStackTable(rootAgents.text);
+  if (parsed) {
+    stackChecked = parsed.entries.filter((e) => e.key).length;
+    if (stackChecked === 0) warn('AGENTS.md', '§1.1 has no stack table with versions to check');
+    for (const f of checkStackVersions(rootAgents.text, packageFiles())) {
+      warn('AGENTS.md', `§1.1 line ${f.line}: ${f.message}${f.fix ? `; fix: ${FIX_HINT}` : ''}`);
+    }
+  }
+}
+
 // 9. Skills: description at most 1024 characters, body within the line budget. .claude/skills holds symlinks to
 // .agents/skills, so symlinks are skipped and each skill is counted once.
 function description(text) {
@@ -293,6 +358,7 @@ for (const m of measured.filter((x) => !x.file.startsWith('.ai/lessons/'))) {
   out(`  ${m.file.padEnd(44)} ${String(m.bytes).padStart(7)} B  ${String(m.lines).padStart(4)} lines  ~${m.tokens} tokens`);
 }
 out(`  skills checked: ${skillCount}`);
+if (stackChecked !== null) out(`  stack versions checked: ${stackChecked} (AGENTS.md §1.1)`);
 if (chains.length) {
   out('Chains (Codex: root + package AGENTS.md; row: root + CLAUDE.md + instruction files of the routing row):');
   for (const c of chains) out(`  ${c.label.padEnd(44)} ${String(c.bytes).padStart(7)} B  ~${tokens(c.bytes)} tokens`);

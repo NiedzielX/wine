@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { applyStackFixes, checkStackVersions, parseStackTable, type PackageFile } from '../../../scripts/lib/stack-versions.mjs';
 
 /**
  * Spec 2026-10-25-context-engineering, R4–R5 and R9. Every check runs on a temporary tree, never on the repository,
@@ -36,7 +37,7 @@ let counter = 0;
 beforeAll(() => { dir = mkdtempSync(join(tmpdir(), 'check-context-')); });
 afterAll(() => { rmSync(dir, { recursive: true, force: true }); });
 
-function run(files: Files, links: Record<string, string> = {}) {
+function write(files: Files, links: Record<string, string> = {}) {
   const root = join(dir, `t${counter++}`);
   for (const [path, content] of Object.entries(files)) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -46,8 +47,14 @@ function run(files: Files, links: Record<string, string> = {}) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     symlinkSync(target, join(root, path));
   }
-  const r = spawnSync('node', [SCRIPT, '--root', root], { encoding: 'utf8' });
+  return root;
+}
+function runAt(root: string, args: string[] = []) {
+  const r = spawnSync('node', [SCRIPT, '--root', root, ...args], { encoding: 'utf8' });
   return { code: r.status, out: `${r.stdout}${r.stderr}` };
+}
+function run(files: Files, links: Record<string, string> = {}) {
+  return runAt(write(files, links));
 }
 
 describe('check-context: sizes', () => {
@@ -332,11 +339,179 @@ describe('check-context: skills', () => {
   });
 });
 
+describe('check-context: stack versions (AGENTS.md §1.1)', () => {
+  // The shape of the real table: Polish prose, two packages in one cell, labelled ranges, a non-version token.
+  const TABLE = [
+    '### 1.1 Stos technologiczny',
+    '',
+    '| Obszar | Technologia | Wersja |',
+    '|---|---|---|',
+    '| Aplikacja | Next.js (App Router, Turbopack), React | 16.4.3, 19.3.1 |',
+    '| Język | TypeScript (natywny kompilator) | 7.0.2 |',
+    '| Baza danych | PostgreSQL + MikroORM (migracje, seedery, pula połączeń) | PG ≥ 16, MikroORM 7.2.5 |',
+    '| Dependency Injection | Awilix (tryb `PROXY`) | 13.0.5 |',
+    '| CSS | Tailwind CSS (strony gościa) / shadcn/ui na Tailwind (panel) | 4.3.3 / new-york-v4 |',
+    '| Testy | Vitest | 5.0.5 |',
+    '| Monorepo | npm workspaces | npm ≥ 11.6, Node ≥ 22.17 |',
+    '',
+    '**MUSISZ** trzymać się tego stosu. Wersja 1.2.3 w prozie nie jest częścią tabeli.',
+    ''
+  ].join('\n');
+  const DOC = `# AGENTS\n\n## 1. Projekt\n\n${TABLE}\n### 1.2 Pakiety\n\n| Pakiet | Wersja |\n|---|---|\n| x | 9.9.9 |\n`;
+  const ROOT_PKG = { name: 'root', packageManager: 'npm@11.20.0', engines: { node: '>=22.17.0', npm: '>=11.6.0' }, devDependencies: { typescript: '7.0.2', vitest: '5.0.5' } };
+  const APP_PKG = { name: 'app', dependencies: { next: '16.4.3', react: '19.3.1', awilix: '13.0.5', tailwindcss: '4.3.3' } };
+  const DB_PKG = { name: 'db', dependencies: { '@mikro-orm/core': '7.2.5', '@mikro-orm/postgresql': '7.2.5' } };
+  const UI_PKG = { name: 'ui', peerDependencies: { react: '^19.0.0' }, devDependencies: { react: '19.3.1' } };
+  const pkgs = (over: { root?: object; app?: object; db?: object; ui?: object } = {}): PackageFile[] => [
+    { file: 'package.json', json: { ...ROOT_PKG, ...over.root } },
+    { file: 'packages/app/package.json', json: { ...APP_PKG, ...over.app } },
+    { file: 'packages/db/package.json', json: { ...DB_PKG, ...over.db } },
+    { file: 'packages/ui/package.json', json: { ...UI_PKG, ...over.ui } }
+  ];
+
+  it('parses the table: labels from the technology column by position, labelled segments, exact pins and ranges', () => {
+    const parsed = parseStackTable(DOC);
+    expect(parsed).not.toBeNull();
+    const view = parsed!.entries.map((e) => `${e.label}|${e.key ?? '-'}|${e.kind}|${e.token}`);
+    expect(view).toEqual([
+      'Next.js|next.js|exact|16.4.3',
+      'React|react|exact|19.3.1',
+      'TypeScript|typescript|exact|7.0.2',
+      'PG|-|range|16',
+      'MikroORM|mikroorm|exact|7.2.5',
+      'Awilix|awilix|exact|13.0.5',
+      'Tailwind CSS|tailwind css|exact|4.3.3',
+      'Vitest|vitest|exact|5.0.5',
+      'npm|npm|range|11.6',
+      'Node|node|range|22.17'
+    ]);
+    const next = parsed!.entries[0]!;
+    const line = DOC.split('\n')[next.line - 1]!;
+    expect(line.slice(next.column, next.column + next.token.length)).toBe('16.4.3');
+    expect(parseStackTable('# AGENTS\n\n## 1. Projekt\n')).toBeNull();
+  });
+
+  it('reports nothing when the table matches the exact pins and the engines', () => {
+    expect(checkStackVersions(DOC, pkgs())).toEqual([]);
+  });
+
+  it('reports an exact pin that differs, with a fix for that token only', () => {
+    const findings = checkStackVersions(DOC, pkgs({ app: { dependencies: { ...APP_PKG.dependencies, next: '16.4.4' } } }));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('Next.js 16.4.3');
+    expect(findings[0]!.message).toContain('16.4.4');
+    expect(findings[0]!.fix).toMatchObject({ from: '16.4.3', to: '16.4.4' });
+  });
+
+  it('checks every @mikro-orm/* pin for MikroORM and does not guess when pins disagree or are missing', () => {
+    const split = checkStackVersions(DOC, pkgs({ db: { dependencies: { '@mikro-orm/core': '7.2.6', '@mikro-orm/postgresql': '7.2.5' } } }));
+    expect(split).toHaveLength(1);
+    expect(split[0]!.message).toMatch(/MikroORM/);
+    expect(split[0]!.fix).toBeNull();
+    const missing = checkStackVersions(DOC, pkgs({ app: { dependencies: { next: '16.4.3', react: '19.3.1', tailwindcss: '4.3.3' } } }));
+    expect(missing).toHaveLength(1);
+    expect(missing[0]!.message).toMatch(/Awilix.*no exact pin/);
+    expect(missing[0]!.fix).toBeNull();
+  });
+
+  it('ignores ranges for packages and labels it cannot map (PG, a package written as a range, peer ranges)', () => {
+    const doc = DOC.replace('| 16.4.3, 19.3.1 |', '| 16.4.3, ≥ 19 |');
+    const findings = checkStackVersions(doc, pkgs({ app: { dependencies: { ...APP_PKG.dependencies, react: '19.4.0' } }, ui: { devDependencies: { react: '19.4.0' } } }));
+    expect(findings).toEqual([]);
+  });
+
+  it('compares npm and Node with the minimum in engines and keeps the precision of the cell', () => {
+    const findings = checkStackVersions(DOC, pkgs({ root: { engines: { node: '>=22.18.0', npm: '>=11.6.0' } } }));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.fix).toMatchObject({ from: '22.17', to: '22.18' });
+    const patch = checkStackVersions(DOC, pkgs({ root: { engines: { node: '>=22.17.2', npm: '>=11.6.0' } } }));
+    expect(patch[0]!.fix).toMatchObject({ from: '22.17', to: '22.17.2' });
+  });
+
+  it('fixes only the version tokens, nothing else, keeps CRLF, and is idempotent', () => {
+    const drifted = pkgs({
+      root: { engines: { node: '>=24.1.0', npm: '>=11.6.0' }, devDependencies: { typescript: '7.0.3', vitest: '5.1.0' } },
+      app: { dependencies: { next: '16.5.0', react: '19.3.1', awilix: '13.0.5', tailwindcss: '4.3.3' } },
+      db: { dependencies: { '@mikro-orm/core': '7.3.0', '@mikro-orm/postgresql': '7.3.0' } }
+    });
+    const findings = checkStackVersions(DOC, drifted);
+    expect(findings.map((f) => `${f.fix?.from}->${f.fix?.to}`)).toEqual(['16.4.3->16.5.0', '7.0.2->7.0.3', '7.2.5->7.3.0', '5.0.5->5.1.0', '22.17->24.1']);
+    const fixed = applyStackFixes(DOC, findings.map((f) => f.fix!));
+    const before = DOC.split('\n');
+    const after = fixed.split('\n');
+    expect(after).toHaveLength(before.length);
+    const changed = before.map((l, i) => [l, after[i]] as const).filter(([a, b]) => a !== b);
+    expect(changed.map(([, b]) => b)).toEqual([
+      '| Aplikacja | Next.js (App Router, Turbopack), React | 16.5.0, 19.3.1 |',
+      '| Język | TypeScript (natywny kompilator) | 7.0.3 |',
+      '| Baza danych | PostgreSQL + MikroORM (migracje, seedery, pula połączeń) | PG ≥ 16, MikroORM 7.3.0 |',
+      '| Testy | Vitest | 5.1.0 |',
+      '| Monorepo | npm workspaces | npm ≥ 11.6, Node ≥ 24.1 |'
+    ]);
+    expect(checkStackVersions(fixed, drifted)).toEqual([]);
+    expect(applyStackFixes(fixed, checkStackVersions(fixed, drifted).map((f) => f.fix!))).toBe(fixed);
+    const crlf = DOC.replace(/\n/g, '\r\n');
+    const fixedCrlf = applyStackFixes(crlf, checkStackVersions(crlf, drifted).map((f) => f.fix!));
+    expect(fixedCrlf).toBe(fixed.replace(/\n/g, '\r\n'));
+    expect(() => applyStackFixes(fixed, [findings[0]!.fix!])).toThrow(/expected 16\.4\.3/);
+  });
+
+  const tree = (next: string): Files => ({
+    ...validTree(),
+    'AGENTS.md': agents(DEFAULT_ROW, `\n${TABLE}`),
+    'package.json': JSON.stringify(ROOT_PKG, null, 2),
+    'packages/app/package.json': JSON.stringify({ ...APP_PKG, dependencies: { ...APP_PKG.dependencies, next } }, null, 2),
+    'packages/db/package.json': JSON.stringify(DB_PKG, null, 2)
+  });
+
+  it('warns (exit 0) on drift and names the fix command; silent when the table matches', () => {
+    const r = run(tree('16.4.4'));
+    expect(r.code).toBe(0);
+    expect(r.out).toMatch(/warning {2}AGENTS\.md: §1\.1 line \d+: Next\.js 16\.4\.3/);
+    expect(r.out).toContain('npm run check:context -- --fix-versions --write');
+    expect(run(tree('16.4.3')).out).not.toMatch(/AGENTS\.md: §1\.1/);
+  });
+
+  it('--fix-versions is a dry run; --write applies it; a second run has nothing to change', () => {
+    const root = write(tree('16.4.4'));
+    const original = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    const dry = runAt(root, ['--fix-versions']);
+    expect(dry.code).toBe(0);
+    expect(dry.out).toMatch(/AGENTS\.md:\d+ +16\.4\.3 -> 16\.4\.4 +\(Next\.js\)/);
+    expect(dry.out).toContain('dry run');
+    expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toBe(original);
+    const wet = runAt(root, ['--fix-versions', '--write']);
+    expect(wet.code).toBe(0);
+    const updated = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+    expect(updated).toBe(original.replace('| 16.4.3, 19.3.1 |', '| 16.4.4, 19.3.1 |'));
+    const again = runAt(root, ['--fix-versions', '--write']);
+    expect(again.code).toBe(0);
+    expect(again.out).toContain('nothing to change');
+    expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toBe(updated);
+    expect(runAt(root).out).not.toMatch(/AGENTS\.md: §1\.1/);
+  });
+
+  it('--fix-versions exits 1 when a drift cannot be fixed, and --write alone is a usage error', () => {
+    const files = tree('16.4.3');
+    files['packages/db/package.json'] = JSON.stringify({ dependencies: { '@mikro-orm/core': '7.2.6', '@mikro-orm/cli': '7.2.5' } });
+    const r = runAt(write(files), ['--fix-versions']);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('cannot fix');
+    expect(runAt(write(tree('16.4.3')), ['--write']).code).toBe(2);
+  });
+});
+
 describe('check-context: this repository', () => {
   it('passes on the repository', () => {
     const r = spawnSync('node', [SCRIPT, '--root', REPO], { encoding: 'utf8' });
     expect(`${r.stdout}${r.stderr}`).toContain('check-context:');
     expect(r.status).toBe(0);
+  });
+
+  it('has the AGENTS.md §1.1 versions in line with package.json (fix: npm run check:context -- --fix-versions --write)', () => {
+    const r = spawnSync('node', [SCRIPT, '--root', REPO], { encoding: 'utf8' });
+    expect(r.stdout).toContain('stack versions checked:');
+    expect(r.stdout).not.toMatch(/AGENTS\.md: §1\.1/);
   });
 
   it('keeps the rules that must not be lost when AGENTS.md is cut (each is in the root or in .ai/docs)', () => {
