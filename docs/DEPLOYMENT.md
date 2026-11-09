@@ -324,7 +324,7 @@ Potem wróć do `docker compose up -d --no-deps app` z `WINE_MATCH_TAG=<stary-ta
 
 ## 11. Aktualizacja do nowej wersji
 
-1. `git fetch --tags && git checkout <nowy-tag>`; przeczytaj noty wydania i listę migracji (`git diff <stary-tag> <nowy-tag> --stat -- packages/db/src/migrations`); migracja *contract* oznacza, że powrót do starego obrazu nie będzie możliwy (sekcja 10).
+1. `git fetch --tags && git checkout <nowy-tag>`; przeczytaj noty wydania (GitHub Release, `UPGRADE_NOTES.md` dla tej wersji; jak powstają: `docs/RELEASING.md`) i listę migracji (`git diff <stary-tag> <nowy-tag> --stat -- packages/db/src/migrations`); migracja *contract* oznacza, że powrót do starego obrazu nie będzie możliwy (sekcja 10).
 2. W `.env` ustaw `WINE_MATCH_TAG=<nowy-tag>`; `docker compose build`.
 3. Zrzut (sekcja 9).
 4. `docker compose run --rm migrate` → oczekiwane kod 0. Przy błędzie: schemat bez zmian, stara wersja działa, napraw w przód.

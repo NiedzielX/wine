@@ -1,6 +1,6 @@
 # Changelog
 
-Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku jak README. Wpisy pochodzą z listy scalonych PR-ów (numer w nawiasie). Wersja w `package.json` to `0.2.0`; nic nie jest otagowane, a definicja wersji 1.0 jest decyzją właściciela.
+Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku jak README. Wpisy pochodzą z listy scalonych PR-ów (numer w nawiasie). Wersja w `package.json` to `0.2.0`; nic nie jest otagowane, a definicja wersji 1.0 jest decyzją właściciela. Co zrobić przy zmianie niezgodnej wstecz: [UPGRADE_NOTES.md](UPGRADE_NOTES.md); jak powstaje wydanie: [docs/RELEASING.md](docs/RELEASING.md). Kształt sekcji `[Unreleased]` sprawdza `npm run release:notes -- check`.
 
 ## [Unreleased]
 
@@ -24,6 +24,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 - Model zagrożeń, testy granic dostępu, nagłówki bezpieczeństwa (#127); `check:routes` (#128); protokół review i paczka review (#129); izolacja tenantów i role na PostgreSQL (#112); hook agenta działa przy spacji w ścieżce (#115).
 - Reguły pracy równoległej (#108), skrypt dowodu naprawy, CodeQL, Dependabot (#110), scenariusze QA i środowisko testowe (#107), `merge=union` dla indeksów (#119), stan prac i nocny review (#121), plan domknięcia produktu i specyfikacje E12–E22 (#105).
 - Poprawki: identyfikator spoza UUID to „nieznany”, nie 500 (#109); flaky test kodu kelnera (#106).
+- Proces wydania (lekcja 22): `docs/RELEASING.md`, `UPGRADE_NOTES.md`, §9 w `BACKWARD_COMPATIBILITY.md`, `npm run release:version` i `npm run release:notes`, szkic workflow `release.yml` (tylko ręcznie, bez publikacji pakietów i wdrożenia).
 
 ### Analityka, sprzedaż, okazje (E02–E04, E10)
 - E02: sesja gościa w URL (`sid`) i zdarzenia odsłon (#61), wybór wina i podgląd kelnera (#63).

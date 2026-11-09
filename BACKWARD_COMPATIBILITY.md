@@ -125,8 +125,20 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 
 **Ścieżka:** to kontrakty wewnątrz monorepo, więc wolno je zmienić w jednym PR-ze, jeśli wszystkie miejsca użycia zmieniają się razem, a `npm run typecheck`, `npm run check:boundaries` i testy przechodzą. Zmiana kierunku zależności między pakietami wymaga specyfikacji (AGENTS.md §1.2).
 
+## 9. Jak zapisać i sprawdzić zmianę łamiącą
+
+Gdy zmiana mimo ścieżek z §1–§8 łamie którąś powierzchnię (albo ścieżka sama wymaga działania operatora, np. nowa zmienna obowiązkowa), ten sam PR:
+
+1. dopisuje wpis w `## [Unreleased]` pliku [UPGRADE_NOTES.md](UPGRADE_NOTES.md): `### <co się zmienia> (#PR)` i pola **Kogo dotyczy:**, **Co się zmienia:**, **Co zrobić:**, **Wycofanie:** (wzór w pliku; kompletność sprawdza `npm run release:notes -- check`);
+2. dopisuje wpis w `CHANGELOG.md` z dopiskiem „Zmiana łamiąca” i ma „💥 Breaking” w opisie PR-a;
+3. ma test, który pokazuje stare i nowe zachowanie po stronie konsumenta: stary adres daje 308 na nowy (§1, test e2e), stary plik importu wczytuje się nadal albo daje opisany błąd (§6, `packages/db/tests/fixtures/`), migracja ma dowód up/down/up (§3, `engineering-standards.md` §12), zmienna środowiskowa ma test startu z odmową (§4, `npm run boot:check`);
+4. dostaje `risk-high` (`SDLC.md`: „Shared contract surfaces”) i podnosi wersję wydania co najmniej o `MINOR` (`docs/RELEASING.md` §3).
+
+Przy wydaniu wpisy przechodzą pod `## [X.Y.Z]` (`npm run release:notes -- promote`) i trafiają do opisu GitHub Release. Wersje pakietów npm nie są kontraktem (wszystkie `private`); kontraktem wersji jest tag wydania `vX.Y.Z`, którego używa operator (`docs/DEPLOYMENT.md` §11).
+
 ## Poza kontraktem
 
+- Kod wewnętrzny, który nie zmienia żadnej powierzchni z §1–§8: refaktoryzacja, testy, `.ai/`, dokumentacja, skrypty repozytorium poza poleceniami operatora z §5.
 - Pakiet `mockups` (prototyp do wycofania), w tym jego klucz `localStorage` `winematch.demo.v2`.
 - Konta i dane demo (`DemoSeeder`, `DATA_SOURCE=memory`): mogą się zmieniać, ale seeder ma pozostać idempotentny.
 - Wygląd stron (układ, kolory, teksty) — chroni go QA i review UX, nie ten plik. Chronione są adresy i parametry z sekcji 1.
