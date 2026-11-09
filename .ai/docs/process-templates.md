@@ -1,6 +1,40 @@
 # Szablony: specyfikacja, log przebiegu, lekcja
 
-Przeniesione z `AGENTS.md` (§3, §4, §5) bez zmiany treści. Używaj przy zakładaniu nowego pliku w `.ai/`.
+Przeniesione z `AGENTS.md` (§2, §3, §4, §5, §8) bez zmiany treści. Używaj przy zakładaniu nowego pliku w `.ai/`. Reguły zostają w `AGENTS.md`; tu są szablony, drzewo katalogów i uzasadnienia.
+
+### Struktura `.ai/` (AGENTS.md §2)
+
+```
+.ai/
+├─ specs/                 specyfikacje do Spec-Driven Development (SDD)
+│  ├─ YYYY-MM-DD-slug.md  specyfikacje aktywne: draft, approved, in-progress
+│  ├─ implemented/        specyfikacje w pełni zrealizowane
+│  └─ archive/            specyfikacje porzucone lub zastąpione
+├─ runs/
+│  └─ YYYY-MM-DD-slug.md  log każdego autonomicznego przebiegu agenta
+├─ lessons.md             indeks lekcji: jedna linia na lekcję, najnowsze na górze
+└─ lessons/
+   └─ YYYY-MM-DD-slug.md  pełna treść lekcji
+```
+
+### Planowanie złożonych zadań (AGENTS.md §3)
+
+Specyfikacja jest planem. Wysiłek wkładaj w plan, tak aby implementacja przeszła w jednym podejściu:
+- „Projekt rozwiązania” wymienia pliki do zmiany, kolejność kroków i to, jak zostanie sprawdzone każde kryterium akceptacji (test, polecenie, ekran).
+- Niejasności rozstrzygaj przed akceptacją — im dokładniejszy spec, tym mniej poprawek.
+- Zanim poprosisz o akceptację, zleć przegląd specyfikacji niezależnemu agentowi (świeży kontekst lub pod-agent) w roli doświadczonego inżyniera: brakujące przypadki brzegowe, konflikty z sekcją 7, nietestowalne kryteria. Wnioski wpisz do specyfikacji.
+
+### Awans lekcji do zasad (AGENTS.md §5)
+
+Celem awansu jest malejąca liczba powtarzanych błędów; reguły, które przestały być potrzebne, usuwaj z `AGENTS.md`, żeby pozostał krótki. Lekcja awansowana ma pole `promoted: AGENTS.md §<nr>`, a jej linia w `.ai/lessons.md` może być minimalna (tytuł i odnośnik do sekcji), bo regułę wczytuje już `AGENTS.md`.
+
+### Najpierw działające, potem właściwe (AGENTS.md §6.1)
+
+Jeśli poprawka działa, ale jest doraźna, zadaj sobie pytanie „wiedząc to, co wiem teraz, jak wyglądałoby eleganckie rozwiązanie?” i wdróż je, jeśli mieści się w zakresie. Jeśli nie — zapisz dług techniczny w „Wyniku” logu. „Naprawione” to hipoteza, nie dowód: dowodem jest `verify:regression` (`.ai/docs/fix-verification.md` §3).
+
+### Kiedy pod-agent, kiedy nie (AGENTS.md §8)
+
+Pod-agent daje jakość i oszczędza uwagę agenta głównego, ale zwiększa łączny koszt tokenów (startuje z pustym oknem). Używaj go do researchu, przeglądu, weryfikacji i prac, które da się zrównoleglić; nie do małej zmiany w jednym pliku. Brief zawiera cel, pliki do przeczytania i to, co już wykluczono.
 
 ### Szablon specyfikacji
 
