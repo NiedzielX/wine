@@ -19,7 +19,7 @@
  * Exit 0: consistent (or plan applied / printed); 1: a problem; 2: usage (also --check with --set, --expect with --set,
  * --write without --set, a flag given twice).
  */
-import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
@@ -59,8 +59,14 @@ export function satisfies(version, range) {
 
 function readJson(root, file) {
   const path = join(root, file);
-  if (!existsSync(path)) return { text: null, json: null };
-  const text = readFileSync(path, 'utf8');
+  let text;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch (error) {
+    // Read directly and handle ENOENT: an existence check before the read is a check-then-use race (CodeQL js/file-system-race).
+    if (error && error.code === 'ENOENT') return { text: null, json: null };
+    throw error;
+  }
   try {
     return { text, json: JSON.parse(text) };
   } catch {

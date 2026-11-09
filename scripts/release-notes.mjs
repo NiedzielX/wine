@@ -17,7 +17,7 @@
  * **Kogo dotyczy:**, **Co się zmienia:**, **Co zrobić:**, **Wycofanie:**; an empty [Unreleased] there means "nothing
  * breaking". Exit 0: ok; 1: a problem; 2: usage.
  */
-import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -218,9 +218,10 @@ export function main(argv = process.argv.slice(2), out = console, stdout = (s) =
   const root = resolve(opts.root);
   const changelogPath = join(root, 'CHANGELOG.md');
   const upgradePath = join(root, 'UPGRADE_NOTES.md');
-  if (!existsSync(changelogPath)) { out.error(`${changelogPath}: missing`); return 1; }
-  const changelog = readFileSync(changelogPath, 'utf8');
-  const upgrade = existsSync(upgradePath) ? readFileSync(upgradePath, 'utf8') : null;
+  // Read directly and handle ENOENT: a separate existence check followed by a read is a check-then-use race (CodeQL js/file-system-race).
+  const changelog = readIfPresent(changelogPath);
+  if (changelog === null) { out.error(`${changelogPath}: missing`); return 1; }
+  const upgrade = readIfPresent(upgradePath);
   const failed = (problems) => {
     for (const p of problems) out.error(p);
     out.error(`\nrelease:notes ${command} FAILED: ${problems.length} problem(s). Process: docs/RELEASING.md.`);
@@ -256,6 +257,16 @@ export function main(argv = process.argv.slice(2), out = console, stdout = (s) =
   if (r.upgradeNotes !== upgrade) writeFileSync(upgradePath, r.upgradeNotes);
   out.log('written.');
   return 0;
+}
+
+/** Text of a file, or null when it does not exist (any other error is thrown). */
+function readIfPresent(path) {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
 }
 
 /** Fail closed (lesson 2026-11-05-script-main-guard-vs-paths): on any doubt about how we were started, run main(). */
