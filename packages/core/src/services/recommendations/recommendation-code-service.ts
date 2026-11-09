@@ -103,6 +103,7 @@ export class RecommendationCodeService {
     const now = this.deps.clock.now();
     const day = serviceDay(now);
     const limit = input.source === 'staff' ? MAX_STAFF_CODES_PER_SESSION_DAY : MAX_CODES_PER_SESSION_DAY;
+    // fast path only: it spares the insert attempt for a session already at the cap; `tryIssue(…, limit)` is the source of truth (atomic)
     if ((await codes.countBySession(restaurant.id, day, input.session.id)) >= limit) return null;
 
     const base: Omit<RecommendationCodeRecord, 'code' | 'confirmedAt'> = {

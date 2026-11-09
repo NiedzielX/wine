@@ -78,6 +78,9 @@ export function recommendationCodeContract(t: Omit<OnceRunner, 'beforeAll' | 'af
     t.expect((await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(71), code: 'B2C', serving: 'glass' }, 2)).status).toBe('created');
     t.expect(await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(72), code: 'B2D', wineId: ds.wines[1].id }, 2)).toEqual({ status: 'session_limit' });
     t.expect(await repo.countBySession(ds.restaurant.id, day, sid(70))).toBe(2);
+    // at the cap the gate comes first: even a retry of a choice that already has a code is `session_limit`, not `existing`
+    t.expect(await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(75), code: 'B2F' }, 2)).toEqual({ status: 'session_limit' });
+    t.expect((await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(76), code: 'B2G' })).status).toBe('existing');   // without a limit the same retry is answered with the stored code
     t.expect((await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(73), code: 'B2E', sessionId: sid(74) }, 2)).status).toBe('created');
   });
 

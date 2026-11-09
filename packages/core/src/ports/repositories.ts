@@ -259,7 +259,9 @@ export interface RecommendationCodeRepository {
   /**
    * inserts unless (serviceDay, code) or the choice exists; `existing` returns the stored record of the same choice.
    * `sessionLimit` (R13): `session_limit` when the session already has that many codes that day, counted and inserted
-   * under one lock, so parallel requests of one session cannot pass the cap together.
+   * under one lock, so parallel requests of one session cannot pass the cap together. The gate comes before the choice
+   * lookup: at the cap even a retry of a choice that already has a code is `session_limit`, not `existing` (the same
+   * answer the service always gave). Without `sessionLimit` there is no gate.
    */
   tryIssue(restaurantId: string, input: RecommendationCodeInput, sessionLimit?: number):
     Promise<{ status: 'created' | 'existing'; record: RecommendationCodeRecord } | { status: 'code_taken' } | { status: 'session_limit' }>;

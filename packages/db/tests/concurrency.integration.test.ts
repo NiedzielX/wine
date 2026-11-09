@@ -70,7 +70,6 @@ describe('concurrency on PostgreSQL', () => {
   });
 
   it('parallel invitations to one e-mail: never two live tokens; the loser either replaced the winner or got invitation_conflict, and a dead token cannot be used', async () => {
-    const outcomes = new Set<string>();
     for (let round = 0; round < ROUNDS; round++) {
       await resetData(orm);
       const second = await seedSecondRestaurant(orm);
@@ -83,7 +82,6 @@ describe('concurrency on PostgreSQL', () => {
       const won = fulfilled(results);
       expect(won.length, `round ${round}`).toBeGreaterThanOrEqual(1);
       for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ code: 'invitation_conflict' });
-      outcomes.add(`${won.length} fulfilled`);
       const live = await sql<{ id: string; role: string }>("select id, role from auth_token where kind = 'invite' and lower(email) = ? and used_at is null and revoked_at is null", [email]);
       expect(live, `round ${round}: exactly one live token`).toHaveLength(1);
       // the live one is the last committed of the fulfilled; every other fulfilled one is revoked, none is lost
@@ -99,7 +97,6 @@ describe('concurrency on PostgreSQL', () => {
       }
       expect(await sql('select 1 from membership m join app_user u on u.id = m.user_id where lower(u.email) = ?', [email])).toHaveLength(1);
     }
-    expect(outcomes.size).toBeGreaterThan(0);
   });
 
   it('two role changes with the same expectedVersion: one succeeds, one gets version_conflict, version 2, one role_changed event that matches the stored role', async () => {
@@ -121,7 +118,7 @@ describe('concurrency on PostgreSQL', () => {
     }
   });
 
-  it('owners removing each other at the same moment (and three-way): the restaurant never has zero active owners, the loser is refused with last_owner and leaves no event', async () => {
+  it('owners removing each other at the same moment: exactly one removal wins, the loser is refused (forbidden or last_owner), the winning actor stays the only active owner, one event', async () => {
     for (let round = 0; round < ROUNDS; round++) {
       await resetData(orm);
       const second = await seedSecondRestaurant(orm);
@@ -132,7 +129,13 @@ describe('concurrency on PostgreSQL', () => {
       const active = await sql<{ id: string }>("select id from membership where restaurant_id = ? and role = 'owner' and status = 'active'", [second.restaurantId]);
       expect(active.length, `round ${round}: never zero owners`).toBeGreaterThanOrEqual(1);
       expect(fulfilled(results), `round ${round}`).toHaveLength(1);
-      expect(rejected(results)[0].reason).toMatchObject({ code: expect.stringMatching(/^(last_owner|forbidden)$/) });
+      // the loser is refused either by the actor check (the winner had already removed it: forbidden) or by the last-owner rule (the winner's
+      // change was still pending when it locked the rows: last_owner); never anything else, and in both cases the loser's change is not applied
+      expect(rejected(results)[0].reason, `round ${round}`).toMatchObject({ code: expect.stringMatching(/^(forbidden|last_owner)$/) });
+      const [winner, loser] = results[0].status === 'fulfilled' ? [second.owner1, second.owner2] : [second.owner2, second.owner1];
+      const state = await sql<{ id: string; status: string; version: number }>('select id, status, version from membership where id in (?, ?)', [winner.membershipId, loser.membershipId]);
+      expect(state.find((m) => m.id === winner.membershipId), `round ${round}: the winner's actor stays an active owner`).toMatchObject({ status: 'active', version: 1 });
+      expect(state.find((m) => m.id === loser.membershipId), `round ${round}: the loser was removed by the winner`).toMatchObject({ status: 'deactivated', version: 2 });
       expect(await sql("select 1 from auth_event where type = 'member_deactivated'")).toHaveLength(1);
       expect(active).toHaveLength(1);
     }
@@ -210,21 +213,27 @@ describe('concurrency on PostgreSQL', () => {
     }
   });
 
-  it('the per-session cap on codes (R13) holds for parallel requests', async () => {
+  it('the per-session cap on codes (R13) holds for parallel requests: with one place left, exactly one of eight distinct choices gets a code and the rest get null', async () => {
     const dish = ds.dishes.find((d) => d.status === 'published')!;
     const wine = ds.wines.find((w) => w.active && w.glassPrice !== null)!;
     const SID = '3f2b8c1a-9d4e-4a5b-8c6d-7e8f9a0b1c2e';
     const other = ds.dishes.filter((d) => d.status === 'published' && d.id !== dish.id);
-    // distinct choices for one session: (serving x dish set); fill the session to one below the cap, then ask for 8 more at once
     const choices = [...other.map((d) => [d.id]), ...other.flatMap((a, i) => other.slice(i + 1).map((b) => [a.id, b.id]))];
     const ask = (dishIds: string[], serving: 'glass' | 'bottle') => codesOf().issue('halka', { session: { id: SID, isNew: false, source: 'link' }, source: 'guest', wineId: wine.id, serving, dishIds, tier: null });
+    // the first MAX - 1 choices by the glass, then eight different ones by the bottle (distinct choices: serving differs), all at once
     const plan = choices.flatMap((c) => [c, [...c, dish.id]]).slice(0, MAX_CODES_PER_SESSION_DAY - 1);
     expect(plan.length).toBe(MAX_CODES_PER_SESSION_DAY - 1);
-    for (const c of plan) expect(await ask(c, 'glass')).not.toBeNull();
-    const burst = [dish.id, ...choices.slice(0, 7).map((c) => c)].map((c) => (Array.isArray(c) ? c : [c]));
-    const results = await race(...burst.map((c, i) => () => ask([...c, ...(i ? [dish.id] : [])].slice(0, 3), 'bottle')));
-    const total = Number((await sql<{ n: string }>('select count(*)::text as n from recommendation_code where session_id = ?', [SID]))[0].n);
-    expect(fulfilled(results).length).toBeGreaterThan(0);
-    expect(total, 'no more codes than the cap, however the requests interleave').toBeLessThanOrEqual(MAX_CODES_PER_SESSION_DAY);
+    const burst = [[dish.id], ...choices.slice(0, 7).map((c) => [...c, dish.id].slice(0, 3))];
+    expect(new Set(burst.map((c) => c.join())).size).toBe(8);
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      for (const c of plan) expect(await ask(c, 'glass'), `round ${round}: filling`).not.toBeNull();
+      const results = await race(...burst.map((c) => () => ask(c, 'bottle')));
+      expect(fulfilled(results), `round ${round}: no request failed`).toHaveLength(burst.length);
+      const issued = fulfilled(results).filter((r) => r.value !== null);
+      expect(issued, `round ${round}: exactly one place was left`).toHaveLength(1);
+      const total = Number((await sql<{ n: string }>('select count(*)::text as n from recommendation_code where session_id = ?', [SID]))[0].n);
+      expect(total, `round ${round}: exactly the cap, not above, not below`).toBe(MAX_CODES_PER_SESSION_DAY);
+    }
   });
 });
