@@ -7,6 +7,12 @@
 #   build       production build with no environment and no database, plus the start-up checks
 #   database    PostgreSQL integration tests, on a throwaway container (testcontainers)
 #   e2e         the built app on a throwaway PostgreSQL, driven by agent-browser (home page and admin panel)
+#
+# Supply chain (lesson 18, security-notes.md section 11): every action is pinned by a full commit SHA with the release
+# in a trailing comment (Dependabot, ecosystem github-actions, updates both); checkouts do not keep the token
+# (persist-credentials: false); every job lists its own minimal permissions; npm runs with ignore-scripts (.npmrc).
+# Tools outside the lockfile (npm itself, agent-browser, the apt packages of `agent-browser install --with-deps`)
+# are listed with their pins in .ai/docs/commands.md.
 
 name: CI
 
@@ -31,9 +37,13 @@ jobs:
   lint:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -57,9 +67,13 @@ jobs:
   secrets:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
       - name: Secret scan (tracked files; values are never printed)
@@ -68,9 +82,13 @@ jobs:
   design:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -82,9 +100,13 @@ jobs:
   unit:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -92,13 +114,25 @@ jobs:
       - run: npm ci
       - name: Unit tests with coverage report
         run: npm test
+      - name: Keep the coverage reports (lcov and HTML per package; informational, no threshold)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage
+          path: packages/*/coverage
+          if-no-files-found: ignore
+          retention-days: 7
 
   a11y:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -110,9 +144,13 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -126,9 +164,13 @@ jobs:
   database:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -141,9 +183,13 @@ jobs:
   e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -153,14 +199,17 @@ jobs:
         run: npm run build
       - name: Install agent-browser ${{ env.AGENT_BROWSER_VERSION }} and its browser
         run: |
-          npm install -g --engine-strict=false agent-browser@${{ env.AGENT_BROWSER_VERSION }}
+          npm install -g --ignore-scripts --engine-strict=false agent-browser@${{ env.AGENT_BROWSER_VERSION }}
+          # the package ships its native binaries without the execute bit and its post-install script (skipped here) is what
+          # sets it: do it explicitly for the Linux binaries instead of running vendor code
+          chmod +x "$(npm root -g)"/agent-browser/bin/agent-browser-linux-*
           agent-browser --version
           agent-browser install --with-deps
       - name: End-to-end tests (testcontainers PostgreSQL, built app, agent-browser)
         run: npm run test:e2e
       - name: Keep screenshots and the app log of a failing run
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: e2e-artifacts
           path: |

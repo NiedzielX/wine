@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-08] [Łańcuch dostaw CI: akcje przypięte SHA, skrypty instalacyjne wyłączone, hook to guardrail](lessons/2026-11-08-ci-supply-chain-pins.md) — pełny SHA z `# vX.Y.Z`, `persist-credentials: false`, `ignore-scripts=true`, skan historii sekretów; hook nie jest granicą
 - [2026-11-08] [Reguła z AGENTS.md bez egzekwowania jest życzeniem: hook dla `status: approved`, skille projektu `wine-match-*`](lessons/2026-11-08-project-skills-and-spec-status-hook.md) — chroń regułę procesu hookiem z testowaną `decide()`, a powtarzalny proces zapisz jako skill projektu.
 - [2026-11-08] [QA agenta: wyrocznia, niezależny weryfikator i znany cel bazy](lessons/2026-11-08-qa-with-agents-protocol.md) — protokół `.ai/docs/qa-protocol.md`; polecenia operatora drukują cel bazy i ostrzegają o cieniu `DATABASE_URL`
 - [2026-11-07] [Recenzent dostaje paczkę, nie opis PR-a](lessons/2026-11-07-review-pack-not-author-story.md) — `npm run review:pack`: diff, spec, lista kontrolna, CI bez deklaracji autora; auto-approve nie jest decyzją o merge; etykieta to decyzja z jednej chwili.
