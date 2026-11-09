@@ -10,6 +10,8 @@ Format linii (najnowsze na górze):
 ## Aktywne
 
 - [2026-11-09] [Recenzenci z różnych rodzin modeli](lessons/2026-11-09-reviewers-from-different-model-families.md) — to samo wejście, każda uwaga z dowodem, nie głosowanie
+- [2026-11-08] [Obraz `migrator`: `migration:up` zapisuje snapshot w źródłach, katalog musi być zapisywalny dla `node`](lessons/2026-11-08-migration-up-writes-snapshot-into-source.md) — `COPY --chown=node:node` w celu `migrator`; kroki obrazu uruchamiaj najpierw w kopii układu plików i porównuj `find -newer`.
+- [2026-11-08] [Limit „sprawdź, potem wstaw” bez blokady przepuszcza równoległe żądania; migracja ma dowód up/down/up](lessons/2026-11-08-concurrency-tests-and-migration-roundtrip.md) — limit w jednej transakcji z `pg_advisory_xact_lock`; testy równoległości z bramką `race()`; `down` dla każdej migracji poza bazową.
 - [2026-11-08] [Łańcuch dostaw CI: akcje przypięte SHA, skrypty instalacyjne wyłączone, hook to guardrail](lessons/2026-11-08-ci-supply-chain-pins.md) — pełny SHA z `# vX.Y.Z`, `persist-credentials: false`, `ignore-scripts=true`, skan historii sekretów; hook nie jest granicą
 - [2026-11-08] [Reguła z AGENTS.md bez egzekwowania jest życzeniem: hook dla `status: approved`, skille projektu `wine-match-*`](lessons/2026-11-08-project-skills-and-spec-status-hook.md) — chroń regułę procesu hookiem z testowaną `decide()`, a powtarzalny proces zapisz jako skill projektu.
 - [2026-11-08] [QA agenta: wyrocznia, niezależny weryfikator i znany cel bazy](lessons/2026-11-08-qa-with-agents-protocol.md) — protokół `.ai/docs/qa-protocol.md`; polecenia operatora drukują cel bazy i ostrzegają o cieniu `DATABASE_URL`

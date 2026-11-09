@@ -38,6 +38,7 @@ Zaproszenia (E12 F2) wystawia owner/GM w A15 albo przez `POST /api/v1/restaurant
 | `npm run build` | granice + build mockupów i aplikacji (z typecheckiem Next.js) |
 | `npm run engine:matrix` | przegląd kalibracji silnika: najlepsze wina dla każdego dania demo |
 | `npm run db:migration:create` / `db:migrate` / `db:seed` | migracje i dane demo |
+| `docker compose build` / `run --rm migrate [polecenie]` / `up -d app` | obraz i produkcja na jednej VM (`Dockerfile`, `docker-compose.yml`, E11 F2); polecenia operatora (`restaurant:create`, `migration:pending`) przez usługę `migrate`; runbook, kopie i wycofanie: `docs/DEPLOYMENT.md`. Job CI `image` sprawdza obraz (nie jest wymaganym checkiem) |
 
 Skrypty npm uruchamiają się przez `/bin/sh`, który na Linuksie bywa `dash`: w skryptach i poleceniach powłoki **NIE używaj bashizmów** (`{a,b}`, `${PIPESTATUS}`, `[[ ]]`, `time`). Pisz POSIX albo skrypt Node (`scripts/*.mjs`).
 
@@ -47,6 +48,8 @@ Przeniesione z `AGENTS.md` §7 bez zmiany treści.
 
 - **Wykluczenia z raportu pokrycia są jawne, w konfiguracji każdego pakietu** (`vitest.config.ts`), z uzasadnieniem: pliki stron i komponentów React (`app/src/app/**.tsx`, pokrywa je E2E), kod shadcn/ui, pakiet `mockups` (prototyp do wycofania), wspólne zestawy testów (`core/src/testing`), repozytoria i encje (pokrywa je `test:db`). Nowe wykluczenie wymaga zgody właściciela.
 - **Gdzie piszemy testy:** `core/tests/` (logika domeny), `db/tests/` (bez bazy: `*.test.ts`; z bazą: `*.integration.test.ts`), `app/tests/unit/` (trasy API, akcje, serwer), `app/tests/e2e/` (przeglądarka), `ui/tests/`, `testkit/tests/` (narzędzia testowe i skrypty repozytorium: hooki agenta (`.claude/hooks/`), skaner sekretów, `check:context`).
+
+- **Migracje i współbieżność na PostgreSQL** (część `npm run test:db`, osobny serwer: `TEST_DATABASE_URL`): `packages/db/tests/migrations-roundtrip.integration.test.ts` (`up` -> zrzut schematu -> `down` każdej migracji poza bazową -> schemat równy zrzutowi po bazowej -> `up` -> schemat równy pierwszemu zrzutowi; pusta baza i baza z danymi demo; dla nowej migracji dowód i plan wycofania w opisie PR-a: `engineering-standards.md` §12) oraz `packages/db/tests/concurrency.integration.test.ts` (równoległe akceptacje zaproszenia, zaproszenia na ten sam adres, zmiany roli z tym samym `expectedVersion`, usuwanie ostatniego właściciela, potwierdzenie importu, decyzje o parach z `If-Match`, wydawanie i potwierdzanie kodów, limit kodów na sesję; ok. 4 s). Uruchomienie jednego pliku: `cd packages/db && TEST_DATABASE_URL=… npx vitest run --config vitest.integration.config.ts tests/<plik>`.
 
 ## Środowisko testowe
 

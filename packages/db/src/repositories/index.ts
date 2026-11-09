@@ -537,8 +537,22 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
     return this.em.getConnection().execute<T[]>(sql, params);
   }
 
-  async tryIssue(restaurantId: string, input: RecommendationCodeInput) {
-    const inserted = await this.run<RecommendationCodeSqlRow>(
+  async tryIssue(restaurantId: string, input: RecommendationCodeInput, sessionLimit?: number) {
+    if (sessionLimit === undefined) return this.insertCode(this.em, restaurantId, input);
+    // R13: count and insert under one advisory lock per (restaurant, day, session); a plain count-then-insert lets parallel requests pass the cap together
+    return this.em.transactional(async (tem) => {
+      await tem.execute('select pg_advisory_xact_lock(hashtextextended(?, 0))', [`recommendation_code:${restaurantId}:${input.serviceDay}:${input.sessionId}`]);
+      const rows = await tem.execute<Array<{ n: string }>>(
+        'select count(*)::text as n from recommendation_code where restaurant_id = ? and service_day = ? and session_id = ?', [restaurantId, input.serviceDay, input.sessionId]
+      );
+      if (Number(rows[0]?.n ?? 0) >= sessionLimit) return { status: 'session_limit' as const };
+      return this.insertCode(tem, restaurantId, input);
+    });
+  }
+
+  private async insertCode(em: EntityManager, restaurantId: string, input: RecommendationCodeInput) {
+    const run = <T>(sql: string, params: unknown[]) => em.execute<T[]>(sql, params);
+    const inserted = await run<RecommendationCodeSqlRow>(
       `insert into recommendation_code (id, restaurant_id, service_day, code, session_id, source, context, wine_id, dish_ids, serving, menu_version, tier, engine_version, issued_at)
        values (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
        on conflict do nothing
@@ -549,7 +563,7 @@ export class PgRecommendationCodeRepository implements RecommendationCodeReposit
       ]
     );
     if (inserted[0]) return { status: 'created' as const, record: toRecommendationCode(inserted[0]) };
-    const existing = await this.run<RecommendationCodeSqlRow>(
+    const existing = await run<RecommendationCodeSqlRow>(
       `select ${CODE_COLUMNS} from recommendation_code
         where restaurant_id = ? and service_day = ? and session_id = ? and wine_id = ? and serving = ? and dish_ids = ?::jsonb`,
       [restaurantId, input.serviceDay, input.sessionId, input.wineId, input.serving, JSON.stringify(input.dishIds)]
