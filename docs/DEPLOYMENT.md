@@ -23,7 +23,13 @@ Decyzje, których repozytorium nie podejmuje za właściciela (dostawca hostingu
 
 1. **Maszyna i Docker.** Zainstaluj Docker Engine z oficjalnego repozytorium dystrybucji. Sprawdź: `docker version` i `docker compose version` bez błędu.
 2. **Kod.** `git clone <adres repozytorium> wine-match && cd wine-match && git checkout <tag-wydania>`. Zapisz tag: będzie nazwą obrazu i punktem powrotu przy wycofaniu.
-3. **Konfiguracja.** `cp .env.example .env && chmod 600 .env`, potem ustaw w `.env` (tabela w sekcji 4): `PUBLIC_BASE_URL` (https, własna domena), `POSTGRES_PASSWORD` (`openssl rand -hex 24`), `DEMO_RESTAURANT_SLUG` (slug restauracji pilotażowej), `METRICS_TOKEN` (`openssl rand -hex 32`), `WINE_MATCH_TAG` (tag z kroku 2). `.env` nigdy nie trafia do repozytorium ani do obrazu (`.dockerignore`, `.gitignore`). Sprawdź, że Compose widzi konfigurację: `docker compose config --quiet` (brak wyniku = poprawnie; brak `PUBLIC_BASE_URL` lub `POSTGRES_PASSWORD` kończy się komunikatem z nazwą zmiennej).
+3. **Konfiguracja.** `cp .env.example .env && chmod 600 .env`, potem ustaw w `.env` (tabela w sekcji 4): `PUBLIC_BASE_URL` (https, własna domena), `POSTGRES_PASSWORD` (`openssl rand -hex 24`), `DEMO_RESTAURANT_SLUG` (slug restauracji pilotażowej), `METRICS_TOKEN` (`openssl rand -hex 32`), `WINE_MATCH_TAG` (tag z kroku 2). `.env` nigdy nie trafia do repozytorium ani do obrazu (`.dockerignore`, `.gitignore`). **Sprawdź hasło bazy** (trafia do adresu URL, więc znaki specjalne `@ : / ? # % +` psują połączenie; Compose nie umie go zakodować):
+   ```sh
+   pw="$(sed -n 's/^POSTGRES_PASSWORD=//p' .env | tail -1)"
+   printf '%s' "$pw" | grep -Eq '^[A-Za-z0-9]{24,}$' && echo 'POSTGRES_PASSWORD ok' || echo 'POSTGRES_PASSWORD: tylko litery i cyfry, min. 24 znaki (openssl rand -hex 24)'
+   unset pw
+   ```
+   Wynik „ok” jest wymagany przed krokiem 5 (przy pierwszym starcie bazy hasło zapisuje się w wolumenie; zmiana później wymaga `ALTER USER`). Compose czyta `.env` tylko do podstawienia zmiennych i przekazuje do kontenerów **wyłącznie wymienione z nazwy** (`docker-compose.yml`), więc `POSTGRES_PASSWORD` i inne wartości nie wpadają do środowiska aplikacji poza `DATABASE_URL`. Sprawdź, że Compose widzi konfigurację: `docker compose config --quiet` (brak wyniku = poprawnie; brak `PUBLIC_BASE_URL` lub `POSTGRES_PASSWORD` kończy się komunikatem z nazwą zmiennej).
 4. **Budowa obrazów.** `docker compose build` (cele `runtime` i `migrator`; nie potrzebują zmiennych środowiska ani bazy). Na hoście arm64 buduj na arm64 (obraz bazowy jest wieloarchitekturowy). Oczekiwane: `docker image ls` pokazuje `wine-match:<tag>` i `wine-match-migrator:<tag>`.
 5. **Baza.** `docker compose up -d db`. Oczekiwane: po kilkunastu sekundach `docker compose ps db` pokazuje `healthy`. Baza nie ma opublikowanego portu: jest dostępna tylko w sieci Compose.
 6. **Kopia przed migracją** (przy pierwszej instalacji baza jest pusta, ale ćwicz od początku): sekcja 9, polecenie „zrzut”.
@@ -37,7 +43,7 @@ Decyzje, których repozytorium nie podejmuje za właściciela (dostawca hostingu
 
 | Element | Rola |
 |---|---|
-| `Dockerfile` cel `runtime` | aplikacja (`next start`, port 3000), użytkownik `node`, `NODE_ENV=production`, `HEALTHCHECK` na `/api/v1/health` (żywotność: kontener jest „unhealthy” tylko, gdy proces nie odpowiada; awaria bazy daje 503 i nie restartuje kontenera) |
+| `Dockerfile` cel `runtime` | aplikacja (`next start`, port 3000), użytkownik `node`, `NODE_ENV=production`, `HEALTHCHECK` na `/api/v1/health` (żywotność: kontener jest „unhealthy” tylko, gdy proces nie odpowiada; awaria bazy daje 503, więc nie wygląda to na „martwy proces”; sam Docker i tak nie restartuje kontenera za „unhealthy” (`restart:` reaguje na wyjście procesu), robi to dopiero orkiestrator albo dodatek typu autoheal) |
 | `Dockerfile` cel `migrator` | polecenia operatora na PostgreSQL: `db:migrate` (domyślne), `migration:pending`, `restaurant:create`, `user:create`, `user:invite`, `db:seed` (odmawia w produkcji bez `ALLOW_DEMO_DATA=true`) |
 | `docker-compose.yml` `db`, `migrate`, `app` | profil **produkcyjny** (domyślny): PostgreSQL z wolumenem `pgdata`, jednorazowe `migrate`, `app` czekający na `migrate` (kod 0) i zdrową bazę. Bez danych demo |
 | `docker-compose.yml` `app-demo` (profil `demo`) | opcjonalna publiczna instancja pokazowa na pamięci (sekcja 12); nie używa `.env` produkcji |
@@ -262,11 +268,22 @@ Po wdrożeniu nowej wersji weryfikacja (sekcja 8) nie przechodzi albo objawy z O
 ```sh
 docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "backups/before-rollback-$(date +%Y%m%d-%H%M%S).dump"
 # w .env ustaw WINE_MATCH_TAG na poprzedni tag (np. v0.2.0), potem:
-docker image inspect "wine-match:${WINE_MATCH_TAG}" > /dev/null    # obraz musi istnieć; jeśli nie: git checkout <stary-tag> && docker compose build
+docker image inspect "wine-match:${WINE_MATCH_TAG}" > /dev/null    # obraz musi już istnieć na hoście
 docker compose up -d --no-deps app
 ```
 
-`--no-deps` pomija `migrate`: poprzedni obraz nie migruje i nie dotyka schematu. Obraz `migrator` ze starego tagu **nie** uruchamiaj (mógłby próbować stosować własną, starszą listę migracji; nic nie robi dla nowszych, ale to zbędne ryzyko).
+`--no-deps` pomija `migrate`: poprzedni obraz nie migruje i nie dotyka schematu. Obraz `migrator` ze starego tagu **nie** uruchamiaj (mógłby próbować stosować własną, starszą listę migracji; zbędne ryzyko).
+
+**Uwaga: katalog roboczy zostaje na NOWYM tagu.** Po wycofaniu `WINE_MATCH_TAG` wskazuje stary tag, a repozytorium na hoście nadal jest na nowym. Dlatego **nie uruchamiaj** `docker compose build`, `up --build` ani `run --build`, dopóki oba się nie zgadzają: zbudowałyby nowy kod pod nazwą starego tagu (po cichu „stary” obraz byłby nowy). Gdy starego obrazu nie ma na hoście (został usunięty), zbuduj go z **osobnego, czystego checkoutu starego tagu**:
+
+```sh
+git worktree add ../wine-match-<stary-tag> <stary-tag>      # osobny katalog, bieżący checkout nietknięty
+cp .env ../wine-match-<stary-tag>/.env && cd ../wine-match-<stary-tag>
+WINE_MATCH_TAG=<stary-tag> docker compose build app
+cd - && git worktree remove ../wine-match-<stary-tag> --force   # nie zostawiaj .env w osobnym katalogu
+```
+
+Potem wróć do `docker compose up -d --no-deps app` z `WINE_MATCH_TAG=<stary-tag>`. Po ustabilizowaniu wydania ustaw checkout i `WINE_MATCH_TAG` na ten sam tag (poprawka w przód, sekcja 11), żeby następne `build` było poprawne.
 
 **Ścieżka B: odtworzenie `pg_dump` sprzed migracji**
 
@@ -295,7 +312,7 @@ docker compose up -d --no-deps app
 2. Zdrowie: `curl -fsS -H 'X-Wine-Match-Synthetic: 1' https://<domena>/api/v1/health` → 200.
 3. `npm run smoke -- --production https://<domena> <slug>` → „All production smoke checks passed” (wyłącznie GET).
 4. Ręcznie: logowanie właściciela, strona `/r/<slug>` pokazuje menu, adres w `/admin/<slug>/qr` bez zmian.
-5. Po ścieżce A: `docker compose run --rm migrate npm run migration:pending -w @wine-match/db` z **nowym** obrazem nadal pokazuje, że schemat jest kompletny (nic się nie cofnęło); po ścieżce B: pokazuje migracje wydania, które wycofano (to oczekiwane).
+5. Po ścieżce A (opcjonalnie): sprawdź schemat obrazem **nowego** tagu, jawnie nadpisując tag tylko dla tego jednego polecenia (inaczej `migrate` użyje `wine-match-migrator:${WINE_MATCH_TAG}`, czyli starego obrazu): `WINE_MATCH_TAG=<nowy-tag> docker compose run --rm --no-deps migrate npm run migration:pending -w @wine-match/db` pokazuje „No pending migrations” (schemat jest kompletny, nic się nie cofnęło); obraz musi już istnieć (to ten sam, który wdrożono; polecenie niczego nie buduje). Po ścieżce B domyślne polecenie (stary tag) pokazuje „No pending migrations”; to samo z nowym tagiem pokazałoby migracje wydania, które wycofano (zrzut jest sprzed nich): nie stosuj ich bez decyzji właściciela.
 6. Obserwuj `http_requests_total{status_class="5xx"}` i logi przez co najmniej godzinę.
 7. Zapisz zdarzenie: czas, wersja przed i po, powód, ścieżka (A lub B), czy dane zostały utracone; poprawkę w przód zaplanuj jako zwykły PR.
 

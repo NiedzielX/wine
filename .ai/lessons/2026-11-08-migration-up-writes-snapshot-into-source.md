@@ -1,6 +1,6 @@
 ---
 date: 2026-11-08
-updated:
+updated: 2026-11-09
 area: ops
 status: active
 source: .ai/runs/2026-11-08-e11-f2-f3-image-and-runbook.md
@@ -20,3 +20,8 @@ W celu `migrator` źródła pakietów kopiuj z `--chown=node:node` (`COPY --chow
 
 ## Jak sprawdzić
 `find packages -newer package.json -type f -not -path '*/node_modules/*'` po `npm run db:migrate` w kopii układu obrazu; w CI job `image` uruchamia `migrate` jako `node`. Kolejne pułapki z tego przebiegu: `COPY --from=prod-deps /app/packages/app/node_modules` pada, gdy katalog nie istnieje (kopiuj cały `/app` ze stage’u i nałóż źródła); `timeout` nie istnieje na macOS (lokalne próby bez niego).
+
+## Aktualizacja 2026-11-09 (review PR #136)
+- `COPY --chown` nie jest pewnym sposobem na zapisywalny katalog, gdy ścieżka istnieje już z warstwy `deps`: dodano jawne `RUN chown -R node:node /app/packages/db/src/migrations` i dowód w CI (próba zapisu jako `node`, właściciel katalogu).
+- `.dockerignore` z wzorcami bez `**/` chroni tylko korzeń kontekstu: `COPY packages` zabrałby `packages/app/.env.local`. Wzorce sekretów mają `**/`, a job `image` podkłada takie pliki na kilku głębokościach i sprawdza system plików oraz warstwy obrazu.
+- Po wycofaniu obrazu (`WINE_MATCH_TAG` = stary tag) bieżący checkout jest nowy: `docker compose build` zbudowałby nowy kod pod starą nazwą. Starego obrazu nie odbudowuje się z bieżącego checkoutu, tylko z osobnego worktree starego tagu.

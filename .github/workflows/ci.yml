@@ -176,6 +176,8 @@ jobs:
   image:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    permissions:
+      contents: read   # least privilege: the job reads the repository and nothing else (no registry push, no secrets, no PR write)
     env:
       POSTGRES_IMAGE: postgres:16.14-bookworm@sha256:64154d0babcb1741988719e703419af0382b19953706149f9872fbd0f438efa8
       BASE: http://127.0.0.1:3000
@@ -185,7 +187,12 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Lint the Dockerfile (hadolint)
-        run: docker run --rm -i hadolint/hadolint:v2.12.0 hadolint --failure-threshold error - < Dockerfile
+        run: docker run --rm -i hadolint/hadolint:v2.12.0@sha256:30a8fd2e785ab6176eed53f74769e04f125afb2f74a6c52aef7d463583b6d45e hadolint --failure-threshold error - < Dockerfile
+      - name: Plant secret-looking files in the checkout at several depths (they must not reach the image)
+        run: |
+          for f in .env .env.local packages/app/.env.local packages/db/.env packages/core/src/.env.production packages/app/key.pem packages/db/id_rsa_test; do
+            printf 'PLANTED=1\n' > "$f"
+          done
       - name: Build both targets (no build arguments, no environment, no .env)
         run: |
           docker build --target runtime -t wine-match:ci .
@@ -197,14 +204,24 @@ jobs:
             test "$(docker image inspect --format '{{.Config.User}}' "$img")" = node
             test "$(docker run --rm --entrypoint id "$img" -u)" != 0
             echo "whoami: $(docker run --rm --entrypoint whoami "$img")"
-            found="$(docker run --rm --entrypoint find "$img" /app -name node_modules -prune -o \( -name '.env' -o -name '.env.*' \) -print)"
-            test -z "$found" || { echo "env file in image: $found"; exit 1; }
+            found="$(docker run --rm --entrypoint find "$img" /app -name node_modules -prune -o \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name '*.key' -o -name 'id_rsa*' \) -print)"
+            test -z "$found" || { echo "secret-looking file in image: $found"; exit 1; }
+            # the layers too, not only the final filesystem (a file deleted by a later layer would still ship). Only paths under app/ count:
+            # the base image has its own certificate files.
+            layers="$(mktemp -d)"
+            docker save "$img" | tar -x -C "$layers"
+            hits="$(find "$layers" -type f | while read -r f; do tar -tf "$f" 2>/dev/null || true; done | grep -E '^(\./)?app/' | grep -v node_modules | grep -E '(^|/)(\.env(\..*)?|id_rsa.*|[^/]*\.(pem|key))$' || true)"
+            test -z "$hits" || { echo "secret-looking path in an image layer: $hits"; exit 1; }
+            rm -rf "$layers"
             names="$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$img" | cut -d= -f1)"
             echo "$names" | tr '\n' ' '; echo
             if echo "$names" | grep -E '^(DATABASE_URL|DATA_SOURCE|PUBLIC_BASE_URL|AUTH_COOKIE_SECURE|ALLOW_[A-Z_]+|METRICS_TOKEN|USER_PASSWORD|POSTGRES_[A-Z_]+)$'; then echo "configuration baked into $img"; exit 1; fi
             test "$(docker image inspect --format '{{.Config.Env}}' "$img" | grep -c 'NODE_ENV=production')" = 1
           done
           test -n "$(docker image inspect --format '{{.Config.Healthcheck}}' wine-match:ci | grep -v '^<nil>$')"
+          # the migrator writes `.snapshot-<database>.json` next to the migrations as `node`: prove the directory is writable by that user
+          docker run --rm --entrypoint sh wine-match-migrator:ci -c 'touch /app/packages/db/src/migrations/.write-probe && rm /app/packages/db/src/migrations/.write-probe'
+          test "$(docker run --rm --entrypoint stat wine-match-migrator:ci -c %U /app/packages/db/src/migrations)" = node
       - name: AC2, runtime refuses to start without a data source, on demo data, or on a local address (exit code 1)
         run: |
           dburl() { printf '%s://%s:%s@%s/%s' postgres "$1" "$2" "$3" "$4"; }   # user, password, host:port, database (built at run time, the scheme is an argument so the secret scan has no literal URL to flag)

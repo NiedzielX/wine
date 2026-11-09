@@ -1,12 +1,13 @@
 # Build context for the Dockerfile. Nothing secret and nothing machine-specific goes into an image.
-# Secrets and local configuration (every .env variant except the committed example)
-.env
-.env.*
+# Secrets and local configuration, at ANY depth (a nested packages/app/.env.local must never enter `COPY packages`).
+# CI plants such files in the checkout and asserts they are not in the image (job `image`, AC6).
+**/.env
+**/.env.*
 !.env.example
 !.env.template
-*.pem
-*.key
-id_rsa*
+**/*.pem
+**/*.key
+**/id_rsa*
 
 # Dependencies and build output are produced inside the image
 **/node_modules

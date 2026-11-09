@@ -64,9 +64,10 @@ COPY --from=build --chown=node:node /app/packages/app/.next packages/app/.next
 USER node
 WORKDIR /app/packages/app
 EXPOSE 3000
-# Liveness, not readiness: healthy when the process ANSWERS (any HTTP status), unhealthy only when it does not. A database outage makes
-# /api/v1/health answer 503, which must not restart the container (spec Q5, edge case "database unavailable"); the load balancer
-# and the uptime check read the status code. No curl in the image: Node's fetch.
+# Liveness, not readiness: healthy when the process ANSWERS (any HTTP status), unhealthy only when it does not. Docker itself never
+# restarts a container for being unhealthy (`restart:` reacts to the process exiting); an orchestrator or an "autoheal" add-on does.
+# A database outage makes /api/v1/health answer 503, and that must not read as "dead process" for them (spec Q5, edge case
+# "database unavailable"); the load balancer and the uptime check read the status code. No curl in the image: Node's fetch.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health',{headers:{'x-wine-match-synthetic':'1'},signal:AbortSignal.timeout(4000)}).then(()=>process.exit(0),()=>process.exit(1))"]
 # exec form: Node is PID 1 and gets SIGTERM; run with `init: true` (Compose) or `docker run --init` to reap children
@@ -78,6 +79,9 @@ FROM deps AS migrator
 COPY --chown=node:node packages packages
 COPY --chown=node:node scripts scripts
 COPY tsconfig.base.json ./
+# `COPY --chown` does not reliably change directories that already exist from the `deps` layer (workspace symlink targets), so the
+# one directory the CLI writes to is made writable explicitly. CI proves it (job `image`: a write probe as `node`).
+RUN chown -R node:node /app/packages/db/src/migrations
 ENV NODE_ENV=production
 USER node
 WORKDIR /app

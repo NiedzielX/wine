@@ -13,7 +13,7 @@
 #
 # The app never migrates by itself: `app` waits for the one-shot `migrate` job to exit 0. TLS and HSTS belong to the reverse
 # proxy on the host (docs/DEPLOYMENT.md, section "Reverse proxy"); the ports below are bound to 127.0.0.1 on purpose.
-# Configuration comes from `.env` (the variables of .env.example) plus a few values fixed here so that a copied
+# Configuration comes from `.env` (the variables of .env.example, read by Compose for interpolation only) plus a few values fixed here so that a copied
 # .env.example cannot weaken production (cookie flag, local-address escape hatch, demo data).
 
 name: wine-match
@@ -21,13 +21,24 @@ name: wine-match
 x-app-environment: &app-environment
   NODE_ENV: production
   DATA_SOURCE: postgres
-  # the password goes into a URL: use letters and digits only (`openssl rand -hex 24`)
+  # the password goes into a URL: letters and digits only (`openssl rand -hex 24`); docs/DEPLOYMENT.md has a check that fails early with a clear message
   DATABASE_URL: postgres://${POSTGRES_USER:-winematch}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-winematch}
   # fixed, not read from .env: the template .env.example has AUTH_COOKIE_SECURE=false for local runs
   AUTH_COOKIE_SECURE: "true"
   ALLOW_LOCAL_BASE_URL: "false"
   ALLOW_DEMO_DATA: "false"
   PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env to the public https:// address, before any QR code is printed}
+
+# Optional settings, passed by NAME (not the whole .env: POSTGRES_PASSWORD and other values the app does not need stay out of its
+# environment). An empty value means "not set" for the app.
+x-app-optional: &app-optional
+  LOG_LEVEL: ${LOG_LEVEL:-}
+  METRICS_TOKEN: ${METRICS_TOKEN:-}
+  DEMO_RESTAURANT_SLUG: ${DEMO_RESTAURANT_SLUG:-}
+  SHOWCASE_MODE: ${SHOWCASE_MODE:-}
+  DB_POOL_MIN: ${DB_POOL_MIN:-}
+  DB_POOL_MAX: ${DB_POOL_MAX:-}
+  DB_DEBUG: ${DB_DEBUG:-}
 
 x-hardening: &hardening
   cap_drop: [ALL]
@@ -61,7 +72,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file: .env
+    # no env_file: only the variables above reach the container (USER_PASSWORD for restaurant:create is inherited with `run -e USER_PASSWORD`)
     environment: *app-environment
     <<: *hardening
 
@@ -77,8 +88,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-    env_file: .env
-    environment: *app-environment
+    environment:
+      <<: [*app-environment, *app-optional]
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     tmpfs:

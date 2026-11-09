@@ -47,3 +47,11 @@ Pliki zmieniane pod CODEOWNERS: `.github/workflows/ci.yml`, `.ai/docs/commands.m
 
 ## Lekcje
 - `.ai/lessons/2026-11-08-migration-up-writes-snapshot-into-source.md`
+
+## Poprawki po review PR #136 (2026-11-09)
+- `.dockerignore`: wzorce sekretów na każdej głębokości (`**/.env`, `**/.env.*`, `**/*.pem`, `**/*.key`, `**/id_rsa*`); job `image` podkłada takie pliki (korzeń, `packages/app/.env.local`, `packages/db/.env`, klucz `.pem`, `id_rsa_test`) przed budową i sprawdza system plików `/app` oraz każdą warstwę (`docker save`; tylko ścieżki pod `app/`, bo obraz bazowy ma własne certyfikaty). Logikę skanu warstw sprawdzono lokalnie na sztucznym archiwum.
+- `docs/DEPLOYMENT.md` 10.3 i 10.4: krok 5 używa jawnie migratora NOWEGO tagu (`WINE_MATCH_TAG=<nowy-tag>` tylko dla tego polecenia); zakaz `build`/`up --build` przy rozjechanym checkoucie i tagu; stary obraz tylko z osobnego worktree starego tagu.
+- Cel `migrator`: jawny `RUN chown -R node:node /app/packages/db/src/migrations`; CI: próba zapisu jako `node` i sprawdzenie właściciela.
+- Compose: koniec z `env_file: .env` (aplikacja dostaje wyliczone z nazwy zmienne; `migrate` tylko zmienne bazowe); `.env` służy tylko do podstawiania. Sprawdzenie hasła bazy (litery i cyfry, min. 24 znaki) jako polecenie POSIX w DEPLOYMENT.md krok 3 przed pierwszym startem (Compose nie koduje URL).
+- hadolint przypięty digestem; job `image` ma jawne `permissions: contents: read` (najmniejsze uprawnienia, bez rejestru i sekretów); komentarz o `HEALTHCHECK` poprawiony (Docker sam nie restartuje za „unhealthy”).
+- Nadal tylko w CI: wszystko, co wymaga Dockera (patrz „Tylko do zweryfikowania w CI”), w tym nowe kroki (warstwy, próba zapisu migratora).
