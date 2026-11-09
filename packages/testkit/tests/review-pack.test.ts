@@ -73,6 +73,14 @@ describe('review pack content', () => {
     expect(calls.join('\n')).not.toMatch(/\/comments|\/reviews|\/issues\/|\/commits\?|\/pulls\/7\/commits/);
   });
 
+  it('never hands the orchestrator triage checklist to a reviewer, whatever the changed paths (lesson 21)', async () => {
+    const files = ['docs/API_SPECIFICATION.md', '.ai/docs/review-checklists.md', 'packages/db/src/migrations/1.ts', 'packages/core/src/auth/permissions.ts', 'packages/app/src/app/page.tsx', 'packages/app/tests/unit/x.test.ts'];
+    const pack = await buildReviewPack({ pr: 7, repo: 'o/r', fetcher: fake({ files }).fetcher });
+    expect(passesFor(files)).not.toContain('triage');
+    expect(pack).toContain('### Pass: docs');
+    expect(pack).not.toContain('Triage uwag recenzentów');
+  });
+
   it('has the diff, file list with stats, risk, checklist and CI, and the diff cannot close its own fence', async () => {
     const { fetcher } = fake();
     const pack = await buildReviewPack({ pr: 7, repo: 'o/r', fetcher });
@@ -160,7 +168,7 @@ describe('review pack helpers', () => {
     expect(idsFromBranch('feat/e11b-closure')).toEqual({ epic: 'E11b', phase: null });
     expect(idsFromBranch('fix/feature-x')).toEqual({ epic: null, phase: null });
     expect(fenceFor('a ```` b')).toBe('`````');
-    expect([...parseChecklists(REAL_CHECKLISTS).keys()]).toEqual(['general', 'authz', 'nextjs', 'database', 'api', 'tests', 'observability', 'docs']);
+    expect([...parseChecklists(REAL_CHECKLISTS).keys()]).toEqual(['general', 'authz', 'nextjs', 'database', 'api', 'tests', 'observability', 'docs', 'triage']);
     expect(passesFor(['packages/db/src/migrations/1.ts'])).toContain('database');
     expect(specExcerpt('# T\n\n## Kryteria akceptacji\n- AC1\n\n## X\nno\n')).toContain('AC1');
   });

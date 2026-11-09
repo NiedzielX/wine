@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-09] [Recenzenci z różnych rodzin modeli](lessons/2026-11-09-reviewers-from-different-model-families.md) — to samo wejście bez uzasadnień autora, każda uwaga z dowodem, nie głosowanie, max 3 rundy
 - [2026-11-08] [Łańcuch dostaw CI: akcje przypięte SHA, skrypty instalacyjne wyłączone, hook to guardrail](lessons/2026-11-08-ci-supply-chain-pins.md) — pełny SHA z `# vX.Y.Z`, `persist-credentials: false`, `ignore-scripts=true`, skan historii sekretów; hook nie jest granicą
 - [2026-11-08] [Reguła z AGENTS.md bez egzekwowania jest życzeniem: hook dla `status: approved`, skille projektu `wine-match-*`](lessons/2026-11-08-project-skills-and-spec-status-hook.md) — chroń regułę procesu hookiem z testowaną `decide()`, a powtarzalny proces zapisz jako skill projektu.
 - [2026-11-08] [QA agenta: wyrocznia, niezależny weryfikator i znany cel bazy](lessons/2026-11-08-qa-with-agents-protocol.md) — protokół `.ai/docs/qa-protocol.md`; polecenia operatora drukują cel bazy i ostrzegają o cieniu `DATABASE_URL`
