@@ -3,6 +3,8 @@ status: implemented
 created: 2026-10-15
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md, docs/SCREEN_SPECIFICATION.md, docs/RECOMMENDATION_ENGINE.md]
+author_model: claude-opus-5-5
+reviewed_by: claude-sonnet-5-5
 ---
 
 # Polska wersja językowa
@@ -134,6 +136,7 @@ Bez zmian.
 - 2026-10-15 — approved: właściciel (Filip) zatwierdził; obie fazy, najpierw gość, potem panel.
 - 2026-10-15 — faza 1 (gość) zaimplementowana.
 - 2026-10-15 — faza 2 (panel) zaimplementowana; status `implemented`.
+- 2026-10-15 — Autor/recenzent: claude-opus-5-5 / claude-sonnet-5-5 (autor wg `agent:` w .ai/runs/2026-10-15-polish-language-guest.md, recenzent wg wpisu „cross-model review (Sonnet 5.5)” w Changelog).
 
 ## Realizacja
 - **Faza 1 (gość) — 2026-10-15**, gałąź `feat/i18n-guest`, log `.ai/runs/2026-10-15-polish-language-guest.md`. Core: `i18n/locale.ts` (`Locale`, `LOCALES`, `isLocale`, `pickLocale`, typ `Localized`), pary `{ en, pl }` przy regułach w `scoring.ts`, `Factor.whyPl`, `explain`/`styleWord`/`recommendForDish`/`recommendForTable`/`tableWhy`/`budgetNotice`/`tasteWords`/`styleLabel`/`prefsSummary` z `locale = 'en'`; `RecommendationService.forDish(slug, dishId, prefs, limit?, locale?)`, `wineDetails(…, locale?)`, `forTable(…, locale?)`. App: `src/i18n/en.ts` + `pl.ts`, `server/i18n.ts`, proxy z `x-wine-lang` (matcher `/admin`, `/r`), `guestContext` → `locale`, `lang`, `t`, `href`, `langHrefs`; `hrefWith(path, prefs, extra, state)` dokleja `lang` na końcu; `LanguageSwitch`; wszystkie strony gościa na słowniku.

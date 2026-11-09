@@ -3,6 +3,8 @@ status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/specs/backlog.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, docs/RECOMMENDATION_ENGINE.md]
+author_model: claude-sonnet-5-5
+reviewed_by: "not recorded (three independent agents, model unknown)"
 ---
 
 # Plan domknięcia produktu Wine Match do wersji pełnej (E11–E22)
@@ -156,6 +158,9 @@ Właściciel polecił agentowi podjąć decyzje Q1–Q19 i kontynuować prace (�
 - **Silnik:** zmiana wag i reguł zmienia `ENGINE_VERSION` i wymaga ponownej kalibracji progów okazji (`STRONG_MATCH`); E16 wprowadza procedurę wyprowadzenia progu. E19 zmienia kolejność (nie wynik) przy ustawionym priorytecie, a E17 uczy się dopiero od `1.3.0`, więc E16 przed E17.
 - **Liczby zgadnięte** (delty reguł E16, prior i progi bramek E17, wartości robocze kalkulatora E22) są w specyfikacjach oznaczone jako zgadnięte i nie mają być prezentowane jako wyniki.
 - **Brak weryfikacji założeń** to świadoma decyzja D19; kalkulator zwrotu (E22) musi jasno oznaczać liczby jako założenia, nie wyniki pomiarów.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: claude-sonnet-5-5 / not recorded (three independent agents, model unknown) (autor wg `agent:` w .ai/runs/2026-11-04-product-completion-plan.md; recenzenci tamże, bez modelu).
 
 ## Realizacja
 (Uzupełnia agent po przyjęciu planu i utworzeniu specyfikacji.)
