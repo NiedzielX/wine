@@ -1,0 +1,130 @@
+# DRAFT (lesson 22, docs/RELEASING.md section 5). Manual only; NOT a required check; has never run yet.
+#
+# What it does, on `main` only, for a version the owner already prepared in a merged PR (package.json versions set with
+# `npm run release:version -- --set X.Y.Z --write`, CHANGELOG.md and UPGRADE_NOTES.md promoted with
+# `npm run release:notes -- promote X.Y.Z --write`):
+#   verify   the dispatched ref is main; the input is X.Y.Z; every package.json and package-lock.json carry X.Y.Z;
+#            CHANGELOG.md has a non-empty [X.Y.Z] section; the required CI checks of this exact commit are green
+#            (lint, secrets, unit, build, database, e2e, image)
+#   release  creates the GitHub Release `vX.Y.Z` at this commit with the notes from CHANGELOG.md and UPGRADE_NOTES.md,
+#            as a DRAFT by default (the tag appears only when the owner presses "Publish release"); `publish: true`
+#            publishes at once and GitHub creates the tag. Idempotent: an existing release or tag for vX.Y.Z is
+#            reported and left alone (a tag on another commit fails the run: tags never move, docs/DEPLOYMENT.md 10.1).
+# What it does NOT do: publish packages (every package is private, nothing goes to npm), build or push an image,
+# deploy, change files or push commits. The release decision stays with the owner.
+#
+# Supply chain (lesson 18): actions pinned by full SHA, the same pins as ci.yml; checkouts keep no token
+# (persist-credentials: false). The tag and the release are created through the REST API by `gh release create`
+# with GITHUB_TOKEN, which is given only to the steps that need it, so no git credential is ever written to disk and
+# no `git push` is needed. Only the `release` job has `contents: write`.
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version X.Y.Z (no leading v), already set in package.json and promoted in CHANGELOG.md on main'
+        required: true
+        type: string
+      publish:
+        description: 'Publish now (creates the tag). Default: a draft release the owner publishes by hand'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read     # read the CI results of this commit; nothing else
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Refuse any ref other than main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::release runs only from refs/heads/main, not $GITHUB_REF"
+          exit 1
+      - name: The version is X.Y.Z (the input reaches the shell only through an environment variable)
+        run: |
+          printf '%s' "$VERSION" | grep -Eqx '(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)' || { echo "::error::version must be X.Y.Z without a leading v"; exit 1; }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      # both scripts have no dependencies: no npm ci, no third-party code in this workflow
+      - name: Every package.json and package-lock.json carry the version
+        run: node scripts/release-version.mjs --check --expect "$VERSION"
+      - name: CHANGELOG.md has the version section and UPGRADE_NOTES.md is complete
+        run: node scripts/release-notes.mjs render "$VERSION" --out "$RUNNER_TEMP/release-notes.md"
+      - name: Required CI checks of this commit are green (lint, secrets, unit, build, database, e2e, image)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          failed=0
+          for name in lint secrets unit build database e2e image; do
+            conclusion="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?check_name=$name&filter=latest" --jq '[.check_runs[].conclusion] | first // "missing"')"
+            echo "$name: $conclusion"
+            test "$conclusion" = success || failed=1
+          done
+          test "$failed" = 0 || { echo "::error::a required CI check of $GITHUB_SHA is not green; wait for CI on main or fix it first"; exit 1; }
+
+  release:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write  # create the tag and the release through the API; the only write permission in this workflow
+    env:
+      VERSION: ${{ inputs.version }}
+      PUBLISH: ${{ inputs.publish }}
+    steps:
+      - name: Refuse any ref other than main (again; this job holds the write token)
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::release runs only from refs/heads/main, not $GITHUB_REF"
+          exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Render the release notes (same deterministic script as in verify)
+        run: node scripts/release-notes.mjs render "$VERSION" --out "$RUNNER_TEMP/release-notes.md"
+      - name: Create the release (draft unless publish is true); leave an existing one alone
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$VERSION"
+          existing="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$tag\") | .html_url")"
+          if [ -n "$existing" ]; then
+            echo "::notice::release $tag already exists ($existing); nothing changed"
+            exit 0
+          fi
+          # a missing tag is a 404 (non-zero exit): only a successful answer counts as "the tag exists"
+          if ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.type + " " + .object.sha' 2>/dev/null)"; then
+            type="${ref%% *}"; sha="${ref#* }"
+            if [ "$type" = tag ]; then sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$sha" --jq '.object.sha')"; fi
+            if [ "$sha" != "$GITHUB_SHA" ]; then
+              echo "::error::tag $tag already points to $sha, not $GITHUB_SHA; tags never move (docs/DEPLOYMENT.md 10.1)"
+              exit 1
+            fi
+            echo "tag $tag exists at this commit; creating only the release"
+          fi
+          set -- "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Wine Match $tag" --notes-file "$RUNNER_TEMP/release-notes.md"
+          if [ "$PUBLISH" != true ]; then set -- "$@" --draft; fi
+          gh release create "$@"
+          echo "::notice::release $tag created ($( [ "$PUBLISH" = true ] && echo published || echo 'draft: publish it in the Releases page to create the tag' ))"

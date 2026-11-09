@@ -31,6 +31,7 @@
 - [ ] Zmiana zachowania ma test, który pada na starym kodzie
 - [ ] Zachowanie zależne od buildu produkcyjnego sprawdzone na `npm run build` + `npm run smoke`
 - [ ] Zaktualizowano `docs/` i, jeśli trzeba, `.ai/`
+- [ ] Zmiana widoczna dla użytkownika, operatora lub integratora: wpis w `CHANGELOG.md` (`[Unreleased]`); zmiana łamiąca (`BACKWARD_COMPATIBILITY.md`) ma też wpis w `UPGRADE_NOTES.md` i „💥 Breaking” powyżej
 
 ## Odstępstwa od standardów (z uzasadnieniem)
 <!-- Pusto, jeśli brak. -->
