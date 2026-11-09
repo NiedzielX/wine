@@ -4,12 +4,22 @@
 # `npm run release:version -- --set X.Y.Z --write`, CHANGELOG.md and UPGRADE_NOTES.md promoted with
 # `npm run release:notes -- promote X.Y.Z --write`):
 #   verify   the dispatched ref is main; the input is X.Y.Z; every package.json and package-lock.json carry X.Y.Z;
-#            CHANGELOG.md has a non-empty [X.Y.Z] section; the required CI checks of this exact commit are green
-#            (lint, secrets, unit, build, database, e2e, image)
-#   release  creates the GitHub Release `vX.Y.Z` at this commit with the notes from CHANGELOG.md and UPGRADE_NOTES.md,
-#            as a DRAFT by default (the tag appears only when the owner presses "Publish release"); `publish: true`
-#            publishes at once and GitHub creates the tag. Idempotent: an existing release or tag for vX.Y.Z is
-#            reported and left alone (a tag on another commit fails the run: tags never move, docs/DEPLOYMENT.md 10.1).
+#            CHANGELOG.md has a non-empty [X.Y.Z] section; the CI checks of this exact commit, reported by the GitHub
+#            Actions app (app_id 15368, so no other app can post a green "lint"), are green: lint, secrets, design,
+#            unit, a11y, build, database, e2e, image. This list is deliberately STRICTER than branch protection
+#            (which requires six of them): a release needs the built image and the UI checks too (docs/RELEASING.md §6).
+#   release  runs in the GitHub environment `release` and creates the GitHub Release `vX.Y.Z` at this commit with the
+#            notes from CHANGELOG.md and UPGRADE_NOTES.md, as a DRAFT by default (the tag appears only when the owner
+#            presses "Publish release"); `publish: true` publishes at once and GitHub creates the tag.
+#            Idempotent: a release for vX.Y.Z at this commit is reported and left alone. It FAILS on a draft or tag for
+#            vX.Y.Z at another commit (a stale draft from an earlier dispatch: delete it; a tag: tags never move,
+#            docs/DEPLOYMENT.md 10.1) and on any API error other than 404 (no error is read as "the tag is missing").
+#
+# The main-only guard below is in this file, so anyone with write access could dispatch a branch whose copy of the file
+# drops it. The server-side guard is the environment `release`: the owner creates it (Settings -> Environments) with
+# "Deployment branches and tags: Selected -> main" and, optionally, himself as required reviewer. Until then GitHub
+# creates the environment on first use WITHOUT protection (the job does not hang; the guard is then only this file).
+# With a required reviewer the job waits for approval (GitHub expires an unanswered one after 30 days).
 # What it does NOT do: publish packages (every package is private, nothing goes to npm), build or push an image,
 # deploy, change files or push commits. The release decision stays with the owner.
 #
@@ -69,13 +79,14 @@ jobs:
         run: node scripts/release-version.mjs --check --expect "$VERSION"
       - name: CHANGELOG.md has the version section and UPGRADE_NOTES.md is complete
         run: node scripts/release-notes.mjs render "$VERSION" --out "$RUNNER_TEMP/release-notes.md"
-      - name: Required CI checks of this commit are green (lint, secrets, unit, build, database, e2e, image)
+      - name: CI checks of this commit are green (stricter than branch protection, see the header)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           failed=0
-          for name in lint secrets unit build database e2e image; do
-            conclusion="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?check_name=$name&filter=latest" --jq '[.check_runs[].conclusion] | first // "missing"')"
+          # app_id 15368 = GitHub Actions: a check run with the same name posted by any other app does not count
+          for name in lint secrets design unit a11y build database e2e image; do
+            conclusion="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?check_name=$name&filter=latest&app_id=15368" --jq '[.check_runs[].conclusion] | first // "missing"')"
             echo "$name: $conclusion"
             test "$conclusion" = success || failed=1
           done
@@ -85,6 +96,9 @@ jobs:
     needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    # Server-side guard (see the header): the owner restricts this environment to `main`. If it does not exist yet,
+    # GitHub creates it unprotected on first use, so the job runs instead of hanging.
+    environment: release
     permissions:
       contents: write  # create the tag and the release through the API; the only write permission in this workflow
     env:
@@ -104,26 +118,51 @@ jobs:
           node-version-file: .nvmrc
       - name: Render the release notes (same deterministic script as in verify)
         run: node scripts/release-notes.mjs render "$VERSION" --out "$RUNNER_TEMP/release-notes.md"
-      - name: Create the release (draft unless publish is true); leave an existing one alone
+      - name: Create the release (draft unless publish is true); leave one at this commit alone, fail on any other
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="v$VERSION"
-          existing="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$tag\") | .html_url")"
-          if [ -n "$existing" ]; then
-            echo "::notice::release $tag already exists ($existing); nothing changed"
-            exit 0
+          err="$RUNNER_TEMP/gh-error.txt"
+          # Commit of the tag, empty when GitHub answers 404. Any other failure (403, 5xx, rate limit) stops the run:
+          # it must never be read as "the tag does not exist".
+          tag_commit() {
+            if ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.type + " " + .object.sha' 2>"$err")"; then
+              type="${ref%% *}"; sha="${ref#* }"
+              if [ "$type" = tag ]; then sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$sha" --jq '.object.sha')"; fi
+              printf '%s' "$sha"
+            elif grep -q '(HTTP 404)' "$err"; then
+              printf ''
+            else
+              echo "::error::looking up tag $tag failed (not a 404): $(head -c 300 "$err")" >&2
+              return 1
+            fi
+          }
+          commit="$(tag_commit)" || exit 1
+          if [ -n "$commit" ] && [ "$commit" != "$GITHUB_SHA" ]; then
+            echo "::error::tag $tag already points to $commit, not $GITHUB_SHA; tags never move (docs/DEPLOYMENT.md 10.1)"
+            exit 1
           fi
-          # a missing tag is a 404 (non-zero exit): only a successful answer counts as "the tag exists"
-          if ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.type + " " + .object.sha' 2>/dev/null)"; then
-            type="${ref%% *}"; sha="${ref#* }"
-            if [ "$type" = tag ]; then sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$sha" --jq '.object.sha')"; fi
-            if [ "$sha" != "$GITHUB_SHA" ]; then
-              echo "::error::tag $tag already points to $sha, not $GITHUB_SHA; tags never move (docs/DEPLOYMENT.md 10.1)"
+          # releases, drafts included (a draft has no tag yet): draft flag, target, address
+          existing="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$tag\") | [(.draft | tostring), .target_commitish, .html_url] | @tsv")"
+          if [ -n "$existing" ]; then
+            if [ "$(printf '%s\n' "$existing" | wc -l)" -gt 1 ]; then
+              echo "::error::several releases are named $tag (drafts can share a tag name); delete the extra drafts and run again"
               exit 1
             fi
-            echo "tag $tag exists at this commit; creating only the release"
+            draft="$(printf '%s' "$existing" | cut -f1)"; target="$(printf '%s' "$existing" | cut -f2)"; url="$(printf '%s' "$existing" | cut -f3)"
+            if [ "$draft" = true ] && [ "$target" != "$GITHUB_SHA" ]; then
+              echo "::error::a draft release $tag from an earlier run targets $target, not $GITHUB_SHA: it is stale. Delete it ($url) and run again"
+              exit 1
+            fi
+            if [ "$draft" != true ] && [ -z "$commit" ]; then
+              echo "::error::release $tag is published but its tag is missing; the owner must look at $url"
+              exit 1
+            fi
+            echo "::notice::release $tag already exists at this commit ($url, draft: $draft); nothing changed"
+            exit 0
           fi
+          if [ -n "$commit" ]; then echo "tag $tag exists at this commit; creating only the release"; fi
           set -- "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Wine Match $tag" --notes-file "$RUNNER_TEMP/release-notes.md"
           if [ "$PUBLISH" != true ]; then set -- "$@" --draft; fi
           gh release create "$@"

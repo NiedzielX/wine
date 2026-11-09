@@ -8,14 +8,16 @@
  *   (--root <dir> runs on another tree; tests use it)
  *
  * --check: the root package.json, every workspace package.json and package-lock.json (`version`, `packages[""]`,
- *   `packages["<workspace>"]`) carry the same semver version (and equal --expect when given). An internal dependency
+ *   `packages["<workspace>"]`) carry the same plain X.Y.Z version (no prerelease, no +build, no leading zeros) and equal
+ *   --expect when given; malformed JSON is reported as "<file>: not valid JSON". An internal dependency
  *   (`@wine-match/*` in any dependency block) whose range the workspace version does not satisfy is a problem too: npm
  *   would fetch that name from the registry instead of linking the workspace (dependency confusion).
  * --set: changes ONLY those `version` fields, by editing the text in place (formatting, key order and escapes stay as
  *   they are), and proves it by parsing the result and comparing it with the expected objects. It never touches a
  *   dependency range: when an exact internal pin would stop matching, it refuses and says which one to change by hand.
  *   Without --write it prints the plan and writes nothing.
- * Exit 0: consistent (or plan applied / printed); 1: a problem; 2: usage.
+ * Exit 0: consistent (or plan applied / printed); 1: a problem; 2: usage (also --check with --set, --expect with --set,
+ * --write without --set, a flag given twice).
  */
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -23,7 +25,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
-const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+// Releases are plain X.Y.Z (docs/RELEASING.md §3): no prerelease, no build metadata, no leading zeros. Rejecting them
+// everywhere keeps ordering trivial (numeric X, Y, Z) and the same in release-notes.mjs.
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const NOT_XYZ = 'is not X.Y.Z (digits only: no leading v, leading zeros, -prerelease or +build; docs/RELEASING.md §3)';
 const DEP_BLOCKS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const INTERNAL = '@wine-match/';
 
@@ -56,10 +61,15 @@ function readJson(root, file) {
   const path = join(root, file);
   if (!existsSync(path)) return { text: null, json: null };
   const text = readFileSync(path, 'utf8');
-  return { text, json: JSON.parse(text) };
+  try {
+    return { text, json: JSON.parse(text) };
+  } catch {
+    // reported as "<file>: not valid JSON" (no parser message: newer V8 quotes the file content in it)
+    return { text, json: null, invalid: true };
+  }
 }
 
-/** Everything the version lives in, read once. Throws only on unparsable JSON. */
+/** Everything the version lives in, read once. Unparsable JSON is marked `invalid`, never thrown. */
 export function readTree(root) {
   const pkg = readJson(root, 'package.json');
   const lock = readJson(root, 'package-lock.json');
@@ -98,11 +108,11 @@ function consistency(tree, version) {
   const differs = (v) => v !== version;
   const has = `root package.json has ${version}`;
   for (const w of tree.ws) {
-    if (!w.json) problems.push(`${w.file}: missing`);
+    if (!w.json) problems.push(`${w.file}: ${w.invalid ? 'not valid JSON' : 'missing'}`);
     else if (differs(w.json.version)) problems.push(`${w.file}: version is ${w.json.version}, ${has}`);
   }
   const lock = tree.lock.json;
-  if (!lock) return [...problems, 'package-lock.json: missing'];
+  if (!lock) return [...problems, `package-lock.json: ${tree.lock.invalid ? 'not valid JSON' : 'missing'}`];
   if (differs(lock.version)) problems.push(`package-lock.json version: ${lock.version}, ${has}`);
   if (differs(lock.packages?.['']?.version)) problems.push(`package-lock.json packages[""].version: ${lock.packages?.['']?.version}, ${has}`);
   for (const w of tree.ws) {
@@ -117,12 +127,12 @@ const versionMap = (tree, version) => new Map(ws(tree).map((w) => [w.json.name, 
 
 /** `{ version, problems }`: version is the root package.json's; `expect` (optional) must equal it. */
 export function checkVersions(root, expect) {
-  if (expect !== undefined && !isSemver(expect)) return { version: null, problems: [`--expect "${expect}" is not semver X.Y.Z (no leading v)`] };
+  if (expect !== undefined && !isSemver(expect)) return { version: null, problems: [`--expect "${expect}" ${NOT_XYZ}`] };
   const tree = readTree(root);
-  if (!tree.pkg.json) return { version: null, problems: ['package.json: missing'] };
+  if (!tree.pkg.json) return { version: null, problems: [`package.json: ${tree.pkg.invalid ? 'not valid JSON' : 'missing'}`] };
   const version = tree.pkg.json.version;
   const problems = [];
-  if (!isSemver(version)) problems.push(`package.json: version ${JSON.stringify(version)} is not semver X.Y.Z`);
+  if (!isSemver(version)) problems.push(`package.json: version ${JSON.stringify(version)} ${NOT_XYZ}`);
   else if (expect !== undefined && expect !== version) problems.push(`package.json: version is ${version}, expected ${expect}`);
   problems.push(...consistency(tree, version));
   if (isSemver(version)) problems.push(...internalPins(tree, versionMap(tree, version)));
@@ -139,7 +149,7 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The new file contents for `version`, or problems. Nothing is written here. */
 export function planSet(root, version) {
-  if (!isSemver(version)) return { changes: [], files: {}, problems: [`version "${version}" is not semver X.Y.Z (no leading v)`] };
+  if (!isSemver(version)) return { changes: [], files: {}, problems: [`version "${version}" ${NOT_XYZ}`] };
   const tree = readTree(root);
   const start = checkVersions(root);
   if (start.problems.length > 0) return { changes: [], files: {}, problems: start.problems };
@@ -182,22 +192,26 @@ function usage(out) {
 
 export function main(argv = process.argv.slice(2), out = console) {
   const args = argv.filter((a) => a !== '--');
-  let mode = 'check';
-  let value;
-  let expect;
-  let write = false;
-  let root = REPO;
+  const seen = new Map();
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i];
-    if (a === '--check') mode = 'check';
-    else if (a === '--write') write = true;
+    if (seen.has(a)) return usage(out); // a flag given twice is ambiguous
+    if (a === '--check' || a === '--write') seen.set(a, true);
     else if (a === '--set' || a === '--expect' || a === '--root') {
       const v = args[i + 1];
       if (v === undefined || v.startsWith('--')) return usage(out);
+      seen.set(a, v);
       i += 1;
-      if (a === '--set') { mode = 'set'; value = v; } else if (a === '--expect') expect = v; else root = resolve(v);
     } else return usage(out);
   }
+  // --check and --set are two modes; --expect belongs to --check, --write to --set: any other mix is refused
+  if (seen.has('--set') && (seen.has('--check') || seen.has('--expect'))) return usage(out);
+  if (seen.has('--write') && !seen.has('--set')) return usage(out);
+  const mode = seen.has('--set') ? 'set' : 'check';
+  const value = seen.get('--set');
+  const expect = seen.get('--expect');
+  const write = seen.has('--write');
+  const root = seen.has('--root') ? resolve(seen.get('--root')) : REPO;
   if (mode === 'check') {
     const { version, problems } = checkVersions(root, expect);
     if (problems.length > 0) {

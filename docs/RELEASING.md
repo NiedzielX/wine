@@ -41,6 +41,7 @@ Open Mercato ma `develop` (wydania nocne, środowisko deweloperskie, migawka pak
 ## 3. Wersjonowanie
 
 - **SemVer 0.x** do czasu, aż właściciel zdefiniuje wersję 1.0 (§11; dziś wszystkie pakiety mają `0.2.0`). W 0.x: `0.MINOR.0` dla funkcji i **każdego** wydania z wpisem w `UPGRADE_NOTES.md`; `0.x.PATCH` tylko dla poprawek bez zmian łamiących.
+- **Tylko czyste `X.Y.Z`:** bez `-rc.1` (prerelease), bez `+build` i bez zer wiodących (`01.0.0`). Oba skrypty i `release.yml` takie wersje odrzucają tym samym komunikatem; dzięki temu kolejność wersji to zwykłe porównanie liczb. Wydania próbne (`-rc`) to decyzja właściciela (§11); wymagałyby pełnej kolejności SemVer w `release:notes`.
 - **Jedna wersja dla całego monorepo:** `package.json` w korzeniu, każdy pakiet i wpisy `package-lock.json` (`npm run release:version`). Zmieniane są wyłącznie własne pola `version`, nigdy zakresy zależności (`.npmrc`: `save-exact`).
 - **Tag `vX.Y.Z`** na commicie z `main`; ten sam tag podaje operator w `WINE_MATCH_TAG` (DEPLOYMENT.md §10–§11). Tagów nie przesuwamy i nie usuwamy.
 - **Osobne wersje, nie mylić:** `ENGINE_VERSION` silnika (`wm-rules-X.Y.Z`, BACKWARD_COMPATIBILITY.md §7) i wersja API w ścieżce (`/api/v1`, §2). Zmiana któregokolwiek ma własne reguły; wersja wydania tylko je zbiera.
@@ -72,11 +73,13 @@ Na gałęzi `release/vX.Y.Z` z aktualnego `main` (agent lub właściciel):
 
 Wszystko na commicie, który zostanie otagowany (PR wydania po merge = `main`).
 
+**Wydanie wymaga więcej niż ochrona gałęzi, celowo.** Ochrona `main` wymaga sześciu checków (`lint`, `unit`, `build`, `database`, `e2e`, `secrets`; `review-protocol.md` §7), bo blokują one każdy merge. `release.yml` wymaga dziewięciu: tych sześciu plus `design`, `a11y` i `image`, bo wydanie trafia do restauracji, a `image` sprawdza dokładnie ten artefakt, który zostanie wdrożony. Liczą się tylko wyniki zgłoszone przez aplikację GitHub Actions (`app_id=15368`), więc inna aplikacja z zapisem do checków nie może „zazielenić” np. `lint`. Ta różnica nie jest przeoczeniem: ochronę gałęzi rozszerza właściciel (§11).
+
 | # | Sprawdzenie | Jak | Automatycznie? |
 |---|---|---|---|
-| 1 | Wymagane checki zielone: `lint`, `secrets`, `unit`, `build`, `database`, `e2e` | CI na `main`; `release.yml` sprawdza je przez API | tak |
-| 2 | Job `image` zielony (obraz `runtime` i `migrator`: odmowy startu, migracje, `restaurant:create`, `smoke --production`, strona QR) | CI na `main`; `release.yml` go wymaga, choć ochrona gałęzi jeszcze nie (DEPLOYMENT.md §14) | tak |
-| 3 | `design`, `a11y`, CodeQL zielone | karta Actions / Security | ręcznie |
+| 1 | Checki ochrony gałęzi zielone: `lint`, `secrets`, `unit`, `build`, `database`, `e2e` | CI na `main`; `release.yml` sprawdza je przez API | tak |
+| 2 | Ponad ochronę gałęzi: `design`, `a11y` i job `image` (obraz `runtime` i `migrator`: odmowy startu, migracje, `restaurant:create`, `smoke --production`, strona QR) | CI na `main`; `release.yml` ich wymaga, choć ochrona gałęzi nie (DEPLOYMENT.md §14) | tak |
+| 3 | CodeQL zielony | karta Security (nazwa checku nie jest ustalona, więc workflow go nie sprawdza) | ręcznie |
 | 4 | `npm run audit:gate`, `npm run secrets:scan`, `npm run check:context`, `npm run check:qa`, `npm run check:routes`, `npm run check:boundaries` | job `lint` / `secrets` albo lokalnie | tak (CI) |
 | 5 | `npm run boot:check` po `npm run build` | job `build` | tak |
 | 6 | Historia sekretów od poprzedniego wydania | ostatni przebieg `secrets-history.yml` zielony (albo uruchom go ręcznie) | ręcznie |
@@ -98,7 +101,9 @@ Wynik (PASS/FAIL na scenariusz, środowisko, `QA head: <sha>`) w opisie PR-a wyd
 ## 7. Wydanie
 
 1. Właściciel scala PR wydania (zgoda w rozmowie).
-2. **Actions → Release → Run workflow** z gałęzi `main`, `version: X.Y.Z` (bez `v`), `publish: false`. Workflow (szkic, `.github/workflows/release.yml`) odmawia na innej gałęzi niż `main`, sprawdza wersje, notatki i checki tego commitu (lista powyżej, pkt 1–2), po czym tworzy **szkic** GitHub Release `vX.Y.Z` z notatkami z `CHANGELOG.md` i `UPGRADE_NOTES.md`. Nie publikuje pakietów (nic nie idzie do npm), nie buduje obrazu do rejestru i nie wdraża. Uruchomiony drugi raz nic nie zmienia; tag wskazujący inny commit zatrzymuje go z błędem.
+2. **Actions → Release → Run workflow** z gałęzi `main`, `version: X.Y.Z` (bez `v`), `publish: false`. Workflow (szkic, `.github/workflows/release.yml`) odmawia na innej gałęzi niż `main`, sprawdza wersje, notatki i checki tego commitu (lista powyżej, pkt 1–2), po czym tworzy **szkic** GitHub Release `vX.Y.Z` z notatkami z `CHANGELOG.md` i `UPGRADE_NOTES.md`. Nie publikuje pakietów (nic nie idzie do npm), nie buduje obrazu do rejestru i nie wdraża. Uruchomiony drugi raz na tym samym commicie nic nie zmienia. Zatrzymuje się z błędem, gdy tag `vX.Y.Z` wskazuje inny commit, gdy istnieje **nieaktualny szkic** `vX.Y.Z` z wcześniejszego uruchomienia na starszym commicie (usuń go na stronie Releases i uruchom ponownie), gdy szkiców o tej nazwie jest kilka, i przy każdym błędzie API innym niż 404 (403, 5xx, limit zapytań nigdy nie znaczy „tagu nie ma”).
+
+   **Ochrona po stronie serwera: środowisko `release`.** Strażnik „tylko `main`” jest w pliku workflow, więc osoba z prawem zapisu mogłaby uruchomić kopię pliku z innej gałęzi bez tego strażnika. Dlatego job `release` (jedyny z prawem zapisu) działa w środowisku GitHub `release`. Właściciel tworzy je raz: Settings → Environments → `release` → „Deployment branches and tags: Selected branches” → `main`, opcjonalnie siebie jako wymaganego recenzenta (wtedy job czeka na zatwierdzenie; nieodebrane wygasa po 30 dniach). **Dopóki właściciel go nie skonfiguruje**, GitHub tworzy środowisko przy pierwszym użyciu bez ochrony: job nie wisi, ale jedyną ochroną jest wtedy plik. Środowisko zamiast samego opisu ryzyka, bo reguła gałęzi środowiska jest egzekwowana przez GitHub niezależnie od treści pliku. Ryzyko szczątkowe: osoba z prawem zapisu może i tak utworzyć wydanie ręcznie (`gh release create`); środowisko chroni przed pomyłką i obejściem przez workflow, nie przed uprawnionym człowiekiem.
 3. Właściciel czyta szkic i naciska **Publish release**: dopiero wtedy GitHub tworzy tag `vX.Y.Z` na tym commicie. (`publish: true` robi to od razu; używaj, gdy szkic nie jest potrzebny.)
 4. Wdrożenie wg DEPLOYMENT.md §11 (kopia, `migrate`, `migration:pending`, `app`, weryfikacja §8). Nieudana weryfikacja: drzewo decyzyjne DEPLOYMENT.md §10.2 (najpierw poprawka w przód, wycofanie obrazu tylko bez migracji *contract*, odtworzenie ze zrzutu decyduje właściciel).
 5. **Okno obserwacji 1–2 dni** przed ogłoszeniem: alerty i objawy z OPERATIONS.md, `http_requests_total{status_class="5xx"}`, zgłoszenia od restauracji. Pilne zgłoszenie = poprawka w przód jako `X.Y.Z+1` (§9).
@@ -129,5 +134,7 @@ Po oknie obserwacji właściciel ogłasza wydanie restauracjom (co nowego, co zr
 | Hosting, domena, rejestr obrazów | DEPLOYMENT.md §15 | wdrożenie, podgląd per PR, środowisko nocne |
 | `image` i CodeQL jako wymagane checki | DEPLOYMENT.md §14, `review-protocol.md` §7 | dziś wymaga ich tylko `release.yml` / ta lista |
 | Włączenie `release.yml` (pierwsze uruchomienie i przegląd `.github/`) | szkic, przegląd `risk-high` (dwa review) | §7 |
+| Środowisko GitHub `release` z regułą gałęzi `main` (i ewentualnie wymaganym recenzentem) | do utworzenia przed pierwszym uruchomieniem `release.yml` | §7: bez niego strażnik gałęzi jest tylko w pliku |
+| Wydania próbne (`-rc`) | dziś odrzucane | §3 |
 | Zakresy `@wine-match/testkit` `0.2.0` → `"*"` | do zrobienia przed pierwszą zmianą wersji | §5 pkt 4 |
 | Kanał ogłoszeń dla restauracji, kamienie milowe | otwarte | §4, §8 |

@@ -13,6 +13,7 @@ import { checkChangelog, checkUpgradeNotes, promote, renderRelease } from '../..
 const SCRIPT = fileURLToPath(new URL('../../../scripts/release-notes.mjs', import.meta.url));
 const REPO = fileURLToPath(new URL('../../../', import.meta.url));
 
+const NOT_XYZ = 'is not X.Y.Z (digits only: no leading v, leading zeros, -prerelease or +build; docs/RELEASING.md §3)';
 const roots: string[] = [];
 afterAll(() => { for (const r of roots) rmSync(r, { recursive: true, force: true }); });
 
@@ -111,7 +112,7 @@ describe('renderRelease', () => {
   it('refuses a version that is not in the changelog or has no entries', () => {
     expect(renderRelease(released, '0.4.0', upgrade()).problems).toEqual(['CHANGELOG.md: no "## [0.4.0] - YYYY-MM-DD" section (promote [Unreleased] first)']);
     expect(renderRelease(changelog('## [Unreleased]\n\n', '## [0.3.0] - 2026-11-09\n\n'), '0.3.0', upgrade()).problems).toEqual(['CHANGELOG.md: [0.3.0] has no entries']);
-    expect(renderRelease(released, 'v0.3.0', upgrade()).problems).toEqual(['version "v0.3.0" is not semver X.Y.Z (no leading v)']);
+    expect(renderRelease(released, 'v0.3.0', upgrade()).problems).toEqual([`version "v0.3.0" ${NOT_XYZ}`]);
   });
 });
 
@@ -134,6 +135,29 @@ describe('promote', () => {
     expect(promote(changelog(), '0.3.0', '2026-13-01', upgrade()).problems).toEqual(['date "2026-13-01" is not a valid YYYY-MM-DD']);
     expect(promote(changelog('## [Unreleased]\n\n'), '0.3.0', '2026-11-09', upgrade()).problems).toContain('CHANGELOG.md: [Unreleased] has no entries ("- …" lines)');
     expect(promote(changelog(), '0.3.0', '2026-11-09', upgrade('### Bez pól\n- x\n\n')).problems[0]).toContain('lacks **Kogo dotyczy:**');
+  });
+});
+
+describe('only plain X.Y.Z versions (same rule as release-version)', () => {
+  const BAD = ['1.0.0-rc.1', '1.0.0-01', '1.0.0+build', '01.0.0', '0.3'];
+
+  it('promote and render refuse prerelease, build metadata and leading zeros', () => {
+    for (const v of BAD) {
+      expect(promote(changelog(), v, '2026-11-09', upgrade()).problems).toEqual([`version "${v}" ${NOT_XYZ}`]);
+      expect(renderRelease(changelog(), v, upgrade()).problems).toEqual([`version "${v}" ${NOT_XYZ}`]);
+    }
+  });
+
+  it('a prerelease or build heading in the changelog is malformed', () => {
+    for (const v of ['1.0.0-rc.1', '1.0.0+build', '01.0.0']) {
+      expect(checkChangelog(changelog(UNRELEASED, `## [${v}] - 2026-11-09\n### A\n- a\n`))).toEqual(['CHANGELOG.md:20: version heading must be "## [X.Y.Z] - YYYY-MM-DD" (or "## [Unreleased]")']);
+    }
+  });
+
+  it('promotes 1.0.0 after 0.10.0 and refuses 0.9.0 after 0.10.0 (numeric, not text, order)', () => {
+    const rest = `## [0.10.0] - 2026-11-01\n### A\n- a\n\n${OLD}`;
+    expect(promote(changelog(UNRELEASED, rest), '1.0.0', '2026-11-09', upgrade()).problems).toEqual([]);
+    expect(promote(changelog(UNRELEASED, rest), '0.9.0', '2026-11-09', upgrade()).problems).toEqual(['version 0.9.0 is not newer than the latest released 0.10.0']);
   });
 });
 

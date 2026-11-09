@@ -18,6 +18,7 @@ const roots: string[] = [];
 afterAll(() => { for (const r of roots) rmSync(r, { recursive: true, force: true }); });
 
 const WORKSPACES = ['packages/core', 'packages/app', 'packages/testkit'];
+const NOT_XYZ = 'is not X.Y.Z (digits only: no leading v, leading zeros, -prerelease or +build; docs/RELEASING.md §3)';
 
 interface Fixture {
   version?: string;
@@ -136,8 +137,25 @@ describe('checkVersions', () => {
   });
 
   it('refuses a version that is not semver', () => {
-    expect(checkVersions(repo({ version: '1.0' })).problems[0]).toBe('package.json: version "1.0" is not semver X.Y.Z');
-    expect(checkVersions(repo(), 'v0.2.0').problems).toEqual(['--expect "v0.2.0" is not semver X.Y.Z (no leading v)']);
+    expect(checkVersions(repo({ version: '1.0' })).problems[0]).toBe(`package.json: version "1.0" ${NOT_XYZ}`);
+    expect(checkVersions(repo(), 'v0.2.0').problems).toEqual([`--expect "v0.2.0" ${NOT_XYZ}`]);
+  });
+
+  it('refuses prerelease, build metadata and leading zeros everywhere (releases are plain X.Y.Z)', () => {
+    for (const v of ['1.0.0-rc.1', '1.0.0-01', '1.0.0+build', '01.0.0', '0.02.0']) {
+      expect(checkVersions(repo(), v).problems).toEqual([`--expect "${v}" ${NOT_XYZ}`]);
+      expect(checkVersions(repo({ version: v })).problems[0]).toBe(`package.json: version "${v}" ${NOT_XYZ}`);
+      expect(planSet(repo(), v).problems).toEqual([`version "${v}" ${NOT_XYZ}`]);
+    }
+  });
+
+  it('reports a malformed package.json or lockfile as a problem, without throwing', () => {
+    const root = repo();
+    writeFileSync(join(root, 'packages/app/package.json'), '{ "name": "@wine-match/app", }');
+    expect(checkVersions(root).problems).toContain('packages/app/package.json: not valid JSON');
+    writeFileSync(join(root, 'package-lock.json'), '{');
+    expect(checkVersions(root).problems).toContain('package-lock.json: not valid JSON');
+    expect(planSet(root, '0.3.0').problems).toContain('package-lock.json: not valid JSON');
   });
 
   it('refuses a missing workspace package.json', () => {
@@ -185,7 +203,7 @@ describe('planSet', () => {
   });
 
   it('refuses a non-semver target and an inconsistent starting point', () => {
-    expect(planSet(repo(), '0.3').problems).toEqual(['version "0.3" is not semver X.Y.Z (no leading v)']);
+    expect(planSet(repo(), '0.3').problems).toEqual([`version "0.3" ${NOT_XYZ}`]);
     expect(planSet(repo({ workspace: { 'packages/app': '0.1.0' } }), '0.3.0').problems[0]).toContain('packages/app/package.json: version is 0.1.0');
   });
 });
@@ -211,8 +229,24 @@ describe('release-version CLI', () => {
     expect(checkVersions(root, '0.3.0').problems).toEqual([]);
   });
 
-  it('usage errors exit 2', () => {
+  it('usage errors exit 2, including conflicting modes', () => {
     expect(run(['--set']).status).toBe(2);
     expect(run(['--bogus']).status).toBe(2);
+    const root = repo();
+    for (const args of [['--set', '0.3.0', '--check'], ['--check', '--set', '0.3.0'], ['--set', '0.3.0', '--expect', '0.3.0'], ['--check', '--write'], ['--set', '0.3.0', '--set', '0.4.0']]) {
+      const r = run([...args, '--root', root]);
+      expect(r.status, args.join(' ')).toBe(2);
+      expect(r.stderr).toContain('usage:');
+    }
+    expect(read(root, 'package.json')).toContain('"version": "0.2.0"');
+  });
+
+  it('a malformed JSON file gives a clean message and exit 1, not a stack trace', () => {
+    const root = repo();
+    writeFileSync(join(root, 'package.json'), '{ "version": ');
+    const r = run(['--check', '--root', root]);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('package.json: not valid JSON');
+    expect(r.stderr).not.toMatch(/SyntaxError|\n\s+at /);
   });
 });

@@ -3,6 +3,7 @@
  * Release notes from CHANGELOG.md and UPGRADE_NOTES.md (lesson 22, docs/RELEASING.md). Deterministic, offline, no
  * dependencies. Format: Keep a Changelog, `## [Unreleased]` on top, then `## [X.Y.Z] - YYYY-MM-DD`, newest first
  * (the historical `## [0.2.0]` has no date and is accepted). Headings inside ``` fences are ignored (examples).
+ * Versions are plain X.Y.Z everywhere (no prerelease, no +build, no leading zeros), like release-version.mjs.
  *
  *   npm run release:notes -- check                         [Unreleased] is non-empty and well-formed; upgrade notes complete
  *   npm run release:notes -- render X.Y.Z [--out <file>]   GitHub Release body for X.Y.Z (stdout or file)
@@ -21,7 +22,10 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
-const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+// Plain X.Y.Z only, as in release-version.mjs (docs/RELEASING.md §3): with no prerelease, numeric X, Y, Z order is
+// the whole of SemVer precedence, so `newer()` below is correct by construction.
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const NOT_XYZ = 'is not X.Y.Z (digits only: no leading v, leading zeros, -prerelease or +build; docs/RELEASING.md §3)';
 const VERSION_HEADING = /^## \[([^\]]+)\](?: - (\d{4}-\d{2}-\d{2}))?$/;
 const UPGRADE_FIELDS = ['**Kogo dotyczy:**', '**Co się zmienia:**', '**Co zrobić:**', '**Wycofanie:**'];
 const FOOTER = 'Full history: CHANGELOG.md. Rollback: docs/DEPLOYMENT.md §10.';
@@ -145,7 +149,7 @@ const trimBlank = (ls) => {
 
 /** The GitHub Release body for `version`: its changelog section, its upgrade notes (or "None"), a footer. */
 export function renderRelease(changelogText, version, upgradeText = '') {
-  if (!isSemver(version)) return { body: '', problems: [`version "${version}" is not semver X.Y.Z (no leading v)`] };
+  if (!isSemver(version)) return { body: '', problems: [`version "${version}" ${NOT_XYZ}`] };
   const c = parseSections(changelogText);
   const section = c.sections.find((s) => s.valid && s.name === version);
   if (!section) return { body: '', problems: [`CHANGELOG.md: no "## [${version}] - YYYY-MM-DD" section (promote [Unreleased] first)`] };
@@ -171,7 +175,7 @@ function moveUnreleased(lines, s, version, date) {
 
 export function promote(changelogText, version, date, upgradeText = '') {
   const fail = (problems) => ({ changelog: changelogText, upgradeNotes: upgradeText, problems });
-  if (!isSemver(version)) return fail([`version "${version}" is not semver X.Y.Z (no leading v)`]);
+  if (!isSemver(version)) return fail([`version "${version}" ${NOT_XYZ}`]);
   if (!validDate(date)) return fail([`date "${date}" is not a valid YYYY-MM-DD`]);
   const problems = [...checkChangelog(changelogText), ...checkUpgradeNotes(upgradeText)];
   if (problems.length > 0) return fail(problems);

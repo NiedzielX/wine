@@ -44,5 +44,18 @@ Decyzje właściciela (zebrane w `docs/RELEASING.md` §11 i w drafcie spec): wer
 
 Dług: `npm run release:notes -- check` nie jest w CI (po wydaniu `[Unreleased]` jest legalnie puste, więc jako wymagany check czerwieniłby `main`); ewentualne sprawdzenie samego kształtu w CI to propozycja do spec. Skille `om-close-fixed-issues` i `om-auto-update-changelog` szukają nagłówka `# X.Y.Z (data)`; do czasu lokalnego rozszerzenia (draft spec R5, R6) podajemy `--since vX.Y.Z`.
 
+## Poprawki po dwóch review PR #143 (ta sama sesja, po merge `main` w a5a0d73)
+Oba review: approve z uwagami nieblokującymi. Zrobione wszystkie dziewięć:
+1. `release.yml`: wyszukanie taga rozróżnia 404 (stderr `(HTTP 404)`) od każdego innego błędu (403, 5xx, limit), który zatrzymuje przebieg.
+2. Szkic `vX.Y.Z` z innym `target_commitish` niż `$GITHUB_SHA` = błąd „nieaktualny szkic, usuń go”; kilka wydań o tej nazwie = błąd; opublikowane wydanie bez taga = błąd.
+3. Zapytanie o checki z `app_id=15368` (GitHub Actions).
+4. Job `release` w środowisku `environment: release` (reguła gałęzi egzekwowana przez GitHuba, niezależnie od treści pliku); bez konfiguracji GitHub tworzy je bez ochrony, więc job nie wisi. Konfiguracja i ryzyko szczątkowe opisane w nagłówku workflow i `RELEASING.md` §7, decyzja w §11.
+5. `RELEASING.md` §6: lista wydania (9 checków, plus `design`, `a11y`, `image`) celowo szersza niż ochrona gałęzi (6); `design` i `a11y` dodane do listy w workflow; CodeQL ręcznie.
+6–7. Oba skrypty przyjmują tylko czyste `X.Y.Z` (bez prerelease, `+build`, zer wiodących) z jednym komunikatem; kolejność liczbowa jest wtedy pełną kolejnością SemVer. Zapis w `RELEASING.md` §3.
+8. `release:version`: `--set` z `--check` lub `--expect`, `--write` bez `--set`, flaga podana dwa razy = kod 2.
+9. Niepoprawny JSON: `<plik>: not valid JSON`, kod 1, bez stosu (bez komunikatu parsera, bo nowszy V8 cytuje w nim treść pliku).
+
+Weryfikacja: nowe testy najpierw czerwone (9 failed, 30 passed), potem 39/39; logika kroku tworzenia wydania wykonana lokalnie na zaślepce `gh` w 10 scenariuszach (świeży szkic, publikacja, 403 przy tagu, tag na innym commicie, tag tutaj, ponowne uruchomienie, nieaktualny szkic, dwa szkice, opublikowane tutaj, opublikowane bez taga): oczekiwane kody i komunikaty. `lint` 0, `typecheck` 0, `npm test` 0 (testkit 487), `check:context` 0 błędów, `check:qa`, `check:routes`, `secrets:scan` OK. Workflow nadal nie uruchomiony na GitHubie.
+
 ## Lekcje
 - `.ai/lessons/2026-11-09-release-is-a-human-decision.md`
