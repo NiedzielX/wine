@@ -48,6 +48,7 @@
     "check:routes": "node scripts/check-routes.mjs",
     "verify:regression": "node scripts/verify-regression.mjs",
     "review:pack": "node scripts/review-pack.mjs",
+    "review:validate": "node scripts/review-validate.mjs",
     "test-env:up": "sh .ai/scripts/test-env-up.sh",
     "test-env:down": "sh .ai/scripts/test-env-down.sh"
   },
