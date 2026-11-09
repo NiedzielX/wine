@@ -10,6 +10,7 @@ Format linii (najnowsze na górze):
 ## Aktywne
 
 - [2026-11-08] [Strona panelu sama woła `requireAccess` przed odczytem danych](lessons/2026-11-08-page-reads-data-in-parallel-with-layout-check.md) — layout i strona renderują się równolegle; bez własnego sprawdzenia dane trafiają do ciała 403 i przekierowania; test sprawdza ciało, nie tylko status.
+- [2026-11-08] [Limit „sprawdź, potem wstaw” bez blokady przepuszcza równoległe żądania; migracja ma dowód up/down/up](lessons/2026-11-08-concurrency-tests-and-migration-roundtrip.md) — limit w jednej transakcji z `pg_advisory_xact_lock`; testy równoległości z bramką `race()`; `down` dla każdej migracji poza bazową.
 - [2026-11-08] [Łańcuch dostaw CI: akcje przypięte SHA, skrypty instalacyjne wyłączone, hook to guardrail](lessons/2026-11-08-ci-supply-chain-pins.md) — pełny SHA z `# vX.Y.Z`, `persist-credentials: false`, `ignore-scripts=true`, skan historii sekretów; hook nie jest granicą
 - [2026-11-08] [Reguła z AGENTS.md bez egzekwowania jest życzeniem: hook dla `status: approved`, skille projektu `wine-match-*`](lessons/2026-11-08-project-skills-and-spec-status-hook.md) — chroń regułę procesu hookiem z testowaną `decide()`, a powtarzalny proces zapisz jako skill projektu.
 - [2026-11-08] [QA agenta: wyrocznia, niezależny weryfikator i znany cel bazy](lessons/2026-11-08-qa-with-agents-protocol.md) — protokół `.ai/docs/qa-protocol.md`; polecenia operatora drukują cel bazy i ostrzegają o cieniu `DATABASE_URL`

@@ -69,6 +69,21 @@ export function recommendationCodeContract(t: Omit<OnceRunner, 'beforeAll' | 'af
     t.expect((await repo.findByCode(ds.restaurant.id, day, 'A2E'))?.dishIds).toEqual(table);
   });
 
+  t.it('refuses a new choice once the session has `sessionLimit` codes that day (R13)', async () => {
+    const { repos, ds } = get();
+    const repo = repos.recommendationCodeRepository;
+    const day = '2032-01-30';
+    const base = input(70, { serviceDay: day, code: 'B2A' });
+    t.expect((await repo.tryIssue(ds.restaurant.id, base, 2)).status).toBe('created');
+    t.expect((await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(71), code: 'B2C', serving: 'glass' }, 2)).status).toBe('created');
+    t.expect(await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(72), code: 'B2D', wineId: ds.wines[1].id }, 2)).toEqual({ status: 'session_limit' });
+    t.expect(await repo.countBySession(ds.restaurant.id, day, sid(70))).toBe(2);
+    // at the cap the gate comes first: even a retry of a choice that already has a code is `session_limit`, not `existing`
+    t.expect(await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(75), code: 'B2F' }, 2)).toEqual({ status: 'session_limit' });
+    t.expect((await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(76), code: 'B2G' })).status).toBe('existing');   // without a limit the same retry is answered with the stored code
+    t.expect((await repo.tryIssue(ds.restaurant.id, { ...base, id: rid(73), code: 'B2E', sessionId: sid(74) }, 2)).status).toBe('created');
+  });
+
   t.it('confirms idempotently, clears on undo and ignores unknown codes and other restaurants (R7)', async () => {
     const { repos, ds } = get();
     const repo = repos.recommendationCodeRepository;
