@@ -12,10 +12,12 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { MikroORM } from '@mikro-orm/postgresql';
+import { announceDbTarget } from '../src/db-target';
 import { run } from './restaurant-bootstrap';
 
 const rootEnv = fileURLToPath(new URL('../../../.env', import.meta.url));
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
+announceDbTarget({ command: 'restaurant:create' }); // stderr, before anything is validated or written (lesson 18)
 
 run(process.argv.slice(2), process.env, {
   // The CLI configuration carries the Migrator; the runtime configuration does not.

@@ -1,8 +1,22 @@
 # Wine Match
 
+[![CI](https://github.com/NiedzielX/wine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/NiedzielX/wine/actions/workflows/ci.yml)
+
 Platforma B2B2C dla restauracji: gość skanuje QR kod, wybiera danie i widzi najlepiej pasujące wina **z karty tej restauracji**, z ceną kieliszka lub butelki i krótkim „dlaczego”. Sommelier zachowuje pełną kontrolę nad rekomendacjami, a restauracja widzi, jak rośnie sprzedaż wina (Wine Attach Rate).
 
 Rekomendacje liczy własny, deterministyczny silnik dopasowań (reguły sommelierskie i scoring). Normalne korzystanie z aplikacji nie wywołuje żadnego płatnego API LLM.
+
+## Dla kogo
+
+- **Goście restauracji** (telefon przy stoliku, bez rejestracji) i **kelnerzy** (widok personelu, kod polecenia „pokaż kelnerowi: W7K”).
+- **Sommelier / Wine Director** (decyzje o pairingach), **Owner / GM** (biznes, import, publikacja, zespół).
+- Grupa docelowa i problemy są **założeniami zespołu, nie wynikami badań**: właściciel zdecydował (D09, D19) budować produkt bez ich weryfikacji; badania (E01) nie zostały przeprowadzone. Szczegóły: [.ai/specs/product-brief.md](.ai/specs/product-brief.md).
+
+## Zakres MVP i świadome nie-cele
+
+**MVP (D01):** aplikacja gościa (G0–G12: wybór dania, cały stół, ścieżka kelnera, kod polecenia, PL/EN), panel sommeliera i restauracji (import menu i karty win z CSV / XLSX / PDF, kolejka review, publikacja, QR, KPI i okazje), zdarzenia użycia, opcjonalny import sprzedaży z POS (CSV / XLSX) i Wine Attach Rate, deterministyczny silnik.
+
+**Nie-cele** (brief, sekcja „Non-goals”): płatne pozycje w rekomendacjach dla importerów lub producentów (N01), pozycjonowanie jako „AI Sommelier” i słowo „AI” w interfejsie gościa (N02), płatne API LLM przy każdym zapytaniu (N03), integracje z POS i e-menu, magazyn, prognozy, marketplace i profile gości (N04). Rozbudowa poza MVP jest rozpisana jako plan E11–E22 (niżej); jego realizacja nie zmienia nie-celów N01–N04.
 
 ## Uruchomienie
 
@@ -62,7 +76,7 @@ USER_PASSWORD='długie hasło, min. 12 znaków' npm run restaurant:create -- \
 - Błędy pól i hasła są zgłaszane naraz, zanim polecenie połączy się z bazą. Brak `DATABASE_URL` albo niezastosowane migracje (`npm run db:migrate`) kończą się kodem 1 i niczego nie zapisują. Polecenie nie czyta `DATA_SOURCE`, `ALLOW_DEMO_DATA` ani `PUBLIC_BASE_URL` i nie ładuje danych demo.
 - Zajęty slug albo e-mail istniejącego konta (bez względu na wielkość liter) → kod 1, nic nie zapisane. Flaga `--allow-existing-account` (np. ta sama osoba w drugim lokalu) dodaje istniejącemu kontu tylko członkostwo `owner`; jego hasło się nie zmienia, a `USER_PASSWORD` nie jest potrzebne.
 - Hasło jest wyłącznie w `USER_PASSWORD` (nigdy w argumentach); ani ono, ani `DATABASE_URL` nie trafia na wyjście. Wartość z końcowym znakiem nowej linii jest używana dosłownie, więc nie ustawiaj jej przez `echo` bez `-n`.
-- **W kontenerze** (obraz `migrate`) hasło wczytaj bez echa i przekaż samą nazwą zmiennej, nigdy `-e USER_PASSWORD=…`, wartością w pliku compose ani flagą:
+- **W kontenerze** (obraz `migrate`; **plan, nie stan dzisiejszy**: Dockerfile i Compose powstają w E11 F2, w repozytorium ich jeszcze nie ma) hasło wczytaj bez echa i przekaż samą nazwą zmiennej, nigdy `-e USER_PASSWORD=…`, wartością w pliku compose ani flagą:
 
   ```sh
   stty -echo; printf 'Owner password: '; read -r USER_PASSWORD; stty echo; echo
@@ -71,7 +85,7 @@ USER_PASSWORD='długie hasło, min. 12 znaków' npm run restaurant:create -- \
   unset USER_PASSWORD
   ```
 
-- **Przekazanie hasła właścicielowi:** na pilotaż maintainer zna hasło do czasu jego zmiany (zmiany hasła w panelu jeszcze nie ma) i przekazuje je właścicielowi razem z adresem `/admin/{slug}` jednorazowym kanałem poza systemem (nie e-mailem z hasłem w treści ani czatem zespołu). Przed drugim lokalem potrzebna jest zmiana hasła przez właściciela albo link zaproszenia (osobne zgłoszenie).
+- **Przekazanie hasła właścicielowi:** na pilotaż maintainer zna hasło do czasu jego zmiany (zmiany hasła w panelu jeszcze nie ma) i przekazuje je właścicielowi razem z adresem `/admin/{slug}` jednorazowym kanałem poza systemem (nie e-mailem z hasłem w treści ani czatem zespołu). Zaproszenia do zespołu (jednorazowy link, A15; `npm run user:invite`) istnieją od E12 F2, ale zmiany hasła przez właściciela jeszcze nie ma (E12 F3).
 - **Strona gościa świeżej restauracji** `/r/{slug}` odpowiada 200 od razu (nazwa, adres, „Tonight's menu is being updated”); ukrywanie restauracji `onboarding` przed gośćmi to osobne zgłoszenie.
 - **Cofnięcie pomyłki** (brak polecenia usuwania; jedna transakcja `psql`, tylko zanim zaimportowano menu):
 
@@ -214,35 +228,82 @@ TypeScript 7 to natywny kompilator bez klasycznego API JavaScript. Next.js spraw
 
 ## Stan prac
 
-| Obszar | Stan |
+Stan na 2026-11-08, z listy scalonych PR-ów (GitHub API, tylko odczyt) i specyfikacji. Szczegóły i numery PR-ów: [.ai/specs/backlog.md](.ai/specs/backlog.md), plan: [.ai/specs/2026-11-04-product-completion-plan.md](.ai/specs/2026-11-04-product-completion-plan.md), historia zmian: [CHANGELOG.md](CHANGELOG.md).
+
+**Zbudowane (MVP i migracja z mockupów):** silnik dopasowań, aplikacja gościa G0–G12, panel (odczyt, zapisy sommeliera, publikacja z migawką, import menu i win CSV / XLSX / PDF, kod QR), logowanie i role, PL/EN, zdarzenia użycia (E02), import sprzedaży i Wine Attach Rate (E03), KPI w panelu (E04), „Jak to działa” (E07), cały stół i ścieżka kelnera (E08), kod polecenia (E09, domknięcie E11b), okazje sommeliera (E10), `restaurant:create` (E05-S01). Statyczne mockupy (`packages/mockups`) nadal są w repozytorium; ich wycofanie nie jest zrobione.
+
+| Epik | Stan |
 |---|---|
-| Koncepcja produktu i dokumentacja (`docs/`) | gotowe |
-| Silnik dopasowań + testy | gotowe (w `core`) |
-| Statyczne mockupy wszystkich ekranów MVP | gotowe (`packages/mockups`) |
-| Monorepo, warstwa danych, DI, migracja początkowa, seeder | gotowe |
-| **Faza 1 migracji:** aplikacja gościa G0–G9 w Next.js (landing, menu, dania, rekomendacje, filtry, wino, potwierdzenie, stolik, kelner) + 3 endpointy API | gotowe |
-| **Faza 2 migracji:** panel w trybie odczytu — dashboard, menu, szczegóły dania, lista win, szczegóły wina, pairingi dania, kolejka review | gotowe |
-| **Faza 5 migracji:** import menu i karty win z CSV / XLSX / PDF (podgląd, poprawki, atomowe zatwierdzenie, propozycje silnika), ekran Setup, kod QR (SVG / PNG) ze stojakiem do druku, REST API importu i QR | gotowe |
-| **Faza 4 migracji:** logowanie i sesje, role (Owner / GM, Sommelier, Waiter), ochrona panelu, akcji i API, prawdziwy autor w historii decyzji, REST API zapisu, blokada konta, nagłówki bezpieczeństwa | gotowe |
-| **Faza 3 migracji:** zapisy sommeliera (zatwierdzanie, odrzucanie, role, kolejność, notatki, własne pary, dostępność wina), historia decyzji, blokada optymistyczna, publikacja z migawką widoczną dla gości, ekran Publish | gotowe |
-| Faza 6: analityka (zapis eventów gości, KPI użycia i sprzedaży, import sprzedaży) i wycofanie mockupów | do zrobienia — plan w `.ai/specs/2026-10-14-mockups-to-app-migration-plan.md` |
-| CI (GitHub Actions) | plik `.github/workflows/ci.yml` odzwierciedla polecenia lokalne; **nie był jeszcze uruchomiony** |
+| E01 Discovery (badania) | **nie zrobione** (brak wywiadów, benchmarku, danych POS); nie blokuje budowy (D19) |
+| E02–E04, E07–E10, E11b | **scalone, zrealizowane** |
+| E05 Gotowość pilotażu | S01 scalone; S02 (wdrożenie) częściowo przez E11 |
+| E06 Później | odłożone |
+| E11 Wdrożenie produkcyjne | **w toku**: F1 scalone (#120: health, `PUBLIC_BASE_URL`, strażnik seedera, `smoke --production`); F2 (obraz, job CI `image`) i F3 (runbook `docs/DEPLOYMENT.md`, hosting) nie rozpoczęte. **Nie ma jeszcze instancji produkcyjnej** |
+| E12 Konta, role, PIN kelnera | **w toku**: F1 (#118: zespół, status, dziennik) i F2 (#123, #125: zaproszenia) scalone; F3–F6 nie rozpoczęte |
+| E13 Panel (edycja profili, historia publikacji) | nie rozpoczęte (specyfikacja `approved`) |
+| E14 Administrator systemu, wiele lokali | nie rozpoczęte (`approved`) |
+| E15 Rozliczenia | nie rozpoczęte (`approved`) |
+| E16 Silnik v1.x | nie rozpoczęte (`approved`) |
+| E17 Warstwa uczenia | nie rozpoczęte (`approved`) |
+| E18 Doświadczenie gościa | nie rozpoczęte (`approved`) |
+| E19 Operacje restauracji | nie rozpoczęte (`approved`) |
+| E20 Dane i import | nie rozpoczęte jako epik (`approved`); #90 naprawiono wcześniej (#92) |
+| E21 Jakość i zgodność | **w toku**: F1 scalone (#117: metryki, logi, redakcja); F2–F7 nie rozpoczęte |
+| E22 Demo i kalkulator zwrotu | **w toku**: F1 (#122: kalkulator) i F2 (#126: przewodnik, demo tylko do odczytu) scalone; F3–F4 nie rozpoczęte |
+
+Specyfikacje E12–E22 mają status `approved` na podstawie delegacji właściciela z 2026-11-04. Rola System Admin nie jest zaimplementowana (E14), a w panelu nie ma tworzenia ani usuwania dań i win (zob. „Usuwanie danych: co jest dziś” w [docs/DATA_MODEL.md](docs/DATA_MODEL.md)). Definicja wersji 1.0 nie jest ustalona (`package.json` ma `0.2.0`).
+
+## Testy i CI
+
+Lokalnie: `npm run lint`, `npm run typecheck`, `npm test` (jednostkowe), `npm run test:db` (PostgreSQL, testcontainers albo `TEST_DATABASE_URL`), `npm run test:e2e` (zbudowana aplikacja i `agent-browser`), `npm run build`, `npm run boot:check`, `npm run smoke`, `npm run check:context`, `npm run check:qa`, `npm run check:routes`, `npm run secrets:scan`, `npm run audit:gate` (pełna tabela: [.ai/docs/commands.md](.ai/docs/commands.md)).
+
+Workflow **CI** (`.github/workflows/ci.yml`, każdy PR i push na `main`) ma joby `lint` (lint, granice pakietów, `check:qa`, `check:routes`, typecheck, `audit:gate`, `check:context`), `secrets`, `design`, `unit`, `a11y`, `build`, `database`, `e2e`. Obok działa CodeQL (`.github/workflows/codeql.yml`) i Dependabot. **Wymagane checki ochrony gałęzi `main`** (odczyt API ochrony gałęzi, 2026-11-08): `lint`, `unit`, `build`, `database`, `e2e`, `secrets`; gałąź jest `strict`, wymaga rozstrzygnięcia rozmów, `enforce_admins` włączone, wymaganych zatwierdzeń 0 (jeden opiekun repo). `design` i `a11y` biegną, ale nie są wymagane. Pokrycie testami jest raportowane bez progu.
+
+## Bezpieczeństwo
+
+Podsumowanie: sesje w ciasteczku httpOnly (w bazie tylko skrót), hasła scrypt, blokada konta, CSRF, izolacja restauracji przez `restaurantId` w każdej metodzie repozytorium, nagłówki bezpieczeństwa, konfiguracja zawodząca zamykająco, redakcja sekretów w logach, skan sekretów i audyt zależności w CI. Znane ograniczenia: zaproszenia do zespołu bez weryfikacji adresu e-mail (ryzyko zaakceptowane, T-04), brak zmiany hasła w panelu, brak limitów żądań (E21 F3), brak instancji produkcyjnej, jedna próba prompt injection i nie jest to dowód bezpieczeństwa.
+
+- [security-notes.md](security-notes.md): warsztat agenta AI, sekrety („Gdzie żyją sekrety”), obejścia hooka, próba prompt injection i otwarte punkty.
+- [docs/security/threat-model.md](docs/security/threat-model.md) (STRIDE, T-01…T-24) i [docs/security/dast-coverage.md](docs/security/dast-coverage.md).
+
+**Konta demo** (po `npm run db:seed` albo w trybie `memory`; opisane wyżej): `marta@halka.pl`, `tomasz@halka.pl`, `kelner@halka.pl`, wspólne **publiczne** hasło z sekcji „Logowanie do panelu”. Nie wolno ich zakładać na prawdziwej instalacji.
+
+## Mapa repozytorium
+
+| Ścieżka | Zawartość |
+|---|---|
+| `packages/core`, `db`, `ui`, `app`, `mockups`, `testkit` | pakiety (testkit: narzędzia testowe i testy skryptów repozytorium) |
+| `scripts/` | skrypty repozytorium (`check:*`, `smoke`, `secrets:scan`, `audit:gate`, `user:invite`, `review:pack` …) |
+| `docs/` | dokumentacja produktu i techniczna; `docs/design/` (system projektowy), `docs/security/` |
+| `.ai/specs/` | specyfikacje, backlog, brief produktu; `implemented/`, `research/` |
+| `.ai/runs/`, `.ai/lessons/` | logi przebiegów agentów, lekcje |
+| `.ai/docs/` | zasady dla agentów (polecenia, szablony, protokół review, praca równoległa) |
+| `.ai/qa/` | scenariusze QA (powiązane z testami e2e przez `npm run check:qa`) |
+| `.github/` | workflow CI i CodeQL, Dependabot, CODEOWNERS, szablon PR |
 
 ## Dokumentacja
 
 | Dokument | Zawartość |
 |---|---|
+| [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md) | zasady pracy agentów AI i architektury |
+| [SDLC.md](SDLC.md), [CODE_REVIEW.md](CODE_REVIEW.md), [BACKWARD_COMPATIBILITY.md](BACKWARD_COMPATIBILITY.md) | proces dostarczania, zasady review, kontrakty, których nie wolno łamać |
+| [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) | jak wnosić zmiany, historia zmian |
 | [docs/PRODUCT_CONCEPT.md](docs/PRODUCT_CONCEPT.md) | problem, value proposition, model B2B2C, model biznesowy, KPI |
 | [docs/USER_ROLES.md](docs/USER_ROLES.md) | role, potrzeby, macierz uprawnień |
-| [docs/USE_CASES.md](docs/USE_CASES.md) | 14 use case’ów |
-| [docs/USER_FLOWS.md](docs/USER_FLOWS.md) | flow gościa, stolika, sommeliera, onboardingu, kelnera, importu |
-| [docs/SCREEN_MAP.md](docs/SCREEN_MAP.md) | mapa ekranów i nawigacji |
-| [docs/SCREEN_SPECIFICATION.md](docs/SCREEN_SPECIFICATION.md) | specyfikacja 23 ekranów |
-| [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | encje i relacje |
-| [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md) | REST API v1 |
+| [docs/USE_CASES.md](docs/USE_CASES.md), [docs/USER_FLOWS.md](docs/USER_FLOWS.md) | use case’y, flow gościa, stolika, sommeliera, onboardingu, kelnera, importu |
+| [docs/SCREEN_MAP.md](docs/SCREEN_MAP.md), [docs/SCREEN_SPECIFICATION.md](docs/SCREEN_SPECIFICATION.md) | mapa i specyfikacja ekranów |
+| [docs/DATA_MODEL.md](docs/DATA_MODEL.md), [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md) | encje i relacje (w tym usuwanie danych), REST API v1 |
 | [docs/RECOMMENDATION_ENGINE.md](docs/RECOMMENDATION_ENGINE.md) | silnik: cechy, reguły, wzory, warstwa sommeliera |
-| [.ai/docs/engineering-standards.md](.ai/docs/engineering-standards.md) | standardy inżynieryjne: konwencja pojęć, warstwa API, walidacja, bezpieczeństwo, jakość, lista kontrolna przeglądu (adaptacja dokumentu DevMentor, z mapowaniem każdej reguły) |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md), [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | operacje, alerty, instancja demo; system projektowy |
+| [security-notes.md](security-notes.md), [docs/security/](docs/security/) | bezpieczeństwo agenta i produktu |
+| [.ai/specs/product-brief.md](.ai/specs/product-brief.md), [.ai/specs/backlog.md](.ai/specs/backlog.md) | brief produktu, backlog E01–E22 ze statusem |
+| [.ai/docs/commands.md](.ai/docs/commands.md), [.ai/docs/engineering-standards.md](.ai/docs/engineering-standards.md), [.ai/docs/review-protocol.md](.ai/docs/review-protocol.md) | polecenia, standardy, protokół review |
+| [.ai/qa/README.md](.ai/qa/README.md) | konwencja scenariuszy QA |
 
 ## Praca z agentami AI
 
-Zasady dla agentów (Claude Code, Codex, Cursor i innych) są w [AGENTS.md](AGENTS.md) — w tym obowiązkowe reguły architektury (§1). Każdy pakiet ma własny `AGENTS.md` ze szczegółami, a pliki `CLAUDE.md` je importują. Katalog `.ai/` przechowuje specyfikacje SDD (`.ai/specs/`), logi przebiegów (`.ai/runs/`) i pamięć długoterminową projektu (`.ai/lessons.md`, `.ai/lessons/`).
+Zasady dla agentów (Claude Code, Codex, Cursor i innych) są w [AGENTS.md](AGENTS.md) — w tym obowiązkowe reguły architektury (§1). Każdy pakiet ma własny `AGENTS.md`, a pliki `CLAUDE.md` je importują. Katalog `.ai/` przechowuje specyfikacje SDD, logi przebiegów i pamięć długoterminową projektu (`.ai/lessons.md`, `.ai/lessons/`).
+
+## Niezweryfikowane w tym przeglądzie README
+
+Wszystkie polecenia `npm run …` z README istnieją w `package.json` (sprawdzone skryptem). **Nie uruchomiono** żadnego z nich w tym przeglądzie, więc opisy zachowania (`boot:check`, `smoke`, `restaurant:create`, `user:invite`, `test:db`, `test:e2e`) pochodzą z dokumentacji i logów przebiegów, a nie z ponownego uruchomienia. Polecenia `docker compose …` z sekcji o `restaurant:create` w kontenerze odnoszą się do obrazu `migrate`, którego w repozytorium jeszcze nie ma (E11 F2); `docs/DEPLOYMENT.md` nie istnieje.

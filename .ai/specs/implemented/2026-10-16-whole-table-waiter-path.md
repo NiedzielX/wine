@@ -3,6 +3,8 @@ status: implemented
 created: 2026-10-16
 owner: Filip
 related: [.ai/specs/product-brief.md (D03, D13, D14, D15, D16, D17, D18), .ai/specs/2026-10-15-guest-usage-events.md (E02), .ai/specs/2026-10-16-how-it-works-explanations.md (E07), .ai/specs/implemented/2026-10-16-recommendation-code.md (E09), .ai/specs/2026-10-16-sommelier-opportunities.md (E10), .ai/specs/2026-10-15-kpi-dashboard.md (E04), .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md, .ai/runs/2026-10-16-positioning-table-specs.md]
+author_model: "not recorded (spec written by a sub-agent, model not stated in .ai/runs/2026-10-16-positioning-table-specs.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # „Cały stół”: funkcja wyróżniająca i ścieżka kelnera (E08)
@@ -257,6 +259,7 @@ Sommelier przypina w panelu 1–3 wina jako „butelki stołu”. Model: tabela 
 - 2026-10-16 — przegląd niezależnego agenta (15 uwag, przyjęte): surowy procent per danie (`engineScore`, R02), API bez luzowania budżetu, kolejność E07 F1 → E08 F1 i `ENGINE_FACTS`, serwis dla G8, `serving` stołu, split przy luzowaniu, wina słodkie bez ilości, szablony `fits = 0` i `of = 1`, dopisek „przyjęte domyślnie”, ilość jako osobna faza F4, przypadki brzegowe G11, nazwy reguł jako identyfikatory dokumentacyjne, BC §1 dla trasy, `canPairTable` w `core`. Uzgodnienia z sąsiednimi specyfikacjami: ekran kelnera to G11 (G10 = „Jak dobieramy wino” z E07), kod tylko dla butelki głównej (E09 Q19), decyzja o `showUnreviewed` dla stołu (E07 Q4 → Q14).
 
 - 2026-10-16 — przegląd krzyżowy niezależnym agentem (sekcja „Przegląd krzyżowy 2026-10-16”): kelner zostaje na G11, E07 → G12; jedno „i” (R11); podział E07 F1a/F1b (Q15); `compromise`, odrzucone pary i `pickTableItem` (R2, R6); jeden komunikat zamiast „Powiedz” (R6); kotwice, wyszukiwanie i wspólny `TableDishPicker` (R5); `showScores` na G6 (R9); Q16–Q18 i ⚠ przy Q4, Q10.
+- 2026-10-16 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „przegląd krzyżowy / niezależnego agenta” bez nazwy modelu).
 
 ## Zatwierdzenie
 Filip (product owner) 2026-10-16: „Akceptuję rekomendacje we wszystkich decyzjach ⚠” — każda pozycja ⚠ w tej specyfikacji (tabela i Ryzyka) przyjęta zgodnie z rekomendacją.

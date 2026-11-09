@@ -2,6 +2,8 @@
 
 ## Przegląd ról i uprawnień
 
+> **Kolumna System Admin jest planowana (E14, `2026-11-04-platform-admin-and-multi-venue`) i nie jest zaimplementowana:** w kodzie nie ma roli administratora systemu, panelu platformy ani uprawnień `platform.*`. Dziś te czynności wykonuje operator poleceniami (`npm run restaurant:create`, `npm run user:create`, `npm run user:invite`); „✓” w tej kolumnie opisuje zamierzony stan docelowy.
+
 | Uprawnienie | Guest | Waiter | Sommelier / Wine Director | Owner / GM | System Admin |
 |---|:-:|:-:|:-:|:-:|:-:|
 | Przeglądanie menu i rekomendacji | ✓ | ✓ | ✓ | ✓ | ✓ |

@@ -11,7 +11,7 @@ export default defineConfig({
     exclude: ['tests/**/*.integration.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/auth/**/*.ts', 'src/import/**/*.ts', 'src/mappers.ts', 'src/config.ts'],
+      include: ['src/auth/**/*.ts', 'src/import/**/*.ts', 'src/mappers.ts', 'src/config.ts', 'src/db-target.ts'],
       reporter: ['text', 'lcov']
     }
   }

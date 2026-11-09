@@ -14,10 +14,12 @@ import { fileURLToPath } from 'node:url';
 import { MIN_PASSWORD_LENGTH } from '@wine-match/core';
 import { hashPassword } from '../src/auth/scrypt';
 import { MembershipEntity, RestaurantEntity, UserEntity } from '../src/entities';
+import { announceDbTarget } from '../src/db-target';
 import { closeOrm, getOrm } from '../src/orm';
 
 const rootEnv = fileURLToPath(new URL('../../../.env', import.meta.url));
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
+announceDbTarget({ command: 'user:create' }); // stderr, before anything is validated or written (lesson 18)
 
 const ROLES = ['owner', 'manager', 'sommelier', 'waiter'] as const;
 

@@ -3,6 +3,8 @@ status: implemented
 created: 2026-10-15
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/specs/2026-10-15-guest-usage-events.md, docs/SCREEN_SPECIFICATION.md, docs/USER_FLOWS.md]
+author_model: claude-opus-5-5
+reviewed_by: claude-sonnet-5-5
 ---
 
 # Krótsza ścieżka gościa i widok desktop
@@ -138,6 +140,7 @@ Bez zmian.
 - 2026-10-15 — grill: 8 pytań, 1 dla właściciela (#5).
 - 2026-10-15 — approved: właściciel (Filip) zatwierdził specyfikację wraz z usunięciem `dish_viewed` z E02; obie fazy do implementacji.
 - 2026-10-15 — po uwadze właściciela („strona dalej nie jest pełnoekranowa”): R7 zmienione — kontener gościa bez limitu szerokości od 768 px (było: 1200 px od 1024 px), dwie kolumny nadal od 1024 px; panel bez limitu `max-w-6xl`. Brak poziomego przewijania przy 390/800/1024/1600 px.
+- 2026-10-15 — Autor/recenzent: claude-opus-5-5 / claude-sonnet-5-5 (autor wg `agent:` w .ai/runs/2026-10-15-guest-short-path-and-desktop.md, recenzent wg wpisu „cross-model review (Sonnet 5.5)” w Changelog).
 
 ## Realizacja
 - Branch `feat/guest-desktop-short-path`; log `.ai/runs/2026-10-15-guest-short-path-and-desktop.md`.
