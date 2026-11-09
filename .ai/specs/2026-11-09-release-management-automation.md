@@ -29,6 +29,8 @@ Zebrać propozycje, warunki ich sensowności i pytania do właściciela w jednym
 - **R7 Skill aktualizacji per wydanie.** Jak w Open Mercato „upgrade skill” migrujący kod użytkownika: u nas odpowiednikiem jest skrypt dla operatora (np. sprawdzenie `.env` względem `UPGRADE_NOTES.md` danej wersji). Sens dopiero, gdy instalacji jest więcej niż jedna.
 - **R8 Kamienie milowe jako plan wydań.** Milestone GitHub na wersję; skill porządkujący przypisuje do niego zgłoszenia ze zgody właściciela.
 - **R9 Wydanie z gałęzi `release/X.Y`.** Rozszerzenie `release.yml` o gałęzie `release/*` (dziś tylko `main`, hotfix ze starszego tagu robi właściciel ręcznie, RELEASING.md §9).
+- **R10 Skille migracji per skok wersji (`om-auto-upgrade-*`).** W lekcji lokalna wersja `om-auto-update-changelog` generuje także skill `om-auto-upgrade-<z>-<do>`, gdy wydanie nie jest wstecznie zgodne: agent u odbiorcy wykonuje z niego kroki z `UPGRADE_NOTES.md`. U nas byłoby to lokalne rozszerzenie w `.ai/skills/`, generowane z pola „Co zrobić” (dla operatora: `.env`, migracje, polecenia). Tylko opcja: sens przy więcej niż jednej instalacji albo integratorach API; każdy wygenerowany skill wchodzi przez PR i jest czytany w całości (AGENTS.md §9).
+- **R11 Próba odtworzenia z taga jako skrypt.** `RELEASING.md` §12 opisuje ją ręcznie; skrypt POSIX na instancji próbnej mógłby wykonać kroki 3–7 i wypisać dowody do logu.
 
 ## Kryteria akceptacji
 Ustalane dla każdej wybranej pozycji osobno, przed zmianą statusu. Wspólne minimum dla każdej: brak sekretu w repozytorium i w logach (`npm run secrets:scan`), akcje przypięte pełnym SHA, minimalne uprawnienia per job, test skryptów w `packages/testkit/tests`, dwa review dla zmian w `.github/` (`risk-high`).

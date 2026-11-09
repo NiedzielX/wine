@@ -57,5 +57,8 @@ Oba review: approve z uwagami nieblokującymi. Zrobione wszystkie dziewięć:
 
 Weryfikacja: nowe testy najpierw czerwone (9 failed, 30 passed), potem 39/39; logika kroku tworzenia wydania wykonana lokalnie na zaślepce `gh` w 10 scenariuszach (świeży szkic, publikacja, 403 przy tagu, tag na innym commicie, tag tutaj, ponowne uruchomienie, nieaktualny szkic, dwa szkice, opublikowane tutaj, opublikowane bez taga): oczekiwane kody i komunikaty. `lint` 0, `typecheck` 0, `npm test` 0 (testkit 487), `check:context` 0 błędów, `check:qa`, `check:routes`, `secrets:scan` OK. Workflow nadal nie uruchomiony na GitHubie.
 
+## Uzupełnienie z materiału lekcji 22 (osobny commit, tylko dokumentacja)
+`docs/RELEASING.md`: §12 „Próba odtworzenia z taga” (czysty worktree starego taga, obraz nigdy z bieżącego checkoutu, ścieżka B z `pg_restore`, `smoke --production`, zapis w `.ai/runs/…-recovery-drill.md`; raz przed pierwszym prawdziwym wydaniem, tylko instancja próbna) i wiersz w §11; tabela pięciu punktów kontrolnych lekcji w §6; zdanie o kolejce PR-ów i scalaniu tylko po wyraźnej zgodzie właściciela w §5. Draft spec: R10 (`om-auto-upgrade-*` jako opcja) i R11 (skrypt próby). `.ai/lessons.md` bez zmian. `check:context` 0 błędów, `secrets:scan` OK. Próba nie wykonana (wymaga Dockera i instancji próbnej).
+
 ## Lekcje
 - `.ai/lessons/2026-11-09-release-is-a-human-decision.md`

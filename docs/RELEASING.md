@@ -67,7 +67,7 @@ Na gałęzi `release/vX.Y.Z` z aktualnego `main` (agent lub właściciel):
 
 **Stabilizacja**, gdy CI PR-a wydania lub `main` jest czerwone: poprawka to zwykły PR do `main` (od reprodukcji, `fix-verification.md`). Agent może pracować w pętli „napraw, aż checki będą zielone” (`om-auto-fix-pr`, logi przez `gh run view --log-failed`), z limitem czasu na CI (`ci.maxWaitMinutes`: 40 w `.ai/agentic.config.json`) i etykietą `ci-monitoring` na czas czekania, żeby nie blokować kolejki. **Każdą dziwną poprawkę kwestionuj, zanim ją przyjmiesz:** wyłączony test, wyczyszczona wartość w `.env.example`, nowy wyjątek w allowliście, poluzowany próg, `--force`. Pytanie „dlaczego?” do autora (także agenta); obejście bez przyczyny to bloker, nie zielone CI.
 
-**PR zastępczy z zachowaniem autorstwa** (gdy nie da się dopisać do cudzej gałęzi, np. PR z forka albo Dependabota): nowy PR z tym samym commitem (`git cherry-pick`, autor zostaje) albo z linią `Co-authored-by:` i `Supersedes #N` w opisie; zasługa w `CHANGELOG.md` dla autora oryginału. **Scalanie partiami** (`om-merge-buddy`) jest tylko raportem „co da się scalić”; scala właściciel, po jednym PR-ze.
+**PR zastępczy z zachowaniem autorstwa** (gdy nie da się dopisać do cudzej gałęzi, np. PR z forka albo Dependabota): nowy PR z tym samym commitem (`git cherry-pick`, autor zostaje) albo z linią `Co-authored-by:` i `Supersedes #N` w opisie; zasługa w `CHANGELOG.md` dla autora oryginału. **Scalanie partiami** (`om-merge-buddy`) jest tylko raportem „co da się scalić”; scala właściciel, po jednym PR-ze. Długa kolejka otwartych PR-ów jest normalna: nie gonimy liczby (presja daje tylko stres), tylko wybieramy, co wchodzi do danego wydania, i na tym się skupiamy; scalenie wyłącznie po wyraźnej zgodzie właściciela w rozmowie (np. „Scal #N”).
 
 ## 6. Lista kontrolna wydania
 
@@ -97,6 +97,16 @@ Wszystko na commicie, który zostanie otagowany (PR wydania po merge = `main`).
 - każda zmiana z `UPGRADE_NOTES.md` przećwiczona na instancji próbnej według pola „Co zrobić”.
 
 Wynik (PASS/FAIL na scenariusz, środowisko, `QA head: <sha>`) w opisie PR-a wydania.
+
+**Pięć punktów kontrolnych z lekcji 22 i gdzie je spełniamy** (każdy musi być „tak” przed §7 pkt 2):
+
+| Punkt lekcji | U nas |
+|---|---|
+| 1. Wybrane zgłoszenia i PR-y do wydania | §4 (porządek w zgłoszeniach) i lista scalonych PR-ów w opisie PR-a wydania (§5 pkt 6); otwarte `priority-high` w zakresie rozstrzyga właściciel |
+| 2. Gałąź przedwydaniowa ze stabilnym CI, aktualnym `CHANGELOG.md` i `UPGRADE_NOTES.md` | gałąź PR-a wydania `release/vX.Y.Z` (§5), wiersze 1–8 tej listy |
+| 3. Zmiany łamiące z opisaną, wykonywalną migracją | wpis w `UPGRADE_NOTES.md` z polem „Co zrobić” przećwiczonym na instancji próbnej, migracja z dowodem up/down/up i planem wycofania (wiersz 9, §5 pkt 2–3) |
+| 4. QA przed GitHub Release | wiersz 10 i „QA ludzkim okiem” powyżej, przed uruchomieniem `release.yml` |
+| 5. Release z poprawnym tagiem i opisem, poprzednia wersja odtwarzalna | §7 (tag `vX.Y.Z`, opis z `release:notes`) i §12 (próba odtworzenia z taga) |
 
 ## 7. Wydanie
 
@@ -138,3 +148,19 @@ Po oknie obserwacji właściciel ogłasza wydanie restauracjom (co nowego, co zr
 | Wydania próbne (`-rc`) | dziś odrzucane | §3 |
 | Zakresy `@wine-match/testkit` `0.2.0` → `"*"` | do zrobienia przed pierwszą zmianą wersji | §5 pkt 4 |
 | Kanał ogłoszeń dla restauracji, kamienie milowe | otwarte | §4, §8 |
+| Próba odtworzenia z taga (raz przed pierwszym prawdziwym wydaniem) | nie wykonana | §12 |
+
+## 12. Próba odtworzenia z taga (ćwiczenie odzyskiwania)
+
+Praca domowa lekcji 22: wydanie z changelogiem, migracja zaplanowana **z wycofaniem**, GitHub Release, a potem **odtworzenie poprzedniej wersji z taga**, żeby udowodnić, że procedura odzyskiwania działa. To **próba**: właściciel (albo operator) robi ją **raz przed pierwszym prawdziwym wydaniem**, potem po każdej zmianie obrazu, Compose albo procesu wycofania. Wyłącznie na instancji próbnej (DEPLOYMENT.md §13, osobny projekt Compose `-p wine-trial`, osobna baza), nigdy na produkcji; agent może przygotować polecenia, wykonuje człowiek.
+
+Przed pierwszym tagiem „poprzednią wersją” jest commit `main` sprzed PR-a wydania (zamiast `<stary-tag>` podaj jego SHA).
+
+1. **Instancja próbna na nowej wersji** (`<nowy-tag>`), z danymi demo: DEPLOYMENT.md §13 kroki 1–3. Wydanie powinno mieć migrację z planem wycofania (`engineering-standards.md` §12), żeby próba coś sprawdzała.
+2. **Zrzut przed migracją nowej wersji i zrzut po niej** (`pg_dump -Fc`, DEPLOYMENT.md §9); sprawdź czytelność `pg_restore -l`.
+3. **Poprzednia wersja z czystego worktree taga, nigdy z bieżącego checkoutu:** `git worktree add ../wine-match-<stary-tag> <stary-tag>` i budowa obrazów tam (`WINE_MATCH_TAG=<stary-tag> docker compose build app migrate`; `migrate` tylko na potrzeby sprawdzenia w kroku 4, na produkcji starego `migrator` się nie uruchamia), jak w DEPLOYMENT.md §10.3 (`.env` skopiowany na czas budowy i usunięty razem z worktree). Obraz zbudowany z bieżącego katalogu pod starym tagiem byłby po cichu nowym kodem.
+4. **Dane:** ścieżka B z DEPLOYMENT.md §10.3: odtworzenie zrzutu sprzed migracji (`pg_restore --clean --if-exists --no-owner --exit-on-error`, §9), potem `migration:pending` obrazem **starego** taga pokazuje „No pending migrations”. Opcjonalnie także ścieżka A (sam obraz, schemat zostaje), gdy wydanie nie miało migracji *contract*. Nigdy `migration:down` poza tą instancją (DEPLOYMENT.md §10.1).
+5. **Start starej wersji:** `WINE_MATCH_TAG=<stary-tag> docker compose -p wine-trial up -d --no-deps app`.
+6. **Dowód działania:** `npm run smoke -- --production https://<adres-próbny> <slug>` → „All production smoke checks passed”; `/admin/<slug>/qr` pokazuje ten sam adres co przed próbą; liczby wierszy (`restaurant`, `app_user`) zgodne ze zrzutem.
+7. **Sprzątanie:** `git worktree remove ../wine-match-<stary-tag> --force`, `docker compose -p wine-trial down -v`.
+8. **Zapis:** log `.ai/runs/YYYY-MM-DD-recovery-drill.md` (szablon logu z `.ai/docs/process-templates.md`): data, oba tagi lub SHA, nazwy plików zrzutów (nie ich treść), polecenia z wynikami, czas od decyzji do działającej starej wersji, co nie zadziałało. Wiersz w §11 zmień na „wykonana: <data>, <log>”.
