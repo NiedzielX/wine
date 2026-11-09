@@ -3,6 +3,8 @@ status: implemented
 created: 2026-10-16
 owner: Filip
 related: [.ai/specs/product-brief.md, .ai/runs/2026-10-16-positioning-table-specs.md, .ai/specs/2026-10-16-whole-table-waiter-path.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-10-16-sommelier-opportunities.md, .ai/specs/2026-10-15-guest-usage-events.md, .ai/specs/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-15-polish-language.md, .ai/specs/implemented/2026-10-15-bilingual-content.md, .ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md]
+author_model: "not recorded (spec written by a sub-agent, model not stated in .ai/runs/2026-10-16-positioning-table-specs.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # „Jak to działa” — wyjaśnienia działania rekomendacji (E07)
@@ -311,6 +313,7 @@ D13 (nazwy i AI niewidzialne) i D14 (wyjaśnienie w MVP) — realizowane; N01 (n
 
 - 2026-10-18 — G8 (`selected`) domknięty, wszystkie AC spełnione; `status: implemented`, plik przeniesiony do `implemented/`.
 - 2026-10-16 — przegląd krzyżowy niezależnym agentem (sekcja „Przegląd krzyżowy 2026-10-16” w Ryzykach): numer G11 → G12 (kolizja z E08), własność treści G5/G6/G8/G9 i „jedno „i” na ekran” (Q15), test golden silnika (R8, Q16), limity słów i pozycja karty na G3 (R4, R3, AC15), poprawione obietnice w szkicach, brakujące dokumenty i etykiety, kontrast, testowalność AC3/AC4, podział F1 na F1a/F1b.
+- 2026-10-16 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „przegląd krzyżowy / niezależnego agenta” bez nazwy modelu).
 
 ## Zatwierdzenie
 Filip (product owner) 2026-10-16: „Akceptuję rekomendacje we wszystkich decyzjach ⚠” — każda pozycja ⚠ w tej specyfikacji (tabela i Ryzyka) przyjęta zgodnie z rekomendacją.

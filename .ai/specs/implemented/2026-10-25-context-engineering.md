@@ -4,6 +4,8 @@ created: 2026-10-25
 owner: Filip
 related: [.ai/runs/2026-10-25-context-engineering.md, .ai/specs/implemented/2026-10-25-agent-security-hardening.md]
 superseded_by:
+author_model: "not recorded"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Inżynieria kontekstu: mały `AGENTS.md` jako router i bramka rozmiaru w CI (lekcja 10)
@@ -58,6 +60,9 @@ Zmniejszyć stały koszt sesji bez utraty reguł procesu i ochrony architektury 
 - **Dług: `agent/skills`.** Śledzony w git katalog z 42 skillami różni się od `.agents/skills` (m.in. opisy zawinięte do wielu linii) i nie jest ładowany przez Claude Code (`.claude/skills` to dowiązania do `.agents/skills`). Nie ruszamy go tutaj; do wyjaśnienia (osierocona kopia, dodana razem z `.agents/skills` w #87).
 - **Szacunek tokenów (bajty/3,5) jest przybliżeniem** i nie zastępuje `/context`.
 - **Spec `2026-10-16-recommendation-code.md` (60 KB, aktywna) daje ostrzeżenie `check:context`**; jej odchudzenie jest poza zakresem.
+
+## Changelog
+- 2026-10-25 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „przegląd niezależny (2026-10-25)” bez nazwy modelu).
 
 ## Realizacja
 Gałąź `chore/context-engineering`, log `.ai/runs/2026-10-25-context-engineering.md`, lekcja `.ai/lessons/2026-10-25-context-budget-and-routing.md`. Wszystkie fazy 0–6 wykonane; odstępstwa od pierwotnego projektu: korekta budżetów po przeglądzie (patrz „Ryzyka”), numeracja §1.x zachowana zamiast zmieniona, dwa punkty testowe z §7 przeniesione do `.ai/docs/commands.md`.

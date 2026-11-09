@@ -3,6 +3,8 @@ status: implemented
 created: 2026-10-15
 owner: Filip
 related: [issue #23, issue #24, .ai/specs/product-brief.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/2026-10-15-guest-usage-events.md]
+author_model: claude-opus-5-5
+reviewed_by: claude-sonnet-5-5
 ---
 
 # Założenie restauracji i jej pierwszego właściciela poleceniem CLI (E05-S01)
@@ -191,6 +193,7 @@ D05 (Halka tylko demo) — respektowana. D09 — realizuje punkt 4 „Now”. Q0
 - 2026-10-15 — cross-model review (Sonnet 5.5): 13 accepted, 0 rejected (1 partially). Accepted: mechanizm migracji (A6); istniejący e-mail — częściowo: opt-in `--allow-existing-account` zamiast domyślnego łączenia (A4); lżejsza struktura (A2, tylko `validateSlug` w `core`, jedna wstrzykiwana zależność); `--address` wymagane (A5); fakt `publishedMenu` (A12); ścieżka względna zamiast surowego `PUBLIC_BASE_URL`; dokładny SQL cofnięcia; historie (usunięte ścieżki błędów, dodane przekazanie); numeracja i narracja przeglądu usunięte; A8/A10 zostają ⚠. Cross-spec: #3 (A11), #5 (UI/UX), #7 (kolejność), #9 (R1–R9), #10, #11 (Phasing).
 - 2026-10-15 — grill: 18 questions, 2 left for owner (A8, A10)
 - 2026-10-15 — approved: właściciel (Filip) przyjął rekomendacje we wszystkich decyzjach ⚠; status `approved`.
+- 2026-10-15 — Autor/recenzent: claude-opus-5-5 / claude-sonnet-5-5 (źródło: .ai/runs/2026-10-15-specs-technical-backlog.md; recenzent zgodnie z wpisem „cross-model review (Sonnet 5.5)” w Changelog).
 
 ## Realizacja
 - Gałąź `feat/e05-s01-restaurant-create`, PR do `main` (numer w opisie zgłoszenia #24); log przebiegu: `.ai/runs/2026-10-25-e05-s01-restaurant-create.md`.

@@ -3,6 +3,8 @@ status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md (E14), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12), .ai/specs/2026-11-04-subscriptions-and-billing.md (E15), .ai/specs/2026-11-04-platform-quality-and-compliance.md (E21), .ai/specs/implemented/2026-10-15-restaurant-bootstrap-cli.md, .ai/specs/implemented/2026-10-14-phase4-authentication.md, .ai/specs/2026-10-15-production-deployment.md, .ai/specs/product-brief.md (D02, D18, N01, N03, N04), docs/USER_ROLES.md, docs/DATA_MODEL.md, .ai/lessons/2026-10-14-auth-conventions.md, .ai/lessons/2026-10-14-nextjs-duplicate-module-instanceof.md]
+author_model: "not recorded (eleven agents wrote one spec each; model not stated in .ai/runs/2026-11-04-product-completion-plan.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Panel administratora systemu, organizacje i wiele lokali (E14)
@@ -190,6 +192,9 @@ Kolejność pracy w fazie: port + kontrakt → pamięć → PostgreSQL → serwi
   - Otwarte: O1 (wyjątek portów bez `restaurantId`), O2 (MFA staffu), przeniesienie lokalu z organizacji `single` do `group` (decyzja E15), plan musi dopisać G15 do E14 F1 (patrz uwagi międzygrupowe).
 
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, log przebiegu, odstępstwa od projektu.)

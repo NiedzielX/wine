@@ -3,6 +3,8 @@ status: approved
 created: 2026-11-04
 owner: Filip
 related: [.ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md, .ai/specs/implemented/2026-10-15-guest-usage-events.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-16-sommelier-opportunities.md, docs/RECOMMENDATION_ENGINE.md]
+author_model: "not recorded (eleven agents wrote one spec each; model not stated in .ai/runs/2026-11-04-product-completion-plan.md)"
+reviewed_by: "not recorded (independent agent, model unknown)"
 ---
 
 # Warstwa uczenia: zbiór danych, model cieniowy, ocena offline (E17)
@@ -164,6 +166,9 @@ Grupa E pochłania efekt pozycji, pieczęci sommeliera i etykiety „Wybór rest
   - Zgodność z D18, N01, N03: potwierdzona (brak łączenia restauracji, model niewidoczny dla gościa, brak LLM). Otwarte: zależność od E21 (retencja `recommendation_exposure`; plan tego nie wpisuje jako zależności), bez zmian względem pozostałych punktów „Otwarte”.
 
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
+
+## Changelog
+- 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, logi przebiegu, odstępstwa od projektu.)
