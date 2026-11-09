@@ -67,9 +67,9 @@ Zależności projektu są w `package-lock.json` (sumy kontrolne); poniższe nie.
 | Narzędzie | Gdzie | Przypięcie | Uwagi |
 |---|---|---|---|
 | npm | `npm install -g npm@11.20.0` w jobach z `npm ci` | dokładna wersja (zgodna z `packageManager` w `package.json`) | pobierane z rejestru npm przy każdym przebiegu; weryfikacja sumy przez rejestr, nie przez lockfile |
-| `agent-browser` | job `e2e`, `AGENT_BROWSER_VERSION` | dokładna wersja 0.39.1, `--ignore-scripts` | binarki w paczce; deklaruje Node 24, działa na Node 22 (`--engine-strict=false`) |
+| `agent-browser` | job `e2e`, `AGENT_BROWSER_VERSION` | dokładna wersja 0.39.1, `--ignore-scripts` | binarki w paczce bez bitu wykonywalnego; skrypt poinstalacyjny pakietu tylko je `chmod`uje, pobiera brakującą binarkę i podmienia dowiązanie, więc krok CI robi `chmod +x` jawnie (opakowanie `bin/agent-browser.js` też poprawia bit przy starcie); deklaruje Node 24, działa na Node 22 (`--engine-strict=false`); sprawdzone tylko na macOS, job `e2e` obserwuj przy pierwszym przebiegu |
 | przeglądarka i pakiety systemowe | `agent-browser install --with-deps` w jobie `e2e` | **nieprzypięte**: wersje z repozytoriów Ubuntu 24.04 i źródła przeglądarki z `agent-browser` 0.39.1 | znane ryzyko; ograniczone do jednorazowego runnera bez sekretów, tylko `contents: read` |
 | akcje GitHub | `.github/workflows/*.yml` | pełny SHA commita, `# vX.Y.Z`; aktualizuje Dependabot | `actions/checkout`, `actions/setup-node`, `actions/upload-artifact`, `github/codeql-action` |
 | obraz runnera | `ubuntu-24.04` (`codeql.yml`: `ubuntu-latest`) | etykieta, nie digest | zawartość obrazu zmienia GitHub |
 
-**`ignore-scripts=true`** (`.npmrc`): skrypty cyklu życia zależności są wyłączone. Pakiety, które mają taki skrypt: `esbuild`, `protobufjs`, `ssh2`, `cpu-features`, `fsevents`; żaden nie jest potrzebny (uzasadnienie: `security-notes.md` §11). Gdy pakiet go wymaga: `npm rebuild <pakiet>` jawnie, nie wyłączenie flagi.
+**`ignore-scripts=true`** (`.npmrc`): skrypty cyklu życia zależności są wyłączone. Pakiety, które mają taki skrypt: `esbuild`, `protobufjs`, `ssh2`, `cpu-features`, `fsevents`; żaden nie jest potrzebny (uzasadnienie: `security-notes.md` §11). Gdy pakiet go wymaga: `npm rebuild <pakiet> --ignore-scripts=false` jawnie dla tego pakietu (sam `npm rebuild` respektuje `ignore-scripts`), nie wyłączenie flagi w `.npmrc`.

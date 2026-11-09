@@ -131,6 +131,8 @@ const ALLOWED: Array<[string, string]> = [
   ['gh auth login help', 'gh auth --help'],
   ['git credential helper setting is not a credential', 'git config --get credential.helper'],
   ['echo of a plain variable', 'echo "$NODE_ENV"'],
+  ['echo of a count that merely contains the word token', 'echo $MAX_TOKENS'],
+  ['echo of a variable that names a token file', 'echo "$TOKEN_FILE"'],
   ['echo of text that mentions a token', 'echo "rotate the token today"'],
   ['npm config registry', 'npm config get registry'],
   ['listing the project kube-like folder', 'ls docs/kube'],
@@ -225,7 +227,7 @@ describe('.claude/settings.json (R1, R2)', () => {
     const ask = settings.permissions?.ask ?? [];
     for (const rule of [
       'Bash(gh pr merge *)', 'Bash(git push * main)', 'Bash(git push * master)', 'Bash(git push --force *)', 'Bash(git push * --force-with-lease*)',
-      'Bash(gh api * -X *)', 'Bash(gh api * --method *)', 'Bash(gh repo delete *)', 'Bash(gh release *)',
+      'Bash(gh api * -X *)', 'Bash(gh api * --method *)', 'Bash(gh repo delete *)', 'Bash(gh release create *)', 'Bash(gh pr merge)', 'Bash(git push * main *)', 'Bash(gh secret set *)', 'Edit(/.mcp.json)',
       'Edit(/.claude/**)', 'Edit(/.agents/**)', 'Edit(/skills-lock.json)', 'Edit(/.github/CODEOWNERS)'
     ]) expect(ask, rule).toContain(rule);
     // deny wins over ask and allow wins over nothing here: a rule listed in two places is a mistake

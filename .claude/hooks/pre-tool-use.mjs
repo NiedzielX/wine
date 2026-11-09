@@ -26,8 +26,9 @@ const SAFE_DIRS = new Set(['node_modules', '.next', 'dist', 'coverage', 'test-re
 const HOME_DIR = String.raw`(?:~[A-Za-z0-9_-]*|\$\{?HOME\}?|/root|/home/[^/]+)`;
 // credential stores of the tools an agent session uses; matched case-insensitively (macOS and Windows file systems are)
 const SECRET_DIRS = new RegExp(String.raw`${HOME_DIR}/(?:\.ssh|\.aws|\.config/gh|\.config/gcloud|\.kube|\.npmrc|\.git-credentials|\.netrc|\.pypirc)(?:/|$)`, 'i');
-// printing the value of a variable whose name says it holds a credential
-const SECRET_VARIABLE = /\$\{?[A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|CREDENTIAL)[A-Za-z0-9_]*/i;
+// printing the value of a variable whose name ENDS with a credential word (MAX_TOKENS and TOKEN_FILE are not credentials).
+// A guardrail: it does not tell single quotes (literal) from double quotes, and it does not cover sending a value over the network.
+const SECRET_VARIABLE = /\$\{?[A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|ACCESS_?KEY|SECRET_?KEY|PRIVATE_?KEY|CREDENTIALS?)(?![A-Za-z0-9_])/i;
 const PRINTERS = new Set(['echo', 'printf']);
 
 const isAssignment = (t) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(t);

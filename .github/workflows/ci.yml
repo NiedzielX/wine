@@ -200,6 +200,9 @@ jobs:
       - name: Install agent-browser ${{ env.AGENT_BROWSER_VERSION }} and its browser
         run: |
           npm install -g --ignore-scripts --engine-strict=false agent-browser@${{ env.AGENT_BROWSER_VERSION }}
+          # the package ships its native binaries without the execute bit and its post-install script (skipped here) is what
+          # sets it: do it explicitly for the Linux binaries instead of running vendor code
+          chmod +x "$(npm root -g)"/agent-browser/bin/agent-browser-linux-*
           agent-browser --version
           agent-browser install --with-deps
       - name: End-to-end tests (testcontainers PostgreSQL, built app, agent-browser)

@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
 const MAX_BYTES = 1_000_000;
-const SKIPPED_FILES = new Set(['package-lock.json']);
+const SKIPPED_FILES = new Set(['package-lock.json']); // repository-root path only: a file of that name elsewhere is scanned
 const SKIPPED_DIRS = new Set(['node_modules', '.git']);
 
 const PATTERNS = [
@@ -84,7 +84,7 @@ function readText(path) {
 function scanFiles({ base, files }) {
   const findings = [];
   for (const file of files) {
-    if (SKIPPED_FILES.has(file.slice(file.lastIndexOf('/') + 1))) continue;
+    if (SKIPPED_FILES.has(file)) continue;
     const text = readText(join(base, file));
     if (text === null) continue;
     text.split('\n').forEach((line, index) => {
@@ -96,9 +96,14 @@ function scanFiles({ base, files }) {
   return findings;
 }
 
-/** Added lines of every commit reachable from any ref. Merge commits are skipped: their lines were added by a parent. */
+/**
+ * Added lines of every commit reachable from any ref. Known limit: merge commits are skipped (their lines were added by a
+ * parent), so a secret typed only while resolving a merge conflict is not seen; the first push of such a line still
+ * passes through the per-pull-request scan of the files.
+ */
 function scanHistory(repo) {
   const r = spawnSync('git', ['log', '--all', '--no-merges', '--no-color', '--no-ext-diff', '--no-renames', '-p', '-U0', '--format=@@commit %H'], { cwd: repo, encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 });
+  if (r.error?.code === 'ENOBUFS') throw new Error('git log output exceeds the 1 GiB buffer: the history is too large for this mode');
   if (r.status !== 0) throw new Error('git log failed (is this a git repository?)');
   const findings = new Map();
   let commit = '';
@@ -107,7 +112,7 @@ function scanHistory(repo) {
     if (line.startsWith('@@commit ')) { commit = line.slice(9).trim(); file = null; continue; }
     if (line.startsWith('+++ ')) { const p = line.slice(4).replace(/\t.*$/, ''); file = p === '/dev/null' ? null : p.replace(/^"?b\//, '').replace(/"$/, ''); continue; }
     if (line.startsWith('--- ') || line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('@@')) continue;
-    if (!line.startsWith('+') || file === null || SKIPPED_FILES.has(file.slice(file.lastIndexOf('/') + 1))) continue;
+    if (!line.startsWith('+') || file === null || SKIPPED_FILES.has(file)) continue;
     for (const { name, re } of PATTERNS) {
       for (const match of line.slice(1).matchAll(re)) {
         const hash = sha256(match[0]);

@@ -72,6 +72,19 @@ describe('secret-scan: what it skips', () => {
   });
 });
 
+describe('secret-scan: the skipped lockfile', () => {
+  it('skips the lockfile at the root only: a file of that name in a subdirectory is scanned', () => {
+    const root = fresh('lockfile');
+    writeFileSync(join(root, 'package-lock.json'), `${SAMPLES['github-token']}\n`);
+    expect(scan(['--root', root]).code).toBe(0);
+    mkdirSync(join(root, 'sub'));
+    writeFileSync(join(root, 'sub', 'package-lock.json'), `${SAMPLES['github-token']}\n`);
+    const r = scan(['--root', root]);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('sub/package-lock.json');
+  });
+});
+
 describe('secret-scan: the allowlist', () => {
   it('lets a listed value through by file, pattern and hash, and reports an entry nobody uses', () => {
     const d = fresh('allow');
