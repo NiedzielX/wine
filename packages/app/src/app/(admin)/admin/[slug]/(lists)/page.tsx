@@ -32,14 +32,15 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 export default async function DashboardPage({ params, searchParams }: Props) {
   const { slug } = await params;
   const showAll = (await searchParams)?.pairs === 'all';
+  // the check comes first: the layout's runs in parallel with this page, so nothing of the restaurant is read before this one has passed
+  const access = await requireAccess(slug);
   const { adminService, opportunityService, analyticsService } = (await getRequestScope()).cradle;
   const panelLocale = (await getI18n()).locale;
-  const [o, sales, usage, performance, access] = await Promise.all([
+  const [o, sales, usage, performance] = await Promise.all([
     adminService.overview(slug, panelLocale),
     settleSection(slug, 'sales', analyticsService.salesSummary(slug)),
     settleSection(slug, 'usage', analyticsService.usageSummary(slug)),
-    settleSection(slug, 'pairings', analyticsService.pairingPerformance(slug, { limit: showAll ? undefined : PAIRING_ROWS_LIMIT, locale: panelLocale })),
-    requireAccess(slug)
+    settleSection(slug, 'pairings', analyticsService.pairingPerformance(slug, { limit: showAll ? undefined : PAIRING_ROWS_LIMIT, locale: panelLocale }))
   ]);
   if (!o) notFound();
   // the restaurant exists (overview found it), so a summary is null only if it was removed in between: show the section error

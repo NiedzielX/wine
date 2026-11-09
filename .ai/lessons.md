@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-08] [Strona panelu sama woła `requireAccess` przed odczytem danych](lessons/2026-11-08-page-reads-data-in-parallel-with-layout-check.md) — layout i strona renderują się równolegle; bez własnego sprawdzenia dane trafiają do ciała 403 i przekierowania; test sprawdza ciało, nie tylko status.
 - [2026-11-09] [Recenzenci z różnych rodzin modeli](lessons/2026-11-09-reviewers-from-different-model-families.md) — to samo wejście, każda uwaga z dowodem, nie głosowanie
 - [2026-11-08] [Obraz `migrator`: `migration:up` zapisuje snapshot w źródłach, katalog musi być zapisywalny dla `node`](lessons/2026-11-08-migration-up-writes-snapshot-into-source.md) — `COPY --chown=node:node` w celu `migrator`; kroki obrazu uruchamiaj najpierw w kopii układu plików i porównuj `find -newer`.
 - [2026-11-08] [Limit „sprawdź, potem wstaw” bez blokady przepuszcza równoległe żądania; migracja ma dowód up/down/up](lessons/2026-11-08-concurrency-tests-and-migration-roundtrip.md) — limit w jednej transakcji z `pg_advisory_xact_lock`; testy równoległości z bramką `race()`; `down` dla każdej migracji poza bazową.

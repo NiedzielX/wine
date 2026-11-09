@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { Page, PageHeader } from '../../_components/admin-shell';
+import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
@@ -14,6 +15,8 @@ type Props = { params: Promise<{ slug: string }> };
 /** The pairings section opens on the first dish that still has suggestions to review, or the first dish. */
 export default async function PairingsIndex({ params }: Props) {
   const { slug } = await params;
+  // the layout's check runs in parallel: read nothing, and redirect nowhere, before this one has passed (lesson 2026-11-08)
+  await requireAccess(slug);
   const menu = await (await getRequestScope()).cradle.adminService.menu(slug, {}, (await getI18n()).locale);
   if (!menu) notFound();
   const target = menu.rows.find((r) => r.suggested > 0 && r.dish.status !== 'hidden') ?? menu.rows[0];
