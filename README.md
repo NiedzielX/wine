@@ -304,6 +304,7 @@ Podsumowanie: sesje w ciasteczku httpOnly (w bazie tylko skrót), hasła scrypt,
 | [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md) | zasady pracy agentów AI i architektury |
 | [SDLC.md](SDLC.md), [CODE_REVIEW.md](CODE_REVIEW.md), [BACKWARD_COMPATIBILITY.md](BACKWARD_COMPATIBILITY.md) | proces dostarczania, zasady review, kontrakty, których nie wolno łamać |
 | [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) | jak wnosić zmiany, historia zmian |
+| [docs/PROCES_I_KURS.md](docs/PROCES_I_KURS.md), [.ai/docs/process-playbook.md](.ai/docs/process-playbook.md) | jak prowadzimy projekt (kurs AI Tech Leaders, decyzje właściciela, luki) i runbook autonomicznego wykonawcy |
 | [docs/PRODUCT_CONCEPT.md](docs/PRODUCT_CONCEPT.md) | problem, value proposition, model B2B2C, model biznesowy, KPI |
 | [docs/USER_ROLES.md](docs/USER_ROLES.md) | role, potrzeby, macierz uprawnień |
 | [docs/USE_CASES.md](docs/USE_CASES.md), [docs/USER_FLOWS.md](docs/USER_FLOWS.md) | use case’y, flow gościa, stolika, sommeliera, onboardingu, kelnera, importu |
