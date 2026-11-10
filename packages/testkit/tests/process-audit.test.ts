@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { runAudit } from '../../../scripts/process-audit.mjs';
+import { formatTable, runAudit } from '../../../scripts/process-audit.mjs';
 
 /**
  * `npm run audit:process` (.ai/docs/process-playbook.md): the executor's gap finder and progress meter. It checks only
@@ -337,5 +337,18 @@ describe('process-audit command line', () => {
     expect(data.results.length).toBeGreaterThan(40);
     expect(res.status).toBe(data.summary.FAIL > 0 ? 1 : 0);
     for (const r of data.results as Result[]) expect(r.evidence.length, r.id).toBeGreaterThan(0);
+  });
+});
+
+describe('process-audit table output', () => {
+  it('escapes a backslash before a pipe so the pipe cannot break out of its cell (CodeQL js/incomplete-sanitization)', () => {
+    const result = {
+      summary: { PASS: 1, FAIL: 0, PARTIAL: 0, MANUAL: 0 },
+      results: [{ id: 'X-01', status: 'PASS', severity: 'low', actor: 'agent', title: 'a\\|b', evidence: 'c|d\\' }],
+    };
+    const row = formatTable(result as never).split('\n').find((l) => l.startsWith('| X-01')) ?? '';
+    // title `a\|b` -> `a\\\|b` (backslash doubled, pipe escaped); evidence `c|d\` -> `c\|d\\`
+    expect(row).toContain('a\\\\\\|b');
+    expect(row).toContain('c\\|d\\\\');
   });
 });

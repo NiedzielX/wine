@@ -624,7 +624,8 @@ export function runAudit(root = REPO, { repo = DEFAULT_SLUG } = {}) {
   return { summary, results };
 }
 
-const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+// Escape the backslash FIRST, then the pipe: otherwise a backslash in the input would cancel the escape of the pipe after it (CodeQL js/incomplete-sanitization).
+const cell = (s) => String(s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 export function formatTable({ summary, results }) {
   const out = ['| ID      | Status  | Sev    | Actor | Check | Evidence |', '|---|---|---|---|---|---|'];
   for (const r of results.filter((x) => x.status !== 'MANUAL')) {
