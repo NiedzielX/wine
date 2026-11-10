@@ -91,3 +91,14 @@ Dwa przeglądy: testy „approve with minor changes”, sprawdzenie maszynowe �
 
 ### Weryfikacja po poprawkach
 `npm run lint` czysty, `npm run typecheck` czysty, `npm test` 745 + 126 + 62 + 500 + 540 zielone, `test:db` 204 zielone, `npm run build` OK, `check:context` 0 błędów, `check:qa` 114, `check:routes` OK, `check:pages` OK (46/8), `secrets:scan` OK; e2e: 14 plików bez przeglądarki zielone (75 testów), 11 z agent-browser nie do uruchomienia lokalnie (`ENOENT`).
+
+## Trzecie review PR #146 (2026-11-10, ostatnia runda `check:pages`)
+Recenzent: 125 własnych przypadków (skrypty `fx.mjs`, `fx2.mjs`, `fx3.mjs` w scratchpadzie koordynatora, przeczytane w całości przed uruchomieniem: tylko pliki w katalogach tymczasowych i wywołanie `checkPages`), poprzednie punkty zamknięte. Przypadki recenzenta z oczekiwanym wynikiem (84 z `fx.mjs`, 11 z `fx3.mjs`) i 10 przypadków reguły 6 z `fx2.mjs` weszły do `check-pages.test.ts`; przypadki oznaczone przez recenzenta jako znane obejścia lub pytania są opisane w nagłówku jako znane ograniczenia, nie w testach.
+- **Czerwone najpierw:** nowy plik testów na skrypcie z `7c4365c`: 19 czerwonych (16 obejść + 3 zmienione komunikaty), na nowym 141/141 zielonych; drzewo sprzed #133 nadal czerwone (12), repozytorium zielone (46/8).
+- (1) Reguła 6: każde `export const|let|var` w pliku render lub akcji, którego wartość nie jest zwykłym literałem (wywołanie `cache(async …)`, referencja, trójargumentowy, szablon z `${…}`, drugi deklarator), oraz `export class` padają; literały (`dynamic`, `metadata`, `revalidate`, `runtime`, `maxDuration`, `(1+2)`, tablice i obiekty literałów, `as const`) przechodzą.
+- (2) Bramka nie może mieć łańcucha `.catch/.then/.finally/?.` ani operatora po wywołaniu (połknięte odrzucenie); `(await g(…)).can(…)` dalej poprawne.
+- (3) Odczyt w argumentach bramki liczy się jako odczyt przed nią (argument-callback `act`/`perform` nie).
+- (4) `adminService?.x()` i `adminService['x']()` to odczyty.
+- (5) Maskowanie: cudzysłów przyklejony do słowa (`don't`) albo niezamknięty w linii to tekst JSX, `://` to nie komentarz; oba przypadki recenzenta (fałszywy alarm i ukryta kolejność) poprawne.
+- Udokumentowane jako znane ograniczenia (nagłówek skryptu i `.ai/docs/commands.md`): pomocnik bez nazwy `…Service`, serwis w innej zmiennej, pliki inne niż render/akcje (`error.tsx`, `loading.tsx`, strzałki `export const` w pomocnikach), BOM przed `'use client'`, pozostały tekst JSX z cudzysłowem lub `//`. Wydajność: plik 20 000 linii 164 ms.
+- Weryfikacja: `npm run lint` czysty, `typecheck` czysty, `npm test` 745 + 126 + 62 + 500 + 645 zielone, `test:db` 204, `build` OK, `check:context` 0 błędów, `check:qa` 114, `check:routes` OK, `check:pages` OK, `secrets:scan` OK, e2e 14 plików bez przeglądarki zielone (75 testów), 11 z agent-browser nie do uruchomienia lokalnie.

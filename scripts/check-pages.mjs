@@ -15,30 +15,42 @@
  *     server action (a function whose body starts with `'use server'`) in any server file is checked the same way;
  *  3. the gate is an UNCONDITIONAL top-level statement of the function body: `await gate(…);`, `const x = await gate(…);`,
  *     `const x = (await gate(…)).can(…);` or `return gate(…);` — not inside a block, a callback, a branch (`if (c) await gate()`,
- *     `else`, a loop), a ternary or `&&`/`||`. The gate name is imported by that name from its module (`requireAccess` and
+ *     `else`, a loop), a ternary or `&&`/`||`, and the call is not chained (`.catch(…)`, `.then(…)`, `.finally(…)`, `?.`, an
+ *     operator after it: a swallowed rejection is no check). Reads inside the gate's own arguments count as reads before it (a
+ *     callback argument of `act`/`perform` runs after the check and does not). The gate name is imported by that name from its module (`requireAccess` and
  *     `authorizeAction` from `@/server/auth`, `act` and `perform` from `@/server/action-runner`) and not declared, assigned or
  *     shadowed anywhere else in the file;
  *  4. in every function the rules above apply to, and in every other exported function of a server file under the tree that
  *     reads: nothing reads data before the gate. A read is a call of a method on a `…Service` (`adminService.menu(`,
- *     `c.teamService.list(`), `createRequestScope(`, or an `await` of anything but `params`, `searchParams`, `getI18n()`,
+ *     `c.teamService.list(`, `adminService?.menu(`, `adminService['menu'](`), `createRequestScope(`, or an `await` of anything but `params`, `searchParams`, `getI18n()`,
  *     `getRequestScope()`, `headers()` or `cookies()`;
  *  5. the gate is never started together with reads: a gate inside the arguments of `Promise.all`, `allSettled`, `race` or
  *     `any` fails (a rejected gate rejects the batch, but the reads already ran);
  *  6. export forms this check cannot follow fail closed in render and action files: `export default` of anything but a function
  *     declaration (`export default async () => …`, `export default Page`), `export { … }` (also `{ x as default }`),
- *     `export … from` and `export * from`, and `export const x = async …` / arrow / function expression. `export type`, and an
- *     `export const` of a plain value (`export const dynamic = 'force-dynamic'`), are fine. A function body the scanner cannot
- *     delimit, and a directory it cannot read, fail too.
+ *     `export … from` and `export * from`, `export class`, and any `export const|let|var` whose initializer is not a plain literal
+ *     (a function, a call such as `cache(async () => …)`, a reference, a ternary, a template with `${…}`; every declarator is
+ *     checked). Plain literals are fine: strings, numbers, booleans, `null`, arrays and objects of those, simple arithmetic
+ *     (`(1 + 2)`), `as const` — so `dynamic`, `metadata`, `revalidate`, `runtime`, `fetchCache`, `preferredRegion`,
+ *     `maxDuration` and the like. `export type` and `export declare` are fine. A function body the scanner cannot delimit, and a
+ *     directory, entry or file it cannot read, fail too.
  * The allowlist `scripts/check-pages.allowlist.json` lists `file`, the exact `functions` (`default` for the default export) and a
  * written `reason`. A listed function is exempt from rules 1 to 4 ENTIRELY (it needs no gate and may read before one): it is for
  * doors that are public by design and read no restaurant chosen by the caller. Rules 5 and 6 have no allowlist. A stale entry
  * (file gone, function gone, function passes without it) fails, so the list cannot rot.
  *
- * Known limits (a text scan): a read hidden in a helper that does not name a `…Service` (e.g. `load(slug)` that reads inside)
- * is not seen unless it is awaited before the gate; a service held in a variable not named `…Service` is not seen; a gate
- * function that itself returns early without checking is trusted (it is `server/auth.ts`'s); JSX text containing `//` is read as
- * a comment (it can only make the scan fail closed). API routes are `check:routes`'s (handle() with a permission checks before
- * the handler runs).
+ * Known limits (a text scan; the real proof is the e2e access-boundary matrix, this is defence in depth):
+ *  - a read through a helper that does not name a `…Service` (`load(slug)`, `svc.x()`) is not seen unless it is awaited before
+ *    the gate; a service held in a variable not named `…Service` (`const a = scope.admin; a.menu()`) is not seen;
+ *  - files that are neither render files nor action files (`error.tsx`, `loading.tsx`, `not-found.tsx`, helpers) are checked only
+ *    for exported FUNCTION declarations that read; their `export const x = async …` arrows, classes and other export forms are
+ *    not scanned (they are not doors Next.js serves by themselves; a render file that imports them is checked at its call);
+ *  - a file whose `'use client'` directive follows a byte-order mark is treated as a client file (skipped);
+ *  - JSX text: a quote glued to a word (`don't`) or one that does not close on its line is read as text, and `://` is not a
+ *    comment; other JSX text with quotes or `//` may mask code (it can make the scan fail closed or, rarely, hide code on that
+ *    line); a comma expression or a generator around the gate fails closed;
+ *  - the gate function itself is trusted (`server/auth.ts`, `server/action-runner.ts`). API routes are `check:routes`'s
+ *    (handle() with a permission checks before the handler runs).
  *
  * Usage: node scripts/check-pages.mjs [--root <dir>] [--allowlist <file>]
  */
@@ -75,13 +87,17 @@ export function mask(src, strings) {
     while (i < n) {
       const ch = src[i];
       const next = src[i + 1];
-      if (ch === '/' && next === '/') { let j = src.indexOf('\n', i); if (j < 0) j = n; blank(i, j); i = j; continue; }
+      if (ch === '/' && next === '/' && src[i - 1] !== ':') { let j = src.indexOf('\n', i); if (j < 0) j = n; blank(i, j); i = j; continue; }
       if (ch === '/' && next === '*') { let j = src.indexOf('*/', i + 2); j = j < 0 ? n : j + 2; blank(i, j); i = j; continue; }
       if (ch === '\'' || ch === '"') {
         let j = i + 1;
         while (j < n && src[j] !== ch && src[j] !== '\n') { if (src[j] === '\\') j++; j++; }
-        if (strings) blank(i + 1, j);
-        i = j + 1; prev = ch; prevWord = ''; continue;
+        // JSX text: `don't`, `it's` (a quote glued to a word, or one that does not close on its line) is not a string literal
+        const jsxText = /[A-Za-z0-9]/.test(src[i - 1] ?? '') || j >= n || src[j] === '\n';
+        if (!jsxText) {
+          if (strings) blank(i + 1, j);
+          i = j + 1; prev = ch; prevWord = ''; continue;
+        }
       }
       if (ch === '`') { i = template(i + 1); prev = '`'; prevWord = ''; continue; }
       if (ch === '/' && (prev === '' || REGEX_AFTER.includes(prev) || ['return', 'typeof', 'case'].includes(prevWord))) {
@@ -107,7 +123,7 @@ export const DEFAULT_ALLOWLIST = 'scripts/check-pages.allowlist.json';
 const MIN_REASON = 15;
 const RENDER_FILES = /^(page|layout|template|default)\.(tsx|ts|jsx|js)$/;
 const SAFE_AWAIT = /^\(?\s*(params|searchParams|props\s*\.\s*params|props\s*\.\s*searchParams|getI18n\s*\(\s*\)|getRequestScope\s*\(\s*\)|headers\s*\(\s*\)|cookies\s*\(\s*\))(?![\w$])/;
-const SERVICE_CALL = /(?<![\w$])([A-Za-z_$][\w$]*Service)\s*\.\s*[A-Za-z_$][\w$]*\s*\(/g;
+const SERVICE_CALL = /(?<![\w$])([A-Za-z_$][\w$]*Service)\s*(?:\?\.\s*[A-Za-z_$][\w$]*|\.\s*[A-Za-z_$][\w$]*|(?:\?\.)?\s*\[[^\]]*\])\s*(?:\?\.\s*)?\(/g;
 const SCOPE_CALL = /(?<![\w$.])createRequestScope\s*\(/g;
 const PARALLEL = /(?<![\w$])Promise\s*\.\s*(all|allSettled|race|any)\s*\(/g;
 const PAGE_GATES = ['requireAccess'];
@@ -206,10 +222,70 @@ function exportedFunctions(masked) {
   for (const m of masked.matchAll(/\bexport\s+(?!type\b)(\{[^}]*\}|\*)(\s*from\b)?/g)) {
     unsupported.push({ offset: m.index, what: `\`export ${m[1].startsWith('{') ? '{ … }' : '*'}${m[2] ? ' from …' : ''}\` is not understood by this check (a function exported this way is not checked); export the function where it is declared: \`export async function name(...)\`` });
   }
-  for (const m of masked.matchAll(/\bexport\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\b|\(|function\b|[A-Za-z_$][\w$]*\s*=>)/g)) {
-    unsupported.push({ offset: m.index, what: `\`export const ${m[1]} = …\` is not understood by this check; write \`export async function ${m[1]}\`` });
+  for (const m of masked.matchAll(/\bexport\s+(const|let|var)\s/g)) {
+    for (const d of declarators(masked, m.index + m[0].length)) {
+      if (d.init !== null && !isLiteral(d.init)) unsupported.push({ offset: m.index, what: `\`export ${m[1]} ${d.name} = …\` is not a plain literal (a function, a call, a reference or an expression); this check cannot see what it reads: write \`export async function ${d.name}\` (or a literal value)` });
+    }
   }
+  for (const m of masked.matchAll(/\bexport\s+(?:abstract\s+)?class\b/g)) unsupported.push({ offset: m.index, what: '`export class` is not understood by this check (its methods could read data unchecked)' });
   return { fns, unsupported };
+}
+
+/** The declarators of `export const|let|var` starting at `from`: `{ name, init }` (`init` null when there is none). */
+function declarators(masked, from) {
+  // the declaration ends at a `;` at depth 0, or at a newline at depth 0 after a complete initializer
+  let depth = 0;
+  let k = from;
+  for (; k < masked.length; k++) {
+    const c = masked[k];
+    if ('([{'.includes(c)) depth++;
+    else if (')]}'.includes(c)) depth--;
+    else if (depth === 0 && c === ';') break;
+    else if (depth === 0 && c === '\n') {
+      const before = masked.slice(from, k).trimEnd();
+      const after = masked.slice(k).trimStart();
+      if (before && !/[=,(:?+\-*/|&]$/.test(before) && !/^[.?=,:+\-*/|&]/.test(after) && !/^as\b/.test(after)) break;
+    }
+  }
+  const text = masked.slice(from, k);
+  const parts = [];
+  let start = 0;
+  depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if ('([{<'.includes(c)) depth++;
+    else if (')]}>'.includes(c) && text[i - 1] !== '=') depth--;
+    else if (c === ',' && depth === 0) { parts.push(text.slice(start, i)); start = i + 1; }
+  }
+  parts.push(text.slice(start));
+  return parts.map((p) => {
+    const name = /^\s*([A-Za-z_$][\w$]*)/.exec(p)?.[1] ?? '?';
+    let d = 0;
+    for (let i = 0; i < p.length; i++) {
+      const c = p[i];
+      if ('([{<'.includes(c)) d++;
+      else if (')]}>'.includes(c) && p[i - 1] !== '=') d--;
+      else if (c === '=' && d === 0 && p[i + 1] !== '>' && p[i - 1] !== '=' && p[i + 1] !== '=') return { name, init: p.slice(i + 1).trim() };
+    }
+    return { name, init: null };
+  });
+}
+
+/**
+ * A plain literal (on masked text, strings blanked): strings, numbers, true/false/null/undefined, arrays and objects of those with
+ * plain keys, simple arithmetic and parentheses (`(1 + 2)`), `as const`. No call, reference, arrow, function, `?`, `.` member or template expression.
+ */
+function isLiteral(init) {
+  const t = init.replace(/\bas\s+const\s*$/, '').trim();
+  if (t === '' || /\$\{|=>|\?|\.\.\.|`/.test(t)) return false;
+  for (const m of t.matchAll(/[A-Za-z_$][\w$]*/g)) {
+    if (['true', 'false', 'null', 'undefined'].includes(m[0])) continue;
+    const before = t[m.index - 1] ?? '';
+    if (/[0-9.]/.test(before)) continue; // 1e3, 0x1f
+    if (/^\s*:/.test(t.slice(m.index + m[0].length)) && /[{,]\s*$/.test(t.slice(0, m.index))) continue; // object key
+    return false;
+  }
+  return !/[^\s'"\d.[\]{}(),:+\-*/%A-Za-z_$]/.test(t);
 }
 
 /** Inline server actions: functions whose body starts with the `'use server'` directive. */
@@ -257,16 +333,41 @@ function analyse(masked, original, body, gates) {
   const notes = [];
   const parallel = parallelRanges(masked, body);
   let gate = -1;
+  let gateEnd = -1;
   const gateRe = new RegExp(`(?<![\\w$.])(${gates.join('|')})\\s*\\(`, 'g');
   for (const m of text.matchAll(gateRe)) {
     const at = start + m.index;
     const inParallel = parallel.find((p) => at > p.range[0] && at < p.range[1]);
     if (inParallel) { notes.push({ offset: at, message: `${m[1]}() is started inside Promise.${inParallel.kind}(...) together with other work: the reads run before the check rejects; await ${m[1]}() on its own line first` }); continue; }
     if (gate >= 0 || braceDepth(masked, start, at) !== 0) continue;
-    if (!GATE_STATEMENT.test(statementBefore(masked, start, at))) continue;
+    const before = statementBefore(masked, start, at);
+    if (!GATE_STATEMENT.test(before)) continue;
+    const close = skipBalanced(masked, masked.indexOf('(', at));
+    if (close < 0) continue;
+    const rest = masked.slice(close).replace(/^[ \t]*/, '');
+    const wrapped = /\(\s*await\s*$/.test(before);
+    // `(await g(...)).prop`: the wrapper closes right after the call; otherwise the statement ends right after it
+    if (wrapped ? !/^\)/.test(rest) : !(/^[;}]/.test(rest) || (/^\n/.test(rest) && !/^[.?[(=+\-*/%&|,:]/.test(rest.trimStart())))) continue;
     gate = at;
+    gateEnd = close;
   }
-  const limit = gate < 0 ? end : gate;
+  let limit = gate < 0 ? end : gate;
+  if (gate >= 0) {
+    const open = masked.indexOf('(', gate);
+    const args = [];
+    let d = 0;
+    let a0 = open + 1;
+    for (let i = open + 1; i < gateEnd - 1; i++) {
+      const c = masked[i];
+      if ('([{'.includes(c)) d++;
+      else if (')]}'.includes(c)) d--;
+      else if (c === ',' && d === 0) { args.push([a0, i]); a0 = i + 1; }
+    }
+    args.push([a0, gateEnd - 1]);
+    // the callback (and whatever follows it) runs after the check: act(form, permission, async (...) => ...)
+    const callback = args.find(([a, b]) => /^\s*(async\b|function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/.test(masked.slice(a, b)));
+    limit = callback ? callback[0] : gateEnd;
+  }
   const reads = [];
   for (const m of masked.slice(start, limit).matchAll(SERVICE_CALL)) reads.push({ offset: start + m.index, what: `${original.slice(start + m.index, start + m.index + m[0].length).replace(/\s+/g, '')}…)` });
   for (const m of masked.slice(start, limit).matchAll(SCOPE_CALL)) reads.push({ offset: start + m.index, what: 'createRequestScope()' });
