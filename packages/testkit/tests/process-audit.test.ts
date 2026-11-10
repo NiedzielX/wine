@@ -25,7 +25,7 @@ const PROMPT = '<!-- start-prompt:start -->\n```\nPrzeczytaj .ai/docs/process-pl
 /** A small repository that satisfies every automatic check. Tests change one thing and expect one finding. */
 function good(): Record<string, string> {
   return {
-    'AGENTS.md': '# AGENTS\n<!-- routing:start -->\n| Zadanie | Czytaj |\n|---|---|\n| start | `.ai/lessons.md` |\n<!-- routing:end -->\n\nW każdym przebiegu agenta musi brakować jednej z trzech nóg.\n',
+    'AGENTS.md': '# AGENTS\n<!-- routing:start -->\n| Zadanie | Czytaj |\n|---|---|\n| start | `.ai/lessons.md` |\n<!-- routing:end -->\n\n- W każdym przebiegu agenta musi brakować jednej z trzech nóg: dostępu do danych prywatnych, kontaktu z niezaufaną treścią albo wyjścia na zewnątrz.\n',
     'CLAUDE.md': '# CLAUDE.md\n\n@AGENTS.md\n',
     'SDLC.md': 'Labels: review, changes-requested, merge-queue, needs-qa, qa-approved, risk-high, do-not-merge.\n',
     'CODE_REVIEW.md': '# Review\n',
@@ -33,7 +33,7 @@ function good(): Record<string, string> {
     'BACKWARD_COMPATIBILITY.md': '# BC\n',
     'UPGRADE_NOTES.md': '# Upgrade\n',
     'CHANGELOG.md': '# Changelog\n\n## [Unreleased]\n',
-    'security-notes.md': 'We cut one leg of the lethal trifecta.\n',
+    'security-notes.md': '# Notes\n\n## 1. Which leg of the *lethal trifecta* we cut\n',
     'README.md': '# Readme\n',
     'LICENSE': 'MIT\n',
     'SECURITY.md': '# Security policy\n',
@@ -50,7 +50,10 @@ function good(): Record<string, string> {
     'packages/app/CLAUDE.md': '@AGENTS.md\n',
     'packages/app/tests/e2e/access-boundaries-matrix.e2e.test.ts': '',
     'packages/app/tests/e2e/tenant-isolation.e2e.test.ts': '',
-    'packages/app/tests/e2e/api-fuzz.e2e.test.ts': '',
+    'packages/app/tests/e2e/api-fuzz.e2e.test.ts': "import { it } from 'vitest';\nit('rejects junk', async () => { await fetch(`${base}/api/v1/menu`, { method: 'POST', body: junk }); });\n",
+    'packages/testkit/tests/spec-status-guard.test.ts': '', 'packages/testkit/tests/agent-guardrails.test.ts': '',
+    '.ai/specs/2026-01-02-doing-thing.md': '---\nstatus: in-progress\n---\n',
+    '.ai/runs/2026-01-03-doing-thing-f1.md': '---\nstarted: 2026-01-03 10:00\noutcome: partial\nspec: .ai/specs/2026-01-02-doing-thing.md\n---\n',
     'packages/db/tests/concurrency.integration.test.ts': '',
     'packages/db/tests/migrations-roundtrip.integration.test.ts': '',
     'packages/ui/tests/a11y.test.tsx': '',
@@ -233,6 +236,62 @@ describe('process-audit finds one gap at a time', () => {
     const files = good();
     files['.github/workflows/release.yml'] = files['.github/workflows/release.yml'].replace('on:\n  workflow_dispatch:\n', 'on:\n  workflow_dispatch:\n  push:\n');
     expect(byId(audit(files), 'REL-03').status).toBe('FAIL');
+  });
+
+  it('CI-02 ignores a commented-out gate', () => {
+    const files = good();
+    files['.github/workflows/ci.yml'] = files['.github/workflows/ci.yml'].replace('      - run: npm run audit:gate\n', '      # - run: npm run audit:gate\n');
+    const r = byId(audit(files), 'CI-02');
+    expect(r.status).toBe('FAIL');
+    expect(r.evidence).toContain('audit:gate');
+  });
+
+  it('CI-02 does not count a gate that runs in another job', () => {
+    const files = good();
+    const ci = files['.github/workflows/ci.yml'].replace('      - run: npm run check:routes\n', '');
+    files['.github/workflows/ci.yml'] = ci.replace('  secrets:\n    runs-on: ubuntu-24.04\n    steps:\n', '  secrets:\n    runs-on: ubuntu-24.04\n    steps:\n      - run: npm run check:routes\n');
+    const r = byId(audit(files), 'CI-02');
+    expect(r.status).toBe('FAIL');
+    expect(r.evidence).toContain('check:routes');
+  });
+
+  it('CI-06 checks each checkout step, not a count of persist-credentials lines', () => {
+    const files = good();
+    const bare = `      - uses: actions/checkout@${SHA} # v7.0.1\n`;
+    // the second checkout has no `with:`; a stray persist-credentials line elsewhere keeps the counts equal
+    files['.github/workflows/secrets-history.yml'] += bare + '      - run: echo x\n        env:\n          persist-credentials: false\n';
+    const r = byId(audit(files), 'CI-06');
+    expect(r.status).toBe('FAIL');
+    expect(r.evidence).toMatch(/secrets-history\.yml:\d+/);
+  });
+
+  it('TEST-04 does not pass on an empty file whose name contains fuzz', () => {
+    const r = byId(audit(with_({ 'packages/app/tests/e2e/api-fuzz.e2e.test.ts': '' })), 'TEST-04');
+    expect(r.status).toBe('FAIL');
+  });
+
+  it('SEC-07 needs the three legs named in one AGENTS.md rule and a lethal trifecta heading', () => {
+    const files = good();
+    files['AGENTS.md'] = files['AGENTS.md'].replace(': dostępu do danych prywatnych, kontaktu z niezaufaną treścią albo wyjścia na zewnątrz', '');
+    expect(byId(audit(files), 'SEC-07').status).toBe('FAIL');
+    expect(byId(audit(with_({ 'security-notes.md': 'We mention the lethal trifecta in passing.\n' })), 'SEC-07').status).toBe('FAIL');
+  });
+
+  it('PROC-06 fails for an in-progress spec that no run log names', () => {
+    const r = byId(audit(with_({ '.ai/specs/2026-01-04-orphan-work.md': '---\nstatus: in-progress\n---\n' })), 'PROC-06');
+    expect(r.status).toBe('FAIL');
+    expect(r.evidence).toContain('2026-01-04-orphan-work.md');
+  });
+
+  it('PROC-04 and SEC-02 need the hook test as well as the wiring', () => {
+    expect(byId(audit(with_({ 'packages/testkit/tests/spec-status-guard.test.ts': null })), 'PROC-04').status).toBe('FAIL');
+    expect(byId(audit(with_({ 'packages/testkit/tests/agent-guardrails.test.ts': null })), 'SEC-02').status).toBe('FAIL');
+  });
+
+  it('GH-08 counts open PRs the way parallel-work.md §1 does: non-draft, without type-M dependency PRs', () => {
+    const r = byId(audit(good()), 'GH-08');
+    expect(r.command).toContain('isDraft');
+    expect(r.command).toContain('dependencies');
   });
 
   it('flags a secret-scan allowlist entry without a reason or with the raw value', () => {

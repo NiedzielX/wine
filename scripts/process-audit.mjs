@@ -103,6 +103,28 @@ function frontmatter(text) {
 }
 const statusOf = (text) => /^status:\s*([A-Za-z-]+)/m.exec(frontmatter(text) ?? '')?.[1] ?? null;
 const codeLines = (text) => (text ?? '').split('\n').map((l, i) => ({ l, n: i + 1 })).filter(({ l }) => !l.trim().startsWith('#'));
+/** YAML without comments: a `#` at the start or after whitespace starts a comment (good enough for our workflows). */
+const stripYamlComments = (text) => (text ?? '').split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+
+/** Each `actions/checkout` step with the line range of its step (same-indent `- ` starts the next step). */
+function checkoutSteps(text) {
+  const ls = stripYamlComments(text).split('\n');
+  const steps = [];
+  for (let i = 0; i < ls.length; i++) {
+    if (!/uses:\s*actions\/checkout@/.test(ls[i])) continue;
+    let start = i;
+    while (start > 0 && !/^\s*- /.test(ls[start])) start--;
+    const indent = /^(\s*)- /.exec(ls[start])?.[1].length ?? 0;
+    let end = start + 1;
+    while (end < ls.length) {
+      const l = ls[end];
+      if (l.trim() && ((/^\s*- /.test(l) && /^(\s*)/.exec(l)[1].length <= indent) || /^(\s*)/.exec(l)[1].length < indent)) break;
+      end++;
+    }
+    steps.push({ line: i + 1, body: ls.slice(start, end).join('\n') });
+  }
+  return steps;
+}
 
 function jobIds(text) {
   const ids = [];
@@ -180,8 +202,8 @@ function checks() {
         }
         return bad.length ? fail(`status does not fit the folder: ${short(bad)}`) : pass(`${n} specs, statuses fit their folders`);
       } },
-    { id: 'PROC-04', area: 'PROC', severity: 'high', actor: 'agent', title: 'Hook guards spec status (agent cannot set approved)', fix: '.claude/settings.json, .claude/hooks/ (review path)',
-      run: (fs) => hookCheck(fs, (m) => /Edit/.test(m) && /Write/.test(m), 'spec-status-guard.mjs') },
+    { id: 'PROC-04', area: 'PROC', severity: 'medium', actor: 'agent', title: 'Spec-status hook wired, present and tested (presence only: behaviour is proven by its test, and a hook is a guardrail, not a boundary)', fix: '.claude/settings.json, .claude/hooks/ (review path)',
+      run: (fs) => hookCheck(fs, (m) => /Edit/.test(m) && /Write/.test(m), 'spec-status-guard.mjs', 'packages/testkit/tests/spec-status-guard.test.ts') },
     { id: 'PROC-05', area: 'PROC', severity: 'low', actor: 'agent', title: 'Run logs carry started/outcome frontmatter', fix: '.ai/runs/ (new logs only; old logs are not edited)',
       run: (fs) => {
         const logs = fs.files('.ai/runs', (x) => x.endsWith('.md'));
@@ -192,10 +214,14 @@ function checks() {
         });
         return bad.length ? partial(`${bad.length}/${logs.length} without started/outcome: ${short(bad)}`) : pass(`${logs.length} run logs`);
       } },
-    { id: 'PROC-06', area: 'PROC', severity: 'low', actor: 'owner', title: 'Draft specs waiting for the owner (one batched question)', fix: 'owner: set approved',
+    { id: 'PROC-06', area: 'PROC', severity: 'medium', actor: 'agent', title: 'Every in-progress spec is named by a run log (work is traceable)', fix: '.ai/runs/ (log of the run that implements it)',
       run: (fs) => {
-        const drafts = fs.files('.ai/specs', (x) => x.endsWith('.md')).filter((f) => statusOf(fs.read(`.ai/specs/${f}`)) === 'draft');
-        return pass(drafts.length ? `${drafts.length} draft(s) await approval: ${short(drafts)}` : 'no drafts');
+        const active = fs.files('.ai/specs', (x) => x.endsWith('.md')).filter((f) => statusOf(fs.read(`.ai/specs/${f}`)) === 'in-progress');
+        const logs = fs.files('.ai/runs', (x) => x.endsWith('.md')).map((f) => fs.read(`.ai/runs/${f}`) ?? '');
+        const orphan = active.filter((f) => !logs.some((t) => t.includes(f)));
+        const drafts = fs.files('.ai/specs', (x) => x.endsWith('.md')).filter((f) => statusOf(fs.read(`.ai/specs/${f}`)) === 'draft').length;
+        const tail = `; ${drafts} draft(s) wait for the owner`;
+        return orphan.length ? fail(`in-progress without a run log: ${short(orphan)}${tail}`) : pass(`${active.length} in-progress spec(s), each named by a run log${tail}`);
       } },
     { id: 'PROC-07', area: 'PROC', severity: 'medium', actor: 'agent', title: 'Executor playbook and human doc exist with the same START PROMPT', fix: `${PLAYBOOK}, ${HUMAN_DOC}`,
       run: (fs) => {
@@ -241,8 +267,9 @@ function checks() {
       } },
     { id: 'CI-02', area: 'CI', severity: 'high', actor: 'agent', title: 'lint job runs the deterministic gates', fix: '.github/workflows/ci.yml (review path)',
       run: (fs) => {
-        const block = jobBlock(fs.read('.github/workflows/ci.yml'), 'lint');
-        const miss = ['check:boundaries', 'check:qa', 'check:routes', 'typecheck', 'audit:gate', 'check:context'].filter((s) => !block.includes(`npm run ${s}`));
+        const block = jobBlock(stripYamlComments(fs.read('.github/workflows/ci.yml')), 'lint');
+        const miss = ['check:boundaries', 'check:qa', 'check:routes', 'typecheck', 'audit:gate', 'check:context']
+          .filter((s) => !new RegExp(`(^|[\\s;&|])npm run ${s.replace(':', '\\:')}(\\s|$)`, 'm').test(block));
         return miss.length ? fail(`lint job does not run: ${short(miss)}`) : pass('6 gates in the lint job');
       } },
     { id: 'CI-03', area: 'CI', severity: 'medium', actor: 'agent', title: 'CodeQL on pull requests', fix: '.github/workflows/codeql.yml',
@@ -276,13 +303,14 @@ function checks() {
     { id: 'CI-06', area: 'CI', severity: 'medium', actor: 'agent', title: 'Checkouts do not persist the token', fix: '.github/workflows/ (review path)',
       run: (fs) => {
         const bad = [];
+        let n = 0;
         for (const f of fs.files('.github/workflows', (x) => /\.ya?ml$/.test(x))) {
-          const ls = codeLines(fs.read(`.github/workflows/${f}`));
-          const c = ls.filter(({ l }) => /uses:\s*actions\/checkout@/.test(l)).length;
-          const p = ls.filter(({ l }) => /persist-credentials:\s*false/.test(l)).length;
-          if (p < c) bad.push(`${f} (${c} checkouts, ${p} persist-credentials: false)`);
+          for (const s of checkoutSteps(fs.read(`.github/workflows/${f}`))) {
+            n++;
+            if (!/^\s+persist-credentials:\s*false\s*$/m.test(s.body)) bad.push(`${f}:${s.line}`);
+          }
         }
-        return bad.length ? fail(short(bad)) : pass('every checkout has persist-credentials: false');
+        return bad.length ? fail(`checkout step without persist-credentials: false: ${short(bad)}`) : pass(`${n} checkout steps, each with persist-credentials: false`);
       } },
     { id: 'CI-07', area: 'CI', severity: 'medium', actor: 'agent', title: 'Dependabot for npm and actions with cooldown', fix: '.github/dependabot.yml',
       run: (fs) => {
@@ -320,8 +348,15 @@ function checks() {
       run: (fs) => needScripts(fs, ['check:qa'], ['.ai/qa/README.md', '.ai/qa/INDEX.md', '.ai/docs/qa-protocol.md']) },
     { id: 'TEST-04', area: 'TEST', severity: 'medium', actor: 'agent', title: 'API robustness (fuzz) test', fix: 'packages/app/tests (branch test/api-robustness-fuzz, owner decision on limits)',
       run: (fs) => {
-        const hits = fs.dirs('packages').flatMap((p) => fs.walk(`packages/${p}/tests`, 4)).filter((f) => /fuzz|robustness/i.test(f.split('/').pop()));
-        return hits.length ? pass(short(hits)) : fail('no test file named *fuzz* or *robustness* under packages/*/tests');
+        // A name is not a test: the file must define a test and send requests to the API.
+        const named = fs.dirs('packages').flatMap((p) => fs.walk(`packages/${p}/tests`, 4))
+          .filter((f) => /fuzz|robustness/i.test(f.split('/').pop()) && /\.test\.(ts|tsx|mjs|js)$/.test(f));
+        const real = named.filter((f) => {
+          const t = fs.read(f) ?? '';
+          return /\b(it|test)(\.each\([^)]*\))?\(/.test(t) && /\b(fetch|request|post|get)\s*\(/.test(t) && /\/api\//.test(t);
+        });
+        if (real.length) return pass(short(real));
+        return fail(named.length ? `named like a fuzz test but no test sending API requests: ${short(named)}` : 'no *fuzz*/*robustness* test under packages/*/tests');
       } },
     { id: 'TEST-05', area: 'TEST', severity: 'low', actor: 'owner', title: 'Mutation testing configured (StrykerJS, lesson 17)', fix: 'spec needs owner approval, then stryker config',
       run: (fs) => {
@@ -346,8 +381,8 @@ function checks() {
         const miss = ['.env', '~/.ssh'].filter((x) => !deny.includes(x));
         return miss.length ? fail(`deny lacks ${short(miss)}`) : pass(`${(s.value.permissions?.deny ?? []).length} deny rules`);
       } },
-    { id: 'SEC-02', area: 'SEC', severity: 'high', actor: 'agent', title: 'PreToolUse hook on Bash', fix: '.claude/hooks/pre-tool-use.mjs (review path)',
-      run: (fs) => hookCheck(fs, (m) => /Bash/.test(m), 'pre-tool-use.mjs') },
+    { id: 'SEC-02', area: 'SEC', severity: 'medium', actor: 'agent', title: 'Bash PreToolUse hook wired, present and tested (presence only; a guardrail, not a boundary)', fix: '.claude/hooks/pre-tool-use.mjs (review path)',
+      run: (fs) => hookCheck(fs, (m) => /Bash/.test(m), 'pre-tool-use.mjs', 'packages/testkit/tests/agent-guardrails.test.ts') },
     { id: 'SEC-03', area: 'SEC', severity: 'high', actor: 'agent', title: 'CODEOWNERS covers agent and process configuration', fix: '.github/CODEOWNERS (review path)',
       run: (fs) => {
         const t = fs.read('.github/CODEOWNERS');
@@ -375,12 +410,15 @@ function checks() {
       } },
     { id: 'SEC-06', area: 'SEC', severity: 'medium', actor: 'agent', title: 'Product threat model and DAST coverage', fix: 'docs/security/',
       run: (fs) => needFiles(fs, ['docs/security/threat-model.md', 'docs/security/dast-coverage.md']) },
-    { id: 'SEC-07', area: 'SEC', severity: 'medium', actor: 'agent', title: 'Three-legs rule written down', fix: 'AGENTS.md §9, security-notes.md',
+    { id: 'SEC-07', area: 'SEC', severity: 'low', actor: 'agent', title: 'Three-legs rule written down (text only; not enforcement)', fix: 'AGENTS.md §9, security-notes.md',
       run: (fs) => {
         const miss = [];
-        if (!/trzech nóg|three legs/i.test(fs.read('AGENTS.md') ?? '')) miss.push('AGENTS.md');
-        if (!/lethal trifecta/i.test(fs.read('security-notes.md') ?? '')) miss.push('security-notes.md');
-        return miss.length ? fail(`rule missing in ${short(miss)}`) : pass('AGENTS.md and security-notes.md');
+        // One AGENTS.md rule line that names all three legs; a section heading in security-notes.md.
+        const rule = (fs.read('AGENTS.md') ?? '').split('\n').some((l) => /^\s*[-*]\s/.test(l) && /prywatn|private/i.test(l)
+          && /niezaufan|untrusted/i.test(l) && /zewnątrz|external/i.test(l));
+        if (!rule) miss.push('AGENTS.md (one rule naming private data, untrusted content and the external exit)');
+        if (!/^#{1,3} .*lethal trifecta/im.test(fs.read('security-notes.md') ?? '')) miss.push('security-notes.md (lethal trifecta section)');
+        return miss.length ? fail(`missing: ${short(miss)}`) : pass('rule in AGENTS.md, section in security-notes.md (text only)');
       } },
     { id: 'SEC-08', area: 'SEC', severity: 'medium', actor: 'owner', title: 'Vulnerability reporting policy (SECURITY.md)', fix: 'owner decision, then SECURITY.md',
       run: (fs) => (['SECURITY.md', '.github/SECURITY.md', 'docs/SECURITY.md'].some((p) => fs.read(p) !== null) ? pass('present') : fail('no SECURITY.md')) },
@@ -535,13 +573,14 @@ function checks() {
   ];
 }
 
-function hookCheck(fs, matcherOk, script) {
+function hookCheck(fs, matcherOk, script, testFile) {
   const s = fs.json('.claude/settings.json');
   if (!s.value) return fail('.claude/settings.json missing or not JSON');
   const wired = (s.value.hooks?.PreToolUse ?? []).some((h) => matcherOk(h.matcher ?? '') && (h.hooks ?? []).some((x) => String(x.command ?? '').includes(script)));
   const file = fs.read(`.claude/hooks/${script}`) !== null;
-  if (wired && file) return pass(`${script} wired in PreToolUse`);
-  return fail([!wired && `${script} not wired in PreToolUse`, !file && `.claude/hooks/${script} missing`].filter(Boolean).join('; '));
+  const tested = fs.read(testFile) !== null;
+  if (wired && file && tested) return pass(`${script} wired in PreToolUse, behaviour tested in ${testFile}`);
+  return fail([!wired && `${script} not wired in PreToolUse`, !file && `.claude/hooks/${script} missing`, !tested && `${testFile} missing`].filter(Boolean).join('; '));
 }
 
 /** GitHub-side checks: the executor or the owner runs the command (all GET) and compares with `expect`. */
@@ -562,8 +601,8 @@ function manualChecks(slug) {
       expect: 'contains "release" with a deployment branch policy for main' },
     { id: 'GH-07', area: 'GH', severity: 'high', actor: 'agent', title: 'No open code-scanning alerts', command: `gh api 'repos/${slug}/code-scanning/alerts?state=open&per_page=100' --jq 'length'`,
       expect: '0 (each alert: fix red-first or dismiss with a reason the owner accepts)' },
-    { id: 'GH-08', area: 'GH', severity: 'high', actor: 'agent', title: 'WIP limit: at most 3 open non-draft PRs', command: `gh pr list --repo ${slug} --state open --json number,isDraft --jq 'map(select(.isDraft | not)) | length'`,
-      expect: '<= 3 (default); a waiver is temporary and counts only when the owner granted it explicitly in the current conversation' },
+    { id: 'GH-08', area: 'GH', severity: 'high', actor: 'agent', title: 'WIP limit (.ai/docs/parallel-work.md §1): at most 3 open PRs waiting for the owner, type M excluded', command: `gh pr list --repo ${slug} --state open --json number,title,isDraft,labels --jq 'map(select((.isDraft | not) and ([.labels[].name] | index("dependencies") | not))) | map("#\\(.number) \\(.title)")'`,
+      expect: 'at most 3 after removing other type-M PRs (research, triage, automated review) by hand; a waiver is temporary and counts only when the owner granted it explicitly in the current conversation' },
     { id: 'GH-09', area: 'GH', severity: 'high', actor: 'agent', title: 'Latest CI on main is green', command: `gh run list --repo ${slug} --branch main --limit 10 --json workflowName,conclusion,headSha`,
       expect: 'conclusion "success" for CI and CodeQL on the newest headSha' },
     { id: 'GH-10', area: 'GH', severity: 'low', actor: 'owner', title: 'Releases and tags', command: `gh release list --repo ${slug} --limit 5`,

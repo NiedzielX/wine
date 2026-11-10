@@ -67,33 +67,36 @@ Pełny runbook (pętla, granice, backlog startowy, format raportu): [.ai/docs/pr
 
 ## 3. Twoje decyzje i preferencje (z rozmów)
 
-Źródło: transkrypcja sesji roboczej i pamięć agenta. Część reguł zaproponowali agenci, a Ty je przyjąłeś krótką odpowiedzią; tak też je oznaczamy.
+Źródło: tylko wiadomości wpisane przez Ciebie w sesji roboczej (zweryfikowane w transkrypcji 2026-11-10; bez wyników narzędzi i streszczeń) oraz pamięć agenta tam, gdzie to zaznaczono. **Rodzaj źródła:** *reguła* (Twoje własne sformułowanie), *akceptacja* (krótkie „tak” na propozycję agenta), *delegacja* (oddałeś decyzję agentowi: agent zdecydował), *pytanie* (pytałeś, decyzja zapadła później), *decyzja agenta* (Twojej wypowiedzi brak).
 
-| Data | Decyzja | Powód | Jak egzekwowana |
+| Data | Decyzja | Rodzaj | Jak egzekwowana |
 |---|---|---|---|
-| 2026-10-15 | Maksymalna autonomia agentów, mało pytań, raport po pracy (powtórzone 11-08) | szybkość, Twoja uwaga jest wąskim gardłem | pamięć agenta; `.ai/docs/parallel-work.md` §1 pkt 5–6 (pytania partiami); wykonawca §3 |
-| 2026-10-15 | Ochrona `main`: wymagane joby CI i merge tylko przez PR | siatka bezpieczeństwa | ochrona gałęzi (6 checków, `enforce_admins`); `.ai/docs/review-protocol.md` §7 |
-| 2026-10-15 | Squash merge i usuwanie gałęzi | czysta historia | ustawienie repo, praktyka |
-| 2026-10-15/16 | Specyfikacje `approved` tylko Twoim słowem | spec to kontrakt | `AGENTS.md` §3, hook `spec-status-guard` |
-| 2026-10-15 | Bez kosztu tokenów AI w działaniu produktu; bez „AI” w UI gościa | koszt i zaufanie gościa | silnik deterministyczny, `AGENTS.md` §7 |
-| 2026-10-16 | Sommelier ponad modelem (AI podpowiada, człowiek zatwierdza) | wiarygodność rekomendacji | `AGENTS.md` §7, `docs/RECOMMENDATION_ENGINE.md` |
-| 2026-10-19, 10-21 | Agent sam przyjmuje założenia i najbardziej rekomendowane decyzje | autonomia | lekcja `.ai/lessons/2026-10-25-recommended-decision-default.md` |
-| 2026-10-20 i dalej | Merge tylko po Twoim „Scal #N”, per PR; możesz zatrzymać PR dla siebie | merge to Twoja decyzja | `permissions.ask` dla `gh pr merge`; `.ai/docs/review-protocol.md` §6; wykonawca §3 |
-| 2026-11-04 | Produkt na własnych założeniach, bez walidacji przed budową (D19) | najpierw pełny produkt | `.ai/specs/2026-11-04-product-completion-plan.md`, backlog E11–E22 |
-| 2026-11-05 | Limit 3 otwartych PR-ów (propozycja agenta, przyjęta) | przepustowość review | `.ai/docs/parallel-work.md` §1; audyt GH-08 |
-| 2026-11-09, 11-10 | Zawieszenie limitu WIP z 2026-11-09 jest **tymczasowe**: po wyczyszczeniu obecnego backlogu wraca domyślne 3; każde kolejne zawieszenie trzeba dać jawnie, w danej rozmowie | review nadal jest wąskim gardłem | playbook §3 (WIP) |
-| 2026-11-10 | Brak materiałów lekcji 15 i 20 (właściciel ich nie posiada) | — | §2: „brak materiału”, bez rekonstrukcji |
-| 2026-11-05 | Nocny review w chmurze (bez włączonego komputera); 2026-11-08 zawężony do poleceń `gh` tylko do odczytu | kolejka bez czekania, bez ryzyka zapisu | `.ai/docs/nightly-review-routine.md` |
-| 2026-11-05 | Szeroka zgoda na domknięcie wniosków z lekcji, raport „co zostało” | tempo | logi lekcji w `.ai/runs/` |
-| 2026-11-06 | Wyjątek: zaproszenie bez weryfikacji e-mail; `findUsable`/`accept` bez `restaurantId` | prostota pilota | `security-notes.md` §9, `AGENTS.md` §1.3 |
-| 2026-11-07 | Odpuszczony DeepSec; agent sam decyduje o otwartych kwestiach bezpieczeństwa (HSTS, CSP, limit logowania) | koszt budżetu, decyzje techniczne | `docs/security/threat-model.md`, `docs/DEPLOYMENT.md` §6 |
-| 2026-11-07 | Lekcję wdrażać w całości, nie tylko „zadanie domowe” | jakość | logi lekcji 16–22 |
-| 2026-11-08 | Agenci testują w przeglądarce, człowiek tylko wyjątkowo | Twoja uwaga | `.ai/docs/qa-protocol.md` §8 |
-| 2026-11-08 | Osobny agent sprawdza projekt względem listy z kursu i domyka luki | kompletność | ten dokument, `npm run audit:process` |
-| 2026-11-08 | Przegląd OWASP łańcucha dostaw agenta zostaje lokalny (nieopublikowany) | wrażliwy materiał | gałąź lokalna; decyzja o publikacji otwarta |
-| 2026-11-10 | Agent-wykonawca zamiast audytora: jeden prompt, reszta samodzielnie | koniec wklejania promptów | `.ai/docs/process-playbook.md`, §0 |
+| 2026-10-15 | Mniej pytań, agent działa sam i szybko („Chcę, żebyś działał sam, szybko”); powtórzone 2026-11-08 | reguła | `.ai/docs/parallel-work.md` §1 pkt 5–6 (pytania partiami); wykonawca §3 |
+| 2026-10-15 | Ochrona `main`: wymagane joby CI (lint, unit, build, database, e2e), merge tylko przez PR | reguła (odpowiedź na pytanie agenta, z własną treścią) | ochrona gałęzi, `.ai/docs/review-protocol.md` §7 (dziś także `secrets`) |
+| 2026-10-15 | Squash merge i usuwanie gałęzi (PR #1, #2) | reguła (per PR, potem praktyka) | ustawienie repo, praktyka |
+| 2026-10-15, 10-16 | Specyfikacje `approved` tylko po Twoich słowach („Ustaw specyfikacje na approved”, „Zatwierdzam specyfikację…”) | reguła | `AGENTS.md` §3, hook `spec-status-guard` |
+| 2026-10-15 | Produkt nie może generować kosztu tokenów AI w działaniu | reguła | silnik deterministyczny, `AGENTS.md` §7 |
+| 2026-10-16 | Sommelier ponad modelem (Twój pomysł panelu sommeliera) | reguła | `AGENTS.md` §7, `docs/RECOMMENDATION_ENGINE.md` |
+| 2026-10-19, 10-21 | Agent sam przyjmuje założenia i najbardziej rekomendowane decyzje („przyjmij założenia, ja ci pozwalam”) | delegacja | `.ai/lessons/2026-10-25-recommended-decision-default.md` |
+| 2026-10-20 i dalej | Merge tylko po Twoim „Scal #N”, per PR; możesz zatrzymać PR dla siebie („Nie scalaj PR #82”) | praktyka z Twoich wiadomości; regułę zapisali agenci | `permissions.ask` dla `gh pr merge`, `.ai/docs/review-protocol.md` §6, wykonawca §3 |
+| 2026-11-04 | Produkt na własnych założeniach, bez walidacji przed budową (D19) | reguła | `.ai/specs/2026-11-04-product-completion-plan.md`, backlog E11–E22 |
+| 2026-11-05 | Limit 3 otwartych PR-ów (propozycja agenta; „Przyjmij limit”, „ty zdecyduj”) | akceptacja | `.ai/docs/parallel-work.md` §1 (bez PR-ów typu M); audyt GH-08 |
+| 2026-11-05 | Nocny review: zapytałeś, czemu nie jest włączony i jak to zrobić bez włączonego komputera; potem „masz na wszystko zgode” dla listy punktów; rutynę w chmurze utworzył agent | pytanie, potem delegacja | `.ai/docs/nightly-review-routine.md` |
+| 2026-11-07 | Odpuszczony DeepSec („odpusc deepsec. reszta ok”) | reguła | brak DeepSec w procesie |
+| 2026-11-07 | Otwarte pytania bezpieczeństwa z opisu PR (HSTS, CSP, limit logowań per IP, zaproszenie bez weryfikacji e-mail do E12 F4, testy granic jako check): „podejmij decyzje” | delegacja (agent zdecydował) | `security-notes.md` §9, `docs/security/threat-model.md`, `docs/DEPLOYMENT.md` §6 |
+| 2026-11-06 (wg `AGENTS.md` §1.3) | `findUsable`/`accept` zaproszenia bez `restaurantId` | `AGENTS.md` podaje zatwierdzenie właściciela 2026-11-06; w Twoich wpisanych wiadomościach z tego dnia brak takiego tekstu: do potwierdzenia | `AGENTS.md` §1.3, `packages/core/AGENTS.md` |
+| 2026-11-07 | Z lekcji wdrażać wszystko potrzebne, nie tylko „zadanie domowe” | reguła | logi lekcji 16–22 |
+| 2026-11-08 | Maksymalna samodzielność plus testy przeglądarkowe po stronie agenta; człowiek tylko wyjątkowo („dzialaj z calosica”) | reguła + akceptacja planu | `.ai/docs/qa-protocol.md` §8 |
+| 2026-11-08 | Nocny review zawężony do poleceń `gh` tylko do odczytu („Tak, zawęź”) | akceptacja | `.ai/docs/nightly-review-routine.md` |
+| 2026-11-08 | Osobny agent sprawdza projekt względem listy z kursu i niczego nie pomija | reguła | ten dokument, `npm run audit:process` |
+| 2026-11-08 | Przegląd OWASP łańcucha dostaw agenta zostaje lokalny (nieopublikowany); powód agenta: przegląd wskazuje ścieżki możliwe do wykorzystania, a repozytorium może być widoczne publicznie | decyzja agenta (pamięć), czeka na Twoją decyzję | tylko lokalna gałąź; wykonawca §3 zakazuje publikacji |
+| 2026-11-09 | „pomin teraz limit i dzialaj”: zawieszenie limitu WIP | reguła, tymczasowa | wykonawca §3 (WIP) |
+| 2026-11-09 | „nie pytaj mnie teraz tylko scalaj wszystko co jest do scalenia”: jednorazowe polecenie dla ówczesnego backlogu; agent scalał PR-y z zielonym CI i wymaganymi review. Nie zmieniło reguły „Scal #N”, chyba że dasz je ponownie | reguła, tymczasowa | wykonawca §3 (Merge) |
+| 2026-11-10 | Agent-wykonawca zamiast audytora: jeden prompt, reszta samodzielnie | reguła | `.ai/docs/process-playbook.md`, §0 |
+| 2026-11-10 | „limit trzech pr jest tymczasowy”; doprecyzowanie przekazane przez sesję nadrzędną: tymczasowe jest **zawieszenie** limitu, po wyczyszczeniu backlogu wraca domyślne 3 | reguła (doprecyzowanie z sesji nadrzędnej) | wykonawca §3 (WIP) |
+| 2026-11-10 | Brak materiałów lekcji 15 i 20 („nie mam materialow 15 i 20”) | reguła | §2: „brak materiału” |
 
-Brak Twoich wypowiedzi (do decyzji): hosting, domena, rejestr, `LICENSE`, 1.0, ustawienia GitHuba, wymagane checki `image`/`analyze`.
+Brak Twoich wypowiedzi (do decyzji): hosting, domena, rejestr, `LICENSE`, 1.0, ustawienia GitHuba, wymagane checki `image`/`analyze`, publikacja przeglądu OWASP, stała zgoda na merge.
 
 ## 4. CI/CD i piramida testów
 
@@ -148,7 +151,7 @@ Brak Twoich wypowiedzi (do decyzji): hosting, domena, rejestr, `LICENSE`, 1.0, u
 2. Granice dostępu części 2–3 i limit żądań per IP otwarte, a to najczęstsza klasa podatności (lekcja 16).
 3. Jedna osoba: wymagane zatwierdzenia 0, Code Owners bez wymuszenia; niezależność daje tylko świeży kontekst recenzenta.
 4. CodeQL i `image` nie są wymaganymi checkami: czerwony CodeQL nie blokuje merge.
-5. Brak polityki zgłaszania podatności i licencji: repozytorium nie może być publiczne.
+5. Brak polityki zgłaszania podatności i licencji: nie ma kanału dla zgłaszających ani podstawy do udostępniania kodu (`CONTRIBUTING.md`).
 6. Dziewięć specyfikacji E12–E22 powyżej 40 KB zjada kontekst i utrudniają implementację fazami.
 
 **Twoje decyzje (oczekujące):** hosting, domena, rejestr obrazów; `LICENSE`; definicja i tag 1.0; ustawienia GitHuba: secret scanning i push protection, alerty Dependabot, private vulnerability reporting, środowisko `release`, `image` i CodeQL jako wymagane checki; #139; publikacja przeglądu OWASP łańcucha dostaw; spec testów mutacyjnych; limity dla fuzz API (proxy, 11 MB); drafty `.ai/specs/2026-11-09-multi-family-review-harness.md` i `.ai/specs/2026-11-09-release-management-automation.md`; zamknięcie issue #46, #19 i E01 (#3–#9); zgoda na sprzątanie gałęzi; lista „wymaga ludzkiego oka” z sesji QA nr 1; **stała zgoda na merge dla wykonawcy** (bez odpowiedzi: obowiązuje „Scal #N” per PR; opcja to jawna, zakresowa zgoda w czacie, np. na PR-y `risk-low` gotowe wg playbooka §1, odwołalna w każdej chwili).
