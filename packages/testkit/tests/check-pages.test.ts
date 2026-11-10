@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +16,7 @@ const ADMIN = 'packages/app/src/app/(admin)/admin';
 const roots: string[] = [];
 afterAll(() => { for (const r of roots) rmSync(r, { recursive: true, force: true }); });
 
+const GATE_IMPORTS = "\nimport { requireAccess, authorizeAction } from '@/server/auth';\nimport { act, perform } from '@/server/action-runner';\n";
 type Entry = { file?: string; functions?: string[]; reason?: string };
 function check(files: Record<string, string>, entries: Entry[] = []) {
   const root = mkdtempSync(join(tmpdir(), 'check pages '));
@@ -23,7 +24,8 @@ function check(files: Record<string, string>, entries: Entry[] = []) {
   for (const [rel, src] of Object.entries(files)) {
     const abs = join(root, ADMIN, rel);
     mkdirSync(dirname(abs), { recursive: true });
-    writeFileSync(abs, src);
+    // the real gates' imports go at the END (imports are hoisted), so line numbers in the assertions stay those of the fixture
+    writeFileSync(abs, src.startsWith('/*raw*/') ? src : `${src}${GATE_IMPORTS}`);
   }
   const result = checkPages({ root, allowlist: { entries } });
   return { ...result, root, messages: result.problems.map((p: { file: string; line: number; message: string }) => `${p.file}:${p.line}: ${p.message}`) };
@@ -143,6 +145,90 @@ describe('check-pages', () => {
     const r = check({ '[slug]/menu/page.tsx': `${META}export default async function M({ params }: Props) {\n  const { slug } = await params;\n  // adminService.menu(slug) used to be here\n  const label = 'adminService.menu(slug)';\n  await requireAccess(slug);\n  return <div><span>{label}</span></div>;\n}\n` });
     expect(r.messages).toEqual([]);
     expect(mask("a('x/y') // c", true)).toBe("a('   ')     ");
+  });
+
+  // review of PR #146: export forms, conditional gates, shadowed gate names, inline actions, masking, unreadable trees
+  const SVC = 'const x = await (await getRequestScope()).cradle.adminService.menu(slug, {});';
+  it.each([
+    ['an arrow default export', '[slug]/a/page.tsx', `export default async ({ params }: Props) => {\n  const { slug } = await params;\n  ${SVC}\n  return <p>{x}</p>;\n};\n`, 'the default export is not a function declaration'],
+    ['`export { P as default }`', '[slug]/b/page.tsx', `async function P({ params }: Props) {\n  const { slug } = await params;\n  ${SVC}\n  return <p />;\n}\nexport { P as default };\n`, '`export { … }` is not understood'],
+    ['`export { default } from`', '[slug]/c/page.tsx', "export { default } from './impl';\n", '`export { … } from …` is not understood'],
+    ['`export * from`', '[slug]/d/layout.tsx', "export * from './impl';\n", '`export * from …` is not understood'],
+    ['a page with no default export', '[slug]/e/page.tsx', 'export const dynamic = \'force-dynamic\';\n', 'without `export default [async] function'],
+    ['`export default Page` (identifier)', '[slug]/f/page.tsx', `async function Page() { ${SVC} return <p />; }\nexport default Page;\n`, 'the default export is not a function declaration']
+  ])('fails closed on %s in a render file (an ungated read would otherwise pass)', (_what, file, src, message) => {
+    const r = check({ [file]: src });
+    expect(r.messages.some((m: string) => m.includes(message)), r.messages.join('\n')).toBe(true);
+  });
+
+  it.each([
+    ['`export { a }` of an ungated function', "'use server';\nasync function a(form: FormData) {\n  await (await getRequestScope()).cradle.adminService.del(1);\n}\nexport { a };\n", '`export { … }` is not understood'],
+    ['`export default async () =>`', "'use server';\nexport default async () => 1;\n", 'the default export is not a function declaration'],
+    ['`export const a = async`', "'use server';\nexport const a = async (form: FormData) => (await getRequestScope()).cradle.adminService.del(1);\n", '`export const a = …` is not understood'],
+    ['`export const a = function`', "'use server';\nexport const a = function (form: FormData) { return 1; };\n", '`export const a = …` is not understood']
+  ])('fails closed on %s in an action file', (_what, src, message) => {
+    const r = check({ '[slug]/x-actions.ts': src });
+    expect(r.messages.some((m: string) => m.includes(message)), r.messages.join('\n')).toBe(true);
+  });
+
+  it.each([
+    ['a braceless if', '  if (slug) await requireAccess(slug);'],
+    ['an else branch', '  if (!slug) {} else await requireAccess(slug);'],
+    ['a ternary', '  const a = slug ? await requireAccess(slug) : null;'],
+    ['`&&`', '  slug && await requireAccess(slug);'],
+    ['`||`', '  const a = !slug || (await requireAccess(slug));'],
+    ['a loop', '  for (const s of [slug]) await requireAccess(s);'],
+    ['an argument of another call', '  log(await requireAccess(slug));']
+  ])('fails a gate that may not run: %s', (_what, line) => {
+    const r = check({ '[slug]/g/page.tsx': `export default async function G({ params }: Props) {\n  const { slug } = await params;\n${line}\n  ${SVC}\n  return <p />;\n}\n` });
+    expect(r.messages.some((m: string) => m.includes('does not call requireAccess() as an unconditional top-level statement')), r.messages.join('\n')).toBe(true);
+  });
+
+  it('fails a gate name that is shadowed, declared locally or not imported from the real module', () => {
+    const shadow = check({ '[slug]/actions.ts': action("  const act = (f: FormData, p: string, run: () => unknown) => run();\n  return act(form, 'pairings.decide', async () => (await getRequestScope()).cradle.sommelierService.approve(1));") });
+    expect(shadow.messages.some((m: string) => m.includes('act is declared, assigned, passed or shadowed here')), shadow.messages.join('\n')).toBe(true);
+    const local = check({ '[slug]/h/page.tsx': `/*raw*/async function requireAccess(s: string) { return s; }\nexport default async function H({ params }: Props) {\n  const { slug } = await params;\n  await requireAccess(slug);\n  ${SVC}\n  return <p />;\n}\n` });
+    expect(local.messages.some((m: string) => m.includes("requireAccess is not imported by that name from '@/server/auth'")), local.messages.join('\n')).toBe(true);
+    const alias = check({ '[slug]/i/page.tsx': `/*raw*/import { requireAccess as requireAccessReal } from '@/server/auth';\nconst requireAccess = async (s: string) => s;\nexport default async function I({ params }: Props) {\n  const { slug } = await params;\n  await requireAccess(slug);\n  return <p />;\n}\n` });
+    expect(alias.messages.some((m: string) => m.includes('requireAccess')), alias.messages.join('\n')).toBe(true);
+  });
+
+  it('checks an inline server action in a page like an exported action (gate first, no read before it)', () => {
+    const bad = check({ '[slug]/j/page.tsx': `export default async function J({ params }: Props) {\n  const { slug } = await params;\n  await requireAccess(slug);\n  async function remove(form: FormData) {\n    'use server';\n    await (await getRequestScope()).cradle.adminService.del(1);\n  }\n  return <form action={remove} />;\n}\n` });
+    expect(bad.messages.some((m: string) => m.includes('the inline server action remove() does not call act()')), bad.messages.join('\n')).toBe(true);
+    expect(bad.messages.some((m: string) => m.includes('the inline server action remove() reads data before the access check')), bad.messages.join('\n')).toBe(true);
+    const good = check({ '[slug]/j/page.tsx': `export default async function J({ params }: Props) {\n  const { slug } = await params;\n  await requireAccess(slug);\n  async function remove(form: FormData) {\n    "use server";\n    return act(form, 'pairings.decide', async ({ c }) => c.adminService.del(1));\n  }\n  return <form action={remove} />;\n}\n` });
+    expect(good.messages).toEqual([]);
+  });
+
+  it('a regular expression with a quote or a brace does not swallow the rest of the body', () => {
+    const r = check({ '[slug]/k/page.tsx': `export default async function K({ params }: Props) {\n  const { slug } = await params;\n  const q = /["'{]/;\n  await requireAccess(slug);\n  const x = await (await getRequestScope()).cradle.adminService.menu(slug, {});\n  return <p>{q.test(x) ? 'a' : 'b'}</p>;\n}\n` });
+    expect(r.messages).toEqual([]);
+    expect(mask("const r = /[\"'{]/; f({})", true)).toBe("const r = /     /; f({})");
+    expect(mask('return <a>x</a>;', true)).toBe('return <a>x</a>;');
+  });
+
+  // root reads any directory, so the case only exists for a normal user (CI runners and developers)
+  it.skipIf(process.getuid?.() === 0)('a directory it cannot read is a problem, not a silent skip', () => {
+    const r = check({ '[slug]/l/page.tsx': goodPage });
+    const locked = join(r.root, ADMIN, '[slug]', 'locked');
+    mkdirSync(locked);
+    writeFileSync(join(locked, 'page.tsx'), leakingPage);
+    chmodSync(locked, 0o000);
+    try {
+      const again = checkPages({ root: r.root, allowlist: { entries: [] } });
+      expect(again.problems.map((p: { message: string }) => p.message).some((m: string) => m.includes('cannot read this directory')), JSON.stringify(again.problems)).toBe(true);
+    } finally {
+      chmodSync(locked, 0o755);
+    }
+  });
+
+  it('the allowlist of the repository is exactly the eight documented public doors, each with a reason', () => {
+    const list = JSON.parse(readFileSync(join(REPO, 'scripts/check-pages.allowlist.json'), 'utf8')) as { entries: Array<{ file: string; functions: string[]; reason: string }> };
+    const doors = list.entries.flatMap((e) => e.functions.map((f) => `${e.file.replace(`${ADMIN}/`, '')}#${f}`)).sort();
+    expect(doors).toEqual(['accept-actions.ts#acceptInvitation', 'accept/page.tsx#default', 'auth-actions.ts#login', 'auth-actions.ts#logout', 'language-actions.ts#setLanguage', 'layout.tsx#default', 'login/page.tsx#default', 'page.tsx#default']);
+    expect(list.entries.every((e) => !e.file.includes('[slug]')), 'nothing under [slug] is a public door').toBe(true);
+    expect(list.entries.every((e) => e.reason.length >= 40)).toBe(true);
   });
 
   it('the real repository passes (the allowlist names only doors that are public by design)', () => {

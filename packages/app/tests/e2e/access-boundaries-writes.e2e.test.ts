@@ -2,7 +2,7 @@ import { DEMO_PASSWORD } from '@wine-match/core';
 import { queryDatabase } from '@wine-match/testkit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NEW_RESTAURANT } from './new-restaurant';
-import { BISTRO, HALKA, base, bistroOwner, bistroSommelier, callAction, db, digest, errorCode, get, halkaManager, halkaSommelier, members, origin, postForm, runAction, send, snapshotDatabase, stageImport, type Session } from './boundaries';
+import { BISTRO, HALKA, assertTablesCovered, base, bistroOwner, bistroSommelier, callAction, db, digest, errorCode, get, halkaManager, halkaSommelier, members, origin, postForm, runAction, send, snapshotDatabase, stageImport, type Session } from './boundaries';
 
 /**
  * Lesson 16 (security), docs/security/threat-model.md T-35 and T-36, part 3 of the access-boundary matrix.
@@ -18,14 +18,14 @@ import { BISTRO, HALKA, base, bistroOwner, bistroSommelier, callAction, db, dige
 const DOMAIN = 'bound-e2e.example';
 const NIL = '00000000-0000-4000-8000-000000000000';
 let marta: Session; let tomasz: Session; let anna: Session; let sonia: Session;
-let restoreDatabase: () => Promise<void>;
+let restoreDatabase: (() => Promise<void>) | undefined;
 let bistroId: string; let halkaId: string;
 
 /** The fields a client must never set, with values that would do harm if they were taken. */
 const EXTRAS = (other: string) => ({ restaurantId: other, restaurant: BISTRO, id: NIL, role: 'owner', status: 'approved', createdBy: NIL, version: 99, published: true, approved: true, updatedBy: 'planted', platform: true, slug: BISTRO });
 const extrasExcept = (other: string, keep: string[]) => Object.fromEntries(Object.entries(EXTRAS(other)).filter(([k]) => !keep.includes(k)));
-/** Every table an attempt could touch, sessions included. */
-const state = async () => ({ ...(await digest()), session: (await queryDatabase<{ d: string }>(db(), `select coalesce(md5(string_agg(x::text, '|' order by x::text)), 'empty') as d from session x`, []))[0]!.d });
+/** Every table of the schema (sessions and usage events included; `assertTablesCovered()` in beforeAll proves none is missing). */
+const state = digest;
 const row = async (table: string, id: string) => (await queryDatabase<{ j: Record<string, unknown> }>(db(), `select to_jsonb(x) as j from ${table} x where id = $1`, [id]))[0]?.j;
 /** The columns that differ between two whole rows. */
 const changed = (a: Record<string, unknown> | undefined, b: Record<string, unknown> | undefined) => Object.keys({ ...a, ...b }).filter((k) => JSON.stringify(a?.[k]) !== JSON.stringify(b?.[k])).sort();
@@ -46,8 +46,10 @@ beforeAll(async () => {
   }
   halkaId = (await queryDatabase<{ id: string }>(db(), 'select id from restaurant where slug = $1', [HALKA]))[0]!.id;
   bistroId = (await queryDatabase<{ id: string }>(db(), 'select id from restaurant where slug = $1', [BISTRO]))[0]!.id;
+  await assertTablesCovered();
 });
-afterAll(async () => { await restoreDatabase(); });
+// a failed snapshot leaves `restoreDatabase` unset: the real error of beforeAll is the one reported
+afterAll(async () => { if (restoreDatabase) await restoreDatabase(); });
 
 describe('access boundaries, part 3: mass assignment (T-35), the remaining server actions (T-36)', () => {
   it('T-35: every JSON write route refuses fields outside its schema (422, top level and nested) and writes nothing; the same body without them works (positive control)', async () => {
@@ -93,6 +95,12 @@ describe('access boundaries, part 3: mass assignment (T-35), the remaining serve
     expect(login.status).toBe(422);
     expect(login.headers.get('set-cookie')).toBeNull();
     expect(await state()).toEqual(before);
+    // positive control: the same body without the extra fields signs in (200, a session cookie, one new session row)
+    const sessions = (await queryDatabase<{ n: number }>(db(), `select count(*)::int as n from session s join app_user u on u.id = s.user_id where u.email = 'tomasz@halka.pl'`, []))[0]!.n;
+    const clean = await fetch(`${base()}/api/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: origin() }, body: JSON.stringify({ email: 'tomasz@halka.pl', password: DEMO_PASSWORD }) });
+    expect(clean.status).toBe(200);
+    expect(clean.headers.get('set-cookie')).toMatch(/wm_session=[^;]/);
+    expect((await queryDatabase<{ n: number }>(db(), `select count(*)::int as n from session s join app_user u on u.id = s.user_id where u.email = 'tomasz@halka.pl'`, []))[0]!.n).toBe(sessions + 1);
   });
 
   it('T-35: write routes without a body and the panel\'s form actions ignore fields they do not read: the row they change shows only their own change, the other tenant is untouched', async () => {

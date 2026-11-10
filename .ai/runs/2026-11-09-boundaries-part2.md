@@ -69,3 +69,25 @@ Dwie przebudowy z kilkoma mutacjami naraz (każda celuje w inny test; komunikat 
 - Trasy body-less (`publish`, `DELETE`) ignorują ciało; można je odrzucać (422) dla spójności z `strictObject`.
 - `safeNext` mógłby odrzucać segmenty `.`/`..`.
 - `check:pages` to skan tekstu (limity w nagłówku skryptu): odczyt w pomocniku bez nazwy `…Service` przed bramką nie jest widoczny.
+
+## Poprawki po review PR #146 (2026-11-10)
+Dwa przeglądy: testy „approve with minor changes”, sprawdzenie maszynowe „CHANGES NEEDED”.
+
+### `check:pages` (wszystkie od czerwonego testu)
+18 nowych przypadków w `check-pages.test.ts` uruchomionych na skrypcie z `875868f`: **18 czerwonych** (obejścia przechodziły po cichu), na nowym skrypcie 36/36 zielonych; drzewo sprzed #133 nadal czerwone (12 problemów), repozytorium zielone (46 funkcji, 8 na liście).
+1. (wysokie) Formy eksportu: `export default async () =>`, `export default Page`, `export { P as default }`, `export { default } from`, `export * from`, plik render bez domyślnej funkcji — teraz problem (fail closed); w plikach akcji też `export { a }`, `export default async () =>`, `export const a = function`.
+2. (średnie) Bramka musi być bezwarunkową instrukcją najwyższego poziomu (`await g(…);`, `const x = await g(…);`, `const x = (await g(…)).can(…)`, `return g(…);`): `if` bez klamer, `else`, trójargumentowy, `&&`, `||`, pętla, argument innego wywołania — czerwone. Nazwa bramki musi być importowana z jej modułu i nigdzie nie przesłonięta (lokalne `const act`, własna `requireAccess`, alias importu) — czerwone.
+3. (średnie) Akcje inline (`'use server'` w ciele funkcji w dowolnym pliku serwerowym) sprawdzane jak akcje eksportowane.
+4. (niskie) Maskowanie rozpoznaje literały regex po operatorze lub `return` (nie po `<`, `>`, `)`, `]`, `}`), więc `/["'{]/` nie połyka ciała, a `</Tag>` w JSX nie jest regexem; katalog nie do odczytu to problem, nie ciche pominięcie (test z `chmod 000`, pomijany dla roota).
+5. Nagłówek: funkcja z listy jest zwolniona z bramki i z kolejności odczytów w całości; test pilnuje, że lista to dokładnie 8 opisanych publicznych drzwi, żadne pod `[slug]`, powody ≥ 40 znaków. `.ai/docs/commands.md` zaktualizowany.
+
+### Testy e2e
+6. T-34 w obie strony (konto Halki przeciw Bistro i konto Bistro przeciw Halce) i z kontrolą pozytywną: te same wywołania (6 stron, 4 odczyty API, publikacja, 11 sond po id, 3 akcje) działają dla właściciela danych, obie restauracje; Wine Director obu restauracji 403 na własnym zespole. Mutacja M12 (obce id pary w `PATCH pairings/{id}` = 403 zamiast 404): czerwony „halka account, PATCH pairing: foreign: expected 403 to be 404”; ta sama mutacja tylko dla sluga `bistro-e2e`: czerwony „bistro-e2e account, PATCH pairing …” (kierunek odwrotny naprawdę sprawdzany). Cofnięte, przebudowane, zielone.
+7. Logowanie z polami spoza schematu: dodana kontrola pozytywna (to samo ciało bez pól: 200, ciasteczko, +1 sesja).
+8. „Dokładnie migawka”: przy `limit=6` liczba picków = min(|migawka|, 6), a gdy mieszczą się wszystkie, zbiory równe; pick odrzucony po publikacji MUSI być serwowany (bez warunku).
+9. `TABLES` obejmuje wszystkie tabele schematu (+`session`, `guest_interaction`; tłumaczenia to kolumny `dish`/`wine`, wiersze importu w `import_job`, osobnych tabel nie ma), a `assertTablesCovered()` w `beforeAll` obu plików pada, gdy pojawi się tabela spoza listy. Testy gościa wyłączają z porównania tylko `guest_interaction` (zdarzenia z założenia) i `recommendation_code` (stół kelnera) i sprawdzają osobno, że żadne nowe zdarzenie nie wskazuje dania nieopublikowanego ani obcego dania lub wina. Pliki części 1 (`access-boundaries`, `access-boundaries-matrix`) zielone z rozszerzonym skrótem.
+10. `publish()` przyjmuje 422 tylko jako `nothing_to_publish` i tylko tam, gdzie jest to jawnie dopuszczone (`may-be-published-already` w `beforeAll`); publikacja kontrolna musi dać 201.
+11. `afterAll` nie maskuje błędu `beforeAll` (strażnik `restoreDatabase`); strona ukrytego wina i „selected” sprawdzają tekst „This wine is no longer available”.
+
+### Weryfikacja po poprawkach
+`npm run lint` czysty, `npm run typecheck` czysty, `npm test` 745 + 126 + 62 + 500 + 540 zielone, `test:db` 204 zielone, `npm run build` OK, `check:context` 0 błędów, `check:qa` 114, `check:routes` OK, `check:pages` OK (46/8), `secrets:scan` OK; e2e: 14 plików bez przeglądarki zielone (75 testów), 11 z agent-browser nie do uruchomienia lokalnie (`ENOENT`).

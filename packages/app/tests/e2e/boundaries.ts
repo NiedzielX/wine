@@ -42,7 +42,17 @@ export async function payload(s: Session, path: string): Promise<string> {
 }
 
 /** One digest per table the attempts could touch: md5 over every row's text, ordered. Equal before and after means no row changed. */
-export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal'];
+/**
+ * Every table of the schema except the migration log (checked against information_schema by `assertTablesCovered()`): translations
+ * live in `dish`/`wine` columns and import rows in `import_job`, so there are no separate tables for them. `session` has no
+ * last-seen column, so reads do not change it; `guest_interaction` (usage events) changes on guest page views by design.
+ */
+export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'session', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal', 'guest_interaction'];
+/** Fails when the schema has a table the digest does not cover (a new table must join TABLES). */
+export async function assertTablesCovered(): Promise<void> {
+  const all = (await queryDatabase<{ t: string }>(db(), `select table_name as t from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name not like 'mikro_orm%' order by 1`, [])).map((r) => r.t);
+  expect(all.filter((t) => !TABLES.includes(t)), 'tables missing from the digest').toEqual([]);
+}
 export async function digest(): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   for (const t of TABLES) {

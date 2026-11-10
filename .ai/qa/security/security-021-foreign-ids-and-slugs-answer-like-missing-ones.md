@@ -30,6 +30,9 @@ The answers never reveal whether another restaurant, or one of its objects, exis
 
 ## Then
 
+Everything below runs in BOTH directions (a Halka account against Bistro E2E, a Bistro E2E account against Halka), and at the end the very same calls succeed for the restaurant that owns the data (positive control for both).
+
+
 1. A foreign address and a missing one get the same status (403 signed in, the same sign-in redirect without a session) and the same page or error body.
 2. A foreign id and a missing id get the same 404 and the same body; actions the same "not found" or "forbidden" flash.
 3. Only a role below the permission in your own restaurant gets 403 for something you know exists.
