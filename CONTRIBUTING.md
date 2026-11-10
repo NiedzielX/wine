@@ -4,6 +4,7 @@ Ten plik tylko wskazuje źródła; zasady są w jednym miejscu każda.
 
 - **Zasady pracy, architektura, specyfikacje, testy:** [AGENTS.md](AGENTS.md) (obowiązuje ludzi i agentów AI). Zmiana wymagająca specyfikacji zaczyna się od specyfikacji w `.ai/specs/`.
 - **Proces od zgłoszenia do scalonego PR-a, etykiety ryzyka, bramki:** [SDLC.md](SDLC.md).
+- **Jak prowadzimy projekt (kurs, decyzje właściciela, luki) i autonomiczny wykonawca:** [docs/PROCES_I_KURS.md](docs/PROCES_I_KURS.md) (dla człowieka, z promptem startowym) i [.ai/docs/process-playbook.md](.ai/docs/process-playbook.md) (runbook agenta; pomiar: `npm run audit:process`).
 - **Na co patrzy recenzent:** [CODE_REVIEW.md](CODE_REVIEW.md) i [.ai/docs/review-protocol.md](.ai/docs/review-protocol.md).
 - **Kontrakty, których nie wolno łamać:** [BACKWARD_COMPATIBILITY.md](BACKWARD_COMPATIBILITY.md). Zmiana łamiąca dopisuje w tym samym PR-ze wpis w [UPGRADE_NOTES.md](UPGRADE_NOTES.md) (§9 kontraktu).
 - **Wpisy w changelogu:** zmiana widoczna dla gościa, restauracji, operatora lub integratora API ma wpis w `## [Unreleased]` pliku [CHANGELOG.md](CHANGELOG.md) (przy wydaniu brakujące uzupełnia się z listy scalonych PR-ów).

@@ -51,6 +51,7 @@
     "review:validate": "node scripts/review-validate.mjs",
     "release:version": "node scripts/release-version.mjs",
     "release:notes": "node scripts/release-notes.mjs",
+    "audit:process": "node scripts/process-audit.mjs",
     "test-env:up": "sh .ai/scripts/test-env-up.sh",
     "test-env:down": "sh .ai/scripts/test-env-down.sh"
   },
