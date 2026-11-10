@@ -1,0 +1,40 @@
+{
+  "_comment": "Allowlist of scripts/check-pages.mjs. Every entry names the file, the exact exported functions it covers (\"default\" for the default export) and a written reason. Only doors that are public by design belong here: none of them reads data of a restaurant chosen by the caller. A stale entry (file gone, function gone, function passes without it) fails the check.",
+  "entries": [
+    {
+      "file": "packages/app/src/app/(admin)/admin/layout.tsx",
+      "functions": ["default"],
+      "reason": "Root layout of the whole dashboard, also of the public sign-in and invitation pages: reads only the language (getI18n), no restaurant data."
+    },
+    {
+      "file": "packages/app/src/app/(admin)/admin/page.tsx",
+      "functions": ["default"],
+      "reason": "/admin reads only the caller's own session (getPrincipal) and redirects to the caller's own restaurant or to sign-in; no slug, no restaurant data."
+    },
+    {
+      "file": "packages/app/src/app/(admin)/admin/login/page.tsx",
+      "functions": ["default"],
+      "reason": "The sign-in page is public by design: it reads only the caller's own session (getPrincipal) to send a signed-in person on; no slug, no restaurant data."
+    },
+    {
+      "file": "packages/app/src/app/(admin)/admin/accept/page.tsx",
+      "functions": ["default"],
+      "reason": "A17 accept-invitation page is public by design (spec E12 F2): the token is the credential, the restaurant comes from the token's row, a dead token shows the same page."
+    },
+    {
+      "file": "packages/app/src/app/(admin)/admin/accept-actions.ts",
+      "functions": ["acceptInvitation"],
+      "reason": "Accepting an invitation is public by design (spec E12 F2): the token is the credential and InvitationService.accept checks it (unknown, used, revoked, expired, other e-mail) before anything is written."
+    },
+    {
+      "file": "packages/app/src/app/(admin)/admin/auth-actions.ts",
+      "functions": ["login", "logout"],
+      "reason": "Sign-in has no session yet (the password is the check); sign-out only ends the caller's own session from its own cookie. Neither takes a slug."
+    },
+    {
+      "file": "packages/app/src/app/(admin)/admin/language-actions.ts",
+      "functions": ["setLanguage"],
+      "reason": "The language switch only sets the wm_lang cookie and redirects to a validated dashboard path; it reads and writes no data and needs no session."
+    }
+  ]
+}
