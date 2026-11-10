@@ -36,3 +36,9 @@ Audyt: PASS 46, FAIL 6, PARTIAL 1. Gałąź `docs/course-synthesis`, bez PR. Pyt
 
 ## Lekcje
 brak (nowa wiedza: lekcje 15/20 nie dostarczone, zapisane w dokumencie, nie jako lekcja)
+
+## Uzupełnienie po odpowiedziach właściciela (2026-11-10, ta sama sesja)
+- Zawieszenie limitu WIP z 2026-11-09 jest tymczasowe: po wyczyszczeniu obecnego backlogu wraca domyślne 3; kolejne zawieszenie tylko jawne, w bieżącej rozmowie. Zapisane w playbooku §3 (WIP), w `docs/PROCES_I_KURS.md` §3 i w oczekiwanym wyniku GH-08.
+- Lekcje 15 i 20: „brak materiału, właściciel nie posiada” (już nie pytanie otwarte).
+- Stała zgoda na merge dla wykonawcy: bez odpowiedzi; regułą zostaje „Scal #N”, opcja opisana (playbook §3, dokument §6).
+- Audyt nie kodował zawieszenia WIP ani lekcji 15/20 jako sprawdzeń; zmieniony tylko tekst oczekiwania GH-08. START PROMPT bez zmian.

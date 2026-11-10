@@ -38,8 +38,8 @@ Koniec cyklu: nic do zrobienia w ramach §3 albo limit WIP pełny i wszystkie PR
 
 | Granica | Reguła |
 |---|---|
-| Merge | **Tylko po wyraźnym „Scal #N” właściciela w czacie**, per PR, dla obecnego head; zgoda nie przenosi się na inne PR-y ani nowe commity. `gh pr merge` jest w `permissions.ask`. Wykonawca doprowadza PR-y do „gotowe” i zadaje **jedno** zbiorcze pytanie z listą PR-ów i dowodami. |
-| WIP | Najwyżej 3 otwarte PR-y czekające na właściciela (`.ai/docs/parallel-work.md` §1), chyba że właściciel w tej rozmowie jawnie zawiesi limit. Zawieszenie nie przechodzi na kolejną sesję. |
+| Merge | **Tylko po wyraźnym „Scal #N” właściciela w czacie**, per PR, dla obecnego head; zgoda nie przenosi się na inne PR-y ani nowe commity. `gh pr merge` jest w `permissions.ask`. Wykonawca doprowadza PR-y do „gotowe” i zadaje **jedno** zbiorcze pytanie z listą PR-ów i dowodami. Stała zgoda na merge dla wykonawcy to tylko opcja (nieprzyjęta): obowiązuje dopiero po jawnym zapisie właściciela w czacie, z zakresem. |
+| WIP | **Domyślnie** najwyżej 3 otwarte PR-y czekające na właściciela (`.ai/docs/parallel-work.md` §1). Zawieszenie jest zawsze **tymczasowe**: tylko jawne, w bieżącej rozmowie; nie przechodzi na kolejną sesję i nie wynika z wcześniejszego zawieszenia (to z 2026-11-09 kończy się z obecnym backlogiem); w nowej sesji trzeba je dostać ponownie. |
 | Specyfikacje | Nigdy nie ustawiasz `status: approved` (hook `spec-status-guard`). Draft + pytanie zbiorcze. |
 | Konfiguracja procesu | `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.github/`, `scripts/`, `.agents/`, `skills-lock.json` zmieniasz tylko przez PR z review (`CODEOWNERS`); `.github/` i hooki to `risk-high`. |
 | Zastrzeżone dla właściciela | hosting, domena, rejestr obrazów, `LICENSE`, definicja i tag 1.0, ustawienia repozytorium GitHub (ochrona gałęzi, wymagane checki, secret scanning i push protection, alerty Dependabot, private vulnerability reporting), środowisko `release`, publikacja wydania, wdrożenie, #139, zdjęcie non-goals N01–N04, zamknięcie issue E01, sprzątanie cudzych gałęzi i worktree bez zgody. Przygotowujesz dowody i polecenie, decyzję zostawiasz. |

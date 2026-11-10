@@ -35,7 +35,7 @@ Pełny runbook (pętla, granice, backlog startowy, format raportu): [.ai/docs/pr
 
 ## 2. Lekcje kursu: co przyjęliśmy i gdzie to jest
 
-Źródła: materiały w `~/Desktop/AI Tech Leaders/` (transkrypcje, strony lekcji), dla lekcji 19, 21, 22 także kopie na Pulpicie. **Lekcji 15 i 20 nie ma w dostarczonych materiałach** (tytuł 20 znany tylko z nawigacji innych lekcji). Status: zrobione / częściowo / brak / świadomie pominięte.
+Źródła: materiały w `~/Desktop/AI Tech Leaders/` (transkrypcje, strony lekcji), dla lekcji 19, 21, 22 także kopie na Pulpicie. **Lekcji 15 i 20 brak: właściciel nie posiada materiałów** (potwierdzone 2026-11-10; tytuł 20 znany tylko z nawigacji innych lekcji). Status: zrobione / częściowo / brak / świadomie pominięte.
 
 | L | Temat | Kluczowe idee | Co przyjęliśmy i gdzie | Status |
 |---|---|---|---|---|
@@ -54,12 +54,12 @@ Pełny runbook (pętla, granice, backlog startowy, format raportu): [.ai/docs/pr
 | 12 | Testy automatyczne | deterministyczne e2e obok QA agentowego; izolowane środowisko; zasady stabilnych testów | `npm run test:e2e` (agent-browser), `npm run test:db` (testcontainers), `.ai/scripts/test-env-up.sh`, `.ai/qa/`, `npm run check:qa` | zrobione |
 | 13 | Praca równoległa | WIP = tyle, ile zrecenzujesz; typy zadań; kolejka o stałych porach; nocna zmiana | `.ai/docs/parallel-work.md` (limit 3 PR, typy I/S/P/M), `.ai/docs/nightly-review-routine.md` (rutyna w chmurze) | zrobione |
 | 14 | Testy i poprawki | „naprawione” to hipoteza; test czerwony → zielony; review drugiego agenta; CodeQL, Dependabot | `.ai/docs/fix-verification.md`, `npm run verify:regression`, `.github/workflows/codeql.yml`, `.github/dependabot.yml` | zrobione; SonarQube pominięty (CodeQL + lint) |
-| 15 | brak materiału | — | repozytorium nie dowodzi treści tej lekcji | nieznane: pytanie do Ciebie |
+| 15 | brak materiału, właściciel nie posiada | — | repozytorium nie dowodzi treści tej lekcji | brak materiału (nie do odtworzenia) |
 | 16 | Bezpieczeństwo produktu | model zagrożeń (STRIDE), OWASP, test granicy dostępu w trzech sprawdzeniach, SAST/DAST tylko w sandboksie | `docs/security/threat-model.md`, `docs/security/dast-coverage.md`, `.ai/docs/engineering-standards.md` §10, testy granic w `packages/app/tests/e2e/`, skill `wine-match-access-boundary-test` | częściowo: granice części 2–3 otwarte; DeepSec odrzucony przez Ciebie |
 | 17 | Review i odbiór zadań | trzy warstwy bramek; etykieta to decyzja z chwili; recenzent bez opisu autora; małe PR-y; bramki deterministyczne (mutacje, rozmiar) | `.ai/docs/review-protocol.md`, `npm run review:pack`, `.ai/docs/review-checklists.md`, `npm run check:routes`, `.ai/docs/engineering-standards.md` §11 | częściowo: brak testów mutacyjnych i bramki rozmiaru; wymagane zatwierdzenia 0 (jedna osoba) |
 | 18 | Nowoczesny tester | AI jako drugi tester, plan przed klikaniem, baza wiedzy, człowiek podpisuje werdykt | `.ai/docs/qa-protocol.md` (niezależny weryfikator, lista „wymaga ludzkiego oka”), `.ai/qa/knowledge/` | zrobione; artefakty sesji QA nr 1 do uzupełnienia |
 | 19 | Opór zespołu (lekcja menedżerska) | fale adopcji, zespół „statek piracki”, tryb shadow, agenty z celami | brak zmian w kodzie (projekt jednoosobowy) | świadomie pominięte |
-| 20 | brak materiału (tytuł z nawigacji: modele z otwartymi wagami lokalnie) | — | nic w repozytorium | nieznane: pytanie do Ciebie |
+| 20 | brak materiału, właściciel nie posiada (tytuł z nawigacji: modele z otwartymi wagami lokalnie) | — | nic w repozytorium | brak materiału (nie do odtworzenia) |
 | 21 | Wiele modeli naraz | orkiestrator, implementer, recenzenci z ≥ 2 rodzin; każda uwaga weryfikowana; harness pilnuje stanu | `.ai/docs/review-protocol.md` §9, `npm run review:validate`, `.ai/schemas/review-input.schema.json`, draft `.ai/specs/2026-11-09-multi-family-review-harness.md` | częściowo: harness czeka na Twoją akceptację; druga rodzina modeli zależy od dostępu |
 | 22 | Zarządzanie wydaniami | świadomy zakres, pre-release z zielonym CI, changelog, kompatybilność wsteczna, odtworzenie z taga | `docs/RELEASING.md`, `npm run release:version`, `npm run release:notes`, `.github/workflows/release.yml` (szkic, ręczny), `UPGRADE_NOTES.md` | częściowo: środowisko `release`, próba odtworzenia i 1.0 czekają na Ciebie |
 
@@ -80,7 +80,9 @@ Pełny runbook (pętla, granice, backlog startowy, format raportu): [.ai/docs/pr
 | 2026-10-19, 10-21 | Agent sam przyjmuje założenia i najbardziej rekomendowane decyzje | autonomia | lekcja `.ai/lessons/2026-10-25-recommended-decision-default.md` |
 | 2026-10-20 i dalej | Merge tylko po Twoim „Scal #N”, per PR; możesz zatrzymać PR dla siebie | merge to Twoja decyzja | `permissions.ask` dla `gh pr merge`; `.ai/docs/review-protocol.md` §6; wykonawca §3 |
 | 2026-11-04 | Produkt na własnych założeniach, bez walidacji przed budową (D19) | najpierw pełny produkt | `.ai/specs/2026-11-04-product-completion-plan.md`, backlog E11–E22 |
-| 2026-11-05 | Limit 3 otwartych PR-ów (propozycja agenta, przyjęta); zawieszony czasowo 2026-11-09 | przepustowość review | `.ai/docs/parallel-work.md` §1; audyt GH-08; zawieszenie tylko w danej rozmowie |
+| 2026-11-05 | Limit 3 otwartych PR-ów (propozycja agenta, przyjęta) | przepustowość review | `.ai/docs/parallel-work.md` §1; audyt GH-08 |
+| 2026-11-09, 11-10 | Zawieszenie limitu WIP z 2026-11-09 jest **tymczasowe**: po wyczyszczeniu obecnego backlogu wraca domyślne 3; każde kolejne zawieszenie trzeba dać jawnie, w danej rozmowie | review nadal jest wąskim gardłem | playbook §3 (WIP) |
+| 2026-11-10 | Brak materiałów lekcji 15 i 20 (właściciel ich nie posiada) | — | §2: „brak materiału”, bez rekonstrukcji |
 | 2026-11-05 | Nocny review w chmurze (bez włączonego komputera); 2026-11-08 zawężony do poleceń `gh` tylko do odczytu | kolejka bez czekania, bez ryzyka zapisu | `.ai/docs/nightly-review-routine.md` |
 | 2026-11-05 | Szeroka zgoda na domknięcie wniosków z lekcji, raport „co zostało” | tempo | logi lekcji w `.ai/runs/` |
 | 2026-11-06 | Wyjątek: zaproszenie bez weryfikacji e-mail; `findUsable`/`accept` bez `restaurantId` | prostota pilota | `security-notes.md` §9, `AGENTS.md` §1.3 |
@@ -149,7 +151,7 @@ Brak Twoich wypowiedzi (do decyzji): hosting, domena, rejestr, `LICENSE`, 1.0, u
 5. Brak polityki zgłaszania podatności i licencji: repozytorium nie może być publiczne.
 6. Dziewięć specyfikacji E12–E22 powyżej 40 KB zjada kontekst i utrudniają implementację fazami.
 
-**Twoje decyzje (oczekujące):** hosting, domena, rejestr obrazów; `LICENSE`; definicja i tag 1.0; ustawienia GitHuba: secret scanning i push protection, alerty Dependabot, private vulnerability reporting, środowisko `release`, `image` i CodeQL jako wymagane checki; #139; publikacja przeglądu OWASP łańcucha dostaw; spec testów mutacyjnych; limity dla fuzz API (proxy, 11 MB); drafty `.ai/specs/2026-11-09-multi-family-review-harness.md` i `.ai/specs/2026-11-09-release-management-automation.md`; zamknięcie issue #46, #19 i E01 (#3–#9); zgoda na sprzątanie gałęzi; czy zawieszenie limitu WIP jest trwałe; lista „wymaga ludzkiego oka” z sesji QA nr 1; materiały lekcji 15 i 20.
+**Twoje decyzje (oczekujące):** hosting, domena, rejestr obrazów; `LICENSE`; definicja i tag 1.0; ustawienia GitHuba: secret scanning i push protection, alerty Dependabot, private vulnerability reporting, środowisko `release`, `image` i CodeQL jako wymagane checki; #139; publikacja przeglądu OWASP łańcucha dostaw; spec testów mutacyjnych; limity dla fuzz API (proxy, 11 MB); drafty `.ai/specs/2026-11-09-multi-family-review-harness.md` i `.ai/specs/2026-11-09-release-management-automation.md`; zamknięcie issue #46, #19 i E01 (#3–#9); zgoda na sprzątanie gałęzi; lista „wymaga ludzkiego oka” z sesji QA nr 1; **stała zgoda na merge dla wykonawcy** (bez odpowiedzi: obowiązuje „Scal #N” per PR; opcja to jawna, zakresowa zgoda w czacie, np. na PR-y `risk-low` gotowe wg playbooka §1, odwołalna w każdej chwili).
 
 **Następne kroki (rekomendacja):**
 1. Uruchom wykonawcę promptem z §0; niech zamknie granice 2–3, limit per IP i pełny e2e zaproszenia.

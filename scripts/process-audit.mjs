@@ -563,7 +563,7 @@ function manualChecks(slug) {
     { id: 'GH-07', area: 'GH', severity: 'high', actor: 'agent', title: 'No open code-scanning alerts', command: `gh api 'repos/${slug}/code-scanning/alerts?state=open&per_page=100' --jq 'length'`,
       expect: '0 (each alert: fix red-first or dismiss with a reason the owner accepts)' },
     { id: 'GH-08', area: 'GH', severity: 'high', actor: 'agent', title: 'WIP limit: at most 3 open non-draft PRs', command: `gh pr list --repo ${slug} --state open --json number,isDraft --jq 'map(select(.isDraft | not)) | length'`,
-      expect: '<= 3 unless the owner waived the limit in chat' },
+      expect: '<= 3 (default); a waiver is temporary and counts only when the owner granted it explicitly in the current conversation' },
     { id: 'GH-09', area: 'GH', severity: 'high', actor: 'agent', title: 'Latest CI on main is green', command: `gh run list --repo ${slug} --branch main --limit 10 --json workflowName,conclusion,headSha`,
       expect: 'conclusion "success" for CI and CodeQL on the newest headSha' },
     { id: 'GH-10', area: 'GH', severity: 'low', actor: 'owner', title: 'Releases and tags', command: `gh release list --repo ${slug} --limit 5`,
