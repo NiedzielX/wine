@@ -15,6 +15,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ### Jakość platformy (E21)
 - F1: endpoint metryk, jedna linia logu na żądanie, redakcja sekretów (#117).
+- F3: limity żądań na klienta: 429 z `Retry-After` dla publicznego API i logowania, limity wydania, wyszukania i oznaczenia kodu polecenia (G8, G9, G11), tabela `rate_limit_bucket` (migracja addytywna), opcjonalne `TRUSTED_PROXY_HOPS`, `RATE_LIMIT_SECRET`, `RATE_LIMITS` (Compose ustawia `TRUSTED_PROXY_HOPS=1`); żadna zmienna nie staje się wymagana.
 
 ### Demo sprzedażowe (E22)
 - F1: kalkulator zwrotu, `SHOWCASE_MODE=calculator` (#122).

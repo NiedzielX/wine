@@ -10,6 +10,7 @@ import { RestaurantEntity } from './restaurants/restaurant';
 import { SommelierDecisionEntity } from './pairings/sommelier-decision';
 import { AuthEventEntity, AuthTokenEntity, MembershipEntity, SessionEntity, UserEntity } from './auth/user';
 import { WineEntity, WineProfileEmbeddable } from './catalog/wine';
+import { RateLimitBucketEntity } from './ratelimit/rate-limit-bucket';
 
 export * from './restaurants/restaurant';
 export * from './catalog/dish';
@@ -23,10 +24,12 @@ export * from './auth/user';
 export * from './opportunities/opportunity-dismissal';
 export * from './recommendations/recommendation-code';
 export * from './sales/sales-record';
+export * from './ratelimit/rate-limit-bucket';
 
 /** Every entity and embeddable known to the ORM. Register new entities here. */
 export const ENTITIES = [
   RestaurantEntity, DishEntity, DishProfileEmbeddable, WineEntity, WineProfileEmbeddable,
   PairingEntity, PublishedVersionEntity, SommelierDecisionEntity, GuestInteractionEntity, ImportJobEntity,
-  UserEntity, MembershipEntity, SessionEntity, OpportunityDismissalEntity, RecommendationCodeEntity, SalesRecordEntity, AuthEventEntity, AuthTokenEntity
+  UserEntity, MembershipEntity, SessionEntity, OpportunityDismissalEntity, RecommendationCodeEntity, SalesRecordEntity, AuthEventEntity, AuthTokenEntity,
+  RateLimitBucketEntity
 ];

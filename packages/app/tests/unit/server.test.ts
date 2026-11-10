@@ -71,13 +71,13 @@ describe('the request guard: sessions, CSRF, cross-site, permissions, bodies', (
   });
 
   it('a public route answers a cross-site write with 403 and runs a read normally; a thrown error becomes its status or a generic 500', async () => {
-    const blocked = await handlePublic(req('http://localhost/x', { 'sec-fetch-site': 'cross-site' }), { write: true, route: '/x' }, async () => new Response('never') as never);
+    const blocked = await handlePublic(req('http://localhost/x', { 'sec-fetch-site': 'cross-site' }), { write: true, rateLimit: 'public-api', route: '/x' }, async () => new Response('never') as never);
     expect(blocked.status).toBe(403);
-    const ok = await handlePublic(req('http://localhost/x'), { route: '/x' }, async () => apiError(200, 'ok', 'fine'));
+    const ok = await handlePublic(req('http://localhost/x'), { rateLimit: 'public-api', route: '/x' }, async () => apiError(200, 'ok', 'fine'));
     expect(ok.status).toBe(200);
-    const mapped = await handlePublic(req('http://localhost/x'), { route: '/x' }, async () => { throw new NotFoundError('Dish'); });
+    const mapped = await handlePublic(req('http://localhost/x'), { rateLimit: 'public-api', route: '/x' }, async () => { throw new NotFoundError('Dish'); });
     expect(mapped.status).toBe(404);
-    const boom = await handlePublic(req('http://localhost/x'), { route: '/x' }, async () => { throw new Error('secret=abc database down'); });
+    const boom = await handlePublic(req('http://localhost/x'), { rateLimit: 'public-api', route: '/x' }, async () => { throw new Error('secret=abc database down'); });
     expect(boom.status).toBe(500);
     const text = await boom.text();
     expect(text).not.toContain('secret');

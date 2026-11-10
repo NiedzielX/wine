@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { RESTAURANT as DEMO_RESTAURANT } from '../demo/halka';
 import type { LogLevel } from '../logging/logger';
+import { parseRateLimits, type RateLimitRules } from '../ratelimit/rules';
 
 /**
  * The application's configuration, read once from the environment and checked. A wrong or missing
@@ -33,6 +34,18 @@ export interface AppEnv {
   metricsToken: string | null;
   /** SHOWCASE_MODE; unset = `off`, so the `/demo` pages answer 404 */
   showcaseMode: ShowcaseMode;
+  /**
+   * RATE_LIMIT_SECRET: the key of the client hash (spec E21 F3, Q6). null = the app makes a random one per process (limits still
+   * work; with several instances on PostgreSQL each counts its own clients, and a restart starts the counters again).
+   */
+  rateLimitSecret: string | null;
+  /**
+   * TRUSTED_PROXY_HOPS: how many reverse proxies in front of the app append to `X-Forwarded-For`. 0 (default) = the header is
+   * NEVER read (a client could write anything into it) and every client shares one stricter counter.
+   */
+  trustedProxyHops: number;
+  /** RATE_LIMITS over the defaults of `DEFAULT_RATE_LIMIT_RULES` */
+  rateLimitRules: RateLimitRules;
 }
 
 export class ConfigError extends Error {
@@ -56,6 +69,9 @@ const schema = z.object({
   LOG_LEVEL: optional(z.enum(['debug', 'info', 'warn', 'error'], { error: 'must be debug, info, warn or error' })),
   SHOWCASE_MODE: optional(z.string()),
   METRICS_TOKEN: optional(z.string().min(32, { error: 'must be at least 32 characters (or leave it unset to disable GET /api/v1/metrics)' })),
+  RATE_LIMIT_SECRET: optional(z.string().min(32, { error: 'must be at least 32 characters (openssl rand -hex 32), or leave it unset' })),
+  TRUSTED_PROXY_HOPS: optional(z.string().regex(/^(10|[0-9])$/, { error: 'must be a whole number from 0 to 10 (0 = do not trust X-Forwarded-For)' })),
+  RATE_LIMITS: optional(z.string()),
   DEMO_RESTAURANT_SLUG: optional(z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: 'must be a lower-case address name' }))
 });
 
@@ -138,6 +154,9 @@ export function parseEnv(raw: Record<string, string | undefined>): AppEnv {
       issues.push(`DEMO_RESTAURANT_SLUG: "${e.DEMO_RESTAURANT_SLUG}" is not in the demo data. With SHOWCASE_MODE=demo it must be "${DEMO_RESTAURANT.slug}" (or leave it unset).`);
     }
   }
+  // a typo in a limit must not silently keep (or drop) a limit: fails closed
+  const rateLimitRules = parseRateLimits(e.RATE_LIMITS);
+  if (typeof rateLimitRules === 'string') issues.push(`RATE_LIMITS: ${rateLimitRules}.`);
   if (issues.length) throw new ConfigError(issues);
 
   // the stored address is the PARSED and checked one (origin and path, no query, fragment or trailing slash), never the raw text
@@ -154,6 +173,9 @@ export function parseEnv(raw: Record<string, string | undefined>): AppEnv {
     logLevel: e.LOG_LEVEL ?? (isProduction ? 'info' : 'debug'),
     demoRestaurantSlug: e.DEMO_RESTAURANT_SLUG ?? 'halka',
     metricsToken: e.METRICS_TOKEN ?? null,
-    showcaseMode: showcase as ShowcaseMode
+    showcaseMode: showcase as ShowcaseMode,
+    rateLimitSecret: e.RATE_LIMIT_SECRET ?? null,
+    trustedProxyHops: Number(e.TRUSTED_PROXY_HOPS ?? '0'),
+    rateLimitRules: rateLimitRules as RateLimitRules
   };
 }

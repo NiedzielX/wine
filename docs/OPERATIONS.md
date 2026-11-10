@@ -10,9 +10,9 @@ Wine Match nie używa zewnętrznego SaaS do monitoringu (spec `2026-11-04-platfo
 |---|---|
 | `http_requests_total{group,status_class}` | żądania API według wzorca trasy i klasy statusu; liczone jest każde żądanie, także odrzucone przed logiką (403 CSRF, 401) i takie, w którym nie udało się otworzyć zakresu żądania (baza nie działa, 5xx). Scrape `/api/v1/metrics` nie jest liczony ani logowany, żeby nie zaniżał wskaźnika 5xx |
 | `http_request_duration_seconds` | histogram czasu żądań API |
-| `guest_code_issue_total{result}` | wydanie kodu polecenia: `issued`, `declined` (serwis zwrócił brak kodu: dzienny limit sesji, nieznane lub nieaktywne wino, za dużo dań, wyczerpana przestrzeń kodów; serwis nie rozróżnia tych przypadków), `timeout` (przekroczone 1,5 s), `error` (wyjątek, zwykle baza), `rate_limited` (wypełnia F3) |
+| `guest_code_issue_total{result}` | wydanie kodu polecenia: `issued`, `declined` (serwis zwrócił brak kodu: dzienny limit sesji, nieznane lub nieaktywne wino, za dużo dań, wyczerpana przestrzeń kodów; serwis nie rozróżnia tych przypadków), `timeout` (przekroczone 1,5 s), `error` (wyjątek, zwykle baza), `rate_limited` (limit `code-issue` klienta, E21 F3: strona bez kodu, status 200) |
 | `usage_event_write_failed_total` | nieudane zapisy zdarzeń użycia (strona gościa działa dalej) |
-| `rate_limit_denied_total{rule}` | odmowy limitu żądań (**brak emitera do czasu fazy F3**: seria jest pusta) |
+| `rate_limit_denied_total{rule}` | odmowy limitu żądań (E21 F3) per reguła: `public-api`, `login`, `code-issue`, `code-lookup`, `code-mark`; nigdy klient ani IP. Wartości limitów: `RATE_LIMITS`, `docs/DEPLOYMENT.md` sekcja 4 |
 | `db_health_check_duration_seconds` | czas sprawdzenia bazy przez `GET /api/v1/health` (tylko `DATA_SOURCE=postgres`; w trybie `memory` seria jest pusta). Przy niedostępnej bazie mierzy czas do odpowiedzi „unreachable” (do 2 s) |
 | `unhandled_errors_total{source}` | błędy z `onRequestError` (`render`, `route`, `action`, `proxy`) i procesu (`unhandledRejection`, `uncaughtException`) |
 
@@ -37,7 +37,9 @@ Dziennik dostępowy proxy **musi obcinać query string**: `sid=`, `diet=` i `wit
 | Wszystkie strony 500 | logi: `request error`, `api request failed`; konfiguracja (`.env`), baza dostępna |
 | Metryki zwracają 404 | `METRICS_TOKEN` nie jest ustawiony (zamierzone) |
 | Metryki zwracają 401 | zły token w scraperze; token musi mieć min. 32 znaki |
-| Brak kodów polecenia na ekranie gościa | `guest_code_issue_total{result="error"}` lub `timeout` rośnie: baza; `limit`: dzienny limit sesji |
+| Brak kodów polecenia na ekranie gościa | `guest_code_issue_total{result="error"}` lub `timeout` rośnie: baza; `declined`: dzienny limit sesji; `rate_limited`: limit `code-issue` klienta (cała sala za jednym Wi-Fi to jeden klient: podnieś `RATE_LIMITS`, np. `code-issue=120/600`) |
+| Wielu użytkowników naraz dostaje 429 albo „Zbyt wiele prób” | log startu: ostrzeżenie `TRUSTED_PROXY_HOPS=0` znaczy, że wszyscy dzielą jeden licznik (ustaw `TRUSTED_PROXY_HOPS` na liczbę proxy); `rate_limit_denied_total{rule}` pokazuje, która reguła; za wysoki ruch z jednego adresu restauracji: podnieś tę regułę w `RATE_LIMITS` |
+| W logu `rate limit store failed: request allowed` | magazyn liczników (tabela `rate_limit_bucket`) nie odpowiada: limity są chwilowo wyłączone (zamierzone, Q7), sprawdź bazę |
 | Licznik rośnie po restarcie od zera | normalne: metryki są per proces |
 
 ## Kontakt dyżurny
@@ -62,7 +64,7 @@ Decyzja właściciela na PR #127 (2026-11-07, `docs/security/threat-model.md` T-
 
 | Pozycja | Wymaga | Status |
 |---|---|---|
-| Limit żądań per IP (logowanie, publiczne API gościa) | E21 F3 (`rate_limited` już zarezerwowane w `guest_code_issue_total` i `rate_limit_denied_total` wyżej w tym pliku) | **wymagane, niezaimplementowane** |
+| Limit żądań per IP (logowanie, publiczne API gościa) | E21 F3 (w aplikacji: reguły i `rate_limit_denied_total`; przy wdrożeniu: `TRUSTED_PROXY_HOPS` zgodne z liczbą proxy, `RATE_LIMIT_SECRET` ustawiony, ogólny limit na proxy, `docs/DEPLOYMENT.md` sekcje 4 i 6) | zaimplementowane w aplikacji (gałąź `feat/e21-f3-rate-limits`); ustawienia wdrożenia do potwierdzenia przy wdrożeniu |
 | TLS i `Strict-Transport-Security` na proxy terminującym | E11 (poza tym repozytorium: ustawienie proxy, nie aplikacji; przykład i sprawdzenie: `docs/DEPLOYMENT.md` sekcja 6) | do potwierdzenia przy wdrożeniu |
 | Obcięcie query string w logu dostępowym proxy (sekcja „Logi” wyżej) | E11 (przykład: `docs/DEPLOYMENT.md` sekcja 6) | do potwierdzenia przy wdrożeniu |
 | Kopia bazy z przećwiczonym odtworzeniem | ręcznie wg `docs/DEPLOYMENT.md` sekcja 9 (zrzut, próba odtworzenia); automatyzacja i alert: E21 F2 | procedura jest; automatyzacja niezaimplementowana |

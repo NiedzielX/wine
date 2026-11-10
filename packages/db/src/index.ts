@@ -9,6 +9,7 @@ export { getOrm, closeOrm } from './orm';
 export * from './mappers';
 export * from './repositories';
 export { PgSystemHealth, HEALTH_TIMEOUT_MS } from './repositories/system-health';
+export { PgRateLimiter, RATE_LIMIT_ROW_TTL_MS } from './repositories/rate-limiter';
 export { PgAuthRepository } from './repositories/auth';
 export { PgImportRepository } from './repositories/import';
 export { PgAuthAuditRepository, PgTeamRepository } from './repositories/team';

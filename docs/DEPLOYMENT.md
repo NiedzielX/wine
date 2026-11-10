@@ -23,7 +23,7 @@ Decyzje, których repozytorium nie podejmuje za właściciela (dostawca hostingu
 
 1. **Maszyna i Docker.** Zainstaluj Docker Engine z oficjalnego repozytorium dystrybucji. Sprawdź: `docker version` i `docker compose version` bez błędu.
 2. **Kod.** `git clone <adres repozytorium> wine-match && cd wine-match && git checkout <tag-wydania>`. Zapisz tag: będzie nazwą obrazu i punktem powrotu przy wycofaniu.
-3. **Konfiguracja.** `cp .env.example .env && chmod 600 .env`, potem ustaw w `.env` (tabela w sekcji 4): `PUBLIC_BASE_URL` (https, własna domena), `POSTGRES_PASSWORD` (`openssl rand -hex 24`), `DEMO_RESTAURANT_SLUG` (slug restauracji pilotażowej), `METRICS_TOKEN` (`openssl rand -hex 32`), `WINE_MATCH_TAG` (tag z kroku 2). `.env` nigdy nie trafia do repozytorium ani do obrazu (`.dockerignore`, `.gitignore`). **Sprawdź hasło bazy** (trafia do adresu URL, więc znaki specjalne `@ : / ? # % +` psują połączenie; Compose nie umie go zakodować):
+3. **Konfiguracja.** `cp .env.example .env && chmod 600 .env`, potem ustaw w `.env` (tabela w sekcji 4): `PUBLIC_BASE_URL` (https, własna domena), `POSTGRES_PASSWORD` (`openssl rand -hex 24`), `DEMO_RESTAURANT_SLUG` (slug restauracji pilotażowej), `METRICS_TOKEN` (`openssl rand -hex 32`), `RATE_LIMIT_SECRET` (`openssl rand -hex 32`, zalecane: klucz liczników limitów żądań), `WINE_MATCH_TAG` (tag z kroku 2). `.env` nigdy nie trafia do repozytorium ani do obrazu (`.dockerignore`, `.gitignore`). **Sprawdź hasło bazy** (trafia do adresu URL, więc znaki specjalne `@ : / ? # % +` psują połączenie; Compose nie umie go zakodować):
    ```sh
    pw="$(sed -n 's/^POSTGRES_PASSWORD=//p' .env | tail -1)"
    printf '%s' "$pw" | grep -Eq '^[A-Za-z0-9]{24,}$' && echo 'POSTGRES_PASSWORD ok' || echo 'POSTGRES_PASSWORD: tylko litery i cyfry, min. 24 znaki (openssl rand -hex 24)'
@@ -80,6 +80,9 @@ Obraz bazowy `node:22.22-bookworm-slim` jest przypięty digestem w `Dockerfile` 
 |---|---|---|
 | `DEMO_RESTAURANT_SLUG` | `halka` | dokąd prowadzi adres `/`; ustaw na slug pilota, inaczej `/` kończy się 404 (`smoke --production` to wykrywa) |
 | `METRICS_TOKEN` | brak (endpoint metryk odpowiada 404) | min. 32 znaki, `openssl rand -hex 32`; nie używaj ponownie innego sekretu |
+| `TRUSTED_PROXY_HOPS` | `0` w aplikacji; **`1` w `docker-compose.yml`** (aplikacja słucha tylko na `127.0.0.1`, przed nią jest proxy z sekcji 6) | ile zaufanych reverse proxy dopisuje adres do `X-Forwarded-For` (0–10). `0` = nagłówek nie jest czytany wcale (klient mógłby wpisać dowolny adres) i **wszyscy klienci dzielą jeden licznik limitów** z limitem o połowę niższym; start w produkcji to ostrzega. Ustaw dokładnie tyle, ile proxy stoi przed aplikacją (CDN przed nginx = 2); więcej niż w rzeczywistości pozwala klientowi podać fałszywy adres |
+| `RATE_LIMIT_SECRET` | losowy na proces (start w produkcji ostrzega) | min. 32 znaki, `openssl rand -hex 32`; klucz skrótu HMAC klienta (adres IP nigdy nie trafia do bazy ani logów, klucz zmienia się co dobę UTC). Bez niego liczniki zaczynają od zera po restarcie, a kilka instancji na jednej bazie liczy osobno. Nie używaj ponownie innego sekretu |
+| `RATE_LIMITS` | domyślne z `packages/core/src/ratelimit/rules.ts` | nadpisanie limitów: `reguła=limit/oknoSekund` po przecinku, np. `login=10/600,public-api=240/60`; reguły: `public-api` (120/60), `login` (20/600), `code-issue` (60/600), `code-lookup` (60/600), `code-mark` (30/600), `pin-login` (60/600, jeszcze bez użycia). Literówka zatrzymuje start. Kalibracja po tygodniu pilota na `rate_limit_denied_total{rule}` (`docs/OPERATIONS.md`) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `DB_POOL_MIN`, `DB_POOL_MAX`, `DB_DEBUG` | 2, 10, `false` | pula połączeń na instancję |
 | `POSTGRES_USER`, `POSTGRES_DB` | `winematch` | |
@@ -106,14 +109,16 @@ Proxy działa na hoście i przekazuje ruch na `127.0.0.1:${APP_PORT:-3000}`. Wym
 | Log dostępu **bez query string** | loguj ścieżkę (`$uri`), nie pełne żądanie (`$request`); format JSON, retencja 30 dni | `sid=`, `diet=`, `without=` ujawniają dane o zdrowiu, `/admin/accept?token=` niesie jednorazowy token zaproszenia |
 | Limit rozmiaru ciała | min. **12 MB** na `/admin/` (akcje serwerowe: plik 10 MB plus pola, aplikacja ma limit 11 MB) | mniejszy limit psuje import menu |
 | Metody | przepuszczaj tylko `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`; **blokuj `TRACE`** (i `TRACK`, `CONNECT`) | TRACE odbija nagłówki, w tym ciasteczka |
-| Nagłówki | `Host`, `X-Forwarded-For`, `X-Forwarded-Proto: https`, `X-Forwarded-Host` | strony rozpoznają adres z nagłówków |
+| Nagłówki | `Host`, `X-Forwarded-For` **dopisany przez proxy** (nginx: `$proxy_add_x_forwarded_for`; Caddy domyślnie zastępuje nagłówek adresem klienta), `X-Forwarded-Proto: https`, `X-Forwarded-Host` | strony rozpoznają adres z nagłówków; limity żądań liczą klienta po ostatnim adresie z `X-Forwarded-For` (`TRUSTED_PROXY_HOPS=1`, ustawione w Compose) |
 | Cache | nie buforuj `/admin/*`, `/api/*`, `/demo/*` | aplikacja wysyła `no-store`, proxy nie powinien go nadpisywać |
 | Metryki | nie wystawiaj `/api/v1/metrics` publicznie, jeśli scraper jest lokalny (token jest jedyną ochroną) | |
-| Limit żądań per IP | **wymagane przed pierwszym prawdziwym najemcą**, na razie niezaimplementowane w aplikacji (E21 F3, `docs/OPERATIONS.md`); do czasu E21 F3 ustaw limit w proxy na `/api/v1/auth/` i `/api/v1/public/` | decyzja D4 |
+| Limit żądań per IP | **dwie warstwy** (spec E21 Q5). Aplikacja (od E21 F3) liczy reguły znające semantykę: logowanie, publiczne API, wydanie, wyszukanie i oznaczenie kodu polecenia, wspólnie dla wszystkich instancji przez PostgreSQL (`TRUSTED_PROXY_HOPS`, `RATE_LIMIT_SECRET`, `RATE_LIMITS` w sekcji 4). Proxy trzyma tylko **ogólny** limit na IP przeciw zalewowi (przykład niżej: 20 req/s, burst 40), bez osobnych reguł dla `/api/v1/auth/` i `/api/v1/public/`. Proxy musi być jedynym źródłem `X-Forwarded-For`: aplikacja słucha tylko na `127.0.0.1` | decyzja D4 |
 
 Przykład dla nginx (nie uruchomiony w tym repozytorium: sprawdź `nginx -t` na hoście; dopasuj domenę i ścieżki certyfikatów):
 
 ```nginx
+limit_req_zone $binary_remote_addr zone=wm_per_ip:10m rate=20r/s;   # w bloku http
+
 log_format wm escape=json '{"time":"$time_iso8601","method":"$request_method","path":"$uri","status":$status,"bytes":$body_bytes_sent,"rt":$request_time}';
 
 server {
@@ -135,6 +140,7 @@ server {
   client_max_body_size 12m;
 
   if ($request_method !~ ^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)$) { return 405; }   # blokuje TRACE
+  limit_req zone=wm_per_ip burst=40 nodelay;   # ogólny limit na IP (strefa `limit_req_zone` wyżej, w bloku http); reguły per trasa liczy aplikacja
 
   location / {
     proxy_pass http://127.0.0.1:3000;

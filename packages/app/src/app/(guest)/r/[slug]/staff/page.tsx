@@ -2,12 +2,14 @@ import {
   DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, formatServiceTime, normalizeCode, prefsToQuery, type CodeLookup, type Locale, type Wine
 } from '@wine-match/core';
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { Button, EmptyState, Explain, LanguageSwitch, ModeSwitch, Price, Seal, TopBar } from '../../../_components/guest-ui';
 import { PrefChips } from '../../../_components/pref-chips';
 import { CodeSection, type CodeCard } from './code-section';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import type { Dictionary } from '@/i18n/en';
 import { formatPrice, getI18n } from '@/server/i18n';
+import { checkRateLimit } from '@/server/rate-limit';
 import { trackUsage } from '@/server/usage-events';
 
 export const dynamic = 'force-dynamic';
@@ -32,13 +34,17 @@ export default async function StaffPage({ params, searchParams }: Props) {
   if (!menu) notFound();
 
   const codeInput = typeof q.code === 'string' ? q.code.trim().slice(0, 16) : '';
-  const found = codeInput ? await services.recommendationCodeService.lookup(slug, codeInput) : null;
+  // spec E21 F3 (R9): every lookup counts against `code-lookup`; over it nothing is looked up and the answer is "too many
+  // attempts", never "not found" (that would tell a guesser the code is wrong). `codeError=rate_limited` comes from "Ordered".
+  const limited = codeInput ? !(await checkRateLimit(services, 'code-lookup', await headers())).allowed : false;
+  const found = codeInput && !limited ? await services.recommendationCodeService.lookup(slug, codeInput) : null;
   const card = found
     ? codeCard(found, (await services.recommendationService.wineDetails(slug, found.record.wineId, undefined, locale))?.wine ?? found.wine, menu.dishes, t, locale)
     : null;
   const marked = q.marked === 'confirmed' ? t.guest.staff.code.confirmed : q.marked === 'undone' ? t.guest.staff.code.undone : null;
   // R6: an unknown, foreign, yesterday's or malformed code — the same sentence, whatever the reason
-  const codeMessage = codeInput ? (card ? marked : t.guest.staff.code.notFound(normalizeCode(codeInput) ?? codeInput)) : null;
+  const codeMessage = limited || q.codeError === 'rate_limited' ? t.guest.staff.code.tooMany
+    : codeInput ? (card ? marked : t.guest.staff.code.notFound(normalizeCode(codeInput) ?? codeInput)) : null;
   // `staff_lookup` only when the waiter chose a dish (`dish=` of the published menu), not for the first dish shown (Q9)
   const chosen = menu.dishes.find((d) => d.id === q.dish);
   const dish = chosen ?? menu.dishes[0];

@@ -1,7 +1,8 @@
-import type { IssueCodeInput, IssuedCode, RecommendationCodeService } from '@wine-match/core';
+import type { Clock, IssueCodeInput, IssuedCode, RateLimitGuard, RecommendationCodeService } from '@wine-match/core';
 import { headers } from 'next/headers';
 import { logger } from './logger';
 import { countCodeIssue } from './metrics';
+import { checkRateLimit } from './rate-limit';
 import { shouldRecord } from './usage-events';
 
 /**
@@ -9,17 +10,24 @@ import { shouldRecord } from './usage-events';
  * must be on the page, so the write happens before the response — but it never decides the response: no code for
  * a prefetch, a bot, a link preview or our synthetic traffic (`shouldRecord`, E02), and a failed or slow write
  * gives a page without a code, with the same status. E08 calls this on the staff table result with `source: 'staff'`.
+ * Spec E21 F3 (R9, AC8): after `shouldRecord`, the `code-issue` limit of the client; over it the page has no code (same
+ * "code unavailable" screen, status 200) and `guest_code_issue_total{result="rate_limited"}` counts it.
  */
 
 /** The page waits at most this long for the code. A write that loses the race may still commit: that code is simply unused. */
 export const ISSUE_TIMEOUT_MS = 1500;
 
 export async function issueCodeForPage(
-  services: { recommendationCodeService: RecommendationCodeService },
+  services: { recommendationCodeService: RecommendationCodeService; rateLimitGuard: RateLimitGuard; clock: Clock },
   restaurant: { id: string; slug: string },
   input: IssueCodeInput
 ): Promise<IssuedCode | null> {
-  if (!shouldRecord(await headers())) return null;
+  const h = await headers();
+  if (!shouldRecord(h)) return null;
+  if (!(await checkRateLimit(services, 'code-issue', h)).allowed) {
+    countCodeIssue('rate_limited');
+    return null;
+  }
   let timer: ReturnType<typeof setTimeout> | undefined;
   // set only by the timer, so `timeout` is exactly "the 1.5 s budget ran out"; any other rejection is `error`
   let timedOut = false;

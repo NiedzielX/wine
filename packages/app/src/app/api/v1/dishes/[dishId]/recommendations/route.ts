@@ -14,7 +14,7 @@ const MAX_LIMIT = 6;
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ dishId: string }> }) {
   const { dishId } = await ctx.params;
-  return handlePublic(req, { route: '/api/v1/dishes/{dishId}/recommendations', write: false }, async ({ c }) => {
+  return handlePublic(req, { route: '/api/v1/dishes/{dishId}/recommendations', write: false, rateLimit: 'public-api' }, async ({ c }) => {
     const q = req.nextUrl.searchParams;
     const slug = q.get('restaurant');
     if (!slug) return apiError(422, 'validation_failed', 'Query parameter "restaurant" is required.', { restaurant: 'required' });

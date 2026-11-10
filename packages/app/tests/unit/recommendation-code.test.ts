@@ -1,4 +1,4 @@
-import { serviceDay, type RecommendationCodeRepository, type RecommendationCodeService } from '@wine-match/core';
+import { serviceDay, type RecommendationCodeRepository, type RateLimitGuard, type RecommendationCodeService } from '@wine-match/core';
 import { createElement, type FunctionComponent } from 'react';
 import { prerender } from 'react-dom/static';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -149,7 +149,11 @@ describe('G8 when the write fails (R4, AC6)', () => {
 describe('issueCodeForPage (R4, AC6)', () => {
   const restaurant = () => ({ id: restaurantId, slug: 'halka' });
   const input = () => ({ session: { id: SID, isNew: false, source: 'link' as const }, source: 'guest' as const, wineId: wine, serving: 'bottle' as const, dishIds: [] });
-  const failing = (issue: RecommendationCodeService['issue']) => ({ recommendationCodeService: { issue } as unknown as RecommendationCodeService });
+  const failing = (issue: RecommendationCodeService['issue']) => ({
+    recommendationCodeService: { issue } as unknown as RecommendationCodeService,
+    rateLimitGuard: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) } as unknown as RateLimitGuard,
+    clock: { now: () => new Date() }
+  });
 
   it('a failing write gives no code and a warning without guest data', async () => {
     setHeaders();

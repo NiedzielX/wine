@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * Best bottle for the whole table (docs/API_SPECIFICATION.md).
  */
 export async function POST(req: NextRequest) {
-  return handlePublic(req, { route: '/api/v1/recommendations/table', write: false }, async ({ c }) => {
+  return handlePublic(req, { route: '/api/v1/recommendations/table', write: false, rateLimit: 'public-api' }, async ({ c }) => {
     const body = await parseBody(req, tableRecommendationSchema);
     // the same normalisation as the guest pages, so styles may be a list or a comma-separated string
     const p = body.preferences ?? {};
