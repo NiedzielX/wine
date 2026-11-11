@@ -37,7 +37,7 @@ The shared counter table never stores a client's IP address.
 
 ## Data and cleanup
 
-- A second built app on the shared e2e database with test-only limits, one trusted proxy hop and a test-only secret; client addresses from TEST-NET-3. The counter rows of this file are deleted at the end and the table is checked to be exactly as found. Plain HTTP, no browser.
+- A second built app on the shared e2e database with test-only limits, one trusted proxy hop and a test-only secret; client addresses from TEST-NET-3. At the end the whole counter table is restored from the snapshot taken at the start and checked to be exactly as found; this assumes no other process uses the limiter on that database while the file runs (the shared e2e app is idle: files run one at a time). Plain HTTP, no browser.
 
 ## Test implementation
 

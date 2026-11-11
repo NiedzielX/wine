@@ -10,7 +10,9 @@ interface Entry { windowStart: number; windowEnd: number; count: number }
  * Fixed-window counters in one process (DATA_SOURCE=memory, spec E21 F3 R7). Memory is BOUNDED: when a new counter would pass
  * `maxEntries`, the least recently used counters go (and with them any ended windows at the front of the order). A client whose counter is evicted
  * starts again from zero, which only matters when more than `maxEntries` clients are active at once (documented risk). Past
- * `maxClientsPerWindow` distinct clients of one rule in one window, new clients share one overflow counter (degraded mode). The
+ * `maxClientsPerWindow` distinct clients of one rule in one window, new clients share one overflow counter (degraded mode). The LRU
+ * map is shared by all rules and its default size equals the default ceiling, so under heavy traffic eviction starts before the
+ * ceiling matters and an evicted client comes back as new: parity with `PgRateLimiter` is the ceiling semantics, not flood behaviour. The
  * map keys are built from our own rule names and hashed keys (never a client-chosen object key).
  */
 export class MemoryRateLimiter implements RateLimiter {

@@ -34,7 +34,11 @@ export function resetRateLimiterCleanup(): void {
  *    `~overflow` row of the rule instead (degraded mode, same limit, `degraded: true` so the guard can log it);
  *  - rows of ended windows of a rule are deleted at most once a minute per process, so a row lives about one window, not days.
  * So a rule holds at most `rateLimitMaxClients + 2` rows per live window. Concurrent first hits of one client are still counted
- * together (`insert … on conflict do update`); they may count the client twice in `~clients`, which only makes the ceiling stricter.
+ * together (`insert … on conflict do update`), but each of N parallel FIRST hits of one client raises `~clients` (by at most N, tested):
+ * one source can inflate the count by its parallelism, so the ceiling can trip with far fewer distinct addresses than
+ * `rateLimitMaxClients`; new legitimate clients then share `~overflow` until the window ends. Leniency is never the result.
+ * The unidentified variant of a rule (half limit) shares the rule's `~overflow` row with the identified one; each compares the
+ * shared count with its own limit, so in degraded mode who is refused first depends on arrival order.
  * A failing clean-up is logged and retried sooner; it never changes the decision of the hit that was already counted.
  */
 export class PgRateLimiter implements RateLimiter {

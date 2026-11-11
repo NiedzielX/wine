@@ -46,7 +46,8 @@ describe('request limits on the built app (PostgreSQL)', () => {
   afterAll(async () => {
     await app?.stop();
     // put the table back exactly as found: this app also bumps the per-window client counts (`~clients`) and deletes ended windows of
-    // other apps' rows, so a delete of our own keys is not enough; the shared app is idle while this file runs
+    // other apps' rows, so a delete of our own keys is not enough. ASSUMPTION: no other process uses the limiter on this database
+    // while this file runs (e2e files run one at a time and the shared app is idle); a concurrent writer would be overwritten here
     await queryDatabase(dbUrl(), 'delete from rate_limit_bucket');
     for (const r of before) await queryDatabase(dbUrl(), 'insert into rate_limit_bucket (key, rule, window_start, count) values ($1, $2, $3, $4)', [r.key, r.rule, r.window_start, r.count]);
     expect(await tableRows()).toEqual(before);

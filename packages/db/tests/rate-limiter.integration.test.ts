@@ -36,6 +36,17 @@ describe('PgRateLimiter on PostgreSQL', () => {
     expect(found).toEqual([{ count: 10 }]);
   });
 
+  it('documents the known overcount: N parallel first hits of ONE client raise the window client count by at least 1 and at most N', async () => {
+    const results = await Promise.all(Array.from({ length: 10 }, () => limiter().hit(rule, 'parallel-first', now)));
+    const [{ count: clients }] = await orm.em.fork().getConnection().execute<Array<{ count: number }>>(`select count from rate_limit_bucket where key = '~clients' and rule = 'code-mark'`);
+    expect(clients).toBeGreaterThanOrEqual(1);
+    expect(clients).toBeLessThanOrEqual(10);
+    // the hits themselves are still counted exactly on the client's own row
+    expect(results.filter((r) => r.allowed)).toHaveLength(5);
+    const [{ count: own }] = await orm.em.fork().getConnection().execute<Array<{ count: number }>>(`select count from rate_limit_bucket where key = 'parallel-first'`);
+    expect(own).toBe(10);
+  });
+
   it('a flood of distinct new clients stays bounded: at most the ceiling plus two bookkeeping rows, and the overflow still limits', async () => {
     const results = [];
     for (let i = 0; i < 300; i++) results.push(await limiter({ maxClients: 20 }).hit(rule, `flood-${i}`, now));

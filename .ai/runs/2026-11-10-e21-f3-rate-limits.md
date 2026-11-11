@@ -58,6 +58,9 @@ Oba review: „approve with changes”, bez blokera. Każda testowalna poprawka 
 - Weryfikacja po poprawkach: `test:db` 213 zielonych (PostgreSQL 16 lokalnie), `npm test` core 762, db 126, ui 62, app 520, testkit 676; lint, typecheck, `build`, `check:context` (0 błędów), `check:qa` (119), `check:routes`, `check:pages`, `check:boundaries`, `secrets:scan`, `release:notes -- check` zielone; snapshoty migracji bez zmian; e2e `rate-limits`, `health`, `observability` 10 zielonych (tabela odtworzona i porównana).
 - Dowody mutacyjne na nowym kodzie: `decide()` z `allowed: true`: 8 testów core i 8 z 9 PG czerwonych; sufit wyłączony (`degraded = false && …`): 2 testy PG czerwone (kontrakt i zalew); sprzątanie bez `try/catch`: test awarii sprzątania czerwony; bez odrzucania `%` w `countingUnit`: test stref czerwony. Po przywróceniu zielone.
 
+## Delta review 7bb42b4 (2026-11-11): tylko dokumentacja
+Akceptacja z uwagami niskimi; bez zmian logiki. (A) zawyżenie `~clients` przez równoległe pierwsze trafienia jednego klienta (do N, nie „dwa razy”): poprawione w opisie klasy `PgRateLimiter`, D10, `OPERATIONS.md`, T-13; nowy test PG dokumentuje granicę (10 równoległych pierwszych trafień: 1 ≤ `~clients` ≤ 10, własny licznik dokładnie 10). (B) rozjazd zegarów instancji a sprzątanie (tylko łagodniej): wiersz NTP w `DEPLOYMENT.md` §4. (C) parzystość pamięci z PostgreSQL doprecyzowana (wspólne LRU 10 000 dla wszystkich reguł, wyparty klient wraca jako nowy). (D) wariant nieidentyfikowany dzieli `~overflow` z identyfikowanym: kolejność decyduje (D10, OPERATIONS, T-13, opis klasy). (E) założenie „nikt inny nie używa limitera w czasie pliku e2e” w komentarzu testu i w pięciu scenariuszach QA.
+
 ## Dług i uwagi
 - Retencja `rate_limit_bucket` jako wpis w rejestrze F4 (dziś sprzątanie w adapterze).
 - Bez `RATE_LIMIT_SECRET` instancje liczą osobno; rozważyć wymaganie sekretu w kolejnym wydaniu łamiącym (z notą w UPGRADE_NOTES).
