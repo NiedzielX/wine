@@ -23,7 +23,20 @@ export interface RateLimitDecision {
   allowed: boolean;
   /** whole seconds until the window ends (at least 1); what `Retry-After` says */
   retryAfterSeconds: number;
+  /** true: the rule ran past its ceiling of distinct clients in this window and the hit counted on the shared overflow counter */
+  degraded?: true;
 }
+
+/**
+ * Storage bound (review of PR #148): at most this many distinct clients per rule and window get their own counter; every NEW client
+ * after that counts on one shared overflow counter with the same limit (degraded mode: a flood of fresh addresses, e.g. many IPv6
+ * /64s, cannot grow the table without bound and is still limited as a group). `RATE_LIMIT_MAX_CLIENTS` overrides it.
+ */
+export const DEFAULT_RATE_LIMIT_MAX_CLIENTS = 10_000;
+/** The shared counter of the degraded mode; not a hex digest, so it can never be a client's key. */
+export const RATE_LIMIT_OVERFLOW_KEY = '~overflow';
+/** The per-window count of distinct clients a store keeps for the ceiling (PostgreSQL); not a hex digest either. */
+export const RATE_LIMIT_CLIENT_COUNT_KEY = '~clients';
 
 const rule = (name: RateLimitRuleName, limit: number, windowSeconds: number): RateLimitRule => ({ name, limit, windowSeconds });
 
@@ -57,9 +70,11 @@ export function windowStartMs(r: RateLimitRule, now: Date): number {
 }
 
 /** The decision for the `count`-th hit (1-based, this hit included) in the window that started at `windowStart`. */
-export function decide(r: RateLimitRule, count: number, windowStart: number, now: Date): RateLimitDecision {
+export function decide(r: RateLimitRule, count: number, windowStart: number, now: Date, degraded = false): RateLimitDecision {
   const left = windowStart + r.windowSeconds * 1000 - now.getTime();
-  return { allowed: count <= r.limit, retryAfterSeconds: Math.max(1, Math.ceil(left / 1000)) };
+  const decision: RateLimitDecision = { allowed: count <= r.limit, retryAfterSeconds: Math.max(1, Math.ceil(left / 1000)) };
+  if (degraded) decision.degraded = true;
+  return decision;
 }
 
 /**

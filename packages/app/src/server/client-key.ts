@@ -47,9 +47,14 @@ function ipv6Groups(ip: string): number[] | null {
   return groups.length === 8 && groups.every((n) => Number.isInteger(n) && n >= 0 && n <= 0xffff) ? groups : null;
 }
 
-/** The address as one counting unit: IPv4 as is, IPv4-mapped IPv6 as IPv4, other IPv6 as its /64. null when it is not an address. */
+/**
+ * The address as one counting unit: IPv4 as is, IPv4-mapped IPv6 as IPv4, other IPv6 as its /64. null when it is not an address.
+ * A zone id (`fe80::1%eth0`) is refused: it passes `isIP` but is local-link only and would let one client write many spellings.
+ * IPv4 with leading-zero octets (`01.2.3.4`) is refused by `isIP` itself (ambiguous: octal in some parsers), also when embedded.
+ */
 export function countingUnit(raw: string): string | null {
   const ip = raw.trim();
+  if (ip.includes('%')) return null;
   const kind = isIP(ip);
   if (kind === 4) return ip;
   if (kind !== 6) return null;

@@ -17,7 +17,7 @@ describe('development', () => {
     expect(parseEnv({})).toEqual({
       nodeEnv: 'development', isProduction: false, dataSource: 'memory', databaseUrl: null, secureCookies: false, publicBaseUrl: 'http://localhost:3000',
       publicBaseUrlIsDefault: true, allowLocalBaseUrl: false, logLevel: 'debug', demoRestaurantSlug: 'halka', metricsToken: null, showcaseMode: 'off',
-      rateLimitSecret: null, trustedProxyHops: 0, rateLimitRules: DEFAULT_RATE_LIMIT_RULES
+      rateLimitSecret: null, trustedProxyHops: 0, rateLimitRules: DEFAULT_RATE_LIMIT_RULES, rateLimitMaxClients: 10_000
     });
   });
 

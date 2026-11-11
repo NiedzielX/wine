@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { RESTAURANT as DEMO_RESTAURANT } from '../demo/halka';
 import type { LogLevel } from '../logging/logger';
-import { parseRateLimits, type RateLimitRules } from '../ratelimit/rules';
+import { DEFAULT_RATE_LIMIT_MAX_CLIENTS, parseRateLimits, type RateLimitRules } from '../ratelimit/rules';
 
 /**
  * The application's configuration, read once from the environment and checked. A wrong or missing
@@ -46,6 +46,8 @@ export interface AppEnv {
   trustedProxyHops: number;
   /** RATE_LIMITS over the defaults of `DEFAULT_RATE_LIMIT_RULES` */
   rateLimitRules: RateLimitRules;
+  /** RATE_LIMIT_MAX_CLIENTS: distinct clients per rule and window with their own counter; past it new clients share one (degraded mode) */
+  rateLimitMaxClients: number;
 }
 
 export class ConfigError extends Error {
@@ -72,6 +74,7 @@ const schema = z.object({
   RATE_LIMIT_SECRET: optional(z.string().min(32, { error: 'must be at least 32 characters (openssl rand -hex 32), or leave it unset' })),
   TRUSTED_PROXY_HOPS: optional(z.string().regex(/^(10|[0-9])$/, { error: 'must be a whole number from 0 to 10 (0 = do not trust X-Forwarded-For)' })),
   RATE_LIMITS: optional(z.string()),
+  RATE_LIMIT_MAX_CLIENTS: optional(z.string().regex(/^[1-9]\d{0,6}$/, { error: 'must be a whole number from 1 to 9999999' })),
   DEMO_RESTAURANT_SLUG: optional(z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: 'must be a lower-case address name' }))
 });
 
@@ -176,6 +179,7 @@ export function parseEnv(raw: Record<string, string | undefined>): AppEnv {
     showcaseMode: showcase as ShowcaseMode,
     rateLimitSecret: e.RATE_LIMIT_SECRET ?? null,
     trustedProxyHops: Number(e.TRUSTED_PROXY_HOPS ?? '0'),
-    rateLimitRules: rateLimitRules as RateLimitRules
+    rateLimitRules: rateLimitRules as RateLimitRules,
+    rateLimitMaxClients: e.RATE_LIMIT_MAX_CLIENTS ? Number(e.RATE_LIMIT_MAX_CLIENTS) : DEFAULT_RATE_LIMIT_MAX_CLIENTS
   };
 }

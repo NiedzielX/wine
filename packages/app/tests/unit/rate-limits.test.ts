@@ -75,6 +75,12 @@ describe('client key (R8)', () => {
     expect(clientKey(h('garbage'), { hops: 1, secret: null }, at).identified).toBe(false);
   });
 
+  it('refuses an address with a zone id and IPv4 with leading-zero octets (unidentified, never a fresh counter)', () => {
+    for (const bad of ['::ffff:1.2.3.4%x', 'fe80::1%eth0', '2001:db8::1%25', '01.2.3.4', '1.2.3.04', '::ffff:01.2.3.4']) expect(countingUnit(bad)).toBeNull();
+    expect(clientAddress(h('9.9.9.9, ::ffff:203.0.113.7%x'), 1)).toBeNull();
+    expect(clientKey(h('fe80::1%eth0'), { hops: 1, secret: 's'.repeat(32) }, at).identified).toBe(false);
+  });
+
   it('counts IPv6 per /64 and IPv4-mapped IPv6 as IPv4', () => {
     expect(countingUnit('2001:db8:1:2:aaaa::1')).toBe('2001:db8:1:2::/64');
     expect(countingUnit('2001:DB8:1:2:ffff:ffff:ffff:ffff')).toBe('2001:db8:1:2::/64');
@@ -207,7 +213,7 @@ describe('recommendation code (code-issue, code-lookup, code-mark: AC8)', () => 
     const { c, restaurant, input } = await issueInput();
     setHeaders({ 'user-agent': SAFARI, 'x-forwarded-for': ip() });
     const failing: RateLimiter = { hit: async () => { throw new Error('store down'); } };
-    const guard = new RateLimitGuard({ rateLimiter: failing, clock: c.clock, logger: c.logger, rateLimitRules: c.rateLimitRules });
+    const guard = new RateLimitGuard({ rateLimiter: failing, clock: c.clock, logger: c.logger, rateLimitRules: c.rateLimitRules, rateLimitLogThrottle: c.rateLimitLogThrottle });
     for (let i = 0; i < 4; i++) expect(await issueCodeForPage({ ...c, rateLimitGuard: guard }, restaurant, { ...input, session: c.usageEventService.session({}, 'guest') })).not.toBeNull();
   });
 

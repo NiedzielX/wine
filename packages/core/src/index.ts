@@ -8,6 +8,7 @@ export * from './i18n/locale';
 export * from './i18n/content';
 export * from './logging/logger';
 export * from './logging/redact';
+export * from './logging/log-throttle';
 export * from './config/env';
 export * from './showcase';
 export * from './validators';

@@ -1,4 +1,5 @@
 import type { Logger } from '../logging/logger';
+import type { LogThrottle } from '../logging/log-throttle';
 import type { Clock, RateLimiter } from '../ports/runtime';
 import { ruleForClient, type RateLimitDecision, type RateLimitRuleName, type RateLimitRules } from './rules';
 
@@ -13,23 +14,34 @@ export interface RateLimitGuardDeps {
   clock: Clock;
   logger: Logger;
   rateLimitRules: RateLimitRules;
+  /** one per process (the container registers it once): the warnings below at most once a minute, whatever the flood */
+  rateLimitLogThrottle: LogThrottle;
 }
 
 /**
  * The one door every limited entry goes through (spec E21 F3, R7–R9): the configured rule, the stricter variant for an
  * unidentified client (R8), the clock from outside (deterministic tests), and Q7: a limiter store that fails does NOT turn
- * into an outage. The request is let through and a `warn` names the rule (never the key or the client).
+ * into an outage. The request is let through and a `warn` names the rule (never the key or the client), at most once a minute
+ * per process (`LogThrottle`), so a store outage under load does not flood the log. Same throttle for the degraded mode.
  */
 export class RateLimitGuard {
   constructor(private readonly deps: RateLimitGuardDeps) {}
 
   async check(ruleName: RateLimitRuleName, client: RateLimitClient): Promise<RateLimitDecision> {
     const rule = ruleForClient(this.deps.rateLimitRules[ruleName], client.identified);
+    const now = this.deps.clock.now();
+    let decision: RateLimitDecision;
     try {
-      return await this.deps.rateLimiter.hit(rule, client.key, this.deps.clock.now());
+      decision = await this.deps.rateLimiter.hit(rule, client.key, now);
     } catch (error) {
-      this.deps.logger.warn('rate limit store failed: request allowed', { rule: ruleName, error: error instanceof Error ? error.message : String(error) });
+      if (this.deps.rateLimitLogThrottle.allow('store-failed', now)) {
+        this.deps.logger.warn('rate limit store failed: request allowed', { rule: ruleName, error: error instanceof Error ? error.message : String(error) });
+      }
       return { allowed: true, retryAfterSeconds: 0 };
     }
+    if (decision.degraded && this.deps.rateLimitLogThrottle.allow(`ceiling:${ruleName}`, now)) {
+      this.deps.logger.warn('rate limit client ceiling reached: new clients share one counter', { rule: ruleName });
+    }
+    return decision;
   }
 }

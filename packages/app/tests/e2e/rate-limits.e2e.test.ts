@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
  * Spec E21 F3 (R7–R9, AC5–AC8) on the BUILT app and PostgreSQL: the request limits per route class, the trusted proxy hop and what
  * the counter table holds. A second app on the shared e2e database, with low limits, one trusted proxy hop and a test-only secret;
  * every case uses its own client address (TEST-NET-3, sent the way the proxy would). Plain HTTP, no browser. The counter rows it
- * writes are deleted at the end: the table is left exactly as found (checked).
+ * writes are removed at the end: the table is restored exactly as found (checked).
  */
 const appDir = fileURLToPath(new URL('../..', import.meta.url));
 const dbUrl = () => inject('e2e').databaseUrl;
@@ -29,11 +29,9 @@ const tableRows = () => queryDatabase<{ key: string; rule: string; window_start:
 describe('request limits on the built app (PostgreSQL)', () => {
   let app: RunningApp;
   let before: Awaited<ReturnType<typeof tableRows>>;
-  const days = new Set<string>();
 
   beforeAll(async () => {
     before = await tableRows();
-    days.add(new Date().toISOString().slice(0, 10));
     app = await startBuiltApp({
       cwd: appDir,
       readyPath: '/api/v1/health',
@@ -47,9 +45,10 @@ describe('request limits on the built app (PostgreSQL)', () => {
 
   afterAll(async () => {
     await app?.stop();
-    days.add(new Date().toISOString().slice(0, 10));
-    const keys = used.flatMap((a) => [...days].map((d) => keyOf(a, d)));
-    await queryDatabase(dbUrl(), 'delete from rate_limit_bucket where key = any($1::text[])', [keys]);
+    // put the table back exactly as found: this app also bumps the per-window client counts (`~clients`) and deletes ended windows of
+    // other apps' rows, so a delete of our own keys is not enough; the shared app is idle while this file runs
+    await queryDatabase(dbUrl(), 'delete from rate_limit_bucket');
+    for (const r of before) await queryDatabase(dbUrl(), 'insert into rate_limit_bucket (key, rule, window_start, count) values ($1, $2, $3, $4)', [r.key, r.rule, r.window_start, r.count]);
     expect(await tableRows()).toEqual(before);
   });
 
@@ -102,7 +101,10 @@ describe('request limits on the built app (PostgreSQL)', () => {
     expect(rows.length).toBeGreaterThan(0);
     const today = new Date().toISOString().slice(0, 10);
     const ours = new Set(used.map((a) => keyOf(a, today)));
-    for (const r of rows) {
+    // besides client keys, only the per-window count of clients (bookkeeping of the storage bound); no overflow: few clients here
+    const bookkeeping = rows.filter((r) => r.key.startsWith('~'));
+    expect(bookkeeping.every((r) => r.key === '~clients')).toBe(true);
+    for (const r of rows.filter((x) => !x.key.startsWith('~'))) {
       expect(r.key).toMatch(/^[0-9a-f]{32}$/);
       expect(ours.has(r.key)).toBe(true);
       for (const a of used) expect(r.key).not.toContain(a.replace(/\./g, ''));
