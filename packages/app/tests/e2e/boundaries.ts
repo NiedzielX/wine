@@ -42,7 +42,17 @@ export async function payload(s: Session, path: string): Promise<string> {
 }
 
 /** One digest per table the attempts could touch: md5 over every row's text, ordered. Equal before and after means no row changed. */
-export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal'];
+/**
+ * Every table of the schema except the migration log (checked against information_schema by `assertTablesCovered()`): translations
+ * live in `dish`/`wine` columns and import rows in `import_job`, so there are no separate tables for them. `session` has no
+ * last-seen column, so reads do not change it; `guest_interaction` (usage events) changes on guest page views by design.
+ */
+export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'session', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal', 'guest_interaction'];
+/** Fails when the schema has a table the digest does not cover (a new table must join TABLES). */
+export async function assertTablesCovered(): Promise<void> {
+  const all = (await queryDatabase<{ t: string }>(db(), `select table_name as t from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name not like 'mikro_orm%' order by 1`, [])).map((r) => r.t);
+  expect(all.filter((t) => !TABLES.includes(t)), 'tables missing from the digest').toEqual([]);
+}
 export async function digest(): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   for (const t of TABLES) {
@@ -72,15 +82,50 @@ export const members = async (s: Session, slug: string) => ((await (await get(s,
 /** The panels that host the server actions: Next.js answers 409 "Server Action unavailable" when a form is posted to a page that does not reference the action. */
 const ACTION_HOSTS = ['/setup', '/publish', '/review', '/opportunities', '/wines', '/import/wines', '/team'];
 
+/** The id of a server action in the build's own manifest. */
+export function actionId(exportedName: string): string {
+  const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../../.next/server/server-reference-manifest.json', import.meta.url)), 'utf8')) as { node: Record<string, { exportedName: string }> };
+  const id = Object.entries(manifest.node).find(([, v]) => v.exportedName === exportedName)?.[0];
+  if (!id) throw new Error(`no server action named ${exportedName} in the build`);
+  return id;
+}
+
+/**
+ * A server action posted as a plain form (no JavaScript) to `path`, with or without a session: for the doors outside `[slug]`
+ * (sign-in, sign-out, language, accept an invitation). Fields may repeat (`[name, value]` pairs). Returns status, redirect target and
+ * the cookies set.
+ */
+export async function postForm(cookie: string | undefined, exportedName: string, path: string, fields: Array<[string, string]>): Promise<{ status: number; location: string; setCookie: string }> {
+  const form = new FormData();
+  form.set(`$ACTION_ID_${actionId(exportedName)}`, '');
+  for (const [k, v] of fields) form.append(k, v);
+  const res = await fetch(`${base()}${path}`, { method: 'POST', body: form, redirect: 'manual', headers: { origin: origin(), 'sec-fetch-site': 'same-origin', ...(cookie ? { cookie } : {}) } });
+  await res.text();
+  return { status: res.status, location: res.headers.get('location') ?? '', setCookie: res.headers.get('set-cookie') ?? '' };
+}
+
+/**
+ * A server action called the way the client router calls it (`Next-Action` header, arguments encoded by React's own `encodeReply`),
+ * for actions whose result is the form's state (`useActionState`, e.g. `inviteMember`): returns the RSC text of the answer, which
+ * carries the returned state, and the redirect the action asked for (`x-action-redirect`), if any.
+ */
+export async function callAction(s: Session | undefined, exportedName: string, path: string, args: unknown[]): Promise<{ status: number; text: string; redirect: string }> {
+  const { encodeReply } = (await import('next/dist/compiled/react-server-dom-webpack/client.node' as string)) as { encodeReply: (v: unknown) => Promise<string | FormData> };
+  const body = await encodeReply(args);
+  const res = await fetch(`${base()}${path}`, {
+    method: 'POST', body, redirect: 'manual',
+    headers: { 'next-action': actionId(exportedName), accept: 'text/x-component', origin: origin(), 'sec-fetch-site': 'same-origin', ...(s ? { cookie: s.cookie } : {}), ...(typeof body === 'string' ? { 'content-type': 'text/plain;charset=UTF-8' } : {}) }
+  });
+  return { status: res.status, text: await res.text(), redirect: res.headers.get('x-action-redirect') ?? res.headers.get('location') ?? '' };
+}
+
 /**
  * A server action of the panel, sent the way a browser without JavaScript sends its form: multipart POST with the action id from the
  * build's own manifest as `$ACTION_ID_<id>`, the session cookie and a same-origin `Origin`, to a page of `slug` that hosts it.
  * Returns the redirect target (`?saved=` / `?error=`).
  */
 export async function runAction(s: Session, exportedName: string, slug: string, fields: Record<string, string>): Promise<{ status: number; location: string }> {
-  const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../../.next/server/server-reference-manifest.json', import.meta.url)), 'utf8')) as { node: Record<string, { exportedName: string }> };
-  const id = Object.entries(manifest.node).find(([, v]) => v.exportedName === exportedName)?.[0];
-  if (!id) throw new Error(`no server action named ${exportedName} in the build`);
+  const id = actionId(exportedName);
   for (const host of ACTION_HOSTS) {
     const form = new FormData();
     form.set(`$ACTION_ID_${id}`, '');

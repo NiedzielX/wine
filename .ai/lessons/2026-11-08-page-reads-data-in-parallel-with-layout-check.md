@@ -1,6 +1,6 @@
 ---
 date: 2026-11-08
-updated:
+updated: 2026-11-09
 area: security
 status: active
 source: .ai/runs/2026-11-08-boundaries-part1.md
@@ -19,4 +19,4 @@ Layout `[slug]` woła `requireAccess(slug)`, ale Next.js renderuje layout i stro
 Każda `page.tsx` pod `/admin/[slug]` woła `await requireAccess(slug)` przed pierwszym odczytem danych (`AGENTS.md` §1.3: „każde wejście sprawdza samo”). Test granicy sprawdza **ciało** odpowiedzi 403 i przekierowania pod kątem nazw z cudzych danych, nie tylko status.
 
 ## Jak sprawdzić
-`packages/app/tests/e2e/access-boundaries-matrix.e2e.test.ts`, T-29 (obce konto, obce id, konto anonimowe, 16 stron). Czerwony na `(lists)/menu/page.tsx` bez poprawki. Do zrobienia: sprawdzenie maszynowe, że każda strona pod `[slug]` woła `requireAccess` przed danymi.
+`packages/app/tests/e2e/access-boundaries-matrix.e2e.test.ts`, T-29 (obce konto, obce id, konto anonimowe, 16 stron). Czerwony na `(lists)/menu/page.tsx` bez poprawki. Od 2026-11-09 sprawdzenie maszynowe: `npm run check:pages` (każda strona, layout i akcja pod `(admin)/admin`; `Promise.all` z bramką pada zawsze), czerwone na drzewie sprzed #133 (`.ai/runs/2026-11-09-boundaries-part2.md`).
