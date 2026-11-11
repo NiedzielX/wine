@@ -201,7 +201,7 @@ describe('start-up checks (spec 2026-10-15-production-deployment, R4)', () => {
 
   /** Runs checkStartup() on a fresh module graph with exactly this environment; returns what was logged and whether the process was told to exit. */
   async function start(vars: Record<string, string>) {
-    const KEYS = ['NODE_ENV', 'DATA_SOURCE', 'DATABASE_URL', 'AUTH_COOKIE_SECURE', 'PUBLIC_BASE_URL', 'ALLOW_LOCAL_BASE_URL', 'ALLOW_DEMO_DATA'];
+    const KEYS = ['NODE_ENV', 'DATA_SOURCE', 'DATABASE_URL', 'AUTH_COOKIE_SECURE', 'PUBLIC_BASE_URL', 'ALLOW_LOCAL_BASE_URL', 'ALLOW_DEMO_DATA', 'TRUSTED_PROXY_HOPS', 'RATE_LIMIT_SECRET'];
     const before = Object.fromEntries(KEYS.map((key) => [key, process.env[key]]));
     const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     try {
@@ -221,8 +221,17 @@ describe('start-up checks (spec 2026-10-15-production-deployment, R4)', () => {
     }
   }
 
+  // the request-limit settings of a production behind the proxy (spec E21 F3): without them the start warns, below
+  const limits = { TRUSTED_PROXY_HOPS: '1', RATE_LIMIT_SECRET: 'r'.repeat(40) };
+
   it('a production start with a public https address is silent', async () => {
-    expect(await start({ ...production, PUBLIC_BASE_URL: 'https://wine.example.com' })).toEqual({ warnings: [], errors: [], exited: [] });
+    expect(await start({ ...production, ...limits, PUBLIC_BASE_URL: 'https://wine.example.com' })).toEqual({ warnings: [], errors: [], exited: [] });
+  });
+
+  it('a production start without the request-limit settings starts and warns about both (they are optional, spec E21 F3)', async () => {
+    const result = await start({ ...production, PUBLIC_BASE_URL: 'https://wine.example.com' });
+    expect(result.exited).toEqual([]);
+    expect(result.warnings).toEqual([expect.stringContaining('TRUSTED_PROXY_HOPS=0'), expect.stringContaining('RATE_LIMIT_SECRET is not set')]);
   });
 
   it.each([
@@ -237,7 +246,7 @@ describe('start-up checks (spec 2026-10-15-production-deployment, R4)', () => {
   });
 
   it('ALLOW_LOCAL_BASE_URL=true starts and warns about it, about the default address and about the cookie flag', async () => {
-    const result = await start({ ...production, ALLOW_LOCAL_BASE_URL: 'true', AUTH_COOKIE_SECURE: 'false' });
+    const result = await start({ ...production, ...limits, ALLOW_LOCAL_BASE_URL: 'true', AUTH_COOKIE_SECURE: 'false' });
     expect(result.exited).toEqual([]);
     expect(result.warnings).toEqual([expect.stringContaining('ALLOW_LOCAL_BASE_URL=true'), expect.stringContaining('PUBLIC_BASE_URL is not set'), expect.stringContaining('AUTH_COOKIE_SECURE=false')]);
   });

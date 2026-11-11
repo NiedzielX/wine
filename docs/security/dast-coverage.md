@@ -33,7 +33,7 @@ Runs in the existing `e2e` CI job against the built app (`next start`), plain `f
 - **No HSTS.** Belongs to the TLS-terminating proxy (E11); not testable locally (Q1 in the threat model).
 - **No script-src / nonce CSP** (T-16, open decision Q2).
 - **No TLS, no proxy, no real deployment** (E11 not built): `Secure` cookie on the wire, proxy access log without the query string (T-12), body size limit at the proxy (T-23).
-- **No load or rate-limit test**: login throttling per IP, guest write floods (T-07, T-13). No test of the account lockout as a denial of service.
+- **No load test of the rate limits**: since E21 F3 the per-client limits (T-07, T-13) are tested functionally (unit, PostgreSQL contract with concurrent connections, e2e on the built app), but not under load and not behind a real proxy. No test of the account lockout as a denial of service by many addresses.
 - **No fuzzing of import files** (zip bombs, malformed XLSX/PDF) (T-19).
 - **No authenticated crawl** of every panel page for headers beyond the sampled ones; the headers are set by one `source: '/:path*'` rule, so a page cannot opt out, but I sampled, not enumerated.
 - **No mobile or print flow, no cache-poisoning test, no HTTP request smuggling test** (proxy-dependent).
