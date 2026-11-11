@@ -59,6 +59,8 @@ jobs:
         run: npm run check:qa
       - name: API routes go through the instrumented wrapper (unique literal route, allowlist with reasons)
         run: npm run check:routes
+      - name: Dashboard pages, layouts and actions check access before they read data (allowlist with reasons)
+        run: npm run check:pages
       - name: Typecheck
         run: npm run typecheck
       - name: Dependency audit (high and critical block; exceptions are listed and dated)

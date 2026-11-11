@@ -46,6 +46,7 @@
     "check:context": "node scripts/check-context.mjs",
     "check:qa": "node scripts/check-qa-scenarios.mjs",
     "check:routes": "node scripts/check-routes.mjs",
+    "check:pages": "node scripts/check-pages.mjs",
     "verify:regression": "node scripts/verify-regression.mjs",
     "review:pack": "node scripts/review-pack.mjs",
     "review:validate": "node scripts/review-validate.mjs",
