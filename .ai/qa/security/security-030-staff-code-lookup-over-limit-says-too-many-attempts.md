@@ -1,5 +1,5 @@
 ---
-id: security-021-staff-code-lookup-over-limit-says-too-many-attempts
+id: security-030-staff-code-lookup-over-limit-says-too-many-attempts
 area: security
 title: "Staff code lookup over the limit says too many attempts"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "the staff view answers \"too many attempts\" over the code-lookup limit, also for traffic marked synthetic"
 ---
 
-# security-021-staff-code-lookup-over-limit-says-too-many-attempts: Staff code lookup over the limit says too many attempts
+# security-030-staff-code-lookup-over-limit-says-too-many-attempts: Staff code lookup over the limit says too many attempts
 
 ## Goal
 

@@ -1,5 +1,5 @@
 ---
-id: security-022-rate-limit-table-holds-only-keyed-hashes
+id: security-031-rate-limit-table-holds-only-keyed-hashes
 area: security
 title: "The rate-limit table holds only keyed hashes"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "the counter table holds keyed hashes only: no client address, one row per client, rule and window"
 ---
 
-# security-022-rate-limit-table-holds-only-keyed-hashes: The rate-limit table holds only keyed hashes
+# security-031-rate-limit-table-holds-only-keyed-hashes: The rate-limit table holds only keyed hashes
 
 ## Goal
 

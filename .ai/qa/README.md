@@ -14,7 +14,7 @@ A test without a scenario, or a scenario without a test, fails `node scripts/che
 `.ai/qa/{AREA}/{AREA}-{NNN}-{slug}.md`
 
 - `AREA`: one of the areas below, lowercase.
-- `NNN`: three digits, numbered per area from `001`, never reused. Do not renumber when a scenario is removed.
+- `NNN`: three digits, numbered per area from `001`, never reused. Do not renumber when a scenario is removed. Two scenarios of one area never share a number (`check:qa` fails); after merging main, a branch that took the same next number renumbers its own scenarios.
 - `slug`: lowercase ASCII words joined by hyphens.
 - The front matter `id` equals the file name without `.md`.
 - One business case per scenario: one `it` is one scenario, unless several `it`s are clearly one case.

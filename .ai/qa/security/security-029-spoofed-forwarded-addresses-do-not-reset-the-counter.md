@@ -1,5 +1,5 @@
 ---
-id: security-020-spoofed-forwarded-addresses-do-not-reset-the-counter
+id: security-029-spoofed-forwarded-addresses-do-not-reset-the-counter
 area: security
 title: "Spoofed forwarded addresses do not reset the counter"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "only the address appended by the trusted proxy counts: addresses a client writes in front of it do not give a new counter"
 ---
 
-# security-020-spoofed-forwarded-addresses-do-not-reset-the-counter: Spoofed forwarded addresses do not reset the counter
+# security-029-spoofed-forwarded-addresses-do-not-reset-the-counter: Spoofed forwarded addresses do not reset the counter
 
 ## Goal
 

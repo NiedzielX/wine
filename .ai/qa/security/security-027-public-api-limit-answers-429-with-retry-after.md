@@ -1,5 +1,5 @@
 ---
-id: security-018-public-api-limit-answers-429-with-retry-after
+id: security-027-public-api-limit-answers-429-with-retry-after
 area: security
 title: "Public API over the limit answers 429 with Retry-After"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "public API: below the limit passes, over it 429 with Retry-After and no-store; another client and the health check are not affected"
 ---
 
-# security-018-public-api-limit-answers-429-with-retry-after: Public API over the limit answers 429 with Retry-After
+# security-027-public-api-limit-answers-429-with-retry-after: Public API over the limit answers 429 with Retry-After
 
 ## Goal
 

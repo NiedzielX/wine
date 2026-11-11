@@ -1,5 +1,5 @@
 ---
-id: security-019-sign-in-has-its-own-request-limit
+id: security-028-sign-in-has-its-own-request-limit
 area: security
 title: "Sign-in has its own request limit"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "sign-in has its own counter: a client over the public-API limit signs in, and over the login limit gets 429"
 ---
 
-# security-019-sign-in-has-its-own-request-limit: Sign-in has its own request limit
+# security-028-sign-in-has-its-own-request-limit: Sign-in has its own request limit
 
 ## Goal
 
