@@ -2,9 +2,9 @@ import { asClass, asFunction, asValue, createContainer, InjectionMode, type Awil
 import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
-  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, ImportService, MemoryAuthRepository, MemorySystemHealth, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
-  InvitationService, SommelierService, TeamService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
-  type PasswordHasher, type Repositories, type SessionTokens, type SystemHealth
+  AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, DEFAULT_RATE_LIMIT_MAX_CLIENTS, DEFAULT_RATE_LIMIT_RULES, ImportService, MemoryAuthRepository, MemorySystemHealth, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
+  InvitationService, LogThrottle, MemoryRateLimiter, RateLimitGuard, SommelierService, TeamService, TranslationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
+  type PasswordHasher, type RateLimiter, type RateLimitRules, type Repositories, type SessionTokens, type SystemHealth
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
 import { env } from './env';
@@ -46,6 +46,12 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   logger: Logger;
   /** whether the database answers (GET /api/v1/health) */
   systemHealth: SystemHealth;
+  /** request limit counters (spec E21 F3): PostgreSQL, shared by every instance, or one process's memory */
+  rateLimiter: RateLimiter;
+  rateLimitRules: RateLimitRules;
+  rateLimitMaxClients: number;
+  rateLimitLogThrottle: LogThrottle;
+  rateLimitGuard: RateLimitGuard;
 }
 
 export type DataSource = 'memory' | 'postgres';
@@ -79,6 +85,12 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     salesKpiService: asClass(SalesKpiService).scoped(),
     teamService: asClass(TeamService).scoped(),
     invitationService: asClass(InvitationService).scoped(),
+    // request limits (spec E21 F3): the rules from RATE_LIMITS over the defaults, the guard per request
+    rateLimitRules: asFunction(() => env().rateLimitRules ?? DEFAULT_RATE_LIMIT_RULES).scoped(),
+    rateLimitMaxClients: asFunction(() => env().rateLimitMaxClients ?? DEFAULT_RATE_LIMIT_MAX_CLIENTS).scoped(),
+    // one per process: the limiter's warnings (store down, client ceiling reached) at most once a minute, whatever the flood
+    rateLimitLogThrottle: asValue(new LogThrottle(60_000)),
+    rateLimitGuard: asClass(RateLimitGuard).scoped(),
     // the application's logger, for services that report without failing (recommendation codes)
     logger: asValue<Logger>(logger),
     // time and identity come from outside so core stays deterministic and testable
@@ -113,6 +125,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       recommendationCodeRepository: asClass(db.PgRecommendationCodeRepository).scoped(),
       salesRepository: asClass(db.PgSalesRepository).scoped(),
       systemHealth: asClass(db.PgSystemHealth).scoped(),
+      rateLimiter: asClass(db.PgRateLimiter).scoped(),
       teamRepository: asClass(db.PgTeamRepository).scoped(),
       authAuditRepository: asClass(db.PgAuthAuditRepository).scoped(),
       invitationRepository: asClass(db.PgInvitationRepository).scoped()
@@ -139,6 +152,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       recommendationCodeRepository: asValue(repos.recommendationCodeRepository),
       salesRepository: asValue(repos.salesRepository),
       systemHealth: asValue<SystemHealth>(new MemorySystemHealth()),
+      // one process, bounded (MAX_MEMORY_RATE_LIMIT_ENTRIES): the counters live as long as the container
+      rateLimiter: asValue<RateLimiter>(new MemoryRateLimiter(undefined, env().rateLimitMaxClients ?? DEFAULT_RATE_LIMIT_MAX_CLIENTS)),
       teamRepository: asValue(repos.teamRepository),
       authAuditRepository: asValue(repos.authAuditRepository),
       invitationRepository: asValue(repos.invitationRepository)

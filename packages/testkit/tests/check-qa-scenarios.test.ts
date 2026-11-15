@@ -41,6 +41,18 @@ describe('check-qa-scenarios and the knowledge base', () => {
     expect(out).toContain('name must be {area}-{NNN}-{slug}.md');
   });
 
+  it('rejects two scenarios with the same number in one area (parallel branches picked the same next id)', () => {
+    const scenario = (id: string, title: string) => `---\nid: ${id}\narea: guest\ntitle: "x"\nstatus: automated\ntest:\n  file: packages/app/tests/e2e/a.e2e.test.ts\n  it: "${title}"\n---\n# ${id}\n`;
+    const { code, out } = run({
+      'packages/app/tests/e2e/a.e2e.test.ts': "it('one', () => {});\nit('two', () => {});\n",
+      '.ai/qa/INDEX.md': '| [guest-001-first](guest/guest-001-first.md) |\n| [guest-001-second](guest/guest-001-second.md) |\n',
+      '.ai/qa/guest/guest-001-first.md': scenario('guest-001-first', 'one'),
+      '.ai/qa/guest/guest-001-second.md': scenario('guest-001-second', 'two')
+    });
+    expect(code).toBe(1);
+    expect(out).toContain('number 001 is already used in area "guest" by guest-001-first');
+  });
+
   it('passes on this repository, knowledge base included', () => {
     const result = spawnSync(process.execPath, [SCRIPT, '--root', REPO], { encoding: 'utf8' });
     expect(result.status, result.stderr).toBe(0);
