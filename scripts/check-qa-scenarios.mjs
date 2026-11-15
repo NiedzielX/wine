@@ -9,7 +9,8 @@
  *  (a) a scenario's `test.file` or `test.it` does not exist in the referenced e2e file;
  *  (b) a scenario file name does not match {area}-{NNN}-{slug}.md in its area folder, or its `id` differs from the name;
  *  (c) an `it` in an `*.e2e.test.ts` file has no scenario that references it;
- *  (d) `.ai/qa/INDEX.md` has no row for a scenario.
+ *  (d) `.ai/qa/INDEX.md` has no row for a scenario;
+ *  (e) two scenarios of one area share a number (`security-018-a` and `security-018-b`: two branches took the same next id).
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
@@ -62,6 +63,8 @@ function value(raw) {
 
 const qaDir = join(root, '.ai', 'qa');
 const scenarios = [];
+/** `{area}-{NNN}` → the first scenario id that uses it (e) */
+const numbers = new Map();
 for (const area of listDir(qaDir)) {
   const dir = join(qaDir, area);
   // only lowercase-letter folders are areas; tooling folders such as test-env.lock are not scenarios
@@ -75,6 +78,11 @@ for (const area of listDir(qaDir)) {
     const m = NAME.exec(name);
     if (!m) problem(where, 'name must be {area}-{NNN}-{slug}.md (lowercase ASCII words joined by hyphens, NNN three digits)');
     else if (m[1] !== area) problem(where, `the name starts with area "${m[1]}" but the file is in the folder "${area}"`);
+    else {
+      const first = numbers.get(`${area}-${m[2]}`);
+      if (first) problem(where, `number ${m[2]} is already used in area "${area}" by ${first}: take the next free number`);
+      else numbers.set(`${area}-${m[2]}`, name.replace(/\.md$/, ''));
+    }
     const fm = frontMatter(normalize(readFileSync(path, 'utf8')));
     if (!fm) { problem(where, 'missing front matter (--- block at the top)'); continue; }
     const id = name.replace(/\.md$/, '');

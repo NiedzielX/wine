@@ -456,6 +456,8 @@ export const en = {
         find: 'Find',
         /** one answer for an unknown, foreign, yesterday's or malformed code (R6: no hint that it existed) */
         notFound: (code: string) => `There is no code ${code} today in this restaurant. Check the characters on the guest’s screen.`,
+        /** over the request limit of the lookup or the "Ordered" button (spec E21 F3, R9): never "not found", which would say the code is wrong */
+        tooMany: 'Too many attempts from this network. Try again in a few minutes.',
         forDish: (dish: string) => `Dish: ${dish}`,
         forTable: (dishes: string) => `For the table: ${dishes}`,
         noDish: 'Chosen without a dish',
@@ -640,8 +642,9 @@ export const en = {
         invalid_credentials: 'The e-mail or password is incorrect, or the account is temporarily locked.',
         no_panel_access: 'This account has no access to the dashboard. Waiters use the pairing lookup instead.',
         unexpected: 'Sign-in failed. Try again in a moment.',
-        showcase_read_only: 'This demo is read-only: signing in is switched off, so there is no password to try.'
-      } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected' | 'showcase_read_only', string>,
+        showcase_read_only: 'This demo is read-only: signing in is switched off, so there is no password to try.',
+        rate_limited: 'Too many sign-in attempts from this network. Try again in a few minutes.'
+      } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected' | 'showcase_read_only' | 'rate_limited', string>,
       showcaseBack: 'Back to the demo guide',
       notices: { account_created: 'Your account was created and you joined the restaurant. Sign in with the password you just chose.' } as Record<'account_created', string>
     },

@@ -342,6 +342,7 @@ export const pl = {
         label: 'Kod z ekranu gościa',
         find: 'Znajdź',
         notFound: (code: string) => `Nie ma dziś kodu ${code} w tej restauracji. Sprawdź znaki z ekranu gościa.`,
+        tooMany: 'Zbyt wiele prób z tej sieci. Spróbuj ponownie za kilka minut.',
         forDish: (dish: string) => `Danie: ${dish}`,
         forTable: (dishes: string) => `Dla stołu: ${dishes}`,
         noDish: 'Wybrane bez dania',
@@ -519,7 +520,8 @@ export const pl = {
         invalid_credentials: 'Nieprawidłowy e-mail lub hasło albo konto jest chwilowo zablokowane.',
         no_panel_access: 'To konto nie ma dostępu do panelu. Kelnerzy korzystają z podglądu parowań.',
         unexpected: 'Logowanie nie powiodło się. Spróbuj ponownie za chwilę.',
-        showcase_read_only: 'To demo jest tylko do odczytu: logowanie jest wyłączone, więc nie ma hasła do wpisania.'
+        showcase_read_only: 'To demo jest tylko do odczytu: logowanie jest wyłączone, więc nie ma hasła do wpisania.',
+        rate_limited: 'Zbyt wiele prób logowania z tej sieci. Spróbuj ponownie za kilka minut.'
       },
       showcaseBack: 'Wróć do przewodnika po demo',
       notices: { account_created: 'Konto zostało założone i dołączyłeś do restauracji. Zaloguj się hasłem, które przed chwilą wybrałeś.' } as Record<'account_created', string>

@@ -17,3 +17,13 @@ export type DatabaseHealth = 'ok' | 'skipped' | 'unreachable';
 export interface SystemHealth {
   database(): Promise<DatabaseHealth>;
 }
+
+/**
+ * Counts one hit of `key` against `rule` in the window `now` falls in and says whether it is allowed (spec E21 F3, R7). The
+ * decision itself is `decide()` from `ratelimit/rules.ts`, the same for every adapter. Infrastructure, not a tenant repository:
+ * `key` is already a keyed hash of the client (never an IP, a slug or a session id), so there is no `restaurantId`. Contract:
+ * `testing/rate-limiter-contract.ts`; adapters: `MemoryRateLimiter` (core) and `PgRateLimiter` (db).
+ */
+export interface RateLimiter {
+  hit(rule: import('../ratelimit/rules').RateLimitRule, key: string, now: Date): Promise<import('../ratelimit/rules').RateLimitDecision>;
+}
