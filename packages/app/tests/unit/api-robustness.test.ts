@@ -420,8 +420,7 @@ describe('body: malformed JSON and wrong shapes are 422 with the standard error,
 
 describe('known finding: error bodies echo unknown field names', () => {
   // KNOWN BUG (reported, not fixed here): `fieldsOf()` puts every unknown key into `fields`, so a 100 kB key comes back as a 100 kB error body.
-  // `it.fails` keeps this suite green while the bug exists and turns red when it is fixed: then change `it.fails` to `it`.
-  it.fails('an unknown key of 100k characters does not come back in full in the 422 body', async () => {
+  it('an unknown key of 100k characters does not come back in full in the 422 body', async () => {
     const p = PROFILES.find((r) => r.key === 'POST /api/v1/recommendations/table')!;
     const res = await send(p, { body: JSON.stringify({ ['k'.repeat(100_000)]: 1 }) });
     expect(res.status).toBe(422);

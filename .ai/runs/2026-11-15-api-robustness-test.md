@@ -33,3 +33,6 @@ Obserwacja: `parseBody` ignoruje Content-Type (ciało JSON z `text/plain` jest p
 
 ## Lekcje
 brak
+
+## Poprawka znalezionego błędu (agent nadrzędny, 2026-11-15)
+Błąd: nieznany klucz w ciele wracał w całości w `fields` odpowiedzi 422 (klucz 100 kB → błąd ok. 100 kB). Reprodukcja była w teście jako `it.fails`; poprawka: `fieldsOf()` w `packages/core/src/validators/parse.ts` przycina klucz do 80 znaków (`clip`), test jednostkowy w `packages/core/tests/validators.test.ts`, w teście odporności `it.fails` zamienione na `it`. Zmiana dotyczy tylko absurdalnie długich kluczy; krótkie klucze i kody bez zmian.
