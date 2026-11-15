@@ -33,3 +33,12 @@ Raport (`.ai/maintenance/2026-11-15-audit.md`) i dwa drafty gotowe do przeglądu
 
 ## Lekcje
 brak (nie powstała nowa nieoczywista reguła; kandydaci opisani w raporcie, sekcja D).
+
+## Poprawki po przeglądzie niezależnym (ta sama seria, 2026-11-15)
+- Niezależny agent (model nieznany) przejrzał oba drafty; właściciel przyjął rekomendacje z góry w czacie 2026-11-15. `status:` obu specyfikacji zostaje `draft`; `reviewed_by: not recorded (independent agent, model unknown)` (szablon w `.ai/docs/process-templates.md`).
+- Każdą decyzję sprawdzono w kodzie: `scripts/process-audit.mjs` PROC-03 (pokrywa położenie specyfikacji, więc dawne R10 usunięto ze spec A); `scripts/check-context.mjs` sekcja 9 (nie obejmuje `.ai/skills`, więc dopisano do zakresu A); `.claude/settings.json` (`permissions.ask` dla zapisów `gh api`); `.ai/docs/parallel-work.md` §1 pkt 1 (typ M poza limitem WIP); `.github/CODEOWNERS` (brak `.ai/maintenance/` i `.ai/skills/`); `docs/PROCES_I_KURS.md` (tabela lekcji kończy się na 22).
+- Spec A: usunięto ostrzeżenie o położeniu specyfikacji, dodano `allowed-tools`, parametr zakresu, limit pod-agentów, gramatykę id, rozdzielone AC pilotażu, AC dla hooka i `process-audit`, podział na PR A(a) i A(b). Spec B: dwa kroki (audyt do odczytu, skrypt publikacji), przydział id przez skrypt, allowlista, faza 0 (próba w chmurze), UTC, kontynuacja po 30 commitach, wyłączenie po dwóch słabych przebiegach, realistyczny szacunek F1.
+- Raport bazowy: tylko normalizacja formatu (wiersz `C-01..09` rozbity na dziewięć wierszy, id usunięte z niepierwszych komórek, odwołania do nieistniejącego `S-12` zamienione na „tabela A2”); treść ustaleń bez zmian.
+- Nie ustalono: stan PR #150, możliwość rozdzielenia kroków w rutynie w chmurze, czy komendy z `.claude/commands/` działają w rutynie.
+- Weryfikacja: patrz wyniki poniżej.
+- `check:context` (npm 11.20.0, `--engine-strict=false`): 0 błędów, 9 ostrzeżeń (CTX-08, bez zmiany). `npm run lint`: bez błędów. `npm run secrets:scan`: 21 trafień, wszystkie na allowliście. `npm run audit:process`: PASS 46, FAIL 6, PARTIAL 1, MANUAL 10 (bez zmiany). Zmieniono wyłącznie pliki Markdown w `.ai/`.
