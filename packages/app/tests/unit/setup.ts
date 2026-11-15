@@ -8,6 +8,9 @@ import { vi } from 'vitest';
 process.env.DATA_SOURCE = 'memory';
 process.env.AUTH_COOKIE_SECURE = 'false';
 process.env.LOG_LEVEL = 'error';
+// the whole suite shares one in-memory limiter per process and no trusted proxy (one unidentified client): limits far above what any
+// file sends; tests/unit/rate-limits.test.ts sets its own low limits and client addresses (spec E21 F3)
+process.env.RATE_LIMITS = 'public-api=1000000/1,login=1000000/1,code-issue=1000000/1,code-lookup=1000000/1,code-mark=1000000/1,pin-login=1000000/1';
 
 class RedirectSignal extends Error {
   constructor(readonly url: string) {

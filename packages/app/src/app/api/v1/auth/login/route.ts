@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 /** POST /api/v1/auth/login {email, password} → 200 {user, memberships, csrfToken} + session cookie; 403 `showcase_read_only` on the demo instance. */
 export async function POST(req: NextRequest) {
-  return handlePublic(req, { route: '/api/v1/auth/login', write: true }, async ({ c }) => {
+  return handlePublic(req, { route: '/api/v1/auth/login', write: true, rateLimit: 'login' }, async ({ c }) => {
     // the public demo is read-only: refused before the body is read, with valid demo data too (E22 Q5, R9)
     if (env().showcaseMode === 'demo') throw new ShowcaseReadOnlyError();
     const { email, password } = await parseBody(req, loginSchema);
