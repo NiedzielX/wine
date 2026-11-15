@@ -18,6 +18,7 @@ Po lekcji 24 właściciel (Filip) zdecydował: „zacząłbym od całości na Ve
 
 - Niezależny przegląd specyfikacji (pod-agent, tylko odczyt): 4 ustalenia blokujące, 8 ważnych, kilka drobnych. Sprawdziłem w kodzie te, od których zależały blokery: aplikacja nie ma kontroli zaległych migracji (tylko promise w `container.ts`), w `packages/app/src` nie ma limitera zapytań (tylko `metrics.ts`), `showcaseMode: 'demo'` ładuje `users: []`. Spec przepisany: faza spike F0 przed kodem, podział F1 na PR-y, dwa adresy bazy, `health` z migracjami, SHA wdrożenia = tag, limity zapytań jako zależność od E21 F3, logi bez query string, HSTS i inne wymagania proxy, ścieżka awaryjna, nowe AC (AC3 liczbowe, AC5 e2e, AC8 rozbite).
 - Pytania Q1–Q12 dla właściciela z rekomendacjami.
+- Uwaga właściciela po przeglądzie: zamiast kont demo w Preview założyć własnych użytkowników testowych. Przyjęte: R8, AC7 i Q5 przepisane na osobną bazę testową z dwiema restauracjami i niepublicznymi hasłami, testy logowania i izolacji w CI.
 
 ## Weryfikacja
 - Dokumentacja bez zmian w kodzie; `npm run check:context` do uruchomienia przed PR-em.
