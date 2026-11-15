@@ -4,7 +4,7 @@ created: 2026-11-15
 owner: Filip
 related: [.ai/maintenance/2026-11-15-audit.md, .ai/runs/2026-11-15-knowledge-audit.md, .ai/specs/2026-11-15-weekly-maintenance-routine.md, .ai/specs/implemented/2026-10-25-context-engineering.md, .ai/docs/process-templates.md, .ai/lessons/2026-11-05-unticked-acs-audit-before-building.md, .ai/lessons/2026-11-08-project-skills-and-spec-status-hook.md]
 superseded_by:
-author_model: claude-sonnet-5-5
+author_model: not recorded
 reviewed_by: not recorded (independent agent, model unknown)
 ---
 
@@ -73,9 +73,9 @@ Mapowanie AC → dowód: AC1 `git diff`, `audit:process`; AC2 skrypt/przegląd; 
 - **Nie ustalono:** czy frontmatter `allowed-tools` komendy przyjmuje regułę ścieżkową `Write(...)`; koszt jednego przebiegu pełnego audytu; stan PR #150.
 
 ## Changelog
-- 2026-11-15 — Autor: claude-sonnet-5-5 (źródło: `.ai/runs/2026-11-15-knowledge-audit.md`).
+- 2026-11-15 — Autor: agent (model nie zapisany; źródło: `.ai/runs/2026-11-15-knowledge-audit.md`).
 - 2026-11-15 — Przegląd własny autora (niezależnego agenta nie dało się wtedy uruchomić); wnioski w poprzedniej wersji: doprecyzowanie odczytu `status` z komentarzem, budżety, tolerancja AC4.
-- 2026-11-15 — **Przegląd niezależny:** wykonał niezależny agent, model nieznany (`reviewed_by` zgodnie z szablonem w `.ai/docs/process-templates.md`). Autor: claude-sonnet-5-5. Rekomendacje przeglądu przyjęte przez właściciela w czacie 2026-11-15 (status zostaje `draft`; zatwierdza tylko człowiek).
+- 2026-11-15 — **Przegląd niezależny:** wykonał niezależny agent, model nieznany (`reviewed_by` zgodnie z szablonem w `.ai/docs/process-templates.md`). Autor: agent (model nie zapisany). Rekomendacje przeglądu przyjęte przez właściciela w czacie 2026-11-15 (status zostaje `draft`; zatwierdza tylko człowiek).
 
 ### Wnioski z przeglądu niezależnego i ich wpływ (sprawdzone w repozytorium)
 - **Usunięto wymaganie o ostrzeżeniu statusu niezgodnego z katalogiem (dawne R10, AC8-AC9):** `scripts/process-audit.mjs` PROC-03 już sprawdza oba kierunki (aktywne: draft/approved/in-progress, `implemented/`: implemented, `archive/`: superseded/abandoned; odczyt `status:` regexem `^status:\s*([A-Za-z-]+)` toleruje komentarz). Różnica: PROC-03 jest wierszem raportu `audit:process`, nie ostrzeżeniem w `check:context`, a samego `audit:process` nie wywołuje nic w `.github/`; to nie uzasadnia duplikatu reguły. Numeracja R przesunięta (dawne R11 to R10, R12 to R11).

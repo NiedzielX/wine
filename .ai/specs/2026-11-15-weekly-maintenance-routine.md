@@ -4,7 +4,7 @@ created: 2026-11-15
 owner: Filip
 related: [.ai/specs/2026-11-15-knowledge-maintenance.md, .ai/maintenance/2026-11-15-audit.md, .ai/runs/2026-11-15-knowledge-audit.md, .ai/docs/nightly-review-routine.md, .ai/docs/parallel-work.md, .ai/docs/process-playbook.md]
 superseded_by:
-author_model: claude-sonnet-5-5
+author_model: not recorded
 reviewed_by: not recorded (independent agent, model unknown)
 ---
 
@@ -74,9 +74,9 @@ Kolejność AC → dowód: AC0 log przebiegu suchego; AC1 `check:context`, `git 
 - **Nowa specyfikacja `dead-code`:** do napisania później (pytanie o `knip` i `jscpd` jako zależności dev, §1.1, termin 14 dni od wydania).
 
 ## Changelog
-- 2026-11-15 — Autor: claude-sonnet-5-5 (źródło: `.ai/runs/2026-11-15-knowledge-audit.md`).
+- 2026-11-15 — Autor: agent (model nie zapisany; źródło: `.ai/runs/2026-11-15-knowledge-audit.md`).
 - 2026-11-15 — Przegląd własny autora (niezależnego agenta nie dało się wtedy uruchomić): konflikt „raport w repozytorium” a „bez PR-ów”, stabilność id, brak opisów PR-ów w wejściu.
-- 2026-11-15 — **Przegląd niezależny:** wykonał niezależny agent, model nieznany (`reviewed_by` zgodnie z szablonem w `.ai/docs/process-templates.md`). Autor: claude-sonnet-5-5. Rekomendacje przyjęte przez właściciela w czacie 2026-11-15 (status zostaje `draft`; zatwierdza tylko człowiek).
+- 2026-11-15 — **Przegląd niezależny:** wykonał niezależny agent, model nieznany (`reviewed_by` zgodnie z szablonem w `.ai/docs/process-templates.md`). Autor: agent (model nie zapisany). Rekomendacje przyjęte przez właściciela w czacie 2026-11-15 (status zostaje `draft`; zatwierdza tylko człowiek).
 
 ### Wnioski z przeglądu niezależnego i ich wpływ (sprawdzone w repozytorium)
 - **Trzy nogi:** jeden krok z uprawnieniem zapisu i nieufną treścią łamał `AGENTS.md` §9 (reguła „musi brakować jednej nogi”) i playbook §3 („agent z prawem pisania nie czyta nieufnego diffu”; wzór: `review:pack` w `nightly-review-routine.md` pkt 3). Rozdzielono na audyt tylko do odczytu i skrypt publikacji (R2), z wyjątkiem wpisywanym jawnie przez właściciela.
