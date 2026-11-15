@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-15] [Status = miejsce pliku + pole `status`](lessons/2026-11-15-docs-status-by-location-no-index.md) — bez indeksu wiedzy i pól przeglądu; resztę zna git.
 - [2026-11-09] [Wydanie decyduje człowiek](lessons/2026-11-09-release-is-a-human-decision.md) — PR wydania = wszystkie checki z `image`; dziwną poprawkę stabilizującą zakwestionuj.
 - [2026-11-09] [Recenzenci z różnych rodzin modeli](lessons/2026-11-09-reviewers-from-different-model-families.md) — to samo wejście, każda uwaga z dowodem, nie głosowanie.
 - [2026-11-08] [Strona panelu sama woła `requireAccess` przed odczytem danych](lessons/2026-11-08-page-reads-data-in-parallel-with-layout-check.md) — layout i strona renderują się równolegle; test sprawdza ciało odpowiedzi, nie tylko status.

@@ -1,6 +1,6 @@
-# Proces Wine Match i kurs „AI Tech Leaders” (lekcje 1–22)
+# Proces Wine Match i kurs „AI Tech Leaders” (lekcje 1–25)
 
-Dla właściciela: jak prowadzimy ten projekt i dlaczego, co z każdej lekcji kursu przyjęliśmy i gdzie to jest w repozytorium, Twoje decyzje z rozmów, stan CI i testów, luki i następne kroki. Stan na 2026-11-10 (`main` 8f6ba79). Zasady obowiązujące agentów są w `AGENTS.md`; ten dokument je streszcza i niczego nie zmienia.
+Dla właściciela: jak prowadzimy ten projekt i dlaczego, co z każdej lekcji kursu przyjęliśmy i gdzie to jest w repozytorium, Twoje decyzje z rozmów, stan CI i testów, luki i następne kroki. Stan na 2026-11-10 (`main` 8f6ba79), lekcje 24–25 i kierunek hostingu dopisane 2026-11-15. Zasady obowiązujące agentów są w `AGENTS.md`; ten dokument je streszcza i niczego nie zmienia.
 
 ## 0. Jak uruchomić wykonawcę (jeden ekran)
 
@@ -35,7 +35,7 @@ Pełny runbook (pętla, granice, backlog startowy, format raportu): [.ai/docs/pr
 
 ## 2. Lekcje kursu: co przyjęliśmy i gdzie to jest
 
-Źródła: materiały w `~/Desktop/AI Tech Leaders/` (transkrypcje, strony lekcji), dla lekcji 19, 21, 22 także kopie na Pulpicie. **Lekcji 15 i 20 brak: właściciel nie posiada materiałów** (potwierdzone 2026-11-10; tytuł 20 znany tylko z nawigacji innych lekcji). Status: zrobione / częściowo / brak / świadomie pominięte.
+Źródła: materiały w `~/Desktop/AI Tech Leaders/` (transkrypcje, strony lekcji), dla lekcji 19, 21, 22 także kopie na Pulpicie. **Lekcji 15 i 20 brak: właściciel nie posiada materiałów** (potwierdzone 2026-11-10; tytuł 20 znany tylko z nawigacji innych lekcji). **Lekcji 23 też brak materiałów** (tytuł „Jak przenieść AI SDLC na projekt w Twojej firmie” znany tylko z nawigacji lekcji 24). Lekcje 24 i 25: opracowania ze strony kursu (stan 2026-11-12). Status: zrobione / częściowo / brak / świadomie pominięte.
 
 | L | Temat | Kluczowe idee | Co przyjęliśmy i gdzie | Status |
 |---|---|---|---|---|
@@ -62,6 +62,27 @@ Pełny runbook (pętla, granice, backlog startowy, format raportu): [.ai/docs/pr
 | 20 | brak materiału, właściciel nie posiada (tytuł z nawigacji: modele z otwartymi wagami lokalnie) | — | nic w repozytorium | brak materiału (nie do odtworzenia) |
 | 21 | Wiele modeli naraz | orkiestrator, implementer, recenzenci z ≥ 2 rodzin; każda uwaga weryfikowana; harness pilnuje stanu | `.ai/docs/review-protocol.md` §9, `npm run review:validate`, `.ai/schemas/review-input.schema.json`, draft `.ai/specs/2026-11-09-multi-family-review-harness.md` | częściowo: harness czeka na Twoją akceptację; druga rodzina modeli zależy od dostępu |
 | 22 | Zarządzanie wydaniami | świadomy zakres, pre-release z zielonym CI, changelog, kompatybilność wsteczna, odtworzenie z taga | `docs/RELEASING.md`, `npm run release:version`, `npm run release:notes`, `.github/workflows/release.yml` (szkic, ręczny), `UPGRADE_NOTES.md` | częściowo: środowisko `release`, próba odtworzenia i 1.0 czekają na Ciebie |
+| 23 | brak materiału (tytuł z nawigacji: przeniesienie AI SDLC na projekt w firmie) | — | nic w repozytorium | brak materiałów (nie opisujemy) |
+| 24 | Deployment projektów | wydanie z ręcznej akcji GitHub (wersja, tag, Release z `CHANGELOG.md`); stabilizacja PR-ów przed wydaniem; hosting: VPS przez SSH odradzany, platformy (Vercel, Netlify, Dokploy, Coolify, Railway); Docker Compose; Railway CLI przez lokalną sesję, bez kluczy w promptach; podglądy PR | wydanie: `docs/RELEASING.md`, `.github/workflows/release.yml` (ręczny, środowisko `release`); obraz i Compose: `docs/DEPLOYMENT.md`; sekrety i hosting zastrzeżone dla właściciela (playbook §3); kierunek Vercel: draft w PR #149 | częściowo: brak instancji online i pierwszego wydania (decyzje właściciela); podglądy PR i migracja na Vercel to drafty |
+| 25 | Utrzymanie i rozwój systemu | audyt wiedzy w repo; nowa specyfikacja z Extends/Supersedes, Prior spec drift, Delta; status z miejsca pliku, bez indeksu i metadanych; cotygodniowy workflow utrzymaniowy; pętla produkcja → agent → PR przez MCP | `.ai/specs/`, `.ai/specs/implemented/`, `.ai/specs/archive/`, `superseded_by`, hook `spec-status-guard`, `npm run check:context`, `npm run audit:process`, nocny przegląd tylko do odczytu; lekcja `docs-status-by-location-no-index` | częściowo: brak relacji Extends/Supersedes i Delta w szablonie, brak raportu audytu wiedzy i workflow utrzymaniowego, brak pętli z produkcji (nie ma produkcji); propozycje w playbooku §8.2 |
+
+### 2.1 Lekcje 24 i 25: co każą, co mamy, czego nie przejmujemy
+
+**Lekcja 24 (deployment).** Każe: wydawać z powtarzalnej, ręcznie uruchamianej akcji (wybór wersji, tag, Release z wpisu changeloga, podbicie wersji w `package.json`), przed wydaniem ustabilizować otwarte PR-y i zrobić niezależne review; wdrażać na platformie zamiast na ręcznie utrzymywanym VPS; dla Compose (Dokploy, Coolify) opisać infrastrukturę w pliku; dla Railway używać CLI z lokalnej, uwierzytelnionej sesji, bez kluczy w promptach; włączyć podgląd per PR; zadanie domowe to działający adres środowiska demonstracyjnego.
+- *Mamy:* ręczny szkic wydania (`.github/workflows/release.yml`, `npm run release:version`, `npm run release:notes`), obraz OCI i Compose z runbookiem wdrożenia i wycofania (`docs/DEPLOYMENT.md`), reguła „bez sekretów w repozytorium i promptach” (`AGENTS.md` §9, `npm run secrets:scan`).
+- *Brakuje:* pierwszego wydania, środowiska online i próby odtworzenia (REL-04): decyzje właściciela; podglądów PR (draft `.ai/specs/2026-11-09-release-management-automation.md`).
+- *Świadomie nie przejmujemy:* (1) prompty z lekcji nadają agentowi prawo do wdrożenia przez CLI dostawcy: u nas wdrożenie i hosting są zastrzeżone dla właściciela, agent nie dostaje tokenu dostawcy; (2) `om-auto-update-changelog` i zmiana reguły zgody w `AGENTS.md` pod zapis zdalny: u nas zapis zdalny i merge to decyzja właściciela (`Scal #N`); (3) wydanie „samo, w 100% powtarzalne” rozumiemy jako powtarzalne przygotowanie, nie automatyczną decyzję (lekcja `release-is-a-human-decision`); (4) Railway i Dokploy: poza zakresem draftu hostingu, bez materiału, który by je porównał z naszymi wymaganiami.
+
+**Lekcja 25 (utrzymanie).** Każe: zacząć od audytu wiedzy (status każdej specyfikacji, sprzeczności, dowód: plik i linia, bez dowodu „nie ustalono”, audyt niczego nie poprawia); nowe wymaganie to nowa specyfikacja z relacją *Extends* albo *Supersedes*, sekcjami „Prior spec drift” i „Delta” (ADDED/MODIFIED/REMOVED, WHEN/THEN, „Frozen by”), a w starej tylko linia „Superseded by”; status wynika z katalogu, **bez indeksu wiedzy i bez metadanych przeglądu** w nagłówkach; jeden cotygodniowy workflow (audyt tygodnia, poprawa dokumentów, check kontekstu, zależności, martwy kod, test na końcu), miesięczny pełny audyt; „zaufanie buduj powoli”: czytaj każdy PR z workflow, merge robi człowiek; pętla produkcja → agent → PR przez MCP tylko do odczytu, bez wdrożenia, z maskowaniem danych osobowych w narzędziu i treścią zgłoszenia jako danymi; doświadczenia Open Mercato (setki specyfikacji, skille w osobnym repozytorium, puchnące `AGENTS.md` i lekcje, 200–300 PR tygodniowo).
+- *Mamy:* katalogi aktywnych, wdrożonych (`.ai/specs/implemented/`) i zarchiwizowanych (`.ai/specs/archive/`) specyfikacji z `superseded_by` (`AGENTS.md` §3), `npm run check:context` (budżety, martwe ścieżki), `npm run audit:process`, nocny przegląd kolejki tylko do odczytu, limit 3 PR i merge po „Scal #N”, awans lekcji do reguł.
+- *Brakuje (propozycje w playbooku §8.2, czekają na Twoją decyzję):* relacje i delta w szablonie specyfikacji, jednorazowy audyt wiedzy i raport tygodniowy, workflow utrzymaniowy z jednym PR na przebieg, pętla z produkcji (wymaga instancji produkcyjnej).
+- *Świadomie nie przejmujemy:* (1) indeksu wiedzy i metadanych w nagłówkach (lekcja sama je odrzuca; nasz hook `spec-status-guard` czyta pole `status`, więc zostaje jedno pole, reszta z gita); (2) Cezara i jego formatu workflow (u nas pod-agenci Claude Code i skille, jak w lekcji 3); (3) `knip` i `jscpd` z automatycznym usuwaniem: nowa zależność wymaga specyfikacji (`AGENTS.md` §1.1), więc najwyżej jako lista do decyzji; (4) Blacksmith i przeniesienie skilli do osobnego repozytorium: skala 200–300 PR tygodniowo nie dotyczy projektu jednoosobowego; (5) Datadog, Sentry, PostHog i Blip: brak produkcji, a wybór dostawcy to decyzja właściciela.
+
+### 2.2 Kierunek migracji hostingu i bazy (2026-11-15)
+
+Po lekcji 24 właściciel chce zacząć od **całości na Vercelu, produkcji też**. Specyfikacja to **draft, niezatwierdzony** (PR #149, status `draft`, czeka na decyzje Q1–Q12) i **zmieniłaby D10** (jedna VM w UE, Docker Compose, PostgreSQL 16; `.ai/specs/product-brief.md`). Vercel nie jest zdecydowany ani zweryfikowany: wszystkie fakty o nim i o dostawcy bazy (limity żądania, ochrona wdrożeń, logi, pula połączeń, plan) są „do potwierdzenia w F0”, czyli w spike na koncie próbnym przed jakimkolwiek kodem.
+
+Reguły, które mają zostać **niezależnie od dostawcy** (pełna lista z oznaczeniem przyjęte/propozycja: playbook §8.3): aplikacja nie migruje bazy sama; migracje osobnym workflow w chronionym środowisku, tylko z `main` i z SHA równym tagowi wydania, jedna naraz, z punktem przywracania przed migracją i tylko do przodu; wydanie z migracją niezgodną wstecz dzielone na dwa wydania (expand, contract); SHA promowanego wdrożenia równy SHA tagu; rollback kodu osobno od bazy; zmienne produkcyjne nie istnieją w Preview; podglądy PR tylko na osobnej bazie testowej z niepublicznymi kontami; limity zapytań (E21 F3) przed pierwszym prawdziwym najemcą (D4).
 
 **Lista wymagań projektu kursu** (dokument „sprawdzić na projekt”): logowanie i ≥ 2 role, CRUD, logika biznesowa, brief, backlog, epik z AC, spec recenzowany innym modelem, uporządkowany `AGENTS.md`, własny skill, hook, PR agenta po review, CI na każdy PR, test uprawnień, `security-notes.md`; mile widziane: publiczny deploy z rollbackiem, release 1.0, design system, skan sekretów i zależności. Spełnione poza publicznym deployem i 1.0 (obie to Twoje decyzje).
 
@@ -95,8 +116,9 @@ Pełny runbook (pętla, granice, backlog startowy, format raportu): [.ai/docs/pr
 | 2026-11-10 | Agent-wykonawca zamiast audytora: jeden prompt, reszta samodzielnie | reguła | `.ai/docs/process-playbook.md`, §0 |
 | 2026-11-10 | „limit trzech pr jest tymczasowy”; doprecyzowanie przekazane przez sesję nadrzędną: tymczasowe jest **zawieszenie** limitu, po wyczyszczeniu backlogu wraca domyślne 3 | reguła (doprecyzowanie z sesji nadrzędnej) | wykonawca §3 (WIP) |
 | 2026-11-10 | Brak materiałów lekcji 15 i 20 („nie mam materialow 15 i 20”) | reguła | §2: „brak materiału” |
+| 2026-11-15 | Kierunek: zacząć od całości na Vercelu, produkcji też (po lekcji 24). Źródło: sformułowanie w drafcie specyfikacji (PR #149) i polecenie sesji nadrzędnej; nie zweryfikowano w transkrypcji. Nie jest zatwierdzeniem specyfikacji ani zmianą D10 | kierunek (nie decyzja) | draft w PR #149, playbook §8.3 |
 
-Brak Twoich wypowiedzi (do decyzji): hosting, domena, rejestr, `LICENSE`, 1.0, ustawienia GitHuba, wymagane checki `image`/`analyze`, publikacja przeglądu OWASP, stała zgoda na merge.
+Brak Twoich wypowiedzi (do decyzji): domena (hosting: kierunek Vercel, patrz §2.2, bez zatwierdzonej specyfikacji), rejestr, `LICENSE`, 1.0, ustawienia GitHuba, wymagane checki `image`/`analyze`, publikacja przeglądu OWASP, stała zgoda na merge.
 
 ## 4. CI/CD i piramida testów
 
@@ -154,11 +176,11 @@ Brak Twoich wypowiedzi (do decyzji): hosting, domena, rejestr, `LICENSE`, 1.0, u
 5. Brak polityki zgłaszania podatności i licencji: nie ma kanału dla zgłaszających ani podstawy do udostępniania kodu (`CONTRIBUTING.md`).
 6. Dziewięć specyfikacji E12–E22 powyżej 40 KB zjada kontekst i utrudniają implementację fazami.
 
-**Twoje decyzje (oczekujące):** hosting, domena, rejestr obrazów; `LICENSE`; definicja i tag 1.0; ustawienia GitHuba: secret scanning i push protection, alerty Dependabot, private vulnerability reporting, środowisko `release`, `image` i CodeQL jako wymagane checki; #139; publikacja przeglądu OWASP łańcucha dostaw; spec testów mutacyjnych; limity dla fuzz API (proxy, 11 MB); drafty `.ai/specs/2026-11-09-multi-family-review-harness.md` i `.ai/specs/2026-11-09-release-management-automation.md`; zamknięcie issue #46, #19 i E01 (#3–#9); zgoda na sprzątanie gałęzi; lista „wymaga ludzkiego oka” z sesji QA nr 1; **stała zgoda na merge dla wykonawcy** (bez odpowiedzi: obowiązuje „Scal #N” per PR; opcja to jawna, zakresowa zgoda w czacie, np. na PR-y `risk-low` gotowe wg playbooka §1, odwołalna w każdej chwili).
+**Twoje decyzje (oczekujące):** hosting (draft Vercel, PR #149, pytania Q1–Q12; zmienia D10), domena, rejestr obrazów; `LICENSE`; definicja i tag 1.0; ustawienia GitHuba: secret scanning i push protection, alerty Dependabot, private vulnerability reporting, środowisko `release`, `image` i CodeQL jako wymagane checki; #139; publikacja przeglądu OWASP łańcucha dostaw; spec testów mutacyjnych; limity dla fuzz API (proxy, 11 MB); drafty `.ai/specs/2026-11-09-multi-family-review-harness.md` i `.ai/specs/2026-11-09-release-management-automation.md`; zamknięcie issue #46, #19 i E01 (#3–#9); zgoda na sprzątanie gałęzi; lista „wymaga ludzkiego oka” z sesji QA nr 1; **stała zgoda na merge dla wykonawcy** (bez odpowiedzi: obowiązuje „Scal #N” per PR; opcja to jawna, zakresowa zgoda w czacie, np. na PR-y `risk-low` gotowe wg playbooka §1, odwołalna w każdej chwili).
 
 **Następne kroki (rekomendacja):**
 1. Uruchom wykonawcę promptem z §0; niech zamknie granice 2–3, limit per IP i pełny e2e zaproszenia.
 2. W ustawieniach GitHuba włącz secret scanning z push protection, alerty Dependabot i zgłaszanie podatności; dodaj `analyze` do wymaganych checków.
-3. Wybierz hosting i domenę; wtedy E11 F3 i próba odtworzenia z taga (`docs/RELEASING.md` §12).
+3. Odpowiedz na pytania Q1–Q12 w drafcie hostingu (PR #149) albo go odrzuć; wybierz domenę; wtedy E11 F3 i próba odtworzenia z taga (`docs/RELEASING.md` §12).
 4. Zdecyduj o licencji i 1.0; potem pierwszy PR wydania.
 5. Zatwierdź albo odrzuć drafty (mutacje, harness, wydania) jednym przeglądem.
