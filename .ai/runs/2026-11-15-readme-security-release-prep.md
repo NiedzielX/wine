@@ -1,9 +1,9 @@
 ---
 started: 2026-11-15 13:18
-ended: 2026-11-15 14:05
+ended: 2026-11-15 14:40
 agent: Claude Code
 spec: brak — dokumentacja
-outcome: partial
+outcome: success
 related: [.ai/lessons/2026-11-09-release-is-a-human-decision.md, docs/RELEASING.md]
 ---
 
@@ -25,7 +25,7 @@ Dwa niezależne zestawy zmian dokumentacyjnych, bez zmian w kodzie produktu: (1)
 - `npm run lint`: czysto. `npm run secrets:scan`: 21 trafień, wszystkie na allowliście.
 - `npm run audit:process`: SEC-08 PASS, PROD-01 PASS; ogółem PASS 47, FAIL 5, PARTIAL 1, MANUAL 10 (pozostałe FAIL: TEST-04/05/06, REL-04, PROD-02, niezwiązane).
 
-## Gałąź wydania `chore/release-0.1.0-prep` (worktree `/home/user/wine-release-prep`): ZATRZYMANA, bez commitów
+## Gałąź wydania (worktree `/home/user/wine-release-prep`): najpierw zatrzymana, potem wykonana jako 0.3.0
 Polecenia (bez `--write`, z `/home/user/wine-release-prep`, wszystkie wersje pakietów 0.2.0):
 - `npm run release:version -- --set 0.1.0`: plan 15 pól `0.2.0 -> 0.1.0` (obniżenie wersji; skrypt na to pozwala).
 - `npm run release:notes -- check`: OK.
@@ -34,8 +34,14 @@ Polecenia (bez `--write`, z `/home/user/wine-release-prep`, wszystkie wersje pak
 - Testy skryptów wydania (`npm test -w @wine-match/testkit -- release`): 2 pliki, 42 testy, zielone. `npm run check:context`: 0 błędów, 9 ostrzeżeń.
 Powód zatrzymania (AGENTS.md §3 reguła 4): 0.1.0 jest odrzucone przez skrypt i sprzeczne z `docs/RELEASING.md` §3 i §5 pkt 2: `UPGRADE_NOTES.md [Unreleased]` ma wpis łamiący (#120), więc wersja ma być co najmniej `0.MINOR+1.0` = 0.3.0. Nie wymuszałem (np. edycją historycznej sekcji 0.2.0), bo to zmiana decyzji o numerze wersji.
 
+## Kontynuacja (decyzja właściciela po raporcie: wersja 0.3.0)
+- Gałąź przemianowana na `chore/release-0.3.0-prep` (`git branch -m`). `release:version -- --set 0.3.0 --write` (15 pól, `--check --expect 0.3.0` OK), `release:notes -- promote 0.3.0 --write` (data 2026-11-15, `[Unreleased]` puste w obu plikach), zdanie wstępne CHANGELOG.md poprawione (§5 pkt 5: wersja 0.3.0, tag powstanie po publikacji).
+- Ślepa uliczka: po promocji test `release-notes.test.ts` „passes on this repository” padł, bo wymaga niepustego `[Unreleased]`; to by czerwieniło `unit` w PR-ze wydania. Test dopuszcza teraz wyłącznie problem „[Unreleased] has no entries” (inne dalej padają). Jedyna zmiana poza dokumentacją i wersjami, w teście, nie w kodzie produktu. Skutek uboczny: `release:notes -- check` na tej gałęzi zgłasza pusty `[Unreleased]`, co po wydaniu jest stanem poprawnym.
+- Weryfikacja gałęzi 0.3.0: testy skryptów wydania 2 pliki, 42 testy zielone; `npm run lint` czysto; `npm run check:context` 0 błędów, 9 ostrzeżeń; `release:version --check --expect 0.3.0` OK.
+- Gałąź docs: usunięta z `docs/DEVELOPMENT.md` sekcja „Niezweryfikowane w tym przeglądzie README” (dosłowna, częściowo nieprawdziwa); weryfikacja poniżej w tym pliku dotyczy stanu po usunięciu (check:context, lint).
+
 ## Wynik
-Gałąź `docs/readme-and-security` gotowa lokalnie. Wydanie: czeka na decyzję o numerze wersji (rekomendacja 0.3.0); wtedy `release:version -- --set 0.3.0 --write`, `release:notes -- promote 0.3.0 --write`, poprawka zdania wstępnego CHANGELOG.md (§5 pkt 5).
+Obie gałęzie gotowe lokalnie (bez push, tagu i uruchomienia release.yml). Po scaleniu PR-a wydania inne dokumenty mówiące „dziś 0.2.0” (np. `docs/RELEASING.md` §3, README w gałęzi docs, `docs/DEVELOPMENT.md` „Stan prac”) wymagają osobnej aktualizacji.
 
 ## Lekcje
 brak

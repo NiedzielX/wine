@@ -320,7 +320,3 @@ Podsumowanie: sesje w ciasteczku httpOnly (w bazie tylko skrót), hasła scrypt,
 ## Praca z agentami AI
 
 Zasady dla agentów (Claude Code, Codex, Cursor i innych) są w [AGENTS.md](../AGENTS.md) — w tym obowiązkowe reguły architektury (§1). Każdy pakiet ma własny `AGENTS.md`, a pliki `CLAUDE.md` je importują. Katalog `.ai/` przechowuje specyfikacje SDD, logi przebiegów i pamięć długoterminową projektu (`.ai/lessons.md`, `.ai/lessons/`).
-
-## Niezweryfikowane w tym przeglądzie README
-
-Wszystkie polecenia `npm run …` z README istnieją w `package.json` (sprawdzone skryptem). **Nie uruchomiono** żadnego z nich w tym przeglądzie, więc opisy zachowania (`boot:check`, `smoke`, `restaurant:create`, `user:invite`, `test:db`, `test:e2e`) pochodzą z dokumentacji i logów przebiegów, a nie z ponownego uruchomienia. Polecenia `docker compose …` z sekcji o `restaurant:create` w kontenerze odnoszą się do obrazu `migrate`, którego w repozytorium jeszcze nie ma (E11 F2); `docs/DEPLOYMENT.md` nie istnieje.
