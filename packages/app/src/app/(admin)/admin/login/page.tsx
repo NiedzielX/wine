@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-const ERROR_CODES = ['invalid_credentials', 'no_panel_access', 'unexpected', 'showcase_read_only'] as const;
+const ERROR_CODES = ['invalid_credentials', 'no_panel_access', 'unexpected', 'showcase_read_only', 'rate_limited'] as const;
 const NOTICE_CODES = ['account_created'] as const;
 
 /** A0 — sign in. One message for every failed attempt, so it cannot be used to find accounts. */

@@ -204,7 +204,7 @@ describe('every response path leaves one log line and one counter sample (AC2, r
 
   it('a cross-site write refused before the scope is opened is logged and counted as 4xx', async () => {
     const lines = infoOrError();
-    const res = await handlePublic(req(`${URL0}/api/v1/x?sid=secret`, { 'sec-fetch-site': 'cross-site' }), { write: true, route: '/api/v1/x' }, async () => new Response('never') as never);
+    const res = await handlePublic(req(`${URL0}/api/v1/x?sid=secret`, { 'sec-fetch-site': 'cross-site' }), { write: true, rateLimit: 'public-api', route: '/api/v1/x' }, async () => new Response('never') as never);
     expect(res.status).toBe(403);
     const res2 = await handle(req(`${URL0}/api/v1/y`, { 'sec-fetch-site': 'cross-site' }), { write: true, route: '/api/v1/y' }, async () => new Response('never') as never);
     expect(res2.status).toBe(403);
@@ -216,7 +216,7 @@ describe('every response path leaves one log line and one counter sample (AC2, r
 
   it('an unexpected failure is ONE line at error level carrying the redacted error, and a 5xx sample', async () => {
     const lines = infoOrError();
-    const res = await handlePublic(req(`${URL0}/api/v1/z`), { route: '/api/v1/z' }, async () => { throw new Error(`down ${DB_URL}`); });
+    const res = await handlePublic(req(`${URL0}/api/v1/z`), { rateLimit: 'public-api', route: '/api/v1/z' }, async () => { throw new Error(`down ${DB_URL}`); });
     expect(res.status).toBe(500);
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({ level: 'error', route: '/api/v1/z', status: 500 });
@@ -228,7 +228,7 @@ describe('every response path leaves one log line and one counter sample (AC2, r
     const lines = infoOrError();
     const container = await import('@/server/container');
     vi.spyOn(container, 'createRequestScope').mockRejectedValueOnce(new Error(`connect ECONNREFUSED ${DB_URL}`));
-    const res = await handlePublic(req(`${URL0}/api/v1/db`), { route: '/api/v1/db' }, async () => new Response('never') as never);
+    const res = await handlePublic(req(`${URL0}/api/v1/db`), { rateLimit: 'public-api', route: '/api/v1/db' }, async () => new Response('never') as never);
     expect(res.status).toBe(500);
     expect(await res.text()).not.toMatch(/ECONNREFUSED|haslo/);
     expect(lines).toHaveLength(1);
@@ -240,7 +240,7 @@ describe('every response path leaves one log line and one counter sample (AC2, r
     const lines = infoOrError();
     const container = await import('@/server/container');
     vi.spyOn(container, 'createRequestScope').mockResolvedValueOnce({ cradle: {}, dispose: () => Promise.reject(new Error('dispose failed')) } as never);
-    const res = await handlePublic(req(`${URL0}/api/v1/d`), { route: '/api/v1/d' }, async () => apiOk());
+    const res = await handlePublic(req(`${URL0}/api/v1/d`), { rateLimit: 'public-api', route: '/api/v1/d' }, async () => apiOk());
     expect(res.status).toBe(500);
     expect(lines).toHaveLength(1);
     expect(sample('/api/v1/d', '5xx')).toBe('1');

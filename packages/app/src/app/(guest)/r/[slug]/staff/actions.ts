@@ -8,11 +8,13 @@ import { createRequestScope } from '@/server/container';
 import { domainError } from '@/server/domain-errors';
 import { hrefWith } from '@/server/guest-page';
 import { logger } from '@/server/logger';
+import { checkRateLimit } from '@/server/rate-limit';
 
 /**
  * "Ordered" / "Undo" on the staff view G9 (spec 2026-10-16-recommendation-code, phase 2: R6, R7, Q7, Q8). A plain form
  * post that works without JavaScript; it calls the command on `RecommendationCodeService` with the actor `staff_view`
- * and redirects back to G9 with the result in the URL (`marked=confirmed|undone` or `codeError=not_found`).
+ * and redirects back to G9 with the result in the URL (`marked=confirmed|undone`, `codeError=not_found`, or `codeError=rate_limited`
+ * over the `code-mark` request limit of spec E21 F3, R9: never "not found", which would say something about the code).
  *
  * Deliberately public (Q8, approved): the staff view has no sign-in (D03), so there is no `authorizeAction` and no
  * `act()` (those are the dashboard's doors). The check is the code itself — only a code of this restaurant's current
@@ -38,7 +40,8 @@ export async function markCode(form: FormData): Promise<never> {
   const code = normalizeCode(input.code) ?? input.code.trim();
   const back = (flash: Record<string, string> = {}) => hrefWith(path, DEFAULT_PREFS, { code, ...flash }, { lang, sid });
 
-  if ((await headers()).get('sec-fetch-site') === 'cross-site') {
+  const h = await headers();
+  if (h.get('sec-fetch-site') === 'cross-site') {
     logger.warn('recommendation code action refused', { slug: input.slug, reason: 'cross-site' });
     redirect(back());
   }
@@ -46,10 +49,14 @@ export async function markCode(form: FormData): Promise<never> {
   let flash: Record<string, string>;
   const scope = await createRequestScope();
   try {
+    const limited = !(await checkRateLimit(scope.cradle, 'code-mark', h)).allowed;
     const service = scope.cradle.recommendationCodeService;
-    if (input.intent === 'confirm') await service.confirm(input.slug, input.code, 'staff_view');
-    else await service.undo(input.slug, input.code, 'staff_view');
-    flash = { marked: input.intent === 'confirm' ? 'confirmed' : 'undone' };
+    if (limited) flash = { codeError: 'rate_limited' };
+    else {
+      if (input.intent === 'confirm') await service.confirm(input.slug, input.code, 'staff_view');
+      else await service.undo(input.slug, input.code, 'staff_view');
+      flash = { marked: input.intent === 'confirm' ? 'confirmed' : 'undone' };
+    }
   } catch (e) {
     if (domainError(e)?.code !== 'code_not_found') {
       logger.error('recommendation code action failed', { err: e, slug: input.slug });
