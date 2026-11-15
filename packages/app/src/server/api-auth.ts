@@ -1,4 +1,4 @@
-import { ShowcaseReadOnlyError, ValidationError, authorize, parseWith, type Actor, type Permission, type Principal } from '@wine-match/core';
+import { ShowcaseReadOnlyError, ValidationError, authorize, parseWith, type Actor, type Permission, type Principal, type RateLimitRuleName } from '@wine-match/core';
 import type { z } from 'zod';
 import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
@@ -9,6 +9,7 @@ import { domainError } from './domain-errors';
 import { env } from './env';
 import { logger } from './logger';
 import { countUnhandledError, recordHttpRequest } from './metrics';
+import { checkRateLimit, tooManyRequests } from './rate-limit';
 
 /**
  * Door of the REST API for the dashboard: session cookie → principal, CSRF for changes, permission
@@ -107,11 +108,17 @@ async function withScope(work: (scope: Scope) => Promise<NextResponse>): Promise
 /**
  * For routes that need no session (the guest API, sign-in). `route` is the route's PATTERN (`/api/v1/pairings/{id}`), used for the
  * request log line and the metrics label: pass a literal, never the URL. `write: true` still refuses cross-site requests.
+ * `rateLimit` names the request limit of this route class (spec E21 F3, R9): every request counts, before the body is read and
+ * whatever the outcome; over the limit the answer is 429 with `Retry-After` and the handler does not run.
  */
-export async function handlePublic(req: NextRequest, opts: { write?: boolean; route: string }, handler: (ctx: { c: Cradle; req: NextRequest }) => Promise<NextResponse>): Promise<NextResponse> {
+export async function handlePublic(req: NextRequest, opts: { write?: boolean; route: string; rateLimit: RateLimitRuleName }, handler: (ctx: { c: Cradle; req: NextRequest }) => Promise<NextResponse>): Promise<NextResponse> {
   return instrumented(req, opts.route, async () => {
     if (opts.write && isCrossSite(req)) return apiError(403, 'csrf', 'Cross-site requests are not allowed.');
-    return withScope((scope) => handler({ c: scope.cradle, req }));
+    return withScope(async (scope) => {
+      const decision = await checkRateLimit(scope.cradle, opts.rateLimit, req.headers);
+      if (!decision.allowed) return tooManyRequests(decision);
+      return handler({ c: scope.cradle, req });
+    });
   });
 }
 

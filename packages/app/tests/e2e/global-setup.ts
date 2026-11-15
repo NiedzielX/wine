@@ -6,6 +6,12 @@ import type { TestProject } from 'vitest/node';
 import { NEW_RESTAURANT, NEW_RESTAURANT_TEAM } from './new-restaurant';
 import { E2E_METRICS_TOKEN } from './observability';
 
+/**
+ * The shared app has no trusted proxy, so the whole suite is ONE unidentified client of the request limits (spec E21 F3): limits far
+ * above what the suite sends. `rate-limits.e2e.test.ts` starts its own app with low limits and a trusted proxy hop.
+ */
+const E2E_RATE_LIMITS = 'public-api=1000000/1,login=1000000/1,code-issue=1000000/1,code-lookup=1000000/1,code-mark=1000000/1,pin-login=1000000/1';
+
 const appDir = fileURLToPath(new URL('../..', import.meta.url));
 const rootDir = fileURLToPath(new URL('../../../..', import.meta.url));
 
@@ -45,7 +51,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     cwd: appDir,
     readyPath: '/api/v1/public/restaurants/halka/menu',
     logFile: `${appDir}/test-results/e2e-app.log`,
-    env: { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: databaseUrl, AUTH_COOKIE_SECURE: 'false', ALLOW_LOCAL_BASE_URL: 'true', LOG_LEVEL: 'info', METRICS_TOKEN: E2E_METRICS_TOKEN, SHOWCASE_MODE: 'calculator' }
+    env: { NODE_ENV: 'production', DATA_SOURCE: 'postgres', DATABASE_URL: databaseUrl, AUTH_COOKIE_SECURE: 'false', ALLOW_LOCAL_BASE_URL: 'true', LOG_LEVEL: 'info', METRICS_TOKEN: E2E_METRICS_TOKEN, SHOWCASE_MODE: 'calculator', RATE_LIMITS: E2E_RATE_LIMITS }
   });
   project.provide('e2e', { baseUrl: app.url, appLogs: '', databaseUrl });
 

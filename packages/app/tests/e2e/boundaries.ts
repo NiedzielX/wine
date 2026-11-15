@@ -45,13 +45,25 @@ export async function payload(s: Session, path: string): Promise<string> {
 /**
  * Every table of the schema except the migration log (checked against information_schema by `assertTablesCovered()`): translations
  * live in `dish`/`wine` columns and import rows in `import_job`, so there are no separate tables for them. `session` has no
- * last-seen column, so reads do not change it; `guest_interaction` (usage events) changes on guest page views by design.
+ * last-seen column, so reads do not change it; `guest_interaction` (usage events) changes on guest page views by design (tests
+ * override it per case). Tables left out entirely: `NOT_DIGESTED` below.
  */
 export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'session', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal', 'guest_interaction'];
-/** Fails when the schema has a table the digest does not cover (a new table must join TABLES). */
+/**
+ * The ONLY tables deliberately left out of the digest, each with its reason. Nothing else may be left out: `assertTablesCovered()`
+ * accepts a table outside TABLES only when it is named here.
+ */
+export const NOT_DIGESTED: ReadonlyMap<string, string> = new Map([
+  // request-limit counters (E21 F3): every public and sign-in request, refused ones included, counts here by design, so a "this request
+  // changed nothing" check would always fail; holds only keyed hashes, checked by rate-limits.e2e.test.ts
+  ['rate_limit_bucket', 'infrastructure counters that every public request changes by design']
+]);
+/** Fails when the schema has a table the digest does not cover (a new table must join TABLES, or NOT_DIGESTED with a reason). */
 export async function assertTablesCovered(): Promise<void> {
   const all = (await queryDatabase<{ t: string }>(db(), `select table_name as t from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name not like 'mikro_orm%' order by 1`, [])).map((r) => r.t);
-  expect(all.filter((t) => !TABLES.includes(t)), 'tables missing from the digest').toEqual([]);
+  expect(all.filter((t) => !TABLES.includes(t) && !NOT_DIGESTED.has(t)), 'tables missing from the digest').toEqual([]);
+  // the exclusion list stays honest: no table both digested and excluded, and no exclusion of a table that does not exist
+  expect([...NOT_DIGESTED.keys()].filter((t) => TABLES.includes(t) || !all.includes(t)), 'stale or overlapping NOT_DIGESTED entries').toEqual([]);
 }
 export async function digest(): Promise<Record<string, string>> {
   const out: Record<string, string> = {};

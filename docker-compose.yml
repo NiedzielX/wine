@@ -34,6 +34,15 @@ x-app-environment: &app-environment
 x-app-optional: &app-optional
   LOG_LEVEL: ${LOG_LEVEL:-}
   METRICS_TOKEN: ${METRICS_TOKEN:-}
+  RATE_LIMIT_SECRET: ${RATE_LIMIT_SECRET:-}
+  RATE_LIMITS: ${RATE_LIMITS:-}
+  RATE_LIMIT_MAX_CLIENTS: ${RATE_LIMIT_MAX_CLIENTS:-}
+  # the app is reachable only through the host's reverse proxy (ports bound to 127.0.0.1), which appends the client address to
+  # X-Forwarded-For: the request limits count that address (E21 F3). Safe ONLY while the proxy is the sole writer of that header and
+  # port 3000 is not reachable from outside: otherwise a client sending a random X-Forwarded-For gets a fresh counter on every request
+  # (limits bypassed). 0 would make every client share ONE counter (one client could lock out everyone). A CDN in front: set 2.
+  # Without RATE_LIMIT_SECRET each instance counts on its own (limit x number of instances).
+  TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
   DEMO_RESTAURANT_SLUG: ${DEMO_RESTAURANT_SLUG:-}
   SHOWCASE_MODE: ${SHOWCASE_MODE:-}
   DB_POOL_MIN: ${DB_POOL_MIN:-}
@@ -115,6 +124,8 @@ services:
       AUTH_COOKIE_SECURE: "true"
       ALLOW_LOCAL_BASE_URL: "false"
       PUBLIC_BASE_URL: ${DEMO_PUBLIC_BASE_URL:?set DEMO_PUBLIC_BASE_URL to the https:// address of the demo (its own domain)}
+      # behind its own reverse proxy, like `app` (request limits, E21 F3); the demo keeps its counters in memory
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     ports:
       - "127.0.0.1:${DEMO_PORT:-3001}:3000"
     tmpfs:
