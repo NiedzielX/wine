@@ -44,7 +44,7 @@ Opis obecnego zachowania (stan na 2026-11-08), nie decyzja o docelowej polityce.
 | Zaproszenie (`auth_token`) | **cofnięcie** (`DELETE …/invitations/{id}` ustawia `revoked_at`); zużyte i wygasłe zostają w tabeli | retencja tabel globalnych: E21 F4 |
 | Sesja (`session`) | usuwana przy wylogowaniu i po wygaśnięciu; w bazie tylko skrót tokenu | bez zmian |
 | Dziennik uwierzytelniania (`auth_event`) | tylko dopisywanie, przeżywa konto | retencja: E21 F4 |
-| Restauracja (`restaurant`) | brak polecenia ani ekranu usuwania; pomyłkę przy zakładaniu cofa ręczna transakcja SQL z README, a użytą restaurację oznacza się `status = 'archived'` w SQL (slug zostaje zajęty) | wstrzymanie i archiwizacja w panelu administratora systemu: E14 F2 |
+| Restauracja (`restaurant`) | brak polecenia ani ekranu usuwania; pomyłkę przy zakładaniu cofa ręczna transakcja SQL z docs/DEVELOPMENT.md, a użytą restaurację oznacza się `status = 'archived'` w SQL (slug zostaje zajęty) | wstrzymanie i archiwizacja w panelu administratora systemu: E14 F2 |
 
 Poniżej model docelowy.
 
