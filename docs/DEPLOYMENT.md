@@ -23,7 +23,7 @@ Decyzje, których repozytorium nie podejmuje za właściciela (dostawca hostingu
 
 1. **Maszyna i Docker.** Zainstaluj Docker Engine z oficjalnego repozytorium dystrybucji. Sprawdź: `docker version` i `docker compose version` bez błędu.
 2. **Kod.** `git clone <adres repozytorium> wine-match && cd wine-match && git checkout <tag-wydania>`. Zapisz tag: będzie nazwą obrazu i punktem powrotu przy wycofaniu.
-3. **Konfiguracja.** `cp .env.example .env && chmod 600 .env`, potem ustaw w `.env` (tabela w sekcji 4): `PUBLIC_BASE_URL` (https, własna domena), `POSTGRES_PASSWORD` (`openssl rand -hex 24`), `DEMO_RESTAURANT_SLUG` (slug restauracji pilotażowej), `METRICS_TOKEN` (`openssl rand -hex 32`), `WINE_MATCH_TAG` (tag z kroku 2). `.env` nigdy nie trafia do repozytorium ani do obrazu (`.dockerignore`, `.gitignore`). **Sprawdź hasło bazy** (trafia do adresu URL, więc znaki specjalne `@ : / ? # % +` psują połączenie; Compose nie umie go zakodować):
+3. **Konfiguracja.** `cp .env.example .env && chmod 600 .env`, potem ustaw w `.env` (tabela w sekcji 4): `PUBLIC_BASE_URL` (https, własna domena), `POSTGRES_PASSWORD` (`openssl rand -hex 24`), `DEMO_RESTAURANT_SLUG` (slug restauracji pilotażowej), `METRICS_TOKEN` (`openssl rand -hex 32`), `RATE_LIMIT_SECRET` (`openssl rand -hex 32`, zalecane: klucz liczników limitów żądań), `WINE_MATCH_TAG` (tag z kroku 2). `.env` nigdy nie trafia do repozytorium ani do obrazu (`.dockerignore`, `.gitignore`). **Sprawdź hasło bazy** (trafia do adresu URL, więc znaki specjalne `@ : / ? # % +` psują połączenie; Compose nie umie go zakodować):
    ```sh
    pw="$(sed -n 's/^POSTGRES_PASSWORD=//p' .env | tail -1)"
    printf '%s' "$pw" | grep -Eq '^[A-Za-z0-9]{24,}$' && echo 'POSTGRES_PASSWORD ok' || echo 'POSTGRES_PASSWORD: tylko litery i cyfry, min. 24 znaki (openssl rand -hex 24)'
@@ -80,6 +80,11 @@ Obraz bazowy `node:22.22-bookworm-slim` jest przypięty digestem w `Dockerfile` 
 |---|---|---|
 | `DEMO_RESTAURANT_SLUG` | `halka` | dokąd prowadzi adres `/`; ustaw na slug pilota, inaczej `/` kończy się 404 (`smoke --production` to wykrywa) |
 | `METRICS_TOKEN` | brak (endpoint metryk odpowiada 404) | min. 32 znaki, `openssl rand -hex 32`; nie używaj ponownie innego sekretu |
+| `TRUSTED_PROXY_HOPS` | `0` w aplikacji; **`1` w `docker-compose.yml`** (aplikacja słucha tylko na `127.0.0.1`, przed nią jest proxy z sekcji 6) | ile zaufanych reverse proxy dopisuje adres do `X-Forwarded-For` (0–10). Ustaw dokładnie tyle, ile proxy stoi przed aplikacją (CDN przed nginx = 2). **Wdrożenie bez Compose MUSI je ustawić.** Dwa błędy konfiguracji i ich skutki: (1) **za duża wartość albo port aplikacji osiągalny bez proxy**: klient, który wysyła losowy `X-Forwarded-For` przy każdym żądaniu, dostaje za każdym razem nowy licznik, więc limity nie działają, a tabela liczników rośnie do sufitu `RATE_LIMIT_MAX_CLIENTS` (potem tryb awaryjny, niżej); `1` jest bezpieczne **tylko**, gdy proxy jest jedynym, kto pisze ten nagłówek (nginx `$proxy_add_x_forwarded_for` albo Caddy) i portu aplikacji nie da się osiągnąć z zewnątrz; (2) **`0` za proxy**: nagłówek nie jest czytany, więc **wszyscy klienci dzielą jeden licznik z limitem o połowę niższym**: jeden anonimowy klient może na całe okno zablokować logowanie, kody i publiczne API **wszystkim** (globalna dźwignia DoS); start w produkcji to ostrzega. Sprawdzenie po wdrożeniu: sekcja 8, wiersz „Limity żądań” |
+| `RATE_LIMIT_SECRET` | losowy na proces (start w produkcji ostrzega) | min. 32 znaki, `openssl rand -hex 32`; klucz skrótu HMAC klienta (adres IP nigdy nie trafia do bazy ani logów, klucz zmienia się co dobę UTC). Bez niego liczniki zaczynają od zera po restarcie, a **każda instancja liczy osobno: efektywny limit = limit × liczba instancji** (dwie repliki = dwa razy więcej prób logowania). Ustaw go przed drugą instancją. Nie używaj ponownie innego sekretu |
+| `RATE_LIMITS` | domyślne z `packages/core/src/ratelimit/rules.ts` | nadpisanie limitów: `reguła=limit/oknoSekund` po przecinku, np. `login=10/600,public-api=240/60`; reguły: `public-api` (120/60), `login` (20/600), `code-issue` (60/600), `code-lookup` (60/600), `code-mark` (30/600), `pin-login` (60/600, jeszcze bez użycia). Literówka zatrzymuje start. Kalibracja po tygodniu pilota na `rate_limit_denied_total{rule}` (`docs/OPERATIONS.md`) |
+| `RATE_LIMIT_MAX_CLIENTS` | `10000` | sufit liczby różnych klientów z własnym licznikiem na regułę i okno (1–9 999 999). Po jego przekroczeniu **każdy nowy** klient tej reguły liczy się do jednego wspólnego licznika z tym samym limitem (tryb awaryjny: ochrona tabeli przed zalewem adresów, np. wielu sieci IPv6 /64; znani klienci zachowują swoje liczniki). Log `rate limit client ceiling reached` najwyżej raz na minutę. Tabela trzyma najwyżej ok. `(sufit + 2) × reguły × 2 okna` wierszy |
+| (zegar) | NTP na każdej maszynie z instancją | kilka instancji na jednej bazie: okno liczy się z zegara instancji, a sprzątanie usuwa wiersze okien, które według jej zegara już się skończyły. Instancja, która spieszy się o mniej więcej okno, usunie liczniki, którymi inna jeszcze liczy (limity łagodniejsze, nigdy ostrzejsze): **trzymaj zegary zsynchronizowane (NTP, `timedatectl status`)** |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `DB_POOL_MIN`, `DB_POOL_MAX`, `DB_DEBUG` | 2, 10, `false` | pula połączeń na instancję |
 | `POSTGRES_USER`, `POSTGRES_DB` | `winematch` | |
@@ -106,14 +111,17 @@ Proxy działa na hoście i przekazuje ruch na `127.0.0.1:${APP_PORT:-3000}`. Wym
 | Log dostępu **bez query string** | loguj ścieżkę (`$uri`), nie pełne żądanie (`$request`); format JSON, retencja 30 dni | `sid=`, `diet=`, `without=` ujawniają dane o zdrowiu, `/admin/accept?token=` niesie jednorazowy token zaproszenia |
 | Limit rozmiaru ciała | min. **12 MB** na `/admin/` (akcje serwerowe: plik 10 MB plus pola, aplikacja ma limit 11 MB) | mniejszy limit psuje import menu |
 | Metody | przepuszczaj tylko `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`; **blokuj `TRACE`** (i `TRACK`, `CONNECT`) | TRACE odbija nagłówki, w tym ciasteczka |
-| Nagłówki | `Host`, `X-Forwarded-For`, `X-Forwarded-Proto: https`, `X-Forwarded-Host` | strony rozpoznają adres z nagłówków |
+| Nagłówki | `Host`, `X-Forwarded-For` **dopisany przez proxy** (nginx: `$proxy_add_x_forwarded_for`; Caddy domyślnie zastępuje nagłówek adresem klienta), `X-Forwarded-Proto: https`, `X-Forwarded-Host` | strony rozpoznają adres z nagłówków; limity żądań liczą klienta po ostatnim adresie z `X-Forwarded-For` (`TRUSTED_PROXY_HOPS=1`, ustawione w Compose) |
 | Cache | nie buforuj `/admin/*`, `/api/*`, `/demo/*` | aplikacja wysyła `no-store`, proxy nie powinien go nadpisywać |
 | Metryki | nie wystawiaj `/api/v1/metrics` publicznie, jeśli scraper jest lokalny (token jest jedyną ochroną) | |
-| Limit żądań per IP | **wymagane przed pierwszym prawdziwym najemcą**, na razie niezaimplementowane w aplikacji (E21 F3, `docs/OPERATIONS.md`); do czasu E21 F3 ustaw limit w proxy na `/api/v1/auth/` i `/api/v1/public/` | decyzja D4 |
+| Limit żądań per IP | **dwie warstwy** (spec E21 Q5). Uwaga: cała restauracja za jednym NAT-em (Wi-Fi sali) to dla obu warstw jeden adres: kalibruj na `rate_limit_denied_total{rule}` (`docs/OPERATIONS.md`). Aplikacja (od E21 F3) liczy reguły znające semantykę: logowanie, publiczne API, wydanie, wyszukanie i oznaczenie kodu polecenia, wspólnie dla wszystkich instancji przez PostgreSQL (`TRUSTED_PROXY_HOPS`, `RATE_LIMIT_SECRET`, `RATE_LIMITS` w sekcji 4). Proxy trzyma tylko **ogólny** limit na IP przeciw zalewowi (przykład niżej: 20 req/s, burst 40), bez osobnych reguł dla `/api/v1/auth/` i `/api/v1/public/`. Proxy musi być jedynym źródłem `X-Forwarded-For`: aplikacja słucha tylko na `127.0.0.1` | decyzja D4 |
 
 Przykład dla nginx (nie uruchomiony w tym repozytorium: sprawdź `nginx -t` na hoście; dopasuj domenę i ścieżki certyfikatów):
 
 ```nginx
+limit_req_zone $binary_remote_addr zone=wm_per_ip:10m rate=20r/s;   # w bloku http
+limit_req_status 429;   # domyślnie nginx odpowiada 503, co wygląda na awarię aplikacji
+
 log_format wm escape=json '{"time":"$time_iso8601","method":"$request_method","path":"$uri","status":$status,"bytes":$body_bytes_sent,"rt":$request_time}';
 
 server {
@@ -135,6 +143,8 @@ server {
   client_max_body_size 12m;
 
   if ($request_method !~ ^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)$) { return 405; }   # blokuje TRACE
+  limit_req zone=wm_per_ip burst=40 nodelay;   # ogólny limit na IP (strefa `limit_req_zone` wyżej, w bloku http); reguły per trasa liczy aplikacja.
+                                               # Restauracja za jednym NAT-em ładuje strony z wieloma zasobami: przy 429 na /_next/ podnieś burst (np. 100)
 
   location / {
     proxy_pass http://127.0.0.1:3000;
@@ -184,6 +194,7 @@ Wszystkie żądania ruchu własnego niosą `X-Wine-Match-Synthetic: 1` (nie zawy
 | Adres QR | zaloguj się jako właściciel, otwórz `/admin/<slug>/qr` | strona pokazuje `https://<domena>/r/<slug>` | inny adres: `PUBLIC_BASE_URL` w `.env` i `docker compose up -d app`; **nie drukuj** do czasu poprawki |
 | Nagłówki | `curl -sI https://<domena>/ \| grep -i 'strict-transport\|x-frame\|x-content-type'` | HSTS z proxy, `X-Frame-Options: DENY`, `nosniff` | brak HSTS: proxy (sekcja 6) |
 | Metryki | `curl -s -H "Authorization: Bearer $METRICS_TOKEN" http://127.0.0.1:3000/api/v1/metrics \| head` | wiersze `http_requests_total` | 404: brak `METRICS_TOKEN` (zamierzone); 401: zły token |
+| Limity żądań | z maszyny **spoza** hosta: `curl -s -m 3 -o /dev/null -w '%{http_code}\n' http://<adres-hosta>:3000/api/v1/health` (port aplikacji nieosiągalny: błąd połączenia, nie 200); potem `for i in $(seq 1 25); do curl -s -o /dev/null -w '%{http_code} ' -X POST -H 'content-type: application/json' -H "X-Forwarded-For: 10.$((i % 250)).0.1" -d '{}' https://<domena>/api/v1/auth/login; done; echo` | pierwsze 20 odpowiedzi 422, potem 429 (losowy `X-Forwarded-For` nie daje nowego licznika: liczy się adres dopisany przez proxy) | same 422: `TRUSTED_PROXY_HOPS` za duże albo proxy przepuszcza nagłówek klienta; port osiągalny: firewall hosta (sekcja 6). Uwaga: to zużywa limit logowania Twojego adresu na 10 minut |
 | Kontener | `docker compose ps` | `app` `healthy`, `migrate` zakończony (Exited 0), `db` `healthy` | `docker compose logs app` |
 
 Pełny smoke (`npm run smoke -- <url> halka`) loguje się kontem demo i zmienia dane: **wyłącznie instancja próbna**, nigdy produkcja.
