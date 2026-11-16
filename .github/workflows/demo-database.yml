@@ -1,0 +1,86 @@
+# Manual only. Applies the migrations (and, optionally, the demo seed) to the DEMO database of the interactive demo
+# instance (docs/DEPLOYMENT.md section 17), from a GitHub runner, so the owner does not need Node, npm or a local checkout.
+#
+# What it does, on `main` only: `npm run db:migrate`, then (input `seed`, default true) `npm run db:seed`.
+#   db:migrate  all-or-nothing in one transaction; nothing is changed when a migration fails.
+#   db:seed     writes the DEMO restaurant, its menu and the demo accounts, which have a PUBLIC password. Run it ONLY
+#               against a throwaway demo database; never against a production database.
+# What it does NOT do: deploy, change Vercel settings, run on a schedule or on pull requests, print the database address.
+#
+# The address comes from the secret DEMO_DATABASE_URL of the GitHub environment `demo-database` (Settings -> Environments;
+# create it with "Deployment branches: Selected -> main"). Paste the Supabase/Vercel POSTGRES_URL (transaction pooler,
+# port 6543) as it is: the step below switches it to the session pooler (port 5432), which migrations need.
+#
+# The main-only guard below is in this file, so anyone with write access could dispatch a branch whose copy of the file
+# drops it. The server-side guard is the environment's "Deployment branches: main" rule (same reasoning as release.yml).
+#
+# Supply chain (lesson 18): actions pinned by full SHA, the same pins as ci.yml; the checkout keeps no token
+# (persist-credentials: false); the job has read-only contents; npm runs with ignore-scripts (.npmrc).
+
+name: Demo database
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEMO to confirm that the secret points at a throwaway DEMO database (not production)'
+        required: true
+        type: string
+      seed:
+        description: 'Also load the demo data (restaurant, menu, demo accounts with a public password)'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: demo-database
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: demo-database
+    permissions:
+      contents: read
+    steps:
+      - name: Guards (main only, explicit confirmation, secret present)
+        env:
+          REF: ${{ github.ref }}
+          CONFIRM: ${{ inputs.confirm }}
+          URL_SET: ${{ secrets.DEMO_DATABASE_URL != '' }}
+        run: |
+          test "$REF" = "refs/heads/main" || { echo "Dispatch this workflow on main only (got $REF)."; exit 1; }
+          test "$CONFIRM" = "DEMO" || { echo "Type DEMO in the confirm input."; exit 1; }
+          test "$URL_SET" = "true" || { echo "The environment secret DEMO_DATABASE_URL is not set."; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.20.0
+      - run: npm ci
+      - name: Session-pooler address (never printed)
+        env:
+          DEMO_DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+        run: |
+          url=$(printf '%s' "$DEMO_DATABASE_URL" | sed 's#:6543/#:5432/#')
+          echo "::add-mask::$url"
+          printf 'DATABASE_URL=%s\n' "$url" >> "$GITHUB_ENV"
+      # Supabase refuses connections without SSL (ESSLREQUIRED). MikroORM builds the pg pool from the URL parts and drops
+      # ?sslmode=..., so the setting goes through PGSSLMODE, which pg reads itself. no-verify: the Supabase CA is not in
+      # the Node trust store ("self-signed certificate in certificate chain"); the connection is encrypted, not verified.
+      - name: Migrate
+        env:
+          PGSSLMODE: no-verify
+        run: npm run db:migrate
+      - name: Seed the demo data
+        if: ${{ inputs.seed }}
+        env:
+          PGSSLMODE: no-verify
+        run: npm run db:seed
