@@ -223,6 +223,17 @@ describe('access boundaries, part 3: mass assignment (T-35), the remaining serve
     const user1 = await queryDatabase<{ j: Record<string, unknown> }>(db(), 'select to_jsonb(x) as j from app_user x where email = $1', [email]);
     expect(changed(user0[0]!.j, user1[0]!.j).filter((k) => !['failed_attempts', 'locked_until', 'updated_at'].includes(k)), 'only the failed-attempt counter of the account').toEqual([]);
     await queryDatabase(db(), 'update app_user set failed_attempts = 0, locked_until = null where email = $1', [email]);
+    // "Sign in as …" (spec 2026-11-16-interactive-demo-entry, R5): this instance has no ALLOW_DEMO_DATA, so the action called by its id, without the card,
+    // refuses like a wrong password, for a real demo key, a waiter's key and an unknown key, and touches nothing (not even the account's counter)
+    const beforeDemo = await state();
+    const userBeforeDemo = await queryDatabase<{ j: Record<string, unknown> }>(db(), 'select to_jsonb(x) as j from app_user x where email = $1', [email]);
+    for (const key of ['tomasz', 'marta', 'kelner', 'nobody']) {
+      const demo = await postForm(undefined, 'loginAsDemo', '/admin/login', [['key', key], ['email', email], ['password', DEMO_PASSWORD], ['restaurant', BISTRO]]);
+      expect(demo.location, key).toBe('/admin/login?error=invalid_credentials');
+      expect(demo.setCookie, key).not.toMatch(/wm_session=[^;]/);
+    }
+    expect(await state(), 'a refused demo sign-in writes nothing').toEqual(beforeDemo);
+    expect((await queryDatabase<{ j: Record<string, unknown> }>(db(), 'select to_jsonb(x) as j from app_user x where email = $1', [email]))[0]!.j, 'and does not count against the account').toEqual(userBeforeDemo[0]!.j);
     // logout: with a planted `token` field naming another session, only the caller's own session ends
     const other = await halkaManager();
     const s2 = await sessionsOf(email);

@@ -4,6 +4,9 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+### Interaktywne demo (E22)
+- Strona startowa `/start` (DM6) na instancji z `ALLOW_DEMO_DATA=true` i `SHOWCASE_MODE` innym niż `demo`: jedno kliknięcie do widoków gościa, „całego stołu”, kelnera i kalkulatora oraz „Zaloguj jako Marta / Tomasz” (akcja `loginAsDemo`, hasło demo nigdy nie trafia do HTML). Karta „Konta demo” na `/admin/login`, tylko dla kont, które istnieją w repozytorium i mają dostęp do panelu. Pasek powrotu na stronach gościa, link „Start dema” w panelu, `/` kieruje do `/start`. Nowe: `AppEnv.allowDemoData`, `AuthService.panelAccountsAmong`, `/start` w `matcher` proxy (odstępstwo od R12 specyfikacji sprzedażowej), nagłówki `no-store` i `noindex`, `noindex` na całej instancji interaktywnej, wiersz T-37 w modelu zagrożeń. Spec `2026-11-16-interactive-demo-entry`.
+
 ## [0.3.0] - 2026-11-16
 
 ### Wdrożenie produkcyjne (E11, E11b)
