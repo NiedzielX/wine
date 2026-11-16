@@ -95,7 +95,7 @@ Wspólne zasady:
 
 ## G2 Dish details — `/r/{slug}/dish/{dishId}` (wycofany 2026-10-15)
 
-Ekran połączony z G3 (spec `.ai/specs/2026-10-15-guest-short-path-and-desktop.md`): adres odpowiada **308** na `/r/{slug}/dish/{dishId}/wines` z całym query (`BACKWARD_COMPATIBILITY.md` §1). Opis dania i „taste chips” są w nagłówku G3, szybkie preferencje w rzędzie chipów na G3. Event `dish_viewed` usunięty — wejście w danie liczy `recommendations_viewed`.
+Ekran połączony z G3 (spec `.ai/specs/implemented/2026-10-15-guest-short-path-and-desktop.md`): adres odpowiada **308** na `/r/{slug}/dish/{dishId}/wines` z całym query (`BACKWARD_COMPATIBILITY.md` §1). Opis dania i „taste chips” są w nagłówku G3, szybkie preferencje w rzędzie chipów na G3. Event `dish_viewed` usunięty — wejście w danie liczy `recommendations_viewed`.
 
 ## G3 Wine recommendations — `/r/{slug}/dish/{dishId}/wines`
 

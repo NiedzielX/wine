@@ -74,7 +74,7 @@ One sentence, user-visible behaviour.
 - What the test seeds or creates, and how it avoids affecting other tests.
 
 ## Test implementation
-[packages/app/tests/e2e/example.e2e.test.ts](../../../packages/app/tests/e2e/example.e2e.test.ts): `the exact title of the it(...) call`
+[packages/app/tests/e2e/access-boundaries.e2e.test.ts](../../../packages/app/tests/e2e/access-boundaries.e2e.test.ts): `the exact title of the it(...) call`
 
 **Notes for the reviewer:** only when the test is vague or something cannot be told from it.
 ```
