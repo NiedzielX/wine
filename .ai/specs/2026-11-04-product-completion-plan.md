@@ -33,7 +33,7 @@ Dowieźć kompletny produkt w czterech falach, każdy epik z własną specyfikac
 | Id | Epik | Specyfikacja | Fazy | Zależy od | Fala | Ryzyko (najwyższe z faz, SDLC) |
 |---|---|---|---|---|---|---|
 | E11 | Wdrożenie produkcyjne (istniejąca, `approved`) | `2026-10-15-production-deployment.md` | wg specyfikacji | — | 0 | high |
-| E11b | Domknięcie kodów rekomendacji (AC1–AC6, AC13–AC15) | `2026-10-16-recommendation-code.md` | wg specyfikacji | — | 0 | medium |
+| E11b | Domknięcie kodów rekomendacji (AC1–AC6, AC13–AC15) | `implemented/2026-10-16-recommendation-code.md` | wg specyfikacji | — | 0 | medium |
 | E12 | Konta personelu, PIN kelnera i role | `2026-11-04-staff-accounts-and-roles.md` | 6 (F1–F6) | — (F5 respektuje tryb `demo` z E22; limity po IP z E21 F3 miękko) | 1 | high (wszystkie fazy) |
 | E14 | Panel administratora systemu, organizacje i wiele lokali | `2026-11-04-platform-admin-and-multi-venue.md` | 5 (F1–F5) | E12 (F3 po E12 F2: `InvitationService.inviteOwner`; AC26 po E12 F1) | 1 | high (wszystkie fazy) |
 | E21 | Jakość platformy i zgodność (monitoring, kopie, limity, dostępność, wydajność, RODO) | `2026-11-04-platform-quality-and-compliance.md` | 7 (F1–F7) | E11 (F2 po E11 F1) | 1 | high (F3, F4) |

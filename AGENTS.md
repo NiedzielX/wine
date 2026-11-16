@@ -51,7 +51,7 @@ Wine Match: platforma B2B2C rekomendacji win dla restauracji — aplikacja gośc
 
 ### 1.2 Pakiety i kierunek zależności
 
-`core` (domena, silnik, serwisy; → nic), `db` (MikroORM; → core), `ui` (shadcn/ui, marka; → nic z projektu), `app` (Next.js, API, DI; → core, db, ui), `mockups` (Vite; → core). Każdy pakiet ma własny `AGENTS.md` ze szczegółami — **przeczytaj go przed zmianą w pakiecie**. Granice sprawdza `npm run check:boundaries` (część `npm run build`); drzewo i pełna wersja: `.ai/docs/architecture-rules.md` §1.2.
+`core` (domena, silnik, serwisy; → nic), `db` (MikroORM; → core), `ui` (shadcn/ui, marka; → nic z projektu), `app` (Next.js, API, DI; → core, db, ui), `mockups` (Vite; → core), `testkit` (wspólne narzędzia testów; → nic). Każdy pakiet ma własny `AGENTS.md` ze szczegółami — **przeczytaj go przed zmianą w pakiecie**. Granice sprawdza `npm run check:boundaries` (część `npm run build`); drzewo i pełna wersja: `.ai/docs/architecture-rules.md` §1.2.
 - `core` **NIE importuje** React, Next.js, MikroORM, `pg`, Awilix, `node:*` ani innych pakietów projektu. `db` nie importuje React, Next.js, Awilix, `ui` ani `app`; encje MikroORM **nie wychodzą** poza `db`. `ui` nie importuje `core`, `db`, `app`, Next.js ani MikroORM.
 - W `app/src/app` (strony, layouty, route handlery) nie importuj `@wine-match/db` ani `@mikro-orm/*`: dane wyłącznie przez serwisy z kontenera DI. Strony gościa (`(guest)`) nie używają shadcn/ui, z `@wine-match/ui` tylko `brand/*`.
 - Pakiety eksportują źródła TypeScript (bez `dist/`, `tsc --build`).
@@ -71,7 +71,7 @@ Skrót; pełna wersja z wyjątkami: `.ai/docs/architecture-rules.md` §1.3. Obej
 
 Skrót; pełna wersja: `.ai/docs/architecture-rules.md` §1.4.
 - **Strony gościa:** Tailwind z motywem `(guest)/guest.css`, mobile-first, komponenty serwerowe, filtry jako linki i parametry URL (działają bez JavaScriptu). **Panel:** shadcn/ui z `@wine-match/ui`, desktop-first; nowy komponent shadcn dodawaj do `packages/ui`.
-- Osobne layouty główne `(guest)` i `(admin)`; nie dodawaj `src/app/layout.tsx`. Komponenty klienckie tylko przy interakcji i bez importów z `app/src/server`.
+- Osobne layouty główne `(guest)`, `(admin)` i `(showcase)` (strony `/demo/*`); nie dodawaj `src/app/layout.tsx`. Komponenty klienckie tylko przy interakcji i bez importów z `app/src/server`.
 - Fonty wyłącznie lokalnie (`@fontsource-variable/*`). **NIE WOLNO** używać `next/font/google` ani zasobów z CDN.
 
 ### 1.5 Polecenia

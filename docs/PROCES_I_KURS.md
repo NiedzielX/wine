@@ -55,7 +55,7 @@ Pełny runbook (pętla, granice, backlog startowy, format raportu): [.ai/docs/pr
 | 13 | Praca równoległa | WIP = tyle, ile zrecenzujesz; typy zadań; kolejka o stałych porach; nocna zmiana | `.ai/docs/parallel-work.md` (limit 3 PR, typy I/S/P/M), `.ai/docs/nightly-review-routine.md` (rutyna w chmurze) | zrobione |
 | 14 | Testy i poprawki | „naprawione” to hipoteza; test czerwony → zielony; review drugiego agenta; CodeQL, Dependabot | `.ai/docs/fix-verification.md`, `npm run verify:regression`, `.github/workflows/codeql.yml`, `.github/dependabot.yml` | zrobione; SonarQube pominięty (CodeQL + lint) |
 | 15 | brak materiału, właściciel nie posiada | — | repozytorium nie dowodzi treści tej lekcji | brak materiału (nie do odtworzenia) |
-| 16 | Bezpieczeństwo produktu | model zagrożeń (STRIDE), OWASP, test granicy dostępu w trzech sprawdzeniach, SAST/DAST tylko w sandboksie | `docs/security/threat-model.md`, `docs/security/dast-coverage.md`, `.ai/docs/engineering-standards.md` §10, testy granic w `packages/app/tests/e2e/`, skill `wine-match-access-boundary-test` | częściowo: granice części 2–3 otwarte; DeepSec odrzucony przez Ciebie |
+| 16 | Bezpieczeństwo produktu | model zagrożeń (STRIDE), OWASP, test granicy dostępu w trzech sprawdzeniach, SAST/DAST tylko w sandboksie | `docs/security/threat-model.md`, `docs/security/dast-coverage.md`, `.ai/docs/engineering-standards.md` §10, testy granic w `packages/app/tests/e2e/`, skill `wine-match-access-boundary-test` | częściowo: granice części 2–3 wdrożone (#146, `dc5068a`); DeepSec odrzucony przez Ciebie |
 | 17 | Review i odbiór zadań | trzy warstwy bramek; etykieta to decyzja z chwili; recenzent bez opisu autora; małe PR-y; bramki deterministyczne (mutacje, rozmiar) | `.ai/docs/review-protocol.md`, `npm run review:pack`, `.ai/docs/review-checklists.md`, `npm run check:routes`, `.ai/docs/engineering-standards.md` §11 | częściowo: brak testów mutacyjnych i bramki rozmiaru; wymagane zatwierdzenia 0 (jedna osoba) |
 | 18 | Nowoczesny tester | AI jako drugi tester, plan przed klikaniem, baza wiedzy, człowiek podpisuje werdykt | `.ai/docs/qa-protocol.md` (niezależny weryfikator, lista „wymaga ludzkiego oka”), `.ai/qa/knowledge/` | zrobione; artefakty sesji QA nr 1 do uzupełnienia |
 | 19 | Opór zespołu (lekcja menedżerska) | fale adopcji, zespół „statek piracki”, tryb shadow, agenty z celami | brak zmian w kodzie (projekt jednoosobowy) | świadomie pominięte |
@@ -170,7 +170,7 @@ Brak Twoich wypowiedzi (do decyzji): domena (hosting: kierunek Vercel, patrz §2
 
 **Ryzyka (od najważniejszych):**
 1. Brak instancji produkcyjnej i hostingu: produkt nie był uruchomiony u klienta, rollback nie był ćwiczony.
-2. Granice dostępu części 2–3 i limit żądań per IP otwarte, a to najczęstsza klasa podatności (lekcja 16).
+2. Limit żądań per IP otwarty (granice dostępu części 2–3 wdrożone w #146, `dc5068a`), a to najczęstsza klasa podatności (lekcja 16).
 3. Jedna osoba: wymagane zatwierdzenia 0, Code Owners bez wymuszenia; niezależność daje tylko świeży kontekst recenzenta.
 4. CodeQL i `image` nie są wymaganymi checkami: czerwony CodeQL nie blokuje merge.
 5. Brak polityki zgłaszania podatności i licencji: nie ma kanału dla zgłaszających ani podstawy do udostępniania kodu (`CONTRIBUTING.md`).
@@ -179,7 +179,7 @@ Brak Twoich wypowiedzi (do decyzji): domena (hosting: kierunek Vercel, patrz §2
 **Twoje decyzje (oczekujące):** hosting (draft Vercel, PR #149, pytania Q1–Q12; zmienia D10), domena, rejestr obrazów; `LICENSE`; definicja i tag 1.0; ustawienia GitHuba: secret scanning i push protection, alerty Dependabot, private vulnerability reporting, środowisko `release`, `image` i CodeQL jako wymagane checki; #139; publikacja przeglądu OWASP łańcucha dostaw; spec testów mutacyjnych; limity dla fuzz API (proxy, 11 MB); drafty `.ai/specs/2026-11-09-multi-family-review-harness.md` i `.ai/specs/2026-11-09-release-management-automation.md`; zamknięcie issue #46, #19 i E01 (#3–#9); zgoda na sprzątanie gałęzi; lista „wymaga ludzkiego oka” z sesji QA nr 1; **stała zgoda na merge dla wykonawcy** (bez odpowiedzi: obowiązuje „Scal #N” per PR; opcja to jawna, zakresowa zgoda w czacie, np. na PR-y `risk-low` gotowe wg playbooka §1, odwołalna w każdej chwili).
 
 **Następne kroki (rekomendacja):**
-1. Uruchom wykonawcę promptem z §0; niech zamknie granice 2–3, limit per IP i pełny e2e zaproszenia.
+1. Uruchom wykonawcę promptem z §0; niech zamknie limit per IP i pełny e2e zaproszenia (granice 2–3 są wdrożone, #146).
 2. W ustawieniach GitHuba włącz secret scanning z push protection, alerty Dependabot i zgłaszanie podatności; dodaj `analyze` do wymaganych checków.
 3. Odpowiedz na pytania Q1–Q12 w drafcie hostingu (PR #149) albo go odrzuć; wybierz domenę; wtedy E11 F3 i próba odtworzenia z taga (`docs/RELEASING.md` §12).
 4. Zdecyduj o licencji i 1.0; potem pierwszy PR wydania.

@@ -13,8 +13,13 @@ Przeniesione z `AGENTS.md` (§2, §3, §4, §5, §6.1, §8); treść przeniesion
 ├─ runs/
 │  └─ YYYY-MM-DD-slug.md  log każdego autonomicznego przebiegu agenta
 ├─ lessons.md             indeks lekcji: jedna linia na lekcję, najnowsze na górze
-└─ lessons/
-   └─ YYYY-MM-DD-slug.md  pełna treść lekcji
+├─ lessons/
+│  └─ YYYY-MM-DD-slug.md  pełna treść lekcji
+├─ docs/                  instrukcje szczegółowe przeniesione z AGENTS.md (polecenia, architektura, QA, review)
+├─ qa/                    scenariusze QA powiązane z testami e2e (`.ai/qa/README.md`, `INDEX.md`)
+├─ maintenance/           raporty audytów wiedzy w repozytorium
+├─ skills/, trackers/, browsers/, scripts/, schemas/, analysis/
+│                         konfiguracja potoku agentów (`agentic.config.json`), deskryptory trackera i przeglądarki, skrypty środowiska testowego, schematy review, analizy
 ```
 
 ### Planowanie złożonych zadań (AGENTS.md §3)
