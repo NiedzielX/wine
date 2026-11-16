@@ -22,6 +22,15 @@ Wzór wpisu (w bloku kodu, więc skrypt go nie czyta):
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
+### Limity żądań na klienta: bez `TRUSTED_PROXY_HOPS` za proxy jeden klient może zablokować wszystkich (#148)
+
+- **Kogo dotyczy:** operatora instalacji wdrożonej **bez** `docker-compose.yml` z repozytorium (inny sposób uruchomienia za reverse proxy); integratora API (nowy kod 429).
+- **Co się zmienia:** publiczne API, logowanie oraz wydanie, wyszukanie i oznaczenie kodu polecenia mają limity na klienta i odpowiadają 429 z `Retry-After`; liczniki są w nowej tabeli `rate_limit_bucket` (migracja addytywna). Domyślne `TRUSTED_PROXY_HOPS=0` nie czyta `X-Forwarded-For`, więc za proxy wszyscy klienci dzielą jeden licznik z limitem o połowę niższym i jeden anonimowy klient może na całe okno zablokować tych funkcji wszystkim (start w produkcji ostrzega). Compose ustawia `TRUSTED_PROXY_HOPS=1`. Żadna zmienna nie jest wymagana do startu.
+- **Co zrobić:** przed aktualizacją ustawić `TRUSTED_PROXY_HOPS` na dokładną liczbę proxy dopisujących adres do `X-Forwarded-For` (nie więcej; docs/DEPLOYMENT.md §4, §6) i zalecany `RATE_LIMIT_SECRET` (`openssl rand -hex 32`), zastosować migrację (`migrate`, docs/DEPLOYMENT.md §2), po wdrożeniu sprawdzić wiersz „Limity żądań” w §8. Klient API powinien obsłużyć 429 (docs/API_SPECIFICATION.md).
+- **Wycofanie:** poprzedni obraz (docs/DEPLOYMENT.md §10, ścieżka A); tabela `rate_limit_bucket` zostaje nieużywana, bo migracja jest addytywna.
+
 ### W produkcji serwer nie startuje bez poprawnego `PUBLIC_BASE_URL` (#120)
 
 - **Kogo dotyczy:** operatora każdej instalacji z `NODE_ENV=production` (`npm start`, obraz Docker), niezależnie od `DATA_SOURCE`.

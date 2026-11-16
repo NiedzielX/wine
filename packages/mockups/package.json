@@ -1,6 +1,6 @@
 {
   "name": "@wine-match/mockups",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Clickable static mockups (Vite) used for product demos; uses the engine from @wine-match/core",
