@@ -99,4 +99,13 @@ Wykonany przez niezależnego agenta (model niezapisany). Każdą tezę sprawdzon
 Sprawdzone: nieprawda: brak odrzuconych tez.
 
 ## Realizacja
-(Uzupełnia agent po implementacji. Odnotować: odstępstwo od R12 specyfikacji `2026-11-04-sales-demo-and-roi-calculator` (`/start` w `matcher`).)
+(Stan: `in-progress`; zamknięcie po scaleniu, zgodnie z poleceniem.) Log: `.ai/runs/2026-11-16-interactive-demo-entry-impl.md`. Commity na gałęzi `docs/interactive-demo-entry-rev` (core, app, testy, e2e z dokumentacją).
+
+Odstępstwa i decyzje:
+- **R12 specyfikacji `2026-11-04-sales-demo-and-roi-calculator`:** `/start` dodany do `matcher` w `proxy.ts` (inaczej strona zawsze byłaby po angielsku); test `server.test.ts` zaktualizowany.
+- **Otwarte pytanie „czy `findUserByEmail` wystarcza”:** wystarczył istniejący port, więc bez zmiany portu i kontraktu; dodana metoda serwisu `AuthService.panelAccountsAmong(emails)` (istnienie konta i `panel.view`), bo zapytanie o istnienie ma robić serwis, nie strona.
+- **Język po „Zaloguj jako”:** formularz niesie ukryte pole `lang`; akcja zapisuje ciasteczko `wm_lang` (tylko `pl`/`en`), żeby panel otworzył się w języku wybranym na `/start`. Poza specyfikacją, drobne; cel: spójność języka.
+- **Karta na `/admin/login` i `/start`:** nowy kod ekranu **DM6** (`docs/SCREEN_SPECIFICATION.md`, `docs/SCREEN_MAP.md`); modelu zagrożeń dotyczy wiersz **T-37**.
+- **Flaga „bez QR” z `vercel-hosting` R7:** nie wdrożona w tym repozytorium, więc test AC2 nie zakłada jej obecności (QR i tak nie jest linkowany z `/start`).
+- **Link w nagłówku panelu:** dwa warianty tego samego linku (pasek górny od `lg`, kolumna boczna poniżej `lg`), bo pasek górny jest ukryty na wąskich ekranach.
+- **Niezweryfikowane:** widok 390 px i 1440 px w przeglądarce (brak `agent-browser` i dostępu do pobrania Chrome w środowisku agenta); `home.e2e.test.ts` (wymaga przeglądarki; i tak nie dotyczy instancji bez flagi).
