@@ -24,6 +24,10 @@ function issueCode(issue: IssueLike): string {
   }
 }
 
+// A client chooses these keys, so a 100 kB key must not come back as a 100 kB error body.
+const MAX_FIELD_KEY = 80;
+const clip = (key: string) => (key.length > MAX_FIELD_KEY ? `${key.slice(0, MAX_FIELD_KEY)}…` : key);
+
 function fieldsOf(error: z.ZodError): Record<string, string> {
   // A Map, not a plain object: a client chooses these keys, and on an object "constructor" already
   // exists and "__proto__" is silently ignored, so exactly the keys an attacker sends would be lost.
@@ -31,10 +35,10 @@ function fieldsOf(error: z.ZodError): Record<string, string> {
   const note = (key: string, code: string) => { if (!fields.has(key)) fields.set(key, code); };
   for (const issue of error.issues) {
     if (issue.code === 'unrecognized_keys') {
-      for (const key of issue.keys) note(key, 'unknown_field');
+      for (const key of issue.keys) note(clip(key), 'unknown_field');
       continue;
     }
-    note(issue.path.length ? issue.path.map(String).join('.') : 'body', issue.message);
+    note(issue.path.length ? clip(issue.path.map(String).join('.')) : 'body', issue.message);
   }
   return Object.fromEntries(fields);
 }

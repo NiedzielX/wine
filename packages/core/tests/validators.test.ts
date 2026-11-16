@@ -32,6 +32,16 @@ describe('parseWith', () => {
   });
 });
 
+describe('parseWith: client-chosen keys in the error body', () => {
+  it('clips a very long unknown key and keeps a short one whole', () => {
+    const long = 'k'.repeat(100_000);
+    const fields = fieldsOf(loginSchema, { email: 'a@b.pl', password: 'x', [long]: 1, extra: 1 });
+    expect(Object.keys(fields).every((k) => k.length <= 81)).toBe(true);
+    expect(fields.extra).toBe('unknown_field');
+    expect(JSON.stringify(fields).length).toBeLessThan(500);
+  });
+});
+
 describe('mass assignment: unknown fields are refused, not ignored', () => {
   it('a login cannot carry extras', () => {
     expect(fieldsOf(loginSchema, { email: 'a', password: 'b', role: 'owner' })).toEqual({ role: 'unknown_field' });
