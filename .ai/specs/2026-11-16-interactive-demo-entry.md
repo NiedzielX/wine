@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-16
 owner: Filip
 related: [.ai/specs/2026-11-04-sales-demo-and-roi-calculator.md, .ai/specs/2026-11-15-vercel-hosting.md, docs/DEPLOYMENT.md, docs/security/threat-model.md, .ai/runs/2026-11-16-interactive-demo-entry-spec.md]
