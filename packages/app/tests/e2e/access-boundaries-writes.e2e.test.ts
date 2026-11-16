@@ -24,7 +24,7 @@ let bistroId: string; let halkaId: string;
 /** The fields a client must never set, with values that would do harm if they were taken. */
 const EXTRAS = (other: string) => ({ restaurantId: other, restaurant: BISTRO, id: NIL, role: 'owner', status: 'approved', createdBy: NIL, version: 99, published: true, approved: true, updatedBy: 'planted', platform: true, slug: BISTRO });
 const extrasExcept = (other: string, keep: string[]) => Object.fromEntries(Object.entries(EXTRAS(other)).filter(([k]) => !keep.includes(k)));
-/** Every table of the schema (sessions and usage events included; `assertTablesCovered()` in beforeAll proves none is missing). */
+/** Every table of the schema except the request-limit counters (`NOT_DIGESTED` in boundaries.ts; sessions and usage events included; `assertTablesCovered()` in beforeAll proves none is missing). */
 const state = digest;
 const row = async (table: string, id: string) => (await queryDatabase<{ j: Record<string, unknown> }>(db(), `select to_jsonb(x) as j from ${table} x where id = $1`, [id]))[0]?.j;
 /** The columns that differ between two whole rows. */

@@ -69,7 +69,7 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 | `SHOWCASE_MODE` (`off` domyślnie, `calculator`, `demo`; od 2026-11-06, E22 F1 i F2) — nowa zmienna, addytywna; adresy `/demo/roi`, `/demo/roi/summary` i `/demo/tour` istnieją w trybach `calculator` i `demo`, `/demo` tylko w `demo` (w `off` wszystkie 404); kod domenowy `showcase_read_only` (403) z `POST /api/v1/auth/login` wyłącznie w trybie `demo` | zmiana nazwy, usunięcie, zmiana domyślnej wartości `off`, odpowiedź inna niż 404 w trybie `off`, start trybu `demo` na `postgres` albo bez `ALLOW_DEMO_DATA=true`, ładowanie kont demo w trybie `demo`; wartość spoza listy zatrzymuje start (zamykająco) |
 | `ALLOW_DEMO_DATA` w `db:seed` (od 2026-11-05): `DemoSeeder` odmawia przy `NODE_ENV=production` bez `ALLOW_DEMO_DATA=true` i na bazie z restauracją o innym slugu niż demo | poluzowanie lub zmiana kodu wyjścia (`≠ 0` przy odmowie) |
 
-**Ścieżka:** nowa nazwa zmiennej przez co najmniej jedno wydanie czyta też starą i loguje ostrzeżenie. Aktualizuj `.env.example` i README w tym samym PR-ze.
+**Ścieżka:** nowa nazwa zmiennej przez co najmniej jedno wydanie czyta też starą i loguje ostrzeżenie. Aktualizuj `.env.example` i `docs/DEVELOPMENT.md` w tym samym PR-ze.
 
 ## 5. Uprawnienia, role i sesje
 
