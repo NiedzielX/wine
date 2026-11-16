@@ -1,6 +1,6 @@
 import type { MikroORM } from '@mikro-orm/postgresql';
 import {
-  ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
+  ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -234,6 +234,23 @@ describe('concurrency on PostgreSQL', () => {
       expect(issued, `round ${round}: exactly one place was left`).toHaveLength(1);
       const total = Number((await sql<{ n: string }>('select count(*)::text as n from recommendation_code where session_id = ?', [SID]))[0].n);
       expect(total, `round ${round}: exactly the cap, not above, not below`).toBe(MAX_CODES_PER_SESSION_DAY);
+    }
+  });
+
+  it('two publishes from the same screen (expectedLatest): one creates the next version, the other gets a version conflict; numbers without gaps or duplicates (spec 2026-11-04-panel-completion, AC5)', async () => {
+    const publishOf = () => new PublishService({ ...pgRepos(orm), clock: { now: () => new Date() }, idGenerator: { uuid: () => randomUUID() } });
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const seen = (await pgRepos(orm).publishRepository.latest(ds.restaurant.id))!.number;
+      const results = await race(
+        () => publishOf().publish('halka', MARTA, { expectedLatest: seen }),
+        () => publishOf().publish('halka', TOMASZ, { expectedLatest: seen })
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      // the loser either waited for the winner's lock (stale expectedLatest) or already saw nothing left to publish
+      for (const r of rejected(results)) expect(['VersionConflictError', 'ValidationError'], `round ${round}`).toContain((r.reason as Error).name);
+      const numbers = (await sql<{ number: number }>('select number from published_version where restaurant_id = ? order by number', [ds.restaurant.id])).map((r) => r.number);
+      expect(numbers, `round ${round}`).toEqual([1, 2]);
     }
   });
 });

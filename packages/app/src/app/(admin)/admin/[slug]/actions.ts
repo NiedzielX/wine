@@ -88,8 +88,10 @@ export async function setWineAvailability(form: FormData) {
 }
 
 export async function publishChanges(form: FormData) {
-  return act(form, 'publish', async ({ c, slug, actor }) => {
-    const v = await c.publishService.publish(slug, actor);
+  return act(form, 'publish', async ({ c, slug, actor, form: f }) => {
+    // the latest version the screen showed (spec 2026-11-04-panel-completion, R12): a publish by someone else in between is version_conflict
+    const seen = f.has('expectedLatest') ? Number(str(f, 'expectedLatest')) : NaN;
+    const v = await c.publishService.publish(slug, actor, { expectedLatest: Number.isInteger(seen) && seen >= 0 ? seen : undefined });
     return { saved: 'published', n: String(v.number) };
   });
 }

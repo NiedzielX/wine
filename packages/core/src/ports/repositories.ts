@@ -4,6 +4,7 @@ import type { SalesRepository } from './sales';
 import type { AuthAuditRepository, TeamRepository } from './team';
 import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
 import type { Locale } from '../i18n/locale';
+import type { PublishedVersionRecord } from '../services/publishing/snapshot';
 import type {
   CodeSummary, Dish, EntityStatus, GuestEventName, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, PairingRole, PairingStatus, RecommendationCodeRecord,
   Restaurant, RestaurantSettings, Wine
@@ -124,15 +125,34 @@ export interface PublishedVersionInfo {
   publishedAt: string;
 }
 
+export interface PublishInput {
+  actor: string;
+  at: string;
+  id: string;
+  contentChanges?: number;
+  /**
+   * The number of the latest version the caller saw (0 = never published). When given and the latest version is
+   * another one, nothing is written and VersionConflictError is thrown (spec 2026-11-04-panel-completion, R12).
+   */
+  expectedLatest?: number;
+}
+
 export interface PublishRepository {
   latest(restaurantId: string): Promise<PublishedVersionInfo | null>;
+  /**
+   * The version guests see now, with its snapshot (spec 2026-11-04-panel-completion, R2); null when the restaurant was
+   * never published. Until scheduled publishing (F5) this is the latest version. Read through `loadPublishedView`.
+   */
+  effective(restaurantId: string): Promise<PublishedVersionRecord | null>;
   /** Pairings with a decision since the last publish (deletions included) — the "unpublished changes" counter. */
   pendingPairingChanges(restaurantId: string): Promise<number>;
   /**
-   * Atomically: snapshot of reviewed and rejected pairings as the new version, clear the
-   * changed flags, release draft dishes, stamp the restaurant. Returns the new version.
+   * Atomically: snapshot (schema 2: decided pairings, translations, profiles of every non-deleted dish and wine, the
+   * menu composition) as the new version, clear the changed flags, release draft dishes, stamp the restaurant. Returns
+   * the new version. Two publishes of one restaurant never get the same number: a stale `expectedLatest` or a lost race
+   * on the number is VersionConflictError.
    */
-  publish(restaurantId: string, input: { actor: string; at: string; id: string; contentChanges?: number }): Promise<PublishedVersionInfo>;
+  publish(restaurantId: string, input: PublishInput): Promise<PublishedVersionInfo>;
   /**
    * The translations guests see (spec 2026-10-15-bilingual-content, R4): those of the latest published version.
    * A restaurant that was never published shows its current translations; a version published before translations

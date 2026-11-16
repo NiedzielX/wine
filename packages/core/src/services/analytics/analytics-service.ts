@@ -7,13 +7,14 @@ import type { Clock } from '../../ports/runtime';
 import type { SalesKpiService } from '../sales/sales-kpi-service';
 import { count, money, rate, type Metric } from './compare-metric';
 import { kpiWindow, type KpiPeriod } from './kpi-window';
+import { loadPublishedView } from '../publishing/published-view';
 
 /**
  * The KPI dashboard's read service (spec 2026-10-15-kpi-dashboard): guest usage (phase 1), sales (phase 2, through
  * E03's `SalesKpiService`) and pairing performance (phase 3). Each method is loaded and fails on its own on A1 (R9).
  */
 export type AnalyticsServiceDeps = Pick<Repositories,
-  'restaurantRepository' | 'guestInteractionRepository' | 'pairingRepository' | 'dishRepository' | 'wineRepository'> & {
+  'restaurantRepository' | 'guestInteractionRepository' | 'pairingRepository' | 'dishRepository' | 'wineRepository' | 'publishRepository'> & {
   clock: Clock;
   /** E03's contract for E04 (phase 2): the sales KPIs of a period and the days with data */
   salesKpiService: Pick<SalesKpiService, 'getSalesKpis' | 'dataRange'>;
@@ -143,14 +144,15 @@ export class AnalyticsService {
     if (!restaurant) return null;
     const locale = opts.locale ?? 'en';
     const w = kpiWindow(this.deps.clock.now());
-    const [stats, dishes, wines, published] = await Promise.all([
+    // what guests see (spec 2026-11-04-panel-completion, R2): the Match Score on the published profiles
+    const [stats, view] = await Promise.all([
       this.deps.guestInteractionRepository.pairingStats(restaurant.id, w.currentRange),
-      this.deps.dishRepository.listByRestaurant(restaurant.id),
-      this.deps.wineRepository.listByRestaurant(restaurant.id),
-      this.deps.pairingRepository.listPublishedByRestaurant(restaurant.id)
+      loadPublishedView(this.deps, restaurant)
     ]);
-    const dishById = new Map(dishes.map((d) => [d.id, d]));
-    const wineById = new Map(wines.map((x) => [x.id, x]));
+    const published = view.pairings;
+    const dishById = new Map(view.allDishes.map((d) => [d.id, d]));
+    const wineById = new Map(view.allWines.map((x) => [x.id, x]));
+    const offered = new Set(view.wines.map((x) => x.id));
     const pairKey = (dishId: string, wineId: string) => JSON.stringify([dishId, wineId]);
     const seen = new Set<string>();
     const rows: PairingPerformanceRow[] = [];
@@ -175,7 +177,7 @@ export class AnalyticsService {
       if ((p.status !== 'approved' && p.status !== 'modified') || seen.has(pairKey(p.dishId, p.wineId))) continue;
       const dish = dishById.get(p.dishId);
       const wine = wineById.get(p.wineId);
-      if (dish?.status !== 'published' || !wine?.active) continue;
+      if (!dish || !wine || !view.dish(dish.id) || !offered.has(wine.id)) continue;
       seen.add(pairKey(p.dishId, p.wineId));
       rows.push(row(dish, wine, 'sommelier', 0, 0));
     }

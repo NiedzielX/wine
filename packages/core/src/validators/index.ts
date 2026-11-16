@@ -11,3 +11,4 @@ export * from './opportunities/opportunity-key.schema';
 export * from './recommendations/code-action.schema';
 export * from './sales/sales-period.schema';
 export * from './team/team-change.schema';
+export * from './publishing/publish.schema';

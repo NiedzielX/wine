@@ -108,7 +108,7 @@ describe('ImportService: codes on the sales preview and in the saved lines', () 
     const job = await imp.upload('halka', 'sales', { name: 'pos.csv', bytes: new Uint8Array(10) }, ACTOR);
     await imp.confirm('halka', job.id, ACTOR);
     const service = new RecommendationCodeService({
-      restaurantRepository: repos.restaurantRepository, wineRepository: repos.wineRepository, dishRepository: repos.dishRepository,
+      restaurantRepository: repos.restaurantRepository, wineRepository: repos.wineRepository, dishRepository: repos.dishRepository, pairingRepository: repos.pairingRepository, publishRepository: repos.publishRepository,
       recommendationCodeRepository: repos.recommendationCodeRepository, clock: { now: () => new Date('2026-10-21T10:00:00.000Z') },
       idGenerator: { uuid: () => '00000000-0000-4000-8000-0000000000aa' }, logger: createLogger(() => {})
     });
@@ -154,7 +154,7 @@ describe('AC11: a table order of three dishes is one recommendation in the summa
   let seq: number;
   const uuid = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`;
   const codeService = (iso: string) => new RecommendationCodeService({
-    restaurantRepository: repos.restaurantRepository, wineRepository: repos.wineRepository, dishRepository: repos.dishRepository,
+    restaurantRepository: repos.restaurantRepository, wineRepository: repos.wineRepository, dishRepository: repos.dishRepository, pairingRepository: repos.pairingRepository, publishRepository: repos.publishRepository,
     recommendationCodeRepository: repos.recommendationCodeRepository, clock: { now: () => new Date(iso) },
     idGenerator: { uuid }, logger: createLogger(() => {})
   });

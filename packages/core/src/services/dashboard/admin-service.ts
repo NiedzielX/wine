@@ -4,6 +4,7 @@ import { pairingScore } from '../../engine/scoring';
 import type { Locale } from '../../i18n/locale';
 import type { Repositories } from '../../ports/repositories';
 import { orderReviewed } from '../pairings/pairing-rules';
+import { countProfileChanges } from '../publishing/snapshot';
 import { countContentChanges, localizeComment, localizeDish, localizeRestaurant, localizeWine } from '../../i18n/content';
 
 export type AdminServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository'>;
@@ -139,11 +140,13 @@ export class AdminService {
     const d = await this.load(slug, locale);
     if (!d) return null;
     const { restaurant, dishes, wines, pairings } = d;
-    const [pairingChanges, publishedContent] = await Promise.all([
+    const [pairingChanges, publishedContent, effective] = await Promise.all([
       this.repos.publishRepository.pendingPairingChanges(restaurant.id),
-      this.repos.publishRepository.publishedContent(restaurant.id)
+      this.repos.publishRepository.publishedContent(restaurant.id),
+      this.repos.publishRepository.effective(restaurant.id)
     ]);
-    const pending = pairingChanges + countContentChanges(d.raw, publishedContent);
+    // the same parts as PublishService.preview: decisions, translations, profiles and menu composition (+ drafts below)
+    const pending = pairingChanges + countContentChanges(d.raw, publishedContent) + countProfileChanges(d.raw, effective);
     const published = dishes.filter((x) => x.status === 'published');
     const primaryIds = new Set(pairings.filter((p) => isApproved(p) && p.role === 'primary').map((p) => p.dishId));
     const pairedIds = new Set(pairings.map((p) => p.dishId));

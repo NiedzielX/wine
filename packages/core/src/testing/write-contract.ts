@@ -120,6 +120,32 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect((await repos.restaurantRepository.findBySlug(ds.restaurant.slug))!.publishedAt).toBe('2026-10-14T13:00:00.000Z');
     });
 
+    t.it('publishes snapshot v2: every profile, hidden dishes and inactive wines included, and the menu (spec 2026-11-04-panel-completion, AC1)', async () => {
+      const before = (await repos.publishRepository.effective(rid()))!;
+      t.expect(before.snapshot.schema).toBe(2);
+      t.expect(before.info).toEqual(await repos.publishRepository.latest(rid()));
+      const v = await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '56565656-5656-4565-8565-565656565656', expectedLatest: before.info.number });
+      const after = (await repos.publishRepository.effective(rid()))!;
+      t.expect(after.info).toEqual(v);
+      t.expect(after.snapshot.schema).toBe(2);
+      const ids = (xs: Array<{ id: string }>) => xs.map((x) => x.id).sort();
+      t.expect(ids(after.snapshot.profiles!.dishes)).toEqual(ids(ds.dishes));
+      t.expect(ids(after.snapshot.profiles!.wines)).toEqual(ids(ds.wines));
+      t.expect([...after.snapshot.menu!.dishIds].sort()).toEqual(ids(ds.dishes));
+      const inactive = ds.wines.find((w) => !w.active)!;
+      t.expect(after.snapshot.profiles!.wines.find((w) => w.id === inactive.id)!.profile).toEqual({ ...inactive.profile });
+      t.expect(after.snapshot.profiles!.dishes.find((d) => d.id === duck().id)!.profile).toEqual(Object.fromEntries(Object.entries(duck().profile).filter(([k]) => k !== 'source')));
+      t.expect(after.snapshot.pairings.length).toBe(ds.pairings.filter((p) => p.status !== 'suggested').length);
+      t.expect(await repos.publishRepository.effective(OTHER)).toBeNull();
+    });
+
+    t.it('a stale expectedLatest is a version conflict and writes nothing (AC5)', async () => {
+      const draft = ds.dishes.find((d) => d.status === 'draft')!;
+      await t.expect(repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '57575757-5757-4575-8575-575757575757', expectedLatest: 0 })).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.publishRepository.latest(rid()))!.number).toBe(1);
+      t.expect((await repos.dishRepository.findById(rid(), draft.id))!.status).toBe('draft');
+    });
+
     t.it('releases draft dishes on publish', async () => {
       const draft = ds.dishes.find((d) => d.status === 'draft')!;
       await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '55555555-5555-4555-8555-555555555555' });

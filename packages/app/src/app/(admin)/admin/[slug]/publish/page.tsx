@@ -106,7 +106,7 @@ export default async function PublishPage({ params, searchParams }: Props) {
             </div>
             <div className="flex gap-2">
               <Button asChild variant="outline"><Link href={`/r/${slug}`}>{m.preview}</Link></Button>
-              <ActionButton action={publishChanges} fields={common} variant="default" size="default" disabled={p.pendingChanges === 0 || !access.can('publish')}>{m.submit}</ActionButton>
+              <ActionButton action={publishChanges} fields={{ ...common, expectedLatest: String(p.lastVersion?.number ?? 0) }} variant="default" size="default" disabled={p.pendingChanges === 0 || !access.can('publish')}>{m.submit}</ActionButton>
             </div>
           </CardContent>
         </Card>
