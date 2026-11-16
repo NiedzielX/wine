@@ -440,3 +440,14 @@ Ograniczenia, do pamiętania:
 - Region wykonywania funkcji ustaw jawnie na UE (domyślna maszyna budowy jest w USA); to wymóg specyfikacji dla produkcji.
 - Produkcja na Vercelu (baza, migracje, rollback, podglądy, wydania) jest opisana w specyfikacji; do czasu jej zatwierdzenia i faz F1–F3 obowiązuje reszta tego dokumentu (VM i Compose).
 
+
+### 17.1 Baza demo bez lokalnego komputera: workflow `Demo database`
+
+Migracje i dane demo można zastosować z runnera GitHub, bez Node i bez lokalnego repozytorium. Workflow `.github/workflows/demo-database.yml` jest **tylko ręczny** (`workflow_dispatch`), działa tylko na `main` i nie wypisuje adresu bazy.
+
+1. GitHub → Settings → Environments → New environment `demo-database`; „Deployment branches: Selected → main”.
+2. W tym środowisku dodaj sekret `DEMO_DATABASE_URL`: wartość `POSTGRES_URL` z integracji Supabase (transaction pooler, port 6543), bez zmian. Krok workflowu sam zamienia port na 5432 (session pooler), którego wymagają migracje.
+3. Actions → Demo database → Run workflow: w polu `confirm` wpisz `DEMO`; `seed` zostaw włączone przy pierwszym uruchomieniu.
+4. Wynik: migracje „Successfully migrated up to the latest version” i seed bez błędu. Potem w Vercelu ustaw `DATABASE_URL` (ta sama wartość), `DATA_SOURCE=postgres`, `DB_POOL_MAX=3` i zrób Redeploy.
+
+**Uwaga:** `db:seed` zakłada restaurację demo i konta demo z **publicznym hasłem**. Uruchamiaj go wyłącznie na bazie przeznaczonej na demo, nigdy na produkcyjnej. Pole `confirm` jest świadomym zabezpieczeniem przed pomyłką, nie ochroną przed złym sekretem.
