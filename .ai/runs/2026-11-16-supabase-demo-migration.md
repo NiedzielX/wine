@@ -24,10 +24,10 @@ Właściciel założył bazę Supabase przez integrację Vercela i nie chciał u
 - Repozytorium: `PGSSLMODE` w workflow `demo-database.yml`, opis SSL w `docs/DEPLOYMENT.md` §17.1, lekcja.
 
 ## Weryfikacja
-Logi buildu `dpl_Ev8twojfJgEaQDQbae9mFBGkH94Z` (komunikaty migratora i seedera). Produkcyjne wdrożenie `dpl_GU5Z…` nadal `READY`. Aplikacja na tej bazie jeszcze nie działa: brak `DATABASE_URL` (wartości nie da się odczytać; wkleja właściciel), `DATA_SOURCE` do przestawienia na `postgres` po jej dodaniu.
+Logi buildu `dpl_Ev8twojfJgEaQDQbae9mFBGkH94Z` (komunikaty migratora i seedera). Produkcyjne wdrożenie `dpl_GU5Z…` było `READY` przez cały czas prób. Po dodaniu `DATABASE_URL` przez właściciela (tylko Production): `DATA_SOURCE=postgres` tylko dla Production, nowa zmienna `DATA_SOURCE=memory` dla Preview (podglądy bez adresu bazy), redeploy produkcji `dpl_51YqengbqiviURZaSvi9Age3jFPM` (`READY`). `GET /start?lang=pl` → 200 z kartami Marty i Tomasza, które `/start` pokazuje tylko dla kont istniejących w repozytorium, czyli odczyt z Supabase działa. Logi z 15 minut: brak błędów, tylko ostrzeżenia `RATE_LIMIT_SECRET is not set` i `TRUSTED_PROXY_HOPS=0`.
 
 ## Wynik
-Baza demo gotowa. Do zrobienia: `DATABASE_URL` (właściciel), `DATA_SOURCE=postgres`, redeploy produkcji, sprawdzenie logowania. Dług: `no-verify` bez weryfikacji certyfikatu — dla produkcji `ssl.ca` w `packages/db/src/config.ts`.
+Baza demo gotowa, produkcja `wine-nhlf` działa na Supabase. Do zrobienia przez właściciela: przeklikanie panelu po zalogowaniu (czy wylogowania zniknęły), `RATE_LIMIT_SECRET` (`openssl rand -hex 32`), decyzja o `TRUSTED_PROXY_HOPS` i regionie funkcji (dziś `iad1`/`sfo1`, baza we Frankfurcie), sprzątanie zmiennych integracji i Data API. Dług: `no-verify` bez weryfikacji certyfikatu — dla produkcji `ssl.ca` w `packages/db/src/config.ts`.
 
 ## Lekcje
 - `.ai/lessons/2026-11-16-supabase-ssl-pgsslmode.md`
