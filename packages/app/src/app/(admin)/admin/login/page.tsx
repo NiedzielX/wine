@@ -50,7 +50,7 @@ export default async function LoginPage({ searchParams }: Props) {
         </div>
         <small className="opacity-60">{l.brandFooter}</small>
       </section>
-      <section className="relative grid place-items-center px-6 py-16">
+      <section className="relative grid grid-cols-[minmax(0,1fr)] place-items-center px-6 py-16">
         <LanguageSwitch locale={locale} back={back} label={t.admin.language.label} titles={languageTitles(t)} className="absolute top-4 right-4" />
         <div className="w-full max-w-sm">
         <Card className="w-full">
@@ -87,7 +87,7 @@ export default async function LoginPage({ searchParams }: Props) {
                 <form key={a.key} action={loginAsDemo}>
                   <input type="hidden" name="key" value={a.key} />
                   <input type="hidden" name="lang" value={locale} />
-                  <Button type="submit" variant="outline" className="w-full">{l.demo.signInAs(a.name, t.admin.roles[a.role])}</Button>
+                  <Button type="submit" variant="outline" className="h-auto w-full whitespace-normal py-2">{l.demo.signInAs(a.name, t.admin.roles[a.role])}</Button>
                 </form>
               ))}
               <p data-demo-lock className="text-sm text-muted-foreground">{l.demo.lock}</p>
