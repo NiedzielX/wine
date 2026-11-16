@@ -14,7 +14,7 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
-    "@testcontainers/postgresql": "11.14.0",
+    "@testcontainers/postgresql": "12.2.1",
     "pg": "8.23.1"
   },
   "devDependencies": {
