@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-16] [Skakanie ekranu mierz z klasycznym paskiem, opóźnioną siecią i surowymi przesunięciami](lessons/2026-11-16-measuring-layout-jumps-in-headless-chromium.md) — Playwright domyślnie ukrywa paski przewijania, a CLS pomija 500 ms po kliknięciu.
 - [2026-11-16] [SSL do Supabase ustawiaj przez `PGSSLMODE`, nie przez `?sslmode=` w `DATABASE_URL`](lessons/2026-11-16-supabase-ssl-pgsslmode.md) — MikroORM pomija parametry adresu; `PGSSLMODE=no-verify` dla demo, dla produkcji `ssl.ca` w konfiguracji.
 - [2026-11-15] [Status = miejsce pliku + pole `status`](lessons/2026-11-15-docs-status-by-location-no-index.md) — bez indeksu wiedzy i pól przeglądu; resztę zna git.
 - [2026-11-09] [Wydanie decyduje człowiek](lessons/2026-11-09-release-is-a-human-decision.md) — PR wydania = wszystkie checki z `image`; dziwną poprawkę stabilizującą zakwestionuj.
