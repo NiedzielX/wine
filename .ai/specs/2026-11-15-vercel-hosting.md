@@ -86,3 +86,10 @@ Dla każdego pytania podaję rekomendację; czekam na decyzję właściciela prz
 
 ## Realizacja
 (Uzupełnia agent po implementacji.)
+
+### Wyniki spike'a F0 (2026-11-16, instancja demo; wykonał właściciel, zapis agenta z logu budowy i relacji właściciela)
+- **Pierwsza próba padła:** projekt zaimportowany z Root Directory `./` i presetem Vite: instalacja przeszła (569 pakietów, 16 s, domyślny npm Vercela przyjął nasz lockfile), budowa uruchomiła skrypt `npm run build` z korzenia (granice, design, `mockups`, `next build`), Next 16.4.3 skompilował się w 23,2 s (66 tras), a potem `STATIC_BUILD_NO_OUT_DIR`: preset Vite szukał katalogu `dist`.
+- **Poprawka:** Root Directory `packages/app`, preset Next.js, domyślne polecenia (bez override), cztery zmienne środowiska w trybie demo (`DATA_SOURCE=memory`, `ALLOW_DEMO_DATA=true`, `AUTH_COOKIE_SECURE=true`, `PUBLIC_BASE_URL=https://wine-nhlf.vercel.app`), bez `DATABASE_URL`. Wynik zgłoszony przez właściciela: aplikacja demo na `https://wine-nhlf.vercel.app` działa.
+- **Potwierdzone tym spike'iem:** domyślny npm Vercela wystarcza (R19 w części instalacji), Root Directory `packages/app` z kodem z `packages/core|db|ui` buduje się, wdrożenie w trybie pamięci działa.
+- **Nie ustalono (do sprawdzenia w F0):** treść odpowiedzi `/api/v1/health` i zachowanie tras w trybie pamięci przy wielu instancjach funkcji; stan Deployment Protection w planie Hobby; region funkcji (log budowy pokazuje maszynę w Waszyngtonie, `iad1`; region wykonywania funkcji trzeba ustawić jawnie na UE, R2); limity funkcji i `maxDuration` importu; `attachDatabasePool`; `after()`; log z query string; wszystko, co dotyczy bazy (spike z bazą wymaga konta u dostawcy bazy).
+- **Plan:** plan Hobby dopuszcza tylko użycie niekomercyjne (R13): wystarcza dla tego demo bez klientów, nie dla produkcji.
