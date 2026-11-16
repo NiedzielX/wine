@@ -400,3 +400,31 @@ Job `image` w `.github/workflows/ci.yml` buduje oba cele i sprawdza: lint `Docke
 | Import menu zwraca błąd 413 | limit ciała w proxy poniżej 12 MB |
 | `app` jest `unhealthy` | proces nie odpowiada: `docker compose logs app`, pamięć (`docker stats`) |
 | `health` 503 | baza nieosiągalna; po jej powrocie odpowiedź wraca do 200 bez restartu aplikacji |
+
+## 17. Vercel: instancja demo (sprawdzone w spike'u F0, 2026-11-16)
+
+Stan: **eksperyment właściciela**, nie ścieżka produkcyjna (specyfikacja `.ai/specs/2026-11-15-vercel-hosting.md`, status `draft` do czasu zatwierdzenia przez właściciela). Demo w trybie pamięci, bez bazy.
+
+| Ustawienie projektu | Wartość |
+|---|---|
+| Root Directory | `packages/app` (z włączonym „Include source files outside of the Root Directory in the Build Step”) |
+| Application Preset | Next.js (preset Vite z korzenia repozytorium szuka `dist` i budowa kończy się `STATIC_BUILD_NO_OUT_DIR`) |
+| Build, Install, Output | domyślne, bez override (`next build`) |
+| Node.js | 22.x |
+
+Zmienne środowiska (Production i Preview; nie ustawiaj `DATABASE_URL` i żadnych sekretów produkcyjnych):
+
+| Zmienna | Wartość |
+|---|---|
+| `DATA_SOURCE` | `memory` |
+| `ALLOW_DEMO_DATA` | `true` (konta demo mają **publiczne** hasło) |
+| `AUTH_COOKIE_SECURE` | `true` |
+| `PUBLIC_BASE_URL` | `https://<domena projektu>` (publiczny adres https; zawodzi zamykająco, jak w sekcji 4) |
+
+Ograniczenia, do pamiętania:
+- Dane w pamięci są **per instancja funkcji**: zapisy w demo nie są trwałe ani wspólne między instancjami; demo służy do odczytu i pokazu.
+- Plan Hobby dopuszcza tylko użycie niekomercyjne; dla restauracji potrzebny plan z prawem do użycia komercyjnego.
+- Włącz Deployment Protection (w planie Hobby zakres ochrony do potwierdzenia), bo konta demo mają publiczne hasło.
+- Region wykonywania funkcji ustaw jawnie na UE (domyślna maszyna budowy jest w USA); to wymóg specyfikacji dla produkcji.
+- Produkcja na Vercelu (baza, migracje, rollback, podglądy, wydania) jest opisana w specyfikacji; do czasu jej zatwierdzenia i faz F1–F3 obowiązuje reszta tego dokumentu (VM i Compose).
+
