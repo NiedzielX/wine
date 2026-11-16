@@ -14,8 +14,10 @@ export const languageTitles = (t: Dictionary): Record<Locale, string> => t.commo
  * Frame of every dashboard page: sidebar (desktop) or top bar (narrow screens) + content. The language switch is at
  * the top (spec 2026-10-15-bilingual-content, R7): in the content's top bar on desktop, in the header row on narrow screens.
  */
-export function AdminShell({ restaurant, reviewCount, publishCount, user, locale, t, back, canManageTeam = false, children }: {
+export function AdminShell({ restaurant, reviewCount, publishCount, user, locale, t, back, canManageTeam = false, demoStart = false, children }: {
   restaurant: Restaurant; reviewCount: number; publishCount: number; user: { name: string; role: string }; canManageTeam?: boolean;
+  /** the interactive demo instance (spec 2026-11-16-interactive-demo-entry, R8): a small link back to /start */
+  demoStart?: boolean;
   /** interface language and its texts; `back` is the current page, where the language switch returns */
   locale: Locale; t: Dictionary; back: string; children: ReactNode;
 }) {
@@ -31,6 +33,7 @@ export function AdminShell({ restaurant, reviewCount, publishCount, user, locale
           </div>
           <LanguageSwitch locale={locale} back={back} label={t.admin.language.label} titles={languageTitles(t)} className="lg:hidden" />
         </div>
+        {demoStart && <a data-demo-start-narrow href={`/start?lang=${locale}`} className="px-1 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground lg:hidden">{t.admin.common.demoStart}</a>}
         <AdminNav slug={restaurant.slug} reviewCount={reviewCount} publishCount={publishCount} labels={{ label: nav.label, dashboard: nav.dashboard, menu: nav.menu, wines: nav.wines, pairings: nav.pairings, review: nav.review, opportunities: nav.opportunities, publish: nav.publish, restaurant: nav.restaurant, importMenu: nav.importMenu, importWines: nav.importWines, importSales: nav.importSales, setup: nav.setup, qr: nav.qr, team: nav.team }} canManageTeam={canManageTeam} />
         <div className="hidden px-3 text-sm lg:mt-auto lg:block">
           <Link href={`/r/${restaurant.slug}`} className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{t.admin.common.openGuestApp}</Link>
@@ -43,7 +46,10 @@ export function AdminShell({ restaurant, reviewCount, publishCount, user, locale
       <div className="min-w-0">
         <div className="hidden items-center justify-between gap-4 border-b px-10 py-2 print:hidden lg:flex">
           <span className="truncate text-sm text-muted-foreground"><b className="font-medium text-foreground">{restaurant.name}</b> · {restaurant.city}</span>
-          <LanguageSwitch locale={locale} back={back} label={t.admin.language.label} titles={languageTitles(t)} />
+          <div className="flex items-center gap-4">
+            {demoStart && <a data-demo-start href={`/start?lang=${locale}`} className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">{t.admin.common.demoStart}</a>}
+            <LanguageSwitch locale={locale} back={back} label={t.admin.language.label} titles={languageTitles(t)} />
+          </div>
         </div>
         {children}
       </div>

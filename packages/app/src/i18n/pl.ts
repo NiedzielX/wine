@@ -487,6 +487,7 @@ export const pl = {
       wineRemoved: 'Wino usunięte',
       viewAsGuest: 'Zobacz jak gość',
       openGuestApp: 'Otwórz aplikację gościa',
+      demoStart: 'Start dema',
       lastPublished: (when: string) => `Ostatnia publikacja: ${when}`
     },
     nav: {
@@ -524,6 +525,13 @@ export const pl = {
         rate_limited: 'Zbyt wiele prób logowania z tej sieci. Spróbuj ponownie za kilka minut.'
       },
       showcaseBack: 'Wróć do przewodnika po demo',
+      demo: {
+        title: 'Konta demo',
+        text: 'Dane demonstracyjne: restauracja i jej ludzie są zmyśleni, a zmiany mogą zniknąć. Zaloguj się jednym kliknięciem albo skopiuj poniższy e-mail i hasło do formularza.',
+        signInAs: (name: string, role: string) => `Zaloguj jako ${name} (${role})`,
+        lock: 'Hasło demo jest publiczne, więc zablokowane konto jest zablokowane dla każdego odwiedzającego: po 5 błędnych próbach konto jest blokowane na 15 minut.',
+        start: 'Start dema'
+      },
       notices: { account_created: 'Konto zostało założone i dołączyłeś do restauracji. Zaloguj się hasłem, które przed chwilą wybrałeś.' } as Record<'account_created', string>
     },
     accept: {

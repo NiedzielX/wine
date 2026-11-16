@@ -96,7 +96,24 @@ export const showcasePl = {
   },
   ribbon: {
     text: 'Dane demonstracyjne: fikcyjna restauracja',
-    back: 'Wróć do przewodnika'
+    back: 'Wróć do przewodnika',
+    interactiveText: 'Dane demonstracyjne: zmiany mogą zniknąć',
+    interactiveBack: 'Demo: wybierz widok'
+  },
+  start: {
+    metaTitle: 'Start dema',
+    title: 'Wypróbuj Wine Match: fikcyjna restauracja Halka',
+    lead: 'Jedno kliknięcie otwiera każdy widok dema: gościa, cały stół, kelnera i panel.',
+    note: 'Dane demonstracyjne: restauracja, jej menu i jej ludzie są zmyśleni. To, co zmienisz w panelu, może w każdej chwili zniknąć, bo każda instancja serwera ma własną kopię.',
+    lock: 'Hasło demo jest publiczne, więc zablokowane konto jest zablokowane dla każdego odwiedzającego: po 5 błędnych próbach konto jest blokowane na 15 minut.',
+    notPublished: 'Menu restauracji demo nie jest jeszcze opublikowane, więc widoki gościa i kelnera są tu niedostępne.',
+    open: 'Otwórz',
+    sections: {
+      guest: { title: 'Gość', text: 'To, co gość widzi po zeskanowaniu kodu na stoliku.', dish: 'Wina do dania', table: 'Cały stół' },
+      waiter: { title: 'Kelner', text: 'Wyszukiwarka dla osoby, która serwuje wino.', dish: 'Dopasowania do dania', table: 'Cały stół' },
+      panel: { title: 'Panel', text: 'Strona restauracji: dopasowania, wina i wyniki. Zaloguj się jednym kliknięciem albo skopiuj e-mail i hasło do formularza logowania.', signInAs: (name: string, role: string) => `Zaloguj jako ${name} (${role})` },
+      roi: { title: 'Kalkulator zwrotu', text: 'Edytowalne założenia i wzór za każdą liczbą.', open: 'Otwórz kalkulator' }
+    }
   },
   hub: {
     title: 'Demo: fikcyjna restauracja Halka',

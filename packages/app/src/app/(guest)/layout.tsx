@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { DemoRibbon } from './_components/demo-ribbon';
+import { isInteractiveDemo } from '@/server/demo-entry';
 import { env } from '@/server/env';
 import { getDictionary, getI18n, getLocale } from '@/server/i18n';
 import './guest.css';
@@ -10,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // the demo instance is for people who got a link, on all its pages, not only under /demo (E22 R11); read per request, never at build time
   return {
     title: { default: 'Wine Match', template: '%s | Wine Match' }, description: t.guest.meta.description,
-    ...(env().showcaseMode === 'demo' ? { robots: { index: false, follow: false } } : {})
+    ...(env().showcaseMode === 'demo' || isInteractiveDemo() ? { robots: { index: false, follow: false } } : {})
   };
 }
 
@@ -24,6 +25,7 @@ export default async function GuestLayout({ children }: { children: ReactNode })
       <body>
         <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col bg-paper sm:shadow-[0_0_0_1px_var(--color-line)] md:max-w-none md:shadow-none">
           {env().showcaseMode === 'demo' && <DemoRibbon locale={locale} t={getDictionary(locale)} />}
+          {isInteractiveDemo() && <DemoRibbon locale={locale} t={getDictionary(locale)} variant="start" />}
           {children}
         </div>
       </body>

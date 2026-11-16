@@ -16,7 +16,7 @@ describe('development', () => {
   it('an empty environment is a working demo setup', () => {
     expect(parseEnv({})).toEqual({
       nodeEnv: 'development', isProduction: false, dataSource: 'memory', databaseUrl: null, secureCookies: false, publicBaseUrl: 'http://localhost:3000',
-      publicBaseUrlIsDefault: true, allowLocalBaseUrl: false, logLevel: 'debug', demoRestaurantSlug: 'halka', metricsToken: null, showcaseMode: 'off',
+      publicBaseUrlIsDefault: true, allowLocalBaseUrl: false, logLevel: 'debug', demoRestaurantSlug: 'halka', allowDemoData: false, metricsToken: null, showcaseMode: 'off',
       rateLimitSecret: null, trustedProxyHops: 0, rateLimitRules: DEFAULT_RATE_LIMIT_RULES, rateLimitMaxClients: 10_000
     });
   });
@@ -173,6 +173,22 @@ describe('cookies and the public address', () => {
   it('the demo restaurant slug must look like an address name', () => {
     expect(parseEnv({ DEMO_RESTAURANT_SLUG: 'my-place' }).demoRestaurantSlug).toBe('my-place');
     expect(fails({ DEMO_RESTAURANT_SLUG: 'My Place' })[0]).toMatch(/DEMO_RESTAURANT_SLUG/);
+  });
+});
+
+describe('ALLOW_DEMO_DATA (spec 2026-11-16-interactive-demo-entry, R1)', () => {
+  it('is false unless it is exactly "true": unset, blank, "false" and typos-by-case are not a demo instance', () => {
+    expect(parseEnv({}).allowDemoData).toBe(false);
+    expect(parseEnv({ ALLOW_DEMO_DATA: '' }).allowDemoData).toBe(false);
+    expect(parseEnv({ ALLOW_DEMO_DATA: 'false' }).allowDemoData).toBe(false);
+    expect(parseEnv({ ALLOW_DEMO_DATA: 'true' }).allowDemoData).toBe(true);
+    expect(fails({ ALLOW_DEMO_DATA: 'TRUE' })[0]).toMatch(/^ALLOW_DEMO_DATA: must be "true" or "false"/);
+  });
+
+  it('is true on postgres too (production only demands it for memory), which is why the flag alone must not open the demo accounts', () => {
+    const pg = { DATA_SOURCE: 'postgres', DATABASE_URL: 'postgresql://u:p@h:5432/db', ALLOW_DEMO_DATA: 'true' };
+    expect(parseEnv(pg).allowDemoData).toBe(true);
+    expect(parseEnv({ ...pg, NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://wine.example.com' }).allowDemoData).toBe(true);
   });
 });
 

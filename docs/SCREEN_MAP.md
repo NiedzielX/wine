@@ -147,6 +147,7 @@ DM2 Kalkulator zwrotu ......................... /demo/roi?customers=&attachRate=
  └─ DM3 Wersja do druku / PDF ................. /demo/roi/summary?…&d=RRRR-MM-DD   (F1)
 DM4 Panel sommeliera, tylko odczyt ............ /demo/panel            (F3, tryb demo)
 DM5 KPI na danych syntetycznych ............... /demo/kpi              (F3, tryb demo)
+DM6 Start interaktywnego dema ................ /start                (instancja z ALLOW_DEMO_DATA=true i SHOWCASE_MODE ≠ demo; spec 2026-11-16-interactive-demo-entry)
 ```
 
 Stan implementacji: **DM2 i DM3 (F1), DM0 i DM1 (F2)**. W trybie `off` wszystkie adresy `/demo/*` dają 404; w `calculator` działają DM1, DM2, DM3, a DM0, DM4, DM5 dają 404; w `demo` działają DM0–DM3 (DM4 i DM5 to F3, do tego czasu 404, a kroki 4 i 5 przewodnika są oznaczone „wkrótce”, bez linku). Na stronach gościa (`/r/{slug}/…`) w trybie `demo` stoi pasek „Dane demonstracyjne” z linkiem do DM0 (tylko `lang`, bez `sid`). `/admin/login` w trybie `demo` nie ma formularza, tylko komunikat „demo tylko do odczytu” i link do DM0.

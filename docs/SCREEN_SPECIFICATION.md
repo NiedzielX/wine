@@ -291,7 +291,7 @@ Spec `2026-10-16-how-it-works-explanations` (faza 2, R9). Dłuższa, spokojna we
 |---|---|
 | Cel | Bezpieczne wejście do panelu |
 | Użytkownik | Sommelier, GM |
-| Funkcje | e-mail, hasło; (mockup: wybór konta demo); „Sign in”; przekierowanie na `next` |
+| Funkcje | e-mail, hasło; (mockup: wybór konta demo); „Sign in”; przekierowanie na `next`; **na instancji interaktywnego dema** (spec `2026-11-16-interactive-demo-entry`: `ALLOW_DEMO_DATA=true`, `SHOWCASE_MODE` inny niż `demo`) druga karta „Konta demo” z przyciskami „Zaloguj jako …” (tylko konta z dostępem do panelu, które istnieją w repozytorium: Marta, Tomasz; kelner nie loguje się do panelu), zdaniem o danych demonstracyjnych, ostrzeżeniem o blokadzie konta (5 prób, 15 minut, dla wszystkich odwiedzających) i linkiem do DM6; przycisk (pełne tło, wariant primary) to formularz POST z samym kluczem konta, a pod nim e-mail i publiczne hasło demo jako tekst do skopiowania (zmiana z przeglądu właściciela 2026-11-16; hasło tylko w trybie interaktywnym, skrótu `scrypt$` nigdy), działa bez JavaScriptu; strona ma `noindex` |
 | Komponenty UI | podział 50/50: panel marki w bordo z hasłem produktu, formularz |
 | Dane wejściowe | email, password |
 | Dane wyjściowe | sesja (cookie httpOnly), rola |
@@ -657,6 +657,21 @@ Spec `2026-11-04-sales-demo-and-roi-calculator` (E22), faza F2.
 | Error | brak opublikowanego menu: krok 1 prowadzi do listy dań |
 | Permissions | publiczny; tylko tryb `demo` (inaczej 404) |
 | Układ | 390 px jedna kolumna, od 768 px dwie; bez poziomego przewijania; działa bez JavaScriptu |
+
+## DM6 Interactive demo start — `/start`
+
+Spec `2026-11-16-interactive-demo-entry`. Nowy ekran obok DM0–DM5, w grupie tras `(showcase)`, z własnym nagłówkiem (nazwa i przełącznik języka).
+
+| Pole | Opis |
+|---|---|
+| Cel | Jedno kliknięcie do każdego widoku fikcyjnej restauracji Halka na instancji interaktywnego dema |
+| Funkcje | cztery bloki: **Gość** (`/r/halka`, `/r/halka/table`), **Kelner** (`/r/halka/staff`, `/r/halka/staff/table`), **Panel** (pełne, klikalne przyciski „Zaloguj jako Marta Wierzbicka (Wine Director)” i „… Tomasz Lis (General Manager)”, akcja `loginAsDemo`, 303 do `/admin/halka`; pod każdym e-mail i hasło demo jako tekst do skopiowania), **Kalkulator** (`/demo/roi`, tylko przy `SHOWCASE_MODE=calculator`); każdy link niesie `lang`; zdanie o danych demonstracyjnych i o tym, że zmiany mogą zniknąć; ostrzeżenie o publicznym haśle i blokadzie konta; QR nie jest linkowany (wymaga sesji) |
+| Dane wejściowe | `lang`; `catalogService.publishedMenu` (odczyt) i `authService.panelAccountsAmong` (które konta demo istnieją) |
+| Dane wyjściowe | brak zapisów i cookies; w HTML jest publiczne hasło demo przy kontach (tylko w tym trybie, decyzja właściciela 2026-11-16), nigdy skrót hasła (`scrypt$`) |
+| Error | brak opublikowanego menu: komunikat „menu nie jest opublikowane”, bez linków gościa i kelnera; brak kont demo w repozytorium: bez przycisków logowania |
+| Permissions | publiczny; 404 bez trybu interaktywnego (`ALLOW_DEMO_DATA=true` i `SHOWCASE_MODE` ≠ `demo`) oraz dla `DEMO_RESTAURANT_SLUG` ≠ `halka`; nagłówki `Cache-Control: private, no-store`, `X-Robots-Tag: noindex, nofollow` |
+| Droga powrotna | strony gościa: pasek „Dane demonstracyjne: zmiany mogą zniknąć” z przyciskiem „Demo: wybierz widok” (`/start?lang=`; pasek w przepływie strony, nie zasłania treści, zawija się przy 390 px); panel: link „Start dema” w nagłówku; `/` jest widokiem gościa `/r/{slug}` (bez przekierowania do `/start`) |
+| Układ | 390 px jedna kolumna, od 768 px dwie; działa bez JavaScriptu |
 
 ## DM1 How it works for a restaurant — `/demo/tour`
 

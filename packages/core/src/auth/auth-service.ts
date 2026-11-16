@@ -60,6 +60,20 @@ export class AuthService {
     return { token, principal: this.principal(user, memberships, session) };
   }
 
+  /**
+   * Which of these e-mail addresses belong to an account that can open the dashboard here (spec 2026-11-16-interactive-demo-entry, R3).
+   * Only for a fixed, public list (the demo accounts): never feed it an address typed by a visitor. Returns normalised addresses.
+   */
+  async panelAccountsAmong(emails: readonly string[]): Promise<Set<string>> {
+    const found = new Set<string>();
+    for (const raw of emails) {
+      const email = raw.trim().toLowerCase();
+      const user = await this.d.authRepository.findUserByEmail(email);
+      if (user && (await this.d.authRepository.membershipsOf(user.id)).some((m) => can(m.role, 'panel.view'))) found.add(email);
+    }
+    return found;
+  }
+
   /** The caller behind a session token, or null when it is unknown or expired. */
   async authenticate(token: string): Promise<Principal | null> {
     if (!token) return null;

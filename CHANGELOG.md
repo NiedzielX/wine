@@ -4,6 +4,13 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+### Operacje
+- Workflow `Demo database` (ręczny, tylko `main`, środowisko `demo-database`): migracje i opcjonalnie dane demo na bazie instancji demo z runnera GitHub, bez lokalnego komputera; adres bazy z sekretu środowiska, nigdy w logu. Opis: `docs/DEPLOYMENT.md` §17.1.
+
+### Interaktywne demo (E22)
+- Strona startowa `/start` (DM6) na instancji z `ALLOW_DEMO_DATA=true` i `SHOWCASE_MODE` innym niż `demo`: jedno kliknięcie do widoków gościa, „całego stołu”, kelnera i kalkulatora oraz „Zaloguj jako Marta / Tomasz” (akcja `loginAsDemo`, hasło demo nigdy nie trafia do HTML). Karta „Konta demo” na `/admin/login`, tylko dla kont, które istnieją w repozytorium i mają dostęp do panelu. Pasek powrotu na stronach gościa, link „Start dema” w panelu. Nowe: `AppEnv.allowDemoData`, `AuthService.panelAccountsAmong`, `/start` w `matcher` proxy (odstępstwo od R12 specyfikacji sprzedażowej), nagłówki `no-store` i `noindex`, `noindex` na całej instancji interaktywnej, wiersz T-37 w modelu zagrożeń. Spec `2026-11-16-interactive-demo-entry`.
+- Zmiany po przeglądzie właściciela (2026-11-16): „Zaloguj jako …” to pełne, klikalne przyciski (`cursor-pointer` w `Button` z `@wine-match/ui`); `/` znów jest widokiem gościa `/r/{slug}`, a pasek w widoku gościa ma przycisk „Demo: wybierz widok” do `/start`; przy kontach Marty i Tomasza na `/start` i na karcie `/admin/login` stoją e-mail i publiczne hasło demo (tylko tryb interaktywny; skrót `scrypt$` nigdy). Zmiana R3/R5/R6/AC3 i R8 specyfikacji, T-37.
+
 ## [0.3.0] - 2026-11-16
 
 ### Wdrożenie produkcyjne (E11, E11b)

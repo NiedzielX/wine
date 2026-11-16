@@ -196,7 +196,7 @@ describe('start-up and the logger', () => {
   it('the proxy passes the requested path on to the dashboard layouts only, and runs on dashboard and guest pages', async () => {
     const res = proxy(new NextRequest('http://localhost:3000/admin/halka/menu?page=2'));
     expect(res.headers.get('x-middleware-request-x-pathname')).toBe('/admin/halka/menu?page=2');
-    expect(proxyConfig.matcher).toEqual(['/admin/:path*', '/r/:path*', '/demo/:path*']);
+    expect(proxyConfig.matcher).toEqual(['/admin/:path*', '/r/:path*', '/demo/:path*', '/start']);
     const guest = proxy(new NextRequest('http://localhost:3000/r/halka', { headers: { 'x-pathname': '/evil' } }));
     expect(guest.headers.get('x-middleware-request-x-pathname')).toBeNull();
   });

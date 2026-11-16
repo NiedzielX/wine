@@ -358,6 +358,17 @@ npm run smoke -- --showcase https://demo.example.com
 
 Startuj **tylko** usługę `app-demo` (jak wyżej, z jej nazwą), nigdy cały stos: `db` i `migrate` nie mają tam nic do roboty. `app-demo` nie czyta `.env` produkcji (brak `DATABASE_URL`, `METRICS_TOKEN`), działa na `SHOWCASE_MODE=demo`, `DATA_SOURCE=memory`, `ALLOW_DEMO_DATA=true`, jest tylko do odczytu, nie zapisuje zdarzeń gości i ma `noindex`. Restart czyści pamięć. Na tej instancji uruchamiaj wyłącznie `smoke --showcase`.
 
+### Instancja interaktywnego dema (spec `2026-11-16-interactive-demo-entry`)
+
+Inna rzecz niż `SHOWCASE_MODE=demo`: demo, w którym da się **klikać i zapisywać**. Tryb interaktywny to `ALLOW_DEMO_DATA=true` **i** `SHOWCASE_MODE` inny niż `demo` (`isInteractiveDemo()`, jedna funkcja używana przez stronę, akcję, `/` i nagłówki). Wtedy:
+
+- `/start` jest stroną startową: linki do widoków gościa, „całego stołu”, kelnera i kalkulatora (tylko przy `SHOWCASE_MODE=calculator`) oraz przyciski „Zaloguj jako Marta / Tomasz”. `/` jest widokiem gościa `/r/{slug}` (jak na każdej instancji; zmiana z przeglądu właściciela 2026-11-16); strony gościa mają w pasku wyraźny przycisk „Demo: wybierz widok” do `/start`, panel link „Start dema”. Przyciski „Zaloguj jako …” to pełne, klikalne przyciski systemu designu panelu.
+- Strona logowania `/admin/login` ma kartę „Konta demo”. Hasło demo jest publiczne z założenia (sekcja 17), więc **na tej instancji jest jawnie na UI**: przy każdym przycisku „Zaloguj jako …” (na `/start` i na karcie) stoją e-mail i hasło jako tekst do skopiowania. Pokazujemy je wyłącznie w trybie interaktywnym, tylko dla Marty i Tomasza i tylko dla kont istniejących w repozytorium; poza tym trybem (produkcja bez flagi, `SHOWCASE_MODE=demo`) hasła w HTML nie ma. **Skrót hasła (`scrypt$`) nigdy nie trafia do HTML ani do logów**; przycisk nadal wysyła tylko klucz konta, a akcja `loginAsDemo` sama podstawia hasło po stronie serwera. Karta i przyciski pokazują wyłącznie konta demo, które **istnieją w repozytorium** i mają dostęp do panelu (kelner nie ma).
+- **Sama flaga nie wystarcza do bezpieczeństwa**: na PostgreSQL `ALLOW_DEMO_DATA=true` przechodzi walidację także w produkcji (wymóg flagi dotyczy tylko `DATA_SOURCE=memory`). Dlatego bez kont demo w bazie nie ma karty ani przycisków, a `loginAsDemo` odmawia jak przy błędnym haśle. Konta demo na prawdziwej instalacji pozostają ryzykiem T-08: nie ustawiaj `ALLOW_DEMO_DATA=true` na instancji z prawdziwymi restauracjami.
+- Instancja demo na PostgreSQL: osobna baza demo (`db:migrate`, potem `db:seed` z `ALLOW_DEMO_DATA=true`; nigdy baza produkcyjna ani testowa dla podglądów). Zapisy w panelu trwają wtedy w tej bazie; w pamięci każda instancja funkcji ma własną kopię i zmiany znikają.
+- Blokada konta obowiązuje: po 5 błędnych próbach konto jest blokowane na 15 minut, a że hasło jest publiczne, blokada dotyczy wszystkich odwiedzających (komunikat jest na karcie i na `/start`). Limit `login` też obowiązuje, więc za reverse proxy ustaw `TRUSTED_PROXY_HOPS` (sekcja 4; na Vercelu wartość z F0), inaczej wszyscy odwiedzający dzielą jeden licznik.
+- Wszystkie strony takiej instancji mają `noindex`; `/start` ma też `Cache-Control: private, no-store` i `X-Robots-Tag`. Instancja jest przeznaczona dla osób z linkiem; na Vercelu włącz Deployment Protection (sekcja 17).
+
 ## 13. Próba (instancja próbna) i `migration:down`
 
 Przed pierwszym klientem i przed każdą większą zmianą procesu: czysta VM lub osobny projekt Compose (`docker compose -p wine-trial …`), osobna baza.
@@ -424,7 +435,21 @@ Zmienne środowiska (Production i Preview; nie ustawiaj `DATABASE_URL` i żadnyc
 Ograniczenia, do pamiętania:
 - Dane w pamięci są **per instancja funkcji**: zapisy w demo nie są trwałe ani wspólne między instancjami; demo służy do odczytu i pokazu.
 - Plan Hobby dopuszcza tylko użycie niekomercyjne; dla restauracji potrzebny plan z prawem do użycia komercyjnego.
-- Włącz Deployment Protection (w planie Hobby zakres ochrony do potwierdzenia), bo konta demo mają publiczne hasło.
+- Włącz Deployment Protection (w planie Hobby zakres ochrony do potwierdzenia), bo konta demo mają publiczne hasło. Od przeglądu właściciela 2026-11-16 instancja interaktywna **pokazuje** to hasło (i e-mail) na `/start` i na `/admin/login` obok przycisków „Zaloguj jako …”: to świadoma decyzja, hasło jest publiczne z założenia (stała `DEMO_PASSWORD` w kodzie), a poza trybem interaktywnym nie pojawia się w HTML nigdy (skrót `scrypt$` nie pojawia się nigdzie).
+- Tryb interaktywny (`/start`, „Zaloguj jako …”): `ALLOW_DEMO_DATA=true` bez `SHOWCASE_MODE=demo`; opis i ostrzeżenia w sekcji 12 („Instancja interaktywnego dema”). Na Vercelu ustaw też `TRUSTED_PROXY_HOPS` (wartość z F0), bo hasło demo jest publiczne, a blokada konta (5 prób, 15 minut) dotyczy wszystkich.
 - Region wykonywania funkcji ustaw jawnie na UE (domyślna maszyna budowy jest w USA); to wymóg specyfikacji dla produkcji.
 - Produkcja na Vercelu (baza, migracje, rollback, podglądy, wydania) jest opisana w specyfikacji; do czasu jej zatwierdzenia i faz F1–F3 obowiązuje reszta tego dokumentu (VM i Compose).
 
+
+### 17.1 Baza demo bez lokalnego komputera: workflow `Demo database`
+
+Migracje i dane demo można zastosować z runnera GitHub, bez Node i bez lokalnego repozytorium. Workflow `.github/workflows/demo-database.yml` jest **tylko ręczny** (`workflow_dispatch`), działa tylko na `main` i nie wypisuje adresu bazy.
+
+1. GitHub → Settings → Environments → New environment `demo-database`; „Deployment branches: Selected → main”.
+2. W tym środowisku dodaj sekret `DEMO_DATABASE_URL`: wartość `POSTGRES_URL` z integracji Supabase (transaction pooler, port 6543), bez zmian. Krok workflowu sam zamienia port na 5432 (session pooler), którego wymagają migracje.
+3. Actions → Demo database → Run workflow: w polu `confirm` wpisz `DEMO`; `seed` zostaw włączone przy pierwszym uruchomieniu.
+4. Wynik: migracje „Successfully migrated up to the latest version” i seed bez błędu. Potem w Vercelu ustaw `DATABASE_URL` (ta sama wartość), `DATA_SOURCE=postgres`, `DB_POOL_MAX=3`, `PGSSLMODE=no-verify` i zrób Redeploy.
+
+**SSL do Supabase (sprawdzone 2026-11-16).** Supabase odrzuca połączenie bez SSL (`ESSLREQUIRED`). MikroORM składa pulę `pg` z części adresu i **pomija `?sslmode=...`**, więc parametr w `DATABASE_URL` nic nie daje. Ustaw zmienną `PGSSLMODE`, którą `pg` czyta sam: `require` kończy się błędem `self-signed certificate in certificate chain` (urzędu Supabase nie ma w magazynie Node), `no-verify` szyfruje połączenie bez weryfikacji certyfikatu. Dla demo to akceptowalne; dla produkcji potrzebna jest weryfikacja z certyfikatem Supabase (osobna zmiana w `packages/db/src/config.ts`).
+
+**Uwaga:** `db:seed` zakłada restaurację demo i konta demo z **publicznym hasłem**. Uruchamiaj go wyłącznie na bazie przeznaczonej na demo, nigdy na produkcyjnej. Pole `confirm` jest świadomym zabezpieczeniem przed pomyłką, nie ochroną przed złym sekretem.
