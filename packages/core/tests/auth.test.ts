@@ -104,6 +104,19 @@ describe('AuthService.login', () => {
   });
 });
 
+describe('AuthService.panelAccountsAmong (spec 2026-11-16-interactive-demo-entry, R3)', () => {
+  it('returns the accounts that exist and can open the dashboard: a waiter and an unknown address are left out', async () => {
+    const t = build();
+    expect([...(await t.svc.panelAccountsAmong(['marta@halka.pl', ' Tomasz@Halka.pl ', 'kelner@halka.pl', 'nobody@halka.pl']))].sort()).toEqual(['marta@halka.pl', 'tomasz@halka.pl']);
+  });
+
+  it('is empty on an installation without the demo accounts', async () => {
+    const t = build();
+    t.store.users.length = 0;
+    expect((await t.svc.panelAccountsAmong(['marta@halka.pl', 'tomasz@halka.pl'])).size).toBe(0);
+  });
+});
+
 describe('AuthService: old password hashes are upgraded', () => {
   it('a correct login replaces a hash made with weaker parameters, and the same password still works', async () => {
     const t = build();

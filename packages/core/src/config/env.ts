@@ -30,6 +30,8 @@ export interface AppEnv {
   allowLocalBaseUrl: boolean;
   logLevel: LogLevel;
   demoRestaurantSlug: string;
+  /** ALLOW_DEMO_DATA=true: the operator knowingly runs a demo instance (public demo passwords); false when unset */
+  allowDemoData: boolean;
   /** bearer token for GET /api/v1/metrics; null = the endpoint is disabled (404) */
   metricsToken: string | null;
   /** SHOWCASE_MODE; unset = `off`, so the `/demo` pages answer 404 */
@@ -175,6 +177,7 @@ export function parseEnv(raw: Record<string, string | undefined>): AppEnv {
     allowLocalBaseUrl,
     logLevel: e.LOG_LEVEL ?? (isProduction ? 'info' : 'debug'),
     demoRestaurantSlug: e.DEMO_RESTAURANT_SLUG ?? 'halka',
+    allowDemoData: e.ALLOW_DEMO_DATA === 'true',
     metricsToken: e.METRICS_TOKEN ?? null,
     showcaseMode: showcase as ShowcaseMode,
     rateLimitSecret: e.RATE_LIMIT_SECRET ?? null,
