@@ -4,6 +4,9 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+### Poprawki
+- Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
+
 ### Interaktywne demo (E22)
 - Strona startowa `/start` (DM6) na instancji z `ALLOW_DEMO_DATA=true` i `SHOWCASE_MODE` innym niż `demo`: jedno kliknięcie do widoków gościa, „całego stołu”, kelnera i kalkulatora oraz „Zaloguj jako Marta / Tomasz” (akcja `loginAsDemo`, hasło demo nigdy nie trafia do HTML). Karta „Konta demo” na `/admin/login`, tylko dla kont, które istnieją w repozytorium i mają dostęp do panelu. Pasek powrotu na stronach gościa, link „Start dema” w panelu. Nowe: `AppEnv.allowDemoData`, `AuthService.panelAccountsAmong`, `/start` w `matcher` proxy (odstępstwo od R12 specyfikacji sprzedażowej), nagłówki `no-store` i `noindex`, `noindex` na całej instancji interaktywnej, wiersz T-37 w modelu zagrożeń. Spec `2026-11-16-interactive-demo-entry`.
 - Zmiany po przeglądzie właściciela (2026-11-16): „Zaloguj jako …” to pełne, klikalne przyciski (`cursor-pointer` w `Button` z `@wine-match/ui`); `/` znów jest widokiem gościa `/r/{slug}`, a pasek w widoku gościa ma przycisk „Demo: wybierz widok” do `/start`; przy kontach Marty i Tomasza na `/start` i na karcie `/admin/login` stoją e-mail i publiczne hasło demo (tylko tryb interaktywny; skrót `scrypt$` nigdy). Zmiana R3/R5/R6/AC3 i R8 specyfikacji, T-37.
