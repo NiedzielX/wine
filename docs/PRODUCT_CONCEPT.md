@@ -67,7 +67,7 @@ Uzasadnienie ceny: przy 1 500 gościach miesięcznie wzrost Wine Attach Rate o 5
 
 **Dodatkowe źródła przychodu (później, poza MVP):** wdrożenie i digitalizacja karty; moduł importerski (marketplace) z jawnie oznaczonymi propozycjami win do karty, nigdy nie wpływający na rekomendacje dla gościa; analityka portfela win (pricing intelligence, forecasting).
 
-**Zasada zaufania:** rekomendacje dla gościa nie są sprzedawane. Żaden importer ani producent nie może kupić pozycji w rankingu.
+**Zasada zaufania (zmieniona 2026-11-16, decyzja D22 w `.ai/specs/product-brief.md`):** importerzy i producenci mogą kupić sponsorowane pozycje. Sponsoring jest zawsze oznaczony dla gościa jako „Sponsorowane”, nie zmienia Match Score (surowy wynik silnika, R02) ani etykiety „Para sommeliera” (tylko decyzja sommeliera, R06), a restauracja sama decyduje, czy przyjmuje sponsoring. Szczegóły wdrożenia: specyfikacja do napisania.
 
 ## 6. KPI
 
