@@ -164,7 +164,7 @@ Dla Caddy odpowiednikiem jest domyślne TLS, `header Strict-Transport-Security �
 
 ## 7. Pierwsza restauracja
 
-Bez danych demo, jedna transakcja zakłada restaurację (`status: onboarding`) i konto właściciela (`owner`). Slug trafia na wydrukowane QR i nie jest normalizowany: tylko małe litery, cyfry i pojedyncze myślniki, 2–40 znaków. Pełny opis i cofnięcie pomyłki: README, sekcja „Nowa restauracja i jej właściciel”.
+Bez danych demo, jedna transakcja zakłada restaurację (`status: onboarding`) i konto właściciela (`owner`). Slug trafia na wydrukowane QR i nie jest normalizowany: tylko małe litery, cyfry i pojedyncze myślniki, 2–40 znaków. Pełny opis i cofnięcie pomyłki: docs/DEVELOPMENT.md, sekcja „Nowa restauracja i jej właściciel”.
 
 Hasło **nigdy w argumentach ani w historii powłoki**: wczytaj bez echa i przekaż samą nazwą zmiennej (`-e USER_PASSWORD` bez wartości dziedziczy zmienną; do listy procesów trafia tylko nazwa):
 
@@ -180,7 +180,7 @@ unset USER_PASSWORD
 Oczekiwane: „Created restaurant … Created account … as owner”. Gdy błąd (zajęty slug, e-mail, zbyt krótkie hasło): kod 1 i nic nie zostało zapisane.
 
 - **Dalsi członkowie zespołu:** właściciel zaprasza w panelu (A15). Polecenia `user:invite` i `db:seed` mają strażnika środowiska i na produkcji odmawiają (bez `ALLOW_DEMO_DATA=true`): to narzędzia instancji próbnej. `user:create` zakłada konto z rolą i nie jest zalecane na produkcji (panel i zaproszenia są kanałem docelowym).
-- **Przekazanie hasła właścicielowi:** jednorazowym kanałem poza systemem, razem z adresem `https://<domena>/admin/<slug>` (README). Przed drugim lokalem potrzebna jest zmiana hasła przez właściciela.
+- **Przekazanie hasła właścicielowi:** jednorazowym kanałem poza systemem, razem z adresem `https://<domena>/admin/<slug>` (docs/DEVELOPMENT.md). Przed drugim lokalem potrzebna jest zmiana hasła przez właściciela.
 - **Przed pierwszym prawdziwym najemcą** wykonaj listę z `docs/OPERATIONS.md` („Przed włączeniem pierwszego prawdziwego najemcy”): limit żądań per IP, TLS i HSTS, query w logu, kopia z przećwiczonym odtworzeniem.
 
 ## 8. Weryfikacja po wdrożeniu
