@@ -20,7 +20,7 @@ Tabela `guest_interaction` istnieje, ale nic do niej nie pisze, więc pilotaż n
 ## Cel i zakres
 Zapis zdarzeń lejka gościa (landing → menu → danie → wina → wino → wybór; ścieżka stolika) i lookupów kelnera, z sesją w URL, plus jeden odczyt agregatu (`countGuestSessions`) dla E04.
 
-**Poza zakresem:** `POST /public/events` i zdarzenia tylko‑JS (`recommendation_clicked`, `quick_preference_set`); migracje/tabela `GuestSession`/kolumna `version_id`; wygasanie sesji, retencja, partycjonowanie; limity zapisu; dashboard (E04 — `.ai/specs/2026-10-15-kpi-dashboard.md`); zmiana UX ekranu wina nieaktywnego.
+**Poza zakresem:** `POST /public/events` i zdarzenia tylko‑JS (`recommendation_clicked`, `quick_preference_set`); migracje/tabela `GuestSession`/kolumna `version_id`; wygasanie sesji, retencja, partycjonowanie; limity zapisu; dashboard (E04 — `.ai/specs/implemented/2026-10-15-kpi-dashboard.md`); zmiana UX ekranu wina nieaktywnego.
 
 ## Wymagania
 - **R1** Każda strona G0, G1, G2, G3, G6, G7, G8, G9 po udanym renderze zapisuje zdarzenia z katalogu (API Contracts) z `restaurant_id`, `session_id`, `engine_version`, `props.menuVersion` i `created_at`.

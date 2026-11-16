@@ -1,6 +1,6 @@
 {
   "name": "@wine-match/app",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Next.js application: guest app (Tailwind), dashboard (shadcn/ui), REST API and the DI composition root",

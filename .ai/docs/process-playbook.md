@@ -57,7 +57,7 @@ Stan na 2026-11-10; przed startem sprawdź, czy pozycja nie ma już gałęzi lub
 
 | # | Pozycja | Ryzyko | Uwagi |
 |---|---|---|---|
-| 1 | Granice dostępu, części 2–3 (macierz kont i tras) | high | gałąź `sec/boundaries-part2` mogła powstać: sprawdź; skill `.claude/skills/wine-match-access-boundary-test/SKILL.md` |
+| 1 | Granice dostępu, części 2–3 (macierz kont i tras) | high | wdrożone w #146 (`dc5068a`): `packages/app/tests/e2e/access-boundaries-*.e2e.test.ts`; skill `.claude/skills/wine-match-access-boundary-test/SKILL.md` |
 | 2 | Limit żądań per IP (E21 F3) | high | spec `.ai/specs/2026-11-04-platform-quality-and-compliance.md` (in-progress) |
 | 3 | Pełny e2e w przeglądarce: zaproszenie → akceptacja → logowanie → zatwierdzenie → publikacja → widok gościa | medium | `packages/app/tests/e2e/`, scenariusz w `.ai/qa/` |
 | 4 | Podział 9 specyfikacji z 2026-11-04 powyżej 40 KB (CTX-08) | low | podział na fazy bez zmiany treści; status zostaje (podział nie zmienia `approved`) |

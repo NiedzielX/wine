@@ -1,6 +1,6 @@
 {
   "name": "@wine-match/db",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "PostgreSQL data layer: MikroORM entities, config (connection pool), migrations, seeders and repositories implementing @wine-match/core ports",
