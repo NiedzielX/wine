@@ -9,6 +9,6 @@ Ten plik tylko wskazuje źródła; zasady są w jednym miejscu każda.
 - **Kontrakty, których nie wolno łamać:** [BACKWARD_COMPATIBILITY.md](BACKWARD_COMPATIBILITY.md). Zmiana łamiąca dopisuje w tym samym PR-ze wpis w [UPGRADE_NOTES.md](UPGRADE_NOTES.md) (§9 kontraktu).
 - **Wpisy w changelogu:** zmiana widoczna dla gościa, restauracji, operatora lub integratora API ma wpis w `## [Unreleased]` pliku [CHANGELOG.md](CHANGELOG.md) (przy wydaniu brakujące uzupełnia się z listy scalonych PR-ów).
 - **Wydanie wersji (tag, notatki, GitHub Release, okno obserwacji, poprawka pilna):** [docs/RELEASING.md](docs/RELEASING.md); decyduje właściciel.
-- **Polecenia i uruchomienie:** [README.md](README.md), [.ai/docs/commands.md](.ai/docs/commands.md). Przed PR: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run secrets:scan`.
-- **Zgłaszanie luk bezpieczeństwa:** [security-notes.md](security-notes.md) i [docs/security/threat-model.md](docs/security/threat-model.md); osobnej polityki zgłoszeń jeszcze nie ma (decyzja właściciela).
+- **Polecenia i uruchomienie:** [README.md](README.md) (szybki start), [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [.ai/docs/commands.md](.ai/docs/commands.md). Przed PR: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run secrets:scan`.
+- **Zgłaszanie luk bezpieczeństwa:** [SECURITY.md](SECURITY.md) (prywatnie, przez GitHub „Report a vulnerability”); model zagrożeń: [docs/security/threat-model.md](docs/security/threat-model.md), warsztat agenta: [security-notes.md](security-notes.md).
 - **Licencja:** nie została wybrana (decyzja właściciela); do tego czasu repozytorium nie jest udostępnione na licencji open source.

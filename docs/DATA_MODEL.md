@@ -46,7 +46,7 @@ Opis obecnego zachowania (stan na 2026-11-08), nie decyzja o docelowej polityce.
 | Sesja (`session`) | usuwana przy wylogowaniu i po wygaśnięciu; w bazie tylko skrót tokenu | bez zmian |
 | Liczniki limitów (`rate_limit_bucket`) | `PgRateLimiter` usuwa wiersze zakończonych okien reguły (najwyżej raz na minutę na proces i regułę, przy kolejnym trafieniu; nieudane usuwanie: ponownie po 10 s); na regułę i okno najwyżej `RATE_LIMIT_MAX_CLIENTS` + 2 wiersze (`~clients` liczy klientów okna, `~overflow` to wspólny licznik trybu awaryjnego) | wpis w rejestrze retencji: E21 F4 |
 | Dziennik uwierzytelniania (`auth_event`) | tylko dopisywanie, przeżywa konto | retencja: E21 F4 |
-| Restauracja (`restaurant`) | brak polecenia ani ekranu usuwania; pomyłkę przy zakładaniu cofa ręczna transakcja SQL z README, a użytą restaurację oznacza się `status = 'archived'` w SQL (slug zostaje zajęty) | wstrzymanie i archiwizacja w panelu administratora systemu: E14 F2 |
+| Restauracja (`restaurant`) | brak polecenia ani ekranu usuwania; pomyłkę przy zakładaniu cofa ręczna transakcja SQL z docs/DEVELOPMENT.md, a użytą restaurację oznacza się `status = 'archived'` w SQL (slug zostaje zajęty) | wstrzymanie i archiwizacja w panelu administratora systemu: E14 F2 |
 
 Poniżej model docelowy.
 

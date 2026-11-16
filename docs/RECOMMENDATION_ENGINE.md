@@ -12,7 +12,7 @@ Silnik działa **bez zewnętrznego API LLM**: czyste funkcje TypeScript, determi
 | `packages/core/tests/engine.test.ts` | 23 testy jednostkowe silnika (`npm test`) |
 | `packages/core/scripts/engine-matrix.ts` | przegląd kalibracji (`npm run engine:matrix`) |
 
-Silnik wywołują serwisy z `packages/core/src/services` (np. `RecommendationService`), a te są używane przez strony i API w `packages/app` przez kontener DI — patrz `README.md`, sekcja Architektura.
+Silnik wywołują serwisy z `packages/core/src/services` (np. `RecommendationService`), a te są używane przez strony i API w `packages/app` przez kontener DI — patrz `docs/DEVELOPMENT.md`, sekcja Architektura.
 
 ## 1. Architektura w skrócie
 
