@@ -1,4 +1,4 @@
-import { DEMO_USERS, can, type AppEnv, type AuthService, type Role } from '@wine-match/core';
+import { DEMO_PASSWORD, DEMO_USERS, can, type AppEnv, type AuthService, type Role } from '@wine-match/core';
 import { env } from './env';
 
 /**
@@ -22,12 +22,17 @@ export function demoStartSlug(e: Pick<AppEnv, 'allowDemoData' | 'showcaseMode' |
   return isInteractiveDemo(e) && e.demoRestaurantSlug === DEMO_SLUG ? e.demoRestaurantSlug : null;
 }
 
-/** What a page may know about a demo account: never the hash, never the password (R6). */
+/**
+ * What a page may know about a demo account (R6, changed by the owner's review 2026-11-16): the public demo password, shown on purpose so
+ * a visitor can copy it, and never the hash. The list is only ever built in interactive mode for accounts that exist here.
+ */
 export interface DemoAccount {
   key: string;
   name: string;
   role: Role;
   email: string;
+  /** The public demo password (docs/DEPLOYMENT.md §12): only here, only in interactive mode. */
+  password: string;
 }
 
 /**
@@ -38,5 +43,5 @@ export async function demoAccounts(auth: Pick<AuthService, 'panelAccountsAmong'>
   if (!demoStartSlug(e)) return [];
   const panel = DEMO_USERS.filter((u) => can(u.role, 'panel.view'));
   const existing = await auth.panelAccountsAmong(panel.map((u) => u.email));
-  return panel.filter((u) => existing.has(u.email)).map(({ key, name, role, email }) => ({ key, name, role, email }));
+  return panel.filter((u) => existing.has(u.email)).map(({ key, name, role, email }) => ({ key, name, role, email, password: DEMO_PASSWORD }));
 }

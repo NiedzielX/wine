@@ -98,7 +98,7 @@ export const showcasePl = {
     text: 'Dane demonstracyjne: fikcyjna restauracja',
     back: 'Wróć do przewodnika',
     interactiveText: 'Dane demonstracyjne: zmiany mogą zniknąć',
-    interactiveBack: 'Wróć do startu dema'
+    interactiveBack: 'Demo: wybierz widok'
   },
   start: {
     metaTitle: 'Start dema',
@@ -111,7 +111,7 @@ export const showcasePl = {
     sections: {
       guest: { title: 'Gość', text: 'To, co gość widzi po zeskanowaniu kodu na stoliku.', dish: 'Wina do dania', table: 'Cały stół' },
       waiter: { title: 'Kelner', text: 'Wyszukiwarka dla osoby, która serwuje wino.', dish: 'Dopasowania do dania', table: 'Cały stół' },
-      panel: { title: 'Panel', text: 'Strona restauracji: dopasowania, wina i wyniki. Logowanie to jedno kliknięcie, nie trzeba wpisywać hasła.', signInAs: (name: string, role: string) => `Zaloguj jako ${name} (${role})` },
+      panel: { title: 'Panel', text: 'Strona restauracji: dopasowania, wina i wyniki. Zaloguj się jednym kliknięciem albo skopiuj e-mail i hasło do formularza logowania.', signInAs: (name: string, role: string) => `Zaloguj jako ${name} (${role})` },
       roi: { title: 'Kalkulator zwrotu', text: 'Edytowalne założenia i wzór za każdą liczbą.', open: 'Otwórz kalkulator' }
     }
   },

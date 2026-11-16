@@ -1,7 +1,6 @@
-import { Button } from '@wine-match/ui';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { loginAsDemo } from '../../(admin)/admin/auth-actions';
+import { DemoAccountForm } from '../../(admin)/admin/_components/demo-account';
 import { StartHeader } from '../_components/start-header';
 import { demoAccounts, demoStartSlug } from '@/server/demo-entry';
 import { env } from '@/server/env';
@@ -68,13 +67,9 @@ export default async function StartPage() {
             <section data-view="panel" className="min-w-0 rounded-lg border border-border bg-card p-4">
               <h2 className="font-serif text-xl">{s.sections.panel.title}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{s.sections.panel.text}</p>
-              <div className="mt-3 grid gap-2">
+              <div className="mt-3 grid gap-5">
                 {accounts.map((a) => (
-                  <form key={a.key} action={loginAsDemo}>
-                    <input type="hidden" name="key" value={a.key} />
-                    <input type="hidden" name="lang" value={locale} />
-                    <Button type="submit" className="min-h-10 w-full sm:w-auto">{s.sections.panel.signInAs(a.name, t.admin.roles[a.role])}</Button>
-                  </form>
+                  <DemoAccountForm key={a.key} account={a} locale={locale} label={s.sections.panel.signInAs(a.name, t.admin.roles[a.role])} emailLabel={t.admin.login.email} passwordLabel={t.admin.login.password} />
                 ))}
               </div>
               <p data-demo-lock className="mt-3 text-sm text-muted-foreground">{s.lock}</p>

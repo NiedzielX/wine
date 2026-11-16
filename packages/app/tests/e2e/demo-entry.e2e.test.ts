@@ -73,12 +73,14 @@ describe('the interactive demo instance: the start page (AC2, AC5, AC7)', () => 
     const qr = await get(pg.url, '/admin/halka/qr');
     expect([302, 303, 307, 308]).toContain(qr.res.status);
     expect(qr.res.headers.get('location')).toContain('/admin/login');
-    // the bare address goes to the start page; the guest pages carry the ribbon back to it and say do not index
+    // owner's review 2026-11-16: the bare address is the guest view again; the guest pages carry a button to /start and say do not index
     const root = await get(pg.url, '/');
     expect(root.res.status).toBe(307);
-    expect(root.res.headers.get('location')).toBe('/start');
+    expect(root.res.headers.get('location')).toBe('/r/halka');
     const guest = await get(pg.url, '/r/halka?lang=pl');
     expect(guest.html).toContain('data-demo-ribbon="start"');
+    expect(guest.html).toContain('data-demo-start-button');
+    expect(visibleText(guest.html)).toContain('Demo: wybierz widok');
     expect(hrefs(guest.html)).toContain('/start?lang=pl');
     expect(guest.html).toContain('<meta name="robots" content="noindex, nofollow"/>');
     // negative control: the shared instance has no flag, so /start is a 404 with the same headers, the bare address goes to the restaurant, no ribbon
@@ -109,19 +111,23 @@ describe('the interactive demo instance: signing in as a demo account (AC1, AC3)
   const sessionCookie = (setCookie: string) => `wm_session=${/wm_session=([^;]+)/.exec(setCookie)![1]}`;
   const email = (k: string) => `${k}@halka.pl`;
 
-  it('the card offers Marta and Tomasz, "Sign in as Tomasz" lands in his dashboard with a way back to /start, and neither a hash nor the password is in any page', async () => {
+  it('the card offers Marta and Tomasz with their e-mail and the public password, "Sign in as Tomasz" lands in his dashboard with a way back to /start, and no hash is in any page', async () => {
     const login = await get(pg.url, '/admin/login?lang=en');
     expect(login.html).toContain('data-demo-accounts');
     expect([...login.html.matchAll(/name="key" value="(\w+)"/g)].map((m) => m[1])).toEqual(['marta', 'tomasz']);
     expect(visibleText(login.html)).toContain('Sign in as Tomasz Lis (General Manager)');
     expect(login.html).not.toContain('kelner');
+    // owner's review 2026-11-16: the account data are text on the card and on /start; the hash is never in a page; the guest pages carry none
     for (const root of [pg.url, mem.url]) {
-      for (const path of ['/start?lang=pl', '/start?lang=en', '/admin/login?lang=pl', '/admin/login?lang=en', '/r/halka', '/r/halka/staff']) {
-        const { html } = await get(root, path);
-        expect(html, path).not.toContain('scrypt$');
-        expect(html, path).not.toContain(DEMO_PASSWORD);
+      for (const path of ['/start?lang=pl', '/start?lang=en', '/admin/login?lang=pl', '/admin/login?lang=en']) {
+        const text = visibleText((await get(root, path)).html);
+        for (const e of ['marta@halka.pl', 'tomasz@halka.pl', DEMO_PASSWORD]) expect(text, `${root}${path}`).toContain(e);
       }
+      for (const path of ['/start?lang=pl', '/admin/login?lang=pl', '/r/halka', '/r/halka/staff']) expect((await get(root, path)).html, path).not.toContain('scrypt$');
+      for (const path of ['/r/halka', '/r/halka/staff']) expect((await get(root, path)).html, path).not.toContain(DEMO_PASSWORD);
     }
+    // negative control: the shared instance has no flag, so the password is on no page
+    for (const path of ['/start', '/admin/login', '/r/halka']) expect((await get(inject('e2e').baseUrl, path)).html, path).not.toContain(DEMO_PASSWORD);
     const signed = await action(pg.url, '/admin/login', 'loginAsDemo', { key: 'tomasz', lang: 'en' });
     expect(signed.status).toBe(303);
     expect(signed.location).toBe('/admin/halka');

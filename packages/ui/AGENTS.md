@@ -13,4 +13,5 @@ Zasady ogólne: `../../AGENTS.md` (§1.2 i §1.4). Szczegóły architektury: `..
 - `src/backend/feedback`: `EmptyState`, `ErrorMessage`, `LoadingMessage` — jedyny sposób na stan pusty / błąd / ładowanie w panelu. Nowy generyczny wzorzec panelu (niezwiązany z jednym pojęciem) trafia do `src/backend/<kategoria>/`; komponent jednej strony leży obok jej `page.tsx`.
 
 **Lokalne poprawki komponentów shadcn** (zachowaj przy aktualizacji z `npx shadcn add`):
+- `components/button.tsx`: `cursor-pointer` w bazie wariantów — Tailwind 4 ustawia `cursor: default` na przyciskach, więc bez tego przycisk (np. „Zaloguj jako” w demo) wygląda na nieklikalny; `disabled:pointer-events-none` zostaje.
 - `components/progress.tsx`: `value` przekazane do `ProgressPrimitive.Root` — bez tego pasek jest ogłaszany jako „indeterminate” (brak `aria-valuenow`).
