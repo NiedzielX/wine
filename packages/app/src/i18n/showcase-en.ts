@@ -102,7 +102,24 @@ export const showcaseEn = {
   },
   ribbon: {
     text: 'Demonstration data: an invented restaurant',
-    back: 'Back to the demo guide'
+    back: 'Back to the demo guide',
+    interactiveText: 'Demonstration data: changes may disappear',
+    interactiveBack: 'Back to the demo start'
+  },
+  start: {
+    metaTitle: 'Demo start',
+    title: 'Try Wine Match: the invented restaurant Halka',
+    lead: 'One click opens any view of the demo: the guest, the whole table, the waiter and the dashboard.',
+    note: 'Demonstration data: the restaurant, its menu and its people are invented. What you change in the dashboard may disappear at any time, because every server instance keeps its own copy.',
+    lock: 'The demo password is public, so a locked account is locked for every visitor: after 5 wrong attempts an account is blocked for 15 minutes.',
+    notPublished: 'The menu of the demo restaurant is not published yet, so the guest and waiter views are not available here.',
+    open: 'Open',
+    sections: {
+      guest: { title: 'Guest', text: 'What a guest sees after scanning the code on the table.', dish: 'Wines for a dish', table: 'The whole table' },
+      waiter: { title: 'Waiter', text: 'The lookup for the person who serves the wine.', dish: 'Pairing lookup for a dish', table: 'The whole table' },
+      panel: { title: 'Dashboard', text: 'The restaurant’s side: pairings, wines and results. Signing in is one click, there is no password to type.', signInAs: (name: string, role: string) => `Sign in as ${name} (${role})` },
+      roi: { title: 'Return calculator', text: 'Editable assumptions and the formula behind every number.', open: 'Open the calculator' }
+    }
   },
   hub: {
     title: 'Demo: the invented restaurant Halka',

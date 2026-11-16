@@ -2,18 +2,20 @@ import { Alert, AlertDescription, Button, Card, CardContent, CardDescription, Ca
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { login } from '../auth-actions';
+import { login, loginAsDemo } from '../auth-actions';
 import { languageTitles } from '../_components/admin-shell';
 import { LanguageSwitch } from '../_components/language-switch';
 import { getPrincipal, safeNext } from '@/server/auth';
+import { demoAccounts, isInteractiveDemo } from '@/server/demo-entry';
 import { env } from '@/server/env';
 import { getI18n } from '@/server/i18n';
+import { getRequestScope } from '@/server/request-scope';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  // the demo instance is not for search engines on any page (E22 R11), the sign-in page included
-  return { title: (await getI18n()).t.admin.meta.signIn, ...(env().showcaseMode === 'demo' ? { robots: { index: false, follow: false } } : {}) };
+  // the demo instances are not for search engines on any page (E22 R11; interactive: spec 2026-11-16-interactive-demo-entry R7), the sign-in page included
+  return { title: (await getI18n()).t.admin.meta.signIn, ...(env().showcaseMode === 'demo' || isInteractiveDemo() ? { robots: { index: false, follow: false } } : {}) };
 }
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -34,6 +36,8 @@ export default async function LoginPage({ searchParams }: Props) {
   const error = readOnly ? 'showcase_read_only' : typeof sp.error === 'string' ? sp.error : '';
   const message = error ? l.errors[ERROR_CODES.find((c) => c === error) ?? 'unexpected'] : '';
   const notice = typeof sp.notice === 'string' ? NOTICE_CODES.find((c) => c === sp.notice) : undefined;
+  // the interactive demo (spec 2026-11-16-interactive-demo-entry, R3, R6): only the accounts that really exist here, with no hash and no password
+  const demo = readOnly ? [] : await demoAccounts((await getRequestScope()).cradle.authService);
   const back = next ? `/admin/login?next=${encodeURIComponent(next)}` : '/admin/login';
 
   return (
@@ -48,7 +52,8 @@ export default async function LoginPage({ searchParams }: Props) {
       </section>
       <section className="relative grid place-items-center px-6 py-16">
         <LanguageSwitch locale={locale} back={back} label={t.admin.language.label} titles={languageTitles(t)} className="absolute top-4 right-4" />
-        <Card className="w-full max-w-sm">
+        <div className="w-full max-w-sm">
+        <Card className="w-full">
           <CardHeader>
             <CardTitle className="font-serif text-3xl font-normal">{l.title}</CardTitle>
             <CardDescription>{l.description}</CardDescription>
@@ -71,6 +76,26 @@ export default async function LoginPage({ searchParams }: Props) {
             )}
           </CardContent>
         </Card>
+        {demo.length > 0 && (
+          <Card data-demo-accounts className="mt-6 w-full">
+            <CardHeader>
+              <CardTitle className="font-serif text-xl font-normal">{l.demo.title}</CardTitle>
+              <CardDescription>{l.demo.text}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {demo.map((a) => (
+                <form key={a.key} action={loginAsDemo}>
+                  <input type="hidden" name="key" value={a.key} />
+                  <input type="hidden" name="lang" value={locale} />
+                  <Button type="submit" variant="outline" className="w-full">{l.demo.signInAs(a.name, t.admin.roles[a.role])}</Button>
+                </form>
+              ))}
+              <p data-demo-lock className="text-sm text-muted-foreground">{l.demo.lock}</p>
+              <Link href={`/start?lang=${locale}`} className="text-sm font-medium underline underline-offset-4">{l.demo.start}</Link>
+            </CardContent>
+          </Card>
+        )}
+        </div>
       </section>
     </main>
   );

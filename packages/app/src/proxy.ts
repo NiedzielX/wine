@@ -43,4 +43,6 @@ export function proxy(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export const config = { matcher: ['/admin/:path*', '/r/:path*', '/demo/:path*'] };
+// `/start` (spec 2026-11-16-interactive-demo-entry, R7) is in the matcher so its language follows `?lang` and `Accept-Language` like every other page;
+// without it the page would always be English. This departs from R12 of 2026-11-04-sales-demo-and-roi-calculator ("the rest unchanged"): noted in both specs.
+export const config = { matcher: ['/admin/:path*', '/r/:path*', '/demo/:path*', '/start'] };

@@ -2,7 +2,10 @@
 
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { SESSION_COOKIE, safeNext, sessionCookieOptions } from '@/server/auth';
+import { DEMO_PASSWORD, DEMO_USERS, isLocale } from '@wine-match/core';
+import { SESSION_COOKIE, safeNext, secureCookies, sessionCookieOptions } from '@/server/auth';
+import { demoAccounts, demoStartSlug, type DemoAccount } from '@/server/demo-entry';
+import { LANG_COOKIE, langCookieOptions } from '@/server/lang-cookie';
 import { createRequestScope } from '@/server/container';
 import { domainError } from '@/server/domain-errors';
 import { env } from '@/server/env';
@@ -18,7 +21,15 @@ export async function login(form: FormData) {
   const back = (error: string) => `/admin/login?error=${error}${next ? `&next=${encodeURIComponent(next)}` : ''}`;
   // the public demo is read-only: no account exists there and nothing is looked up (E22 Q5, R9)
   if (env().showcaseMode === 'demo') redirect(back('showcase_read_only'));
+  return signIn(email, password, next, back);
+}
 
+/**
+ * The one sign-in path of the form and of "Sign in as …" (spec 2026-11-16-interactive-demo-entry, R5): the `login` limit, the account
+ * lockout and the log are here once. `back(error)` is where a refusal goes; `next` must already be a safe dashboard path (or null).
+ * Always ends in a redirect (it throws), so the callers `return` it.
+ */
+async function signIn(email: string, password: string, next: string | null, back: (error: string) => string): Promise<never> {
   const scope = await createRequestScope();
   let target: string;
   try {
@@ -43,6 +54,34 @@ export async function login(form: FormData) {
     await scope.dispose();
   }
   redirect(target);
+}
+
+/**
+ * "Sign in as Marta / Tomasz" on the interactive demo instance (spec 2026-11-16-interactive-demo-entry, R5). A server action is called by
+ * its id, without the card, so it checks the condition itself: interactive mode, a known `key` of `DEMO_USERS`, and that the account exists
+ * here and opens the dashboard. It takes no e-mail, no password and no restaurant from the form; the public demo password is read here and
+ * never rendered. Anything else is refused like a wrong password. The only public door of this kind: see scripts/check-pages.allowlist.json.
+ */
+export async function loginAsDemo(form: FormData) {
+  const e = env();
+  const back = (error: string) => `/admin/login?error=${error}`;
+  // the read-only demo has no accounts and no password: refuse before anything is looked up
+  if (e.showcaseMode === 'demo') redirect(back('showcase_read_only'));
+  const slug = demoStartSlug(e);
+  if (!slug) redirect(back('invalid_credentials'));
+  // the language chosen on /start survives the sign-in (the dashboard reads the cookie first); only `pl` / `en` are stored
+  const lang = form.get('lang');
+  if (isLocale(lang)) (await cookies()).set(LANG_COOKIE, lang, langCookieOptions(secureCookies()));
+  const scope = await createRequestScope();
+  let account: DemoAccount | undefined;
+  try {
+    account = (await demoAccounts(scope.cradle.authService, e)).find((a) => a.key === String(form.get('key') ?? ''));
+  } finally {
+    await scope.dispose();
+  }
+  const user = account && DEMO_USERS.find((u) => u.key === account.key);
+  if (!user) redirect(back('invalid_credentials'));
+  return signIn(user.email, DEMO_PASSWORD, `/admin/${slug}`, back);
 }
 
 export async function logout() {

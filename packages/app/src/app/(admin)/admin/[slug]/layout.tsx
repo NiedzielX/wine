@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { AdminShell } from '../_components/admin-shell';
 import { ErrorTextsProvider } from '../_components/error-texts';
 import { requireAccess, safeNext } from '@/server/auth';
+import { isInteractiveDemo } from '@/server/demo-entry';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
 
@@ -30,6 +31,7 @@ export default async function RestaurantAdminLayout({ children, params }: Props)
       t={t}
       back={back}
       canManageTeam={access.can('team.manage')}
+      demoStart={isInteractiveDemo()}
     >
       <ErrorTextsProvider value={t.admin.error}>{children}</ErrorTextsProvider>
     </AdminShell>
