@@ -63,7 +63,10 @@ describe('checkChangelog', () => {
   });
 
   it('passes on this repository', () => {
-    expect(checkChangelog(readFileSync(join(REPO, 'CHANGELOG.md'), 'utf8'))).toEqual([]);
+    // Right after a release `[Unreleased]` is empty by design (promote moves everything to `[X.Y.Z]`); that is the only
+    // problem allowed here, any other shape problem still fails.
+    const problems = checkChangelog(readFileSync(join(REPO, 'CHANGELOG.md'), 'utf8'));
+    expect(problems.filter((p) => !p.includes('[Unreleased] has no entries'))).toEqual([]);
   });
 });
 

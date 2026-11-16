@@ -1,12 +1,15 @@
 # Changelog
 
-Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku jak README. Wpisy pochodzą z listy scalonych PR-ów (numer w nawiasie). Wersja w `package.json` to `0.2.0`; nic nie jest otagowane, a definicja wersji 1.0 jest decyzją właściciela. Co zrobić przy zmianie niezgodnej wstecz: [UPGRADE_NOTES.md](UPGRADE_NOTES.md); jak powstaje wydanie: [docs/RELEASING.md](docs/RELEASING.md). Kształt sekcji `[Unreleased]` sprawdza `npm run release:notes -- check`.
+Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku jak README. Wpisy pochodzą z listy scalonych PR-ów (numer w nawiasie). Wersja w `package.json` to `0.3.0` (pierwsze przygotowane wydanie; tag `v0.3.0` powstanie dopiero po publikacji wydania przez właściciela, dziś nic nie jest otagowane), a definicja wersji 1.0 jest decyzją właściciela. Co zrobić przy zmianie niezgodnej wstecz: [UPGRADE_NOTES.md](UPGRADE_NOTES.md); jak powstaje wydanie: [docs/RELEASING.md](docs/RELEASING.md). Kształt sekcji `[Unreleased]` sprawdza `npm run release:notes -- check`.
 
 ## [Unreleased]
+
+## [0.3.0] - 2026-11-16
 
 ### Wdrożenie produkcyjne (E11, E11b)
 - E11 F1: gotowość pod produkcję: `PUBLIC_BASE_URL` zawodzący zamykająco, `GET /api/v1/health`, strażnik seedera, `smoke --production` (#120). Zmiana łamiąca: w produkcji brak `PUBLIC_BASE_URL` zatrzymuje serwer.
 - E11b: domknięcie specyfikacji kodu polecenia (AC1–AC6, AC13–AC15) (#116).
+- E11 F2–F3: obraz kontenera (`Dockerfile`, cele `runtime` i `migrator`), `docker-compose.yml`, job CI `image` (jeszcze niewymagany check), `docs/DEPLOYMENT.md` z wycofaniem i `docs/CONTINUITY.md` (#136).
 - Zależności: Next 16.4.1 i undici 7.30.1 (#104), zod 4.6.6 (#97).
 
 ### Konta i role (E12)
@@ -15,7 +18,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ### Jakość platformy (E21)
 - F1: endpoint metryk, jedna linia logu na żądanie, redakcja sekretów (#117).
-- F3: limity żądań na klienta: 429 z `Retry-After` dla publicznego API i logowania, limity wydania, wyszukania i oznaczenia kodu polecenia (G8, G9, G11), tabela `rate_limit_bucket` (migracja addytywna), opcjonalne `TRUSTED_PROXY_HOPS`, `RATE_LIMIT_SECRET`, `RATE_LIMITS`, `RATE_LIMIT_MAX_CLIENTS` (sufit klientów na okno, tryb awaryjny ze wspólnym licznikiem; Compose ustawia `TRUSTED_PROXY_HOPS=1`); żadna zmienna nie staje się wymagana.
+- F3: limity żądań na klienta: 429 z `Retry-After` dla publicznego API i logowania, limity wydania, wyszukania i oznaczenia kodu polecenia (G8, G9, G11), tabela `rate_limit_bucket` (migracja addytywna), opcjonalne `TRUSTED_PROXY_HOPS`, `RATE_LIMIT_SECRET`, `RATE_LIMITS`, `RATE_LIMIT_MAX_CLIENTS` (sufit klientów na okno, tryb awaryjny ze wspólnym licznikiem; Compose ustawia `TRUSTED_PROXY_HOPS=1`); żadna zmienna nie staje się wymagana. Wymaga ustawienia `TRUSTED_PROXY_HOPS` poza Compose (UPGRADE_NOTES.md) (#148).
 
 ### Demo sprzedażowe (E22)
 - F1: kalkulator zwrotu, `SHOWCASE_MODE=calculator` (#122).
@@ -24,6 +27,17 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 ### Bezpieczeństwo, proces i testy
 - Model zagrożeń, testy granic dostępu, nagłówki bezpieczeństwa (#127); `check:routes` (#128); protokół review i paczka review (#129); izolacja tenantów i role na PostgreSQL (#112); hook agenta działa przy spacji w ścieżce (#115).
 - Reguły pracy równoległej (#108), skrypt dowodu naprawy, CodeQL, Dependabot (#110), scenariusze QA i środowisko testowe (#107), `merge=union` dla indeksów (#119), stan prac i nocny review (#121), plan domknięcia produktu i specyfikacje E12–E22 (#105).
+- Testy granic dostępu, część 1 (macierz T-25..T-32), poprawka wycieku danych na liście dań (kontrola dostępu przed odczytem, dane innego tenanta i anonimowo), ochrona `isUuid` w wyszukiwaniach (#133); część 2–3 (gość a niepublikowane, przypisanie masowe, polityka 403/404) i `check:pages` (#146).
+- Test migracji up/down/up i testy współbieżności na PostgreSQL; poprawka wyścigu limitu kodów polecenia na sesję (#134).
+- Utwardzenie łańcucha dostaw: akcje CI przypięte SHA, `ignore-scripts=true`, skan sekretów po całej historii, reguły `ask` dla agenta (#135).
+- Hook `spec-status-guard` (status `approved` tylko przez człowieka) i trzy skille projektu `wine-match-*` (#132).
+- Protokół QA z niezależnym weryfikatorem, szablon błędu, baza wiedzy QA, polecenia operatora drukują cel bazy (#130); niezależność recenzji wielu modeli, schematy recenzenta i `npm run review:validate` (#140).
+- Odświeżenie README, backlogu E11–E22, notatek bezpieczeństwa, ról i opisu usuwania danych (#131); krótkie README, `SECURITY.md` (zgłaszanie podatności) i szczegóły w `docs/DEVELOPMENT.md` (#151).
+- Odchudzenie `AGENTS.md` i indeksu lekcji pod budżety kontekstu (#142); ostrzeżenie o rozjeździe tabeli §1.1 z `package.json` i `check:context -- --fix-versions` (#145).
+- `@wine-match/testkit` jako workspace z zakresem `"*"`, wymuszane w `release:version` (#144); proces wydania: `docs/RELEASING.md`, `UPGRADE_NOTES.md`, `release:version`, `release:notes` (#143).
+- Synteza kursu (lekcje 1–22), playbook wykonawcy i `npm run audit:process` (#147); lekcje 24–25 i kierunek hostingu (#150); szkic specyfikacji hostingu na Vercel (#149); audyt wiedzy 2026-11-15 i dwa szkice specyfikacji utrzymania wiedzy (#153).
+- Test odporności każdej trasy `api/v1` na złe wejście; klucze wybrane przez klienta są przycinane do 80 znaków w treści odpowiedzi 422 (#152).
+- Zależności i CI: grupy minor-and-patch (#124, #138), `@testcontainers/postgresql` 12.2.1 (#139), akcje `setup-node` (#111), `upload-artifact` (#137) i `checkout` (#141).
 - Poprawki: identyfikator spoza UUID to „nieznany”, nie 500 (#109); flaky test kodu kelnera (#106).
 - Proces wydania (lekcja 22): `docs/RELEASING.md`, `UPGRADE_NOTES.md`, §9 w `BACKWARD_COMPATIBILITY.md`, `npm run release:version` i `npm run release:notes`, szkic workflow `release.yml` (tylko ręcznie, bez publikacji pakietów i wdrożenia).
 
