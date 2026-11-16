@@ -34,7 +34,7 @@ The start page of the interactive demo instance opens every view of the invented
 2. The links are the guest page, the whole table, the waiter lookup, the waiter whole table and the calculator, each with the language, and each answers 200.
 3. The language follows `?lang`, then the browser, then English.
 4. The QR page is not linked and, without a session, sends the visitor to the sign-in page.
-5. `/` redirects to `/start`; a guest page shows the ribbon "Demonstration data" with a link to `/start?lang=pl` and a noindex robots tag.
+5. `/` redirects to the guest view `/r/halka` (owner's review 2026-11-16); a guest page shows the ribbon "Demonstration data" with a button "Demo: wybierz widok" to `/start?lang=pl` and a noindex robots tag.
 6. Without the flag `/start` is a 404 that still carries the noindex header, `/` goes to the restaurant and no ribbon is shown.
 
 ## Edge cases covered

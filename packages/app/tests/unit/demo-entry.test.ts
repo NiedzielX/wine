@@ -84,10 +84,11 @@ describe('R1 the interactive mode is one function', () => {
 });
 
 describe('R3, R6 demoAccounts: only existing accounts with dashboard access, never a hash', () => {
-  it('memory + flag: Marta and Tomasz, no waiter, with key, name, role and e-mail and nothing else', async () => {
+  it('memory + flag: Marta and Tomasz, no waiter, with key, name, role, e-mail and the public password and nothing else', async () => {
     const accounts = await demoAccounts((await createRequestScope()).cradle.authService);
     expect(accounts.map((a) => a.key)).toEqual(['marta', 'tomasz']);
-    expect(accounts.map((a) => Object.keys(a).sort())).toEqual([['email', 'key', 'name', 'role'], ['email', 'key', 'name', 'role']]);
+    expect(accounts.map((a) => Object.keys(a).sort())).toEqual([['email', 'key', 'name', 'password', 'role'], ['email', 'key', 'name', 'password', 'role']]);
+    expect(accounts.every((a) => a.password === DEMO_PASSWORD)).toBe(true);
     expect(JSON.stringify(accounts)).not.toMatch(/scrypt\$|passwordHash/);
   });
 
@@ -135,6 +136,10 @@ describe('R2 /start (AC2, AC7)', () => {
     expect(text).toContain('Sign in as Marta Wierzbicka (Wine Director)');
     expect(text).toContain('Sign in as Tomasz Lis (General Manager)');
     expect(text).not.toContain('kelner');
+    // owner's review 2026-11-16: the e-mail and the public password are text to copy, next to each button
+    for (const u of DEMO_USERS.filter((d) => d.key === 'marta' || d.key === 'tomasz')) expect(text).toContain(u.email);
+    expect(text).toContain(DEMO_PASSWORD);
+    expect(html).not.toContain('scrypt$');
     // the QR page needs a session: it is not linked from a page without one
     expect(hrefs(html).some((h) => h.includes('/qr'))).toBe(false);
   });
@@ -218,32 +223,54 @@ describe('R4, R9 the warning and the wording (AC4, AC6)', () => {
   });
 });
 
-describe('R6 the HTML holds no hash and no password, in any configuration (AC3)', () => {
+describe('R6 the HTML holds no hash ever and the public password only on an interactive instance (AC3, owner\'s review 2026-11-16)', () => {
   it('start, sign-in page, guest pages and the layout, for every configuration', async () => {
-    const configs: Array<Partial<Cfg>> = [{}, { showcaseMode: 'off' }, { allowDemoData: false }, { allowDemoData: false, showcaseMode: 'off' }, { dataSource: 'postgres' }, { showcaseMode: 'demo' }];
+    const configs: Array<Partial<Cfg>> = [{}, { showcaseMode: 'off' }, { allowDemoData: false }, { allowDemoData: false, showcaseMode: 'off' }, { dataSource: 'postgres' }, { showcaseMode: 'demo' }, { demoRestaurantSlug: 'pilot' }];
     for (const patch of configs) {
       setCfg(patch);
+      const interactive = cfg.value.allowDemoData && cfg.value.showcaseMode !== 'demo' && cfg.value.demoRestaurantSlug === 'halka';
       for (const page of [StartPage, LoginPage, Home]) {
         let html = '';
         try { html = await render(page); } catch { continue; /* a 404 or a redirect has no body */ }
-        expect(html, `${page.name} ${JSON.stringify(patch)}`).not.toContain('scrypt$');
-        expect(html).not.toContain(DEMO_PASSWORD);
+        const where = `${page.name} ${JSON.stringify(patch)}`;
+        expect(html, where).not.toContain('scrypt$');
+        if (page === LoginPage || page === StartPage) {
+          // the accounts exist in this suite's store, so an interactive instance shows the password; every other one never does
+          if (interactive) expect(html, where).toContain(DEMO_PASSWORD);
+          else expect(html, where).not.toContain(DEMO_PASSWORD);
+        }
       }
       const guest = await render(GuestLayout, { children: createElement('main', null, 'x') });
       expect(guest).not.toContain(DEMO_PASSWORD);
       expect(guest).not.toContain('scrypt$');
     }
   });
+
+  it('interactive on PostgreSQL without the demo accounts: no password anywhere', async () => {
+    setCfg({ dataSource: 'postgres' });
+    const store = (await storeOf()).store;
+    const saved = store.users.splice(0);
+    try {
+      for (const page of [StartPage, LoginPage]) expect(await render(page)).not.toContain(DEMO_PASSWORD);
+    } finally {
+      store.users.push(...saved);
+    }
+  });
 });
 
 describe('the sign-in card (AC1, AC3)', () => {
-  it('interactive: a card with two forms (Marta, Tomasz), a hidden key and language, no e-mail or password in them, next to the ordinary form', async () => {
+  it('interactive: a card with two forms (Marta, Tomasz), a hidden key and language, the e-mail and the public password as text beside them, next to the ordinary form', async () => {
     const html = await render(LoginPage, {}, 'pl');
     expect(html).toContain('data-demo-accounts');
     expect([...html.matchAll(/name="key" value="(\w+)"/g)].map((m) => m[1])).toEqual(['marta', 'tomasz']);
     expect(html).toContain('name="lang" value="pl"');
     expect(html).toContain('type="password"');
     expect(visibleText(html)).toContain('Zaloguj jako Tomasz Lis (General Manager)');
+    // the e-mail and the password are plain text for a person to copy, never a field value of the demo forms
+    expect([...html.matchAll(/data-demo-email[^>]*>([^<]*)</g)].map((m) => m[1])).toEqual(['marta@halka.pl', 'tomasz@halka.pl']);
+    expect([...html.matchAll(/data-demo-password[^>]*>([^<]*)</g)].map((m) => m[1])).toEqual([DEMO_PASSWORD, DEMO_PASSWORD]);
+    expect(html).not.toContain(`value="${DEMO_PASSWORD}"`);
+    expect(html).not.toContain('scrypt$');
     expect(html).not.toContain('kelner');
     expect(hrefs(html)).toContain('/start?lang=pl');
   });
@@ -352,6 +379,9 @@ describe('R8 the way back (AC2)', () => {
     expect(hrefs(html)).toContain('/start?lang=pl');
     expect(html).not.toContain('sid=');
     expect(html.match(/data-demo-ribbon/g)).toHaveLength(1);
+    // owner's review 2026-11-16: a solid button, not a thin link
+    expect(html).toMatch(/<a href="\/start\?lang=pl" data-demo-start-button[^>]*>Demo: wybierz widok<\/a>/);
+    expect(visibleText(await layout('en'))).toContain('Demo: choose a view');
   });
 
   it('a real installation shows no strip; the read-only demo shows the guide strip, not this one', async () => {
@@ -363,8 +393,8 @@ describe('R8 the way back (AC2)', () => {
     expect(hrefs(demo)).toContain('/demo?lang=en');
   });
 
-  it('/ goes to /start on an interactive instance and to the demo restaurant anywhere else', async () => {
-    await expect(Promise.resolve().then(() => Home())).rejects.toMatchObject({ url: '/start' });
+  it('/ is the guest view of the demo restaurant on every instance, the interactive one included (owner\'s review 2026-11-16)', async () => {
+    await expect(Promise.resolve().then(() => Home())).rejects.toMatchObject({ url: '/r/halka' });
     for (const patch of [{ allowDemoData: false }, { showcaseMode: 'demo' as const }, { demoRestaurantSlug: 'pilot' }]) {
       setCfg(patch);
       await expect(Promise.resolve().then(() => Home()), JSON.stringify(patch)).rejects.toMatchObject({ url: `/r/${cfg.value.demoRestaurantSlug}` });

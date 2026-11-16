@@ -527,7 +527,7 @@ export const pl = {
       showcaseBack: 'Wróć do przewodnika po demo',
       demo: {
         title: 'Konta demo',
-        text: 'Dane demonstracyjne: restauracja i jej ludzie są zmyśleni, a zmiany mogą zniknąć. Zaloguj się jednym kliknięciem, bez wpisywania hasła.',
+        text: 'Dane demonstracyjne: restauracja i jej ludzie są zmyśleni, a zmiany mogą zniknąć. Zaloguj się jednym kliknięciem albo skopiuj poniższy e-mail i hasło do formularza.',
         signInAs: (name: string, role: string) => `Zaloguj jako ${name} (${role})`,
         lock: 'Hasło demo jest publiczne, więc zablokowane konto jest zablokowane dla każdego odwiedzającego: po 5 błędnych próbach konto jest blokowane na 15 minut.',
         start: 'Start dema'

@@ -104,7 +104,7 @@ export const showcaseEn = {
     text: 'Demonstration data: an invented restaurant',
     back: 'Back to the demo guide',
     interactiveText: 'Demonstration data: changes may disappear',
-    interactiveBack: 'Back to the demo start'
+    interactiveBack: 'Demo: choose a view'
   },
   start: {
     metaTitle: 'Demo start',
@@ -117,7 +117,7 @@ export const showcaseEn = {
     sections: {
       guest: { title: 'Guest', text: 'What a guest sees after scanning the code on the table.', dish: 'Wines for a dish', table: 'The whole table' },
       waiter: { title: 'Waiter', text: 'The lookup for the person who serves the wine.', dish: 'Pairing lookup for a dish', table: 'The whole table' },
-      panel: { title: 'Dashboard', text: 'The restaurant’s side: pairings, wines and results. Signing in is one click, there is no password to type.', signInAs: (name: string, role: string) => `Sign in as ${name} (${role})` },
+      panel: { title: 'Dashboard', text: 'The restaurant’s side: pairings, wines and results. Sign in with one click, or copy the e-mail and password into the sign-in form.', signInAs: (name: string, role: string) => `Sign in as ${name} (${role})` },
       roi: { title: 'Return calculator', text: 'Editable assumptions and the formula behind every number.', open: 'Open the calculator' }
     }
   },

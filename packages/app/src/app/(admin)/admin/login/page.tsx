@@ -2,7 +2,8 @@ import { Alert, AlertDescription, Button, Card, CardContent, CardDescription, Ca
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { login, loginAsDemo } from '../auth-actions';
+import { login } from '../auth-actions';
+import { DemoAccountForm } from '../_components/demo-account';
 import { languageTitles } from '../_components/admin-shell';
 import { LanguageSwitch } from '../_components/language-switch';
 import { getPrincipal, safeNext } from '@/server/auth';
@@ -82,13 +83,9 @@ export default async function LoginPage({ searchParams }: Props) {
               <CardTitle className="font-serif text-xl font-normal">{l.demo.title}</CardTitle>
               <CardDescription>{l.demo.text}</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3">
+            <CardContent className="grid gap-5">
               {demo.map((a) => (
-                <form key={a.key} action={loginAsDemo}>
-                  <input type="hidden" name="key" value={a.key} />
-                  <input type="hidden" name="lang" value={locale} />
-                  <Button type="submit" variant="outline" className="h-auto w-full whitespace-normal py-2">{l.demo.signInAs(a.name, t.admin.roles[a.role])}</Button>
-                </form>
+                <DemoAccountForm key={a.key} account={a} locale={locale} label={l.demo.signInAs(a.name, t.admin.roles[a.role])} emailLabel={l.email} passwordLabel={l.password} />
               ))}
               <p data-demo-lock className="text-sm text-muted-foreground">{l.demo.lock}</p>
               <Link href={`/start?lang=${locale}`} className="text-sm font-medium underline underline-offset-4">{l.demo.start}</Link>

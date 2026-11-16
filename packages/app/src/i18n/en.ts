@@ -649,7 +649,7 @@ export const en = {
       showcaseBack: 'Back to the demo guide',
       demo: {
         title: 'Demo accounts',
-        text: 'Demonstration data: the restaurant and its people are invented, and changes may disappear. Sign in with one click, no password to type.',
+        text: 'Demonstration data: the restaurant and its people are invented, and changes may disappear. Sign in with one click, or copy the e-mail and password below into the form.',
         signInAs: (name: string, role: string) => `Sign in as ${name} (${role})`,
         lock: 'The demo password is public, so a locked account is locked for every visitor: after 5 wrong attempts an account is blocked for 15 minutes.',
         start: 'Demo start'
