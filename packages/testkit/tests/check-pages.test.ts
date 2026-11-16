@@ -223,10 +223,10 @@ describe('check-pages', () => {
     }
   });
 
-  it('the allowlist of the repository is exactly the eight documented public doors, each with a reason', () => {
+  it('the allowlist of the repository is exactly the nine documented public doors, each with a reason', () => {
     const list = JSON.parse(readFileSync(join(REPO, 'scripts/check-pages.allowlist.json'), 'utf8')) as { entries: Array<{ file: string; functions: string[]; reason: string }> };
     const doors = list.entries.flatMap((e) => e.functions.map((f) => `${e.file.replace(`${ADMIN}/`, '')}#${f}`)).sort();
-    expect(doors).toEqual(['accept-actions.ts#acceptInvitation', 'accept/page.tsx#default', 'auth-actions.ts#login', 'auth-actions.ts#logout', 'language-actions.ts#setLanguage', 'layout.tsx#default', 'login/page.tsx#default', 'page.tsx#default']);
+    expect(doors).toEqual(['accept-actions.ts#acceptInvitation', 'accept/page.tsx#default', 'auth-actions.ts#login', 'auth-actions.ts#loginAsDemo', 'auth-actions.ts#logout', 'language-actions.ts#setLanguage', 'layout.tsx#default', 'login/page.tsx#default', 'page.tsx#default']);
     expect(list.entries.every((e) => !e.file.includes('[slug]')), 'nothing under [slug] is a public door').toBe(true);
     expect(list.entries.every((e) => e.reason.length >= 40)).toBe(true);
   });

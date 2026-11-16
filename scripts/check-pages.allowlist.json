@@ -14,7 +14,7 @@
     {
       "file": "packages/app/src/app/(admin)/admin/login/page.tsx",
       "functions": ["default"],
-      "reason": "The sign-in page is public by design: it reads only the caller's own session (getPrincipal) to send a signed-in person on; no slug, no restaurant data."
+      "reason": "The sign-in page is public by design: it reads the caller's own session (getPrincipal) to send a signed-in person on, the configuration (env) and, on the interactive demo instance only (spec 2026-11-16-interactive-demo-entry), whether the fixed public demo accounts exist (demoAccounts: name, role, e-mail, never a hash or a password); no slug from the caller, no restaurant data."
     },
     {
       "file": "packages/app/src/app/(admin)/admin/accept/page.tsx",
@@ -28,8 +28,8 @@
     },
     {
       "file": "packages/app/src/app/(admin)/admin/auth-actions.ts",
-      "functions": ["login", "logout"],
-      "reason": "Sign-in has no session yet (the password is the check); sign-out only ends the caller's own session from its own cookie. Neither takes a slug."
+      "functions": ["login", "loginAsDemo", "logout"],
+      "reason": "Sign-in has no session yet (the password is the check); sign-out only ends the caller's own session from its own cookie. None takes a slug. loginAsDemo (spec 2026-11-16-interactive-demo-entry, R5) is a public door by design: the demo password is public, the action checks the mode (interactive demo instance only) and that the fixed demo account exists here before it signs in through the same signIn as login (limit, lockout, log), takes only a key of DEMO_USERS (no e-mail, no password, no slug) and sends the person to the demo restaurant only."
     },
     {
       "file": "packages/app/src/app/(admin)/admin/language-actions.ts",

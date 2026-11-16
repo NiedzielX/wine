@@ -358,6 +358,17 @@ npm run smoke -- --showcase https://demo.example.com
 
 Startuj **tylko** usługę `app-demo` (jak wyżej, z jej nazwą), nigdy cały stos: `db` i `migrate` nie mają tam nic do roboty. `app-demo` nie czyta `.env` produkcji (brak `DATABASE_URL`, `METRICS_TOKEN`), działa na `SHOWCASE_MODE=demo`, `DATA_SOURCE=memory`, `ALLOW_DEMO_DATA=true`, jest tylko do odczytu, nie zapisuje zdarzeń gości i ma `noindex`. Restart czyści pamięć. Na tej instancji uruchamiaj wyłącznie `smoke --showcase`.
 
+### Instancja interaktywnego dema (spec `2026-11-16-interactive-demo-entry`)
+
+Inna rzecz niż `SHOWCASE_MODE=demo`: demo, w którym da się **klikać i zapisywać**. Tryb interaktywny to `ALLOW_DEMO_DATA=true` **i** `SHOWCASE_MODE` inny niż `demo` (`isInteractiveDemo()`, jedna funkcja używana przez stronę, akcję, `/` i nagłówki). Wtedy:
+
+- `/start` jest stroną startową: linki do widoków gościa, „całego stołu”, kelnera i kalkulatora (tylko przy `SHOWCASE_MODE=calculator`) oraz przyciski „Zaloguj jako Marta / Tomasz”. `/` kieruje na `/start`; strony gościa mają pasek powrotu, panel link „Start dema”.
+- Strona logowania `/admin/login` ma kartę „Konta demo”. Hasło demo jest publiczne i **nigdy nie trafia do HTML**: przycisk wysyła tylko klucz konta, akcja `loginAsDemo` czyta hasło po stronie serwera. Karta i przyciski pokazują wyłącznie konta demo, które **istnieją w repozytorium** i mają dostęp do panelu (kelner nie ma).
+- **Sama flaga nie wystarcza do bezpieczeństwa**: na PostgreSQL `ALLOW_DEMO_DATA=true` przechodzi walidację także w produkcji (wymóg flagi dotyczy tylko `DATA_SOURCE=memory`). Dlatego bez kont demo w bazie nie ma karty ani przycisków, a `loginAsDemo` odmawia jak przy błędnym haśle. Konta demo na prawdziwej instalacji pozostają ryzykiem T-08: nie ustawiaj `ALLOW_DEMO_DATA=true` na instancji z prawdziwymi restauracjami.
+- Instancja demo na PostgreSQL: osobna baza demo (`db:migrate`, potem `db:seed` z `ALLOW_DEMO_DATA=true`; nigdy baza produkcyjna ani testowa dla podglądów). Zapisy w panelu trwają wtedy w tej bazie; w pamięci każda instancja funkcji ma własną kopię i zmiany znikają.
+- Blokada konta obowiązuje: po 5 błędnych próbach konto jest blokowane na 15 minut, a że hasło jest publiczne, blokada dotyczy wszystkich odwiedzających (komunikat jest na karcie i na `/start`). Limit `login` też obowiązuje, więc za reverse proxy ustaw `TRUSTED_PROXY_HOPS` (sekcja 4; na Vercelu wartość z F0), inaczej wszyscy odwiedzający dzielą jeden licznik.
+- Wszystkie strony takiej instancji mają `noindex`; `/start` ma też `Cache-Control: private, no-store` i `X-Robots-Tag`. Instancja jest przeznaczona dla osób z linkiem; na Vercelu włącz Deployment Protection (sekcja 17).
+
 ## 13. Próba (instancja próbna) i `migration:down`
 
 Przed pierwszym klientem i przed każdą większą zmianą procesu: czysta VM lub osobny projekt Compose (`docker compose -p wine-trial …`), osobna baza.
@@ -425,6 +436,7 @@ Ograniczenia, do pamiętania:
 - Dane w pamięci są **per instancja funkcji**: zapisy w demo nie są trwałe ani wspólne między instancjami; demo służy do odczytu i pokazu.
 - Plan Hobby dopuszcza tylko użycie niekomercyjne; dla restauracji potrzebny plan z prawem do użycia komercyjnego.
 - Włącz Deployment Protection (w planie Hobby zakres ochrony do potwierdzenia), bo konta demo mają publiczne hasło.
+- Tryb interaktywny (`/start`, „Zaloguj jako …”): `ALLOW_DEMO_DATA=true` bez `SHOWCASE_MODE=demo`; opis i ostrzeżenia w sekcji 12 („Instancja interaktywnego dema”). Na Vercelu ustaw też `TRUSTED_PROXY_HOPS` (wartość z F0), bo hasło demo jest publiczne, a blokada konta (5 prób, 15 minut) dotyczy wszystkich.
 - Region wykonywania funkcji ustaw jawnie na UE (domyślna maszyna budowy jest w USA); to wymóg specyfikacji dla produkcji.
 - Produkcja na Vercelu (baza, migracje, rollback, podglądy, wydania) jest opisana w specyfikacji; do czasu jej zatwierdzenia i faz F1–F3 obowiązuje reszta tego dokumentu (VM i Compose).
 

@@ -609,6 +609,7 @@ export const en = {
       wineRemoved: 'Wine removed',
       viewAsGuest: 'View as guest',
       openGuestApp: 'Open guest app',
+      demoStart: 'Demo start',
       lastPublished: (when: string) => `Last published ${when}`
     },
     nav: {
@@ -646,6 +647,13 @@ export const en = {
         rate_limited: 'Too many sign-in attempts from this network. Try again in a few minutes.'
       } as Record<'invalid_credentials' | 'no_panel_access' | 'unexpected' | 'showcase_read_only' | 'rate_limited', string>,
       showcaseBack: 'Back to the demo guide',
+      demo: {
+        title: 'Demo accounts',
+        text: 'Demonstration data: the restaurant and its people are invented, and changes may disappear. Sign in with one click, no password to type.',
+        signInAs: (name: string, role: string) => `Sign in as ${name} (${role})`,
+        lock: 'The demo password is public, so a locked account is locked for every visitor: after 5 wrong attempts an account is blocked for 15 minutes.',
+        start: 'Demo start'
+      },
       notices: { account_created: 'Your account was created and you joined the restaurant. Sign in with the password you just chose.' } as Record<'account_created', string>
     },
     accept: {

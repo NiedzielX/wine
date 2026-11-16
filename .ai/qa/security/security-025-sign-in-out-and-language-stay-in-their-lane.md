@@ -24,14 +24,16 @@ The public form doors of the panel give nothing to a wrong password, follow no o
 
 1. Tomasz signs in with an outside `next` and planted role and restaurant fields; then a wrong password and an unknown e-mail are tried.
 2. He signs out with a planted field naming his other session; a visitor without a session signs out the same way.
-3. The language is switched to English, to an unknown language and with outside return addresses.
+3. "Sign in as …" (the interactive demo's door) is called by its id with each demo key, an e-mail, the demo password and a restaurant planted in the form.
+4. The language is switched to English, to an unknown language and with outside return addresses.
 
 ## Then
 
 1. The sign-in lands on Halka (not the outside address), makes one session and grants nothing in Bistro.
 2. A wrong password and an unknown e-mail get the same answer and no session; only the failed-attempt counter of the account moves.
-3. Sign-out ends exactly one session, the caller's; the other session still works; without a session nothing ends.
-4. The language switch sets only `pl` or `en`, returns only to a dashboard address and writes no row.
+3. On this instance (no demo flag) every "Sign in as …" call is refused like a wrong password, sets no session, writes nothing and does not count against the account.
+4. Sign-out ends exactly one session, the caller's; the other session still works; without a session nothing ends.
+5. The language switch sets only `pl` or `en`, returns only to a dashboard address and writes no row.
 
 ## Edge cases covered
 
