@@ -72,8 +72,15 @@ jobs:
           url=$(printf '%s' "$DEMO_DATABASE_URL" | sed 's#:6543/#:5432/#')
           echo "::add-mask::$url"
           printf 'DATABASE_URL=%s\n' "$url" >> "$GITHUB_ENV"
+      # Supabase refuses connections without SSL (ESSLREQUIRED). MikroORM builds the pg pool from the URL parts and drops
+      # ?sslmode=..., so the setting goes through PGSSLMODE, which pg reads itself. no-verify: the Supabase CA is not in
+      # the Node trust store ("self-signed certificate in certificate chain"); the connection is encrypted, not verified.
       - name: Migrate
+        env:
+          PGSSLMODE: no-verify
         run: npm run db:migrate
       - name: Seed the demo data
         if: ${{ inputs.seed }}
+        env:
+          PGSSLMODE: no-verify
         run: npm run db:seed
