@@ -4,6 +4,9 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+### Poprawki
+- Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
+
 ### Operacje
 - Workflow `Demo database` (ręczny, tylko `main`, środowisko `demo-database`): migracje i opcjonalnie dane demo na bazie instancji demo z runnera GitHub, bez lokalnego komputera; adres bazy z sekretu środowiska, nigdy w logu. Opis: `docs/DEPLOYMENT.md` §17.1.
 
