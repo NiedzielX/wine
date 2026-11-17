@@ -20,6 +20,11 @@ const isApproved = (p: Pairing) => p.status === 'approved' || p.status === 'modi
 const ci = (s: string) => s.toLocaleLowerCase('en');
 /** A sommelier-decided pairing with no decision newer than the last rename of its dish or wine (R15): derived, no column. */
 const needsCheck = (p: Pairing, rename: Pick<CatalogEditRecord, 'at'>) => isApproved(p) && p.updatedAt <= rename.at;
+const pairNeedsCheck = (p: Pairing, renames: Map<string, Pick<CatalogEditRecord, 'at'>>) => {
+  const dish = renames.get(`dish:${p.dishId}`);
+  const wine = renames.get(`wine:${p.wineId}`);
+  return (dish !== undefined && needsCheck(p, dish)) || (wine !== undefined && needsCheck(p, wine));
+};
 
 export interface RestaurantOverview {
   restaurant: Restaurant;
@@ -274,19 +279,28 @@ export class AdminService {
     };
   }
 
+  /**
+   * The newest identity edit of every dish and wine (R15), by `kind:id`. A pairing needs a second look when it is sommelier-decided
+   * and its dish OR its wine was renamed after the decision.
+   */
+  private async identityEdits(restaurantId: string): Promise<Map<string, CatalogEditRecord>> {
+    const latest = new Map<string, CatalogEditRecord>();
+    for (const e of await this.repos.catalogEditRepository.list(restaurantId, { identityOnly: true })) {
+      const key = `${e.kind}:${e.subjectId}`;
+      if (!latest.has(key)) latest.set(key, e);
+    }
+    return latest;
+  }
+
   /** The audit-derived facts A3 and A5 show (R10, R11, R15). `pairs` are the pairings of this dish or wine. */
-  private async catalogInfo(restaurantId: string, kind: 'dish' | 'wine', subjectId: string, fieldsVersion: string, pairs: Pairing[]): Promise<CatalogEditInfo> {
-    const edits = this.repos.catalogEditRepository;
-    const [last, identity, published] = await Promise.all([edits.latest(restaurantId, kind, subjectId), edits.list(restaurantId, { kind, subjectId, identityOnly: true }), this.repos.publishRepository.latest(restaurantId)]);
+  private async catalogInfo(restaurantId: string, kind: 'dish' | 'wine', subjectId: string, fieldsVersion: string, pairs: Pairing[], renames: Map<string, CatalogEditRecord>): Promise<CatalogEditInfo> {
+    const [last, published] = await Promise.all([this.repos.catalogEditRepository.latest(restaurantId, kind, subjectId), this.repos.publishRepository.latest(restaurantId)]);
     let staleLocales: Locale[] = [];
     if (last && (!published || last.at > published.publishedAt)) {
       const content = await this.repos.publishRepository.publishedContent(restaurantId);
       staleLocales = staleTranslationLocales(kind, Object.keys(last.after), (kind === 'dish' ? content.dishes : content.wines).get(subjectId));
     }
-    return {
-      fieldsVersion, lastEdit: last ? { actor: last.actor, at: last.at } : null, staleLocales,
-      pairsToCheck: identity[0] ? pairs.filter((p) => needsCheck(p, identity[0])).length : 0
-    };
+    return { fieldsVersion, lastEdit: last ? { actor: last.actor, at: last.at } : null, staleLocales, pairsToCheck: pairs.filter((p) => pairNeedsCheck(p, renames)).length };
   }
 
   async dishDetail(slug: string, dishId: string, locale: Locale = 'en'): Promise<DishDetail | null> {
@@ -301,7 +315,7 @@ export class AdminService {
       .map(({ wine, score, why }) => ({ wine, score, why }));
     const ps = d.pairings.filter((p) => p.dishId === dish.id);
     const source = d.raw.dishes.find((x) => x.id === dish.id) ?? dish;
-    const info = await this.catalogInfo(d.restaurant.id, 'dish', dish.id, dishFieldsVersion(dishFieldsOf(source)), ps);
+    const info = await this.catalogInfo(d.restaurant.id, 'dish', dish.id, dishFieldsVersion(dishFieldsOf(source)), ps, await this.identityEdits(d.restaurant.id));
     return {
       ...info,
       restaurant: d.restaurant, dish, source, topMatches,
@@ -334,13 +348,13 @@ export class AdminService {
       .map(({ dish, score, why }) => ({ dish, score, why }));
     const mine = d.pairings.filter((p) => p.wineId === wine.id);
     const source = d.raw.wines.find((x) => x.id === wine.id) ?? wine;
-    const info = await this.catalogInfo(d.restaurant.id, 'wine', wine.id, wineFieldsVersion(wineFieldsOf(source)), mine);
-    const renamedAt = (await this.repos.catalogEditRepository.list(d.restaurant.id, { kind: 'wine', subjectId: wine.id, identityOnly: true }))[0];
+    const renames = await this.identityEdits(d.restaurant.id);
+    const info = await this.catalogInfo(d.restaurant.id, 'wine', wine.id, wineFieldsVersion(wineFieldsOf(source)), mine, renames);
     const approvedFor = mine
       .filter((p) => isApproved(p))
       .flatMap((p) => {
         const dish = d.dishes.find((x) => x.id === p.dishId);
-        return dish ? [{ dish, role: p.role, status: p.status, checkAfterRename: renamedAt ? needsCheck(p, renamedAt) : false }] : [];
+        return dish ? [{ dish, role: p.role, status: p.status, checkAfterRename: pairNeedsCheck(p, renames) }] : [];
       });
     return { ...info, restaurant: d.restaurant, wine, source, bestDishes, approvedFor };
   }

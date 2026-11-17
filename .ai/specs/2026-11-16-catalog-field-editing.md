@@ -172,6 +172,19 @@ A2, A4 (przyciski, C3), A3, A5 (formularz, ukryj/pokaż, audyt), A32 (nowy). Kod
 - 2026-11-16 — Autor: not recorded (źródło: `.ai/runs/2026-11-16-catalog-field-editing-spec.md`).
 - 2026-11-16 — Przegląd niezależny: 3 blokujące, 11 ważnych, 5 drobnych (poprawki w R1–R15 i AC).
 - 2026-11-17 — Przegląd niezależny: 0 nowych blokujących, 5 ważnych, 5 drobnych (R1–R11, AC3, AC14, AC21, `db`). Właściciel: (g)=b, (h) odłożone.
+- 2026-11-17 — Implementacja fazy C1 (C1a, C1b); status `in-progress`, C2 i C3 do zrobienia.
 
 ## Realizacja
-(Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
+**Faza C1 (2026-11-17), log: `.ai/runs/2026-11-17-catalog-field-editing-c1.md`.** Status zostaje `in-progress`: C2 (widoczność dania, R7) i C3 (nowa pozycja, A32, R8) nie są zrealizowane.
+
+- Commity: C1a (core + db: schematy, reguły, `CatalogEditService`, porty `CatalogWriteRepository` / `CatalogEditRepository` w pamięci i PostgreSQL, tabela `catalog_edit`, migracja `Migration20261117132943_catalog_edit`, `catalog.edit`, kontrakt i test współbieżności), C1b (app: kontener, akcje, formularze A3/A5, trasy `…/details`, i18n, e2e, scenariusze QA, dokumentacja).
+- Zrealizowane: R1–R6, R9–R13, R14 (bez części C2/C3), R15; AC1–AC13, AC20, AC21. `AC14`, `AC14b`, `AC15`–`AC19` (C2, C3) niezrealizowane. `edited_manually` w podglądzie importu (decyzja (f)) nie zrobione w tym przebiegu.
+- Odstępstwa od projektu:
+  1. Kolumna `catalog_edit.identity` (boolean) zamiast flagi w `after`: R15 wymaga znacznika, a kolumna daje zapytanie `identityOnly`. Indeks `(restaurant_id, kind, subject_id, created_at)` rosnący (MikroORM nie wyraża `desc` bez wyrażenia).
+  2. Schematy ciała w trasie to `dishShapeSchema` / `wineShapeSchema` (nazwy i typy), reguły treści w `dishFieldsSchema` / `wineFieldsSchema` po odjęciu pól równych zapisanym (R1: dane zastane nie blokują edycji innych pól); lekcja `2026-11-17-catalog-edit-type-schema-then-content-rules`.
+  3. Zatwierdzenie importu katalogu, poza blokadą z W3/N1, **odrzuca** nowe danie lub wino, którego klucz zajęto po podglądzie (`catalog_conflict`, 409), a zajęty numer na karcie przesuwa na następny wolny: sama blokada nie dawała gwarancji „nigdy dwa o jednym kluczu”, gdy zmiana nazwy wygrywa wyścig o blokadę. To rozszerza „jedyną zmianę importu” z projektu; opisane w `BACKWARD_COMPATIBILITY.md` §3.
+  4. `GET …/details` dodane obok `PATCH` (klient potrzebuje `ETag`); odpowiedź PATCH to pola + `changed`.
+  5. Potwierdzenie zmiany nazwy (R15 pkt 4) egzekwuje serwis tylko dla formularza (opcja `identityConfirmed`), API go nie wymaga.
+  6. Powiadomienie o nieaktualnych tłumaczeniach liczy się z ostatniego wiersza audytu i publikacji (znika po następnej publikacji); flash niesie języki w parametrze `n`.
+  7. Znacznik „Check after rename” liczy zmianę nazwy dania i wina (para ma znacznik, gdy którakolwiek strona zmieniła nazwę po decyzji o parze); „Do przeglądu” pokazuje pozycje według własnej zmiany nazwy.
+- Niezweryfikowane: widok formularza dla roli bez `catalog.edit` (`<dl>`; kelner nie ma sesji, a role z panelem mają uprawnienie), e2e z `agent-browser` (narzędzia brak w środowisku, 12 plików pada tak samo przed zmianą), tryb `DATA_SOURCE=postgres` na `next start` z przeglądarką (pokryty e2e HTTP na PostgreSQL).

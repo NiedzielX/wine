@@ -105,15 +105,23 @@ function conclude(kind: Kind, form: FormData, result: Performed, formErrors: Map
   redirect(withFlash(back, n ? { ...rest, n } : rest));
 }
 
+/**
+ * A form posted by hand without the bound state (not a post of the rendered form) reaches the action with the form as its only
+ * argument: it is read like any other, instead of failing on the missing second one.
+ */
+const formOf = (previous: DetailsState | FormData, form: FormData | undefined): FormData => (form ?? (previous as FormData));
+
 /** A3 "Details": name, description, category and price of a dish. */
-export async function saveDishDetails(_previous: DetailsState, form: FormData): Promise<DetailsState> {
+export async function saveDishDetails(previous: DetailsState | FormData, posted?: FormData): Promise<DetailsState> {
+  const form = formOf(previous, posted);
   const formErrors = new Map<string, string>();
   const result = await perform(form, 'catalog.edit', (ctx) => attempt('dish', ctx, formErrors));
   return conclude('dish', form, result, formErrors);
 }
 
 /** A5 "Listing": producer, name, vintage, region, country, note, list number, bottle and glass price. */
-export async function saveWineDetails(_previous: DetailsState, form: FormData): Promise<DetailsState> {
+export async function saveWineDetails(previous: DetailsState | FormData, posted?: FormData): Promise<DetailsState> {
+  const form = formOf(previous, posted);
   const formErrors = new Map<string, string>();
   const result = await perform(form, 'catalog.edit', (ctx) => attempt('wine', ctx, formErrors));
   return conclude('wine', form, result, formErrors);
