@@ -10,7 +10,7 @@ reviewed_by: not recorded (independent agent, model unknown)
 
 # Cotygodniowa rutyna utrzymania wiedzy
 
-**Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).** Zależy od specyfikacji `2026-11-15-knowledge-maintenance.md` (A: katalog `.ai/maintenance/`, komenda `/audit-knowledge` z parametrem zakresu, gramatyka id, kolumna Stan). Źródło: workflow `weekly-maintenance`, przeniesiony na rutynę Claude Code (jak `.ai/docs/nightly-review-routine.md`): bez Cezara, bez nowych usług.
+**Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).** Zależy od specyfikacji `2026-11-15-knowledge-maintenance.md` (A: katalog `.ai/maintenance/`, komenda `/audit-knowledge` z parametrem zakresu, gramatyka id, kolumna Stan). Źródło: workflow `weekly-maintenance`, przeniesiony na rutynę Claude Code (jak `.ai/docs/nightly-review-routine.md`): bez zewnętrznego orkiestratora, bez nowych usług.
 
 ## Problem
 Jednorazowy audyt (`.ai/maintenance/2026-11-15-audit.md`) pokazał dryf wiedzy po kilku dniach intensywnej pracy (8 sprzeczności, 16 martwych odwołań przy 35 specyfikacjach). Bez cyklicznego przeglądu dryf wróci, a pełny audyt jest drogi. Potrzebny jest tani, tygodniowy przegląd zawężony do tego, co się zmieniło, z porównaniem do poprzedniego raportu, żeby było widać, czy sprzeczności przybywa, czy ubywa.
