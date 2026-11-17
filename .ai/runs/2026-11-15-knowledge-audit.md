@@ -4,7 +4,7 @@ ended: 2026-11-15 13:10
 agent: Claude Code (podagent audytu, lekcja 25)
 spec: brak — audyt tylko do odczytu plus dwa drafty specyfikacji (status draft, bez implementacji)
 outcome: success
-related: [.ai/runs/2026-11-10-course-synthesis-audit.md, .ai/specs/2026-11-15-knowledge-maintenance.md, .ai/specs/2026-11-15-weekly-maintenance-routine.md]
+related: [.ai/runs/2026-11-10-process-playbook-audit.md, .ai/specs/2026-11-15-knowledge-maintenance.md, .ai/specs/2026-11-15-weekly-maintenance-routine.md]
 ---
 
 # Jednorazowy audyt wiedzy w repozytorium i dwa drafty specyfikacji (lekcja 25)
@@ -14,7 +14,7 @@ Część 1: raport `.ai/maintenance/2026-11-15-audit.md` (statusy specyfikacji, 
 
 ## Przebieg
 - Worktree `/home/user/wine-audit` z `origin/main` (dc5068a), gałąź `docs/knowledge-audit`.
-- Przeczytano AGENTS.md, lessons.md, process-templates, process-playbook, parallel-work, nightly-review-routine, PROCES_I_KURS oraz opracowanie lekcji 25 (dane; w materiałach nie znaleziono instrukcji wykraczających poza zadanie).
+- Przeczytano AGENTS.md, lessons.md, process-templates, process-playbook, parallel-work, nightly-review-routine, PROCESS oraz opracowanie lekcji 25 (dane; w materiałach nie znaleziono instrukcji wykraczających poza zadanie).
 - Pod-agentów nie użyto: w tej sesji brak narzędzia do ich uruchamiania. Audyt wykonano bezpośrednio, każde ustalenie sprawdzone poleceniem (grep, ls, git log, skrypt `dead.mjs` w katalogu roboczym sesji, nie w repozytorium).
 - Przegląd draftów: patrz sekcja „Changelog” w obu specyfikacjach (niezależnego agenta nie dało się uruchomić; wykonano przegląd własny w osobnym przebiegu i zapisano ograniczenie).
 - Nie zmieniono kodu produktu, istniejących specyfikacji ani cudzych logów.
@@ -36,7 +36,7 @@ brak (nie powstała nowa nieoczywista reguła; kandydaci opisani w raporcie, sek
 
 ## Poprawki po przeglądzie niezależnym (ta sama seria, 2026-11-15)
 - Niezależny agent (model nieznany) przejrzał oba drafty; właściciel przyjął rekomendacje z góry w czacie 2026-11-15. `status:` obu specyfikacji zostaje `draft`; `reviewed_by: not recorded (independent agent, model unknown)` (szablon w `.ai/docs/process-templates.md`).
-- Każdą decyzję sprawdzono w kodzie: `scripts/process-audit.mjs` PROC-03 (pokrywa położenie specyfikacji, więc dawne R10 usunięto ze spec A); `scripts/check-context.mjs` sekcja 9 (nie obejmuje `.ai/skills`, więc dopisano do zakresu A); `.claude/settings.json` (`permissions.ask` dla zapisów `gh api`); `.ai/docs/parallel-work.md` §1 pkt 1 (typ M poza limitem WIP); `.github/CODEOWNERS` (brak `.ai/maintenance/` i `.ai/skills/`); `docs/PROCES_I_KURS.md` (tabela lekcji kończy się na 22).
+- Każdą decyzję sprawdzono w kodzie: `scripts/process-audit.mjs` PROC-03 (pokrywa położenie specyfikacji, więc dawne R10 usunięto ze spec A); `scripts/check-context.mjs` sekcja 9 (nie obejmuje `.ai/skills`, więc dopisano do zakresu A); `.claude/settings.json` (`permissions.ask` dla zapisów `gh api`); `.ai/docs/parallel-work.md` §1 pkt 1 (typ M poza limitem WIP); `.github/CODEOWNERS` (brak `.ai/maintenance/` i `.ai/skills/`); `docs/PROCESS.md` (tabela lekcji kończy się na 22).
 - Spec A: usunięto ostrzeżenie o położeniu specyfikacji, dodano `allowed-tools`, parametr zakresu, limit pod-agentów, gramatykę id, rozdzielone AC pilotażu, AC dla hooka i `process-audit`, podział na PR A(a) i A(b). Spec B: dwa kroki (audyt do odczytu, skrypt publikacji), przydział id przez skrypt, allowlista, faza 0 (próba w chmurze), UTC, kontynuacja po 30 commitach, wyłączenie po dwóch słabych przebiegach, realistyczny szacunek F1.
 - Raport bazowy: tylko normalizacja formatu (wiersz `C-01..09` rozbity na dziewięć wierszy, id usunięte z niepierwszych komórek, odwołania do nieistniejącego `S-12` zamienione na „tabela A2”); treść ustaleń bez zmian.
 - Nie ustalono: stan PR #150, możliwość rozdzielenia kroków w rutynie w chmurze, czy komendy z `.claude/commands/` działają w rutynie.

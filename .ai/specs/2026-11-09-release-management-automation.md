@@ -2,7 +2,7 @@
 status: draft
 created: 2026-11-09
 owner: właściciel (Filip)
-related: [docs/RELEASING.md, .ai/runs/2026-11-09-lesson-22-release-management.md, .ai/lessons/2026-11-09-release-is-a-human-decision.md, .ai/specs/2026-10-15-production-deployment.md]
+related: [docs/RELEASING.md, .ai/runs/2026-11-09-release-management.md, .ai/lessons/2026-11-09-release-is-a-human-decision.md, .ai/specs/2026-10-15-production-deployment.md]
 superseded_by:
 author_model: claude-opus-5-5
 reviewed_by: not recorded
@@ -50,7 +50,7 @@ Do opracowania po wyborze pozycji. Punkty wyjścia: `docs/RELEASING.md`, `.githu
 - Ryzyko: każdy automat wdrażający dostaje sekret; wymaga osobnego środowiska GitHub z akceptacją właściciela i modelu zagrożeń (`docs/security/threat-model.md`).
 
 ## Changelog
-- 2026-11-09 — Autor/recenzent: claude-opus-5-5 / not recorded (draft bez przeglądu; log `.ai/runs/2026-11-09-lesson-22-release-management.md`).
+- 2026-11-09 — Autor/recenzent: claude-opus-5-5 / not recorded (draft bez przeglądu; log `.ai/runs/2026-11-09-release-management.md`).
 
 ## Realizacja
 (brak: draft)

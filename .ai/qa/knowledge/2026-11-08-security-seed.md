@@ -18,7 +18,7 @@ Dziewięć scenariuszy `.ai/qa/security/` (`security-001` … `security-009`, w 
 - ``security-004`: publiczne strony kalkulatora niczego nie zapisują i nie ustawiają ciasteczka, niezależnie od metody. `security-005` … `security-009`: nagłówki bazowe, `no-store` dla strony zaproszenia i panelu, flagi ciasteczka sesji, brak szczegółów w błędach, metryki zamknięte (401 + `WWW-Authenticate`), health bez nazw bazy i wersji.
 
 ## Wynik sesji
-Brak sesji QA. Jedyny zapisany dowód skuteczności testu to mutacja z logu `.ai/runs/2026-11-07-lesson-16-security.md`: usunięcie filtra `restaurant` w `PgImportRepository.find` zrobiło `access-boundaries` czerwonym (nie powtórzona w tej sesji).
+Brak sesji QA. Jedyny zapisany dowód skuteczności testu to mutacja z logu `.ai/runs/2026-11-07-security-review.md`: usunięcie filtra `restaurant` w `PgImportRepository.find` zrobiło `access-boundaries` czerwonym (nie powtórzona w tej sesji).
 
 ## Punkty ryzyka (hotspoty)
 - Odmowa 403/404 bez kontroli pozytywnej dla obu kont może znaczyć „zepsute wywołanie”, nie „granica” (lekcja `.ai/lessons/2026-11-07-access-boundary-three-checks.md`). Przy ręcznym QA granicy zawsze najpierw to samo wywołanie z kontem właściciela danych.

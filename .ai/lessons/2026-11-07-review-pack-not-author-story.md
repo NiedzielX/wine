@@ -3,7 +3,7 @@ date: 2026-11-07
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-07-review-protocol-lesson-17.md
+source: .ai/runs/2026-11-07-review-protocol.md
 promoted:
 ---
 

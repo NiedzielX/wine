@@ -4,7 +4,7 @@ ended: 2026-11-09 14:20
 agent: Claude Code / claude-opus-5-5 (pod-agent, worktree)
 spec: brak — dokumentacja procesu i mały skrypt narzędziowy (bez kodu produktu); draft spec harnessu: .ai/specs/2026-11-09-multi-family-review-harness.md
 outcome: success
-related: [.ai/runs/2026-11-07-review-protocol-lesson-17.md]
+related: [.ai/runs/2026-11-07-review-protocol.md]
 ---
 
 # Lekcja 21 (praca wielomodelowa) w procesie: niezależność recenzentów, schematy wejścia/wyjścia recenzenta, walidator

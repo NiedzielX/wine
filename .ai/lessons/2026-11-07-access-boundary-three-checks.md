@@ -3,7 +3,7 @@ date: 2026-11-07
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-07-lesson-16-security.md
+source: .ai/runs/2026-11-07-security-review.md
 promoted: AGENTS.md §6.1
 ---
 
@@ -19,4 +19,4 @@ Odmowa 403/404 sama nie dowodzi granicy: wywołanie mogło być zepsute (zła ś
 Test granicy ma cztery części: kontrola pozytywna dla obu stron (A→B i B→A), odmowa odczytu, odmowa zapisu (każda metoda), stan po próbie (całe ładunki obu restauracji plus skrót wierszy tabel, nie liczniki). Szablon: `packages/app/tests/e2e/access-boundaries.e2e.test.ts`; pełny opis: `.ai/docs/engineering-standards.md` §10. Po dodaniu kontroli zepsuj ją na chwilę i potwierdź czerwony test.
 
 ## Jak sprawdzić
-`npm run test:e2e` (plik `access-boundaries`); mutacja z logu przebiegu `.ai/runs/2026-11-07-lesson-16-security.md`.
+`npm run test:e2e` (plik `access-boundaries`); mutacja z logu przebiegu `.ai/runs/2026-11-07-security-review.md`.

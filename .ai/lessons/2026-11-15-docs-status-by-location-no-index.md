@@ -3,7 +3,7 @@ date: 2026-11-15
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-15-course-sync-24-25.md
+source: .ai/runs/2026-11-15-deployment-maintenance-rules.md
 promoted:
 ---
 

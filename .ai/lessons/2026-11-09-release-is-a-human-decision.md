@@ -3,7 +3,7 @@ date: 2026-11-09
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-09-lesson-22-release-management.md
+source: .ai/runs/2026-11-09-release-management.md
 promoted:
 ---
 

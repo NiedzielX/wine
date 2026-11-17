@@ -4,7 +4,7 @@ ended: 2026-11-09 15:05
 agent: Claude Code / claude-opus-5-5 (pod-agent w worktree)
 spec: brak — dokumentacja procesu i narzędzia repozytorium (lekcja 22, polecenie właściciela); follow-upy jako draft `.ai/specs/2026-11-09-release-management-automation.md`
 outcome: success
-related: [.ai/runs/2026-11-09-lesson-21-multi-model-review.md]
+related: [.ai/runs/2026-11-09-multi-model-review.md]
 ---
 
 # Lekcja 22 (zarządzanie wydaniem) przeniesiona na projekt jednego właściciela, bez decyzji właściciela

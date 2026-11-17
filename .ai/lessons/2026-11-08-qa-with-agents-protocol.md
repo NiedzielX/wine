@@ -3,7 +3,7 @@ date: 2026-11-08
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-08-lesson-18-qa-protocol.md
+source: .ai/runs/2026-11-08-qa-protocol.md
 promoted:
 ---
 
