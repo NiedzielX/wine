@@ -4,13 +4,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
-import { ActiveBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
+import { ActiveBadge, ProfileBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
 import { PanelExplain } from '../../../_components/explain';
-import { first, vintageLabel, zl } from '../../../_components/format';
+import { first, formatDateTime, vintageLabel, zl } from '../../../_components/format';
 import { Flash } from '../../../_components/flash';
 import { TranslationsCard } from '../../../_components/translations-form';
-import { saveWineTranslations } from '../../actions';
-import { ENGINE_FACTS, TEXT_LIMITS, translationsVersion } from '@wine-match/core';
+import { ProfileEditor } from '../../../_components/profile-editor';
+import { wineProfileState } from '../../../_components/profile-page';
+import { confirmWineProfile, saveWineProfile, saveWineTranslations } from '../../actions';
+import { ENGINE_FACTS, TEXT_LIMITS, profileVersion, translationsVersion } from '@wine-match/core';
 import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
@@ -28,12 +30,17 @@ const SCALES = ['body', 'acidity', 'tannin', 'sweetness', 'fruitiness', 'oak', '
 export default async function WinePage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
   const sp = await searchParams;
-  const canTranslate = (await requireAccess(slug)).can('import.manage');
+  const access = await requireAccess(slug);
+  const canTranslate = access.can('import.manage');
+  const canEditProfile = access.can('profiles.edit');
   const { locale, t } = await getI18n();
   const m = t.admin.wine;
-  const d = await (await getRequestScope()).cradle.adminService.wineDetail(slug, wineId, locale);
+  const cradle = (await getRequestScope()).cradle;
+  const d = await cradle.adminService.wineDetail(slug, wineId, locale);
   if (!d) notFound();
   const { wine: w, source, bestDishes, approvedFor } = d;
+  const editor = await wineProfileState(cradle, slug, source, sp, canEditProfile);
+  const profileSource = source.profile.source ?? 'confirmed';
   const tm = t.admin.translations.fields;
   const p = w.profile;
 
@@ -83,7 +90,7 @@ export default async function WinePage({ params, searchParams }: Props) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>{m.profile}</CardTitle><CardDescription>{m.profileText}</CardDescription></CardHeader>
+          <CardHeader><div className="flex items-center justify-between gap-3"><CardTitle>{m.profile}</CardTitle><ProfileBadge source={profileSource === 'confirmed' ? 'confirmed' : 'draft'} t={t} /></div><CardDescription>{m.profileText}</CardDescription></CardHeader>
           <CardContent>
             <dl className="grid gap-3">
               {SCALES.map((key) => (
@@ -107,6 +114,13 @@ export default async function WinePage({ params, searchParams }: Props) {
             ))}
           </CardContent>
         </Card>
+
+        <ProfileEditor
+          kind="wine" t={t} locale={locale} slug={slug} subjectId={w.id} path={`/admin/${slug}/wines/${w.id}`} canEdit={canEditProfile}
+          values={editor.values} version={profileVersion(source.profile)} preview={editor.preview} previewInvalid={editor.previewInvalid}
+          state={{ confirmed: profileSource === 'confirmed', source: profileSource, by: source.profile.confirmedBy ?? null, at: source.profile.confirmedAt ? formatDateTime(source.profile.confirmedAt, locale) : null }}
+          actions={{ save: saveWineProfile, confirm: confirmWineProfile }}
+        />
 
         <TranslationsCard
           action={saveWineTranslations} hidden={{ slug, back: `/admin/${slug}/wines/${w.id}`, wineId: w.id }} t={t} canEdit={canTranslate}

@@ -1,8 +1,10 @@
 import { UniqueConstraintViolationException } from '@mikro-orm/core';
 import { LockMode, type EntityManager } from '@mikro-orm/postgresql';
 import {
-  ENGINE_VERSION, InvariantError, NotFoundError, VersionConflictError, contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
-  type ContentWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
+  ENGINE_VERSION, InvariantError, NotFoundError, VersionConflictError, buildSnapshot, currentContent, readContentSnapshot, readSnapshot, sameTranslations,
+  type PublishInput, type PublishedVersionRecord,
+  profileVersion, dishScales, wineScales,
+  type ContentWriteRepository, type DishProfile, type WineProfile, type ProfileEditRecord, type ProfileWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
   type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository, type UsageTotals, type PairingStat,
@@ -10,13 +12,13 @@ import {
   type CheckKey, type CheckTotals, type SalesPeriod, type SalesRepository
 } from '@wine-match/core';
 import {
-  DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
-  type PublishedSnapshot, type PublishedVersionRow
+  DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, ProfileEditEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
+  type PublishedVersionRow
 } from '../entities';
 import { translate } from './errors';
 import { isUuid } from './ids';
 import { toRecommendationCode, type RecommendationCodeSqlRow } from '../mappers';
-import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairing, toPublishedPairing, toRestaurant, toWine } from '../mappers';
+import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairing, toRestaurant, toWine } from '../mappers';
 
 /**
  * PostgreSQL implementations of the @wine-match/core repository ports.
@@ -108,7 +110,7 @@ export class PgPairingRepository implements PairingRepository {
 
   async listPublishedByRestaurant(restaurantId: string) {
     const v = await latestVersion(this.em, restaurantId);
-    if (v) return v.snapshot.pairings.map(toPublishedPairing);
+    if (v) return readSnapshot(v.snapshot).pairings;
     // never published: guests see the current state (a new restaurant is not blocked on its first publish)
     const rows = await this.em.find(PairingEntity, { restaurant: restaurantId, status: { $in: [...PUBLISHABLE] } }, { orderBy: { id: 'asc' } });
     return rows.map(toPairing);
@@ -258,6 +260,11 @@ export class PgPublishRepository implements PublishRepository {
     return v ? toInfo(v) : null;
   }
 
+  async effective(restaurantId: string): Promise<PublishedVersionRecord | null> {
+    const v = await latestVersion(this.em, restaurantId);
+    return v ? { info: toInfo(v), snapshot: structuredClone(v.snapshot) } : null;
+  }
+
   async pendingPairingChanges(restaurantId: string) {
     return countPending(this.em, restaurantId, (await latestVersion(this.em, restaurantId))?.publishedAt);
   }
@@ -275,25 +282,27 @@ export class PgPublishRepository implements PublishRepository {
     return currentContent(toRestaurant(r), dishes.map(toDish), wines.map(toWine));
   }
 
-  async publish(restaurantId: string, input: { actor: string; at: string; id: string; contentChanges?: number }) {
+  /**
+   * One transaction: the restaurant row `FOR UPDATE` serialises the publishes of one restaurant (a stale
+   * `expectedLatest` is a conflict, never a second version from the same screen), the dishes and wines are read
+   * `FOR SHARE`, so a profile write (which locks its row `FOR UPDATE`) lands either wholly before or wholly after the
+   * snapshot (spec 2026-11-04-panel-completion, "Spójność publikacji z równoległą edycją"). A lost race on the unique
+   * (restaurant, number) is translated to VersionConflictError as well.
+   */
+  async publish(restaurantId: string, input: PublishInput) {
     try {
       return await this.em.transactional(async (em) => {
-        const restaurant = await em.findOneOrFail(RestaurantEntity, { id: restaurantId });
+        const restaurant = await em.findOneOrFail(RestaurantEntity, { id: restaurantId }, { lockMode: LockMode.PESSIMISTIC_WRITE });
         const last = await latestVersion(em, restaurantId);
+        if (input.expectedLatest !== undefined && input.expectedLatest !== (last?.number ?? 0)) throw new VersionConflictError();
         const pending = await countPending(em, restaurantId, last?.publishedAt);
-        const reviewed = await em.find(PairingEntity, { restaurant: restaurantId, status: { $in: [...PUBLISHABLE] } }, { orderBy: { id: 'asc' } });
-        const drafts = await em.find(DishEntity, { restaurant: restaurantId, status: 'draft', deletedAt: null });
-        const [allDishes, allWines] = await Promise.all([
-          em.find(DishEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' } }),
-          em.find(WineEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' } })
-        ]);
-        const snapshot: PublishedSnapshot = {
-          content: contentSnapshot(toRestaurant(restaurant), allDishes.map(toDish), allWines.map(toWine)),
-          pairings: reviewed.map((p) => ({
-            id: p.id, dishId: p.dish.id, wineId: p.wine.id, status: p.status as 'approved' | 'modified' | 'rejected', role: p.role ?? null, rank: p.rank ?? null,
-            comment: p.comment ?? null, commentTranslations: { ...(p.commentTranslations ?? {}) }, modelScore: p.modelScore, source: p.source, updatedBy: p.updatedBy, updatedAt: p.updatedAt.toISOString()
-          }))
-        };
+        const pairings = await em.find(PairingEntity, { restaurant: restaurantId, status: { $in: [...PUBLISHABLE] } }, { orderBy: { id: 'asc' } });
+        const allDishes = await em.find(DishEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' }, lockMode: LockMode.PESSIMISTIC_READ });
+        const allWines = await em.find(WineEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' }, lockMode: LockMode.PESSIMISTIC_READ });
+        const drafts = allDishes.filter((d) => d.status === 'draft');
+        // the menu as it is after this publish: the released drafts are part of it
+        const dishes = allDishes.map((d) => ({ ...toDish(d), status: d.status === 'draft' ? 'published' as const : d.status }));
+        const snapshot = buildSnapshot({ restaurant: toRestaurant(restaurant), dishes, wines: allWines.map(toWine), pairings: pairings.map(toPairing) });
         const version = em.create(PublishedVersionEntity, {
           id: input.id, restaurant, number: (last?.number ?? 0) + 1, snapshot, changesCount: pending + drafts.length + (input.contentChanges ?? 0),
           publishedBy: input.actor, publishedAt: new Date(input.at)
@@ -305,6 +314,9 @@ export class PgPublishRepository implements PublishRepository {
         await em.flush();
         return toInfo(version);
       });
+    } catch (e) {
+      if (e instanceof UniqueConstraintViolationException) throw new VersionConflictError();
+      throw e;
     } finally {
       this.em.clear();
     }
@@ -362,6 +374,71 @@ export class PgContentWriteRepository implements ContentWriteRepository {
     } finally {
       this.em.clear();
     }
+  }
+}
+
+/**
+ * Taste profile writes (spec 2026-11-04-panel-completion, R3, R5): the row is locked `FOR UPDATE`, its fingerprint
+ * compared with the caller's and the new profile written together with its audit row, in one transaction. A read of
+ * the row by `PgPublishRepository.publish` (`FOR SHARE`) lands wholly before or wholly after this write.
+ */
+export class PgProfileWriteRepository implements ProfileWriteRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  private audit(em: EntityManager, restaurantId: string, e: ProfileEditRecord) {
+    em.create(ProfileEditEntity, {
+      id: e.id, restaurant: em.getReference(RestaurantEntity, restaurantId), kind: e.kind, subjectId: e.subjectId, actor: e.actor, actorId: e.actorId,
+      before: e.before, after: e.after, createdAt: new Date(e.at)
+    });
+  }
+
+  async setDishProfile(restaurantId: string, dishId: string, next: DishProfile, edit: ProfileEditRecord, expected?: DishProfile) {
+    if (!isUuid(dishId) || !isUuid(restaurantId)) throw new NotFoundError('Dish');
+    try {
+      await this.em.transactional(async (em) => {
+        const d = await em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!d) throw new NotFoundError('Dish');
+        if (expected !== undefined && profileVersion(toDish(d).profile) !== profileVersion(expected)) throw new VersionConflictError();
+        d.profile = {
+          ...d.profile, ...dishScales(next), source: next.source, confirmedAt: next.confirmedAt ? new Date(next.confirmedAt) : null, confirmedBy: next.confirmedBy ?? null
+        };
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async setWineProfile(restaurantId: string, wineId: string, next: WineProfile, edit: ProfileEditRecord, expected?: WineProfile) {
+    if (!isUuid(wineId) || !isUuid(restaurantId)) throw new NotFoundError('Wine');
+    try {
+      await this.em.transactional(async (em) => {
+        const w = await em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!w) throw new NotFoundError('Wine');
+        if (expected !== undefined && profileVersion(toWine(w).profile) !== profileVersion(expected)) throw new VersionConflictError();
+        w.profile = {
+          ...w.profile, ...wineScales(next), source: next.source ?? 'confirmed', confirmedAt: next.confirmedAt ? new Date(next.confirmedAt) : null, confirmedBy: next.confirmedBy ?? null
+        };
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async listProfileEdits(restaurantId: string, filter: { kind?: 'dish' | 'wine'; subjectId?: string } = {}) {
+    if (!isUuid(restaurantId) || (filter.subjectId && !isUuid(filter.subjectId))) return [];
+    const rows = await this.em.find(
+      ProfileEditEntity,
+      { restaurant: restaurantId, ...(filter.kind ? { kind: filter.kind } : {}), ...(filter.subjectId ? { subjectId: filter.subjectId } : {}) },
+      { orderBy: { createdAt: 'desc', id: 'asc' } }
+    );
+    const out = rows.map((r) => ({ id: r.id, kind: r.kind, subjectId: r.subjectId, actor: r.actor, actorId: r.actorId ?? null, before: r.before, after: r.after, at: r.createdAt.toISOString() }));
+    this.em.clear();
+    return out;
   }
 }
 

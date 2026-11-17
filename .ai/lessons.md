@@ -9,6 +9,8 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-17] [Po dodaniu migracji wyczyść pamięć podręczną Vite](lessons/2026-11-17-new-migration-stale-vite-glob.md) — `migrations-roundtrip` pada na „Unknown variable dynamic import” do czasu `rm -rf node_modules/.vite*`.
+- [2026-11-17] [`npm run build` pada co drugi raz na `SecurityFatalError`](lessons/2026-11-17-next-build-security-nudge-alternates.md) — to ostrzeżenie o podatności, nie błąd kodu: uruchom jeszcze raz i nie wykonuj `next upgrade` z komunikatu.
 - [2026-11-16] [Skakanie ekranu mierz z klasycznym paskiem, opóźnioną siecią i surowymi przesunięciami](lessons/2026-11-16-measuring-layout-jumps-in-headless-chromium.md) — Playwright domyślnie ukrywa paski przewijania, a CLS pomija 500 ms po kliknięciu.
 - [2026-11-16] [SSL do Supabase ustawiaj przez `PGSSLMODE`, nie przez `?sslmode=` w `DATABASE_URL`](lessons/2026-11-16-supabase-ssl-pgsslmode.md) — MikroORM pomija parametry adresu; `PGSSLMODE=no-verify` dla demo, dla produkcji `ssl.ca` w konfiguracji.
 - [2026-11-15] [Status = miejsce pliku + pole `status`](lessons/2026-11-15-docs-status-by-location-no-index.md) — bez indeksu wiedzy i pól przeglądu; resztę zna git.
