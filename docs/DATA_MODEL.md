@@ -13,7 +13,7 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | Wine + WineProfile | tak | profil jako embeddable: kolumny `profile_*` w tabeli `wine` |
 | Pairing | tak | unikalność (dish, wine), częściowy indeks unikalny „jeden Primary na danie”, `version` do blokady optymistycznej |
 | SommelierDecision | tak | audyt, `actor` jako tekst do czasu wprowadzenia User; **bez klucza obcego** do pairingu (kolumna `pairing_id`), żeby historia przeżyła usunięcie pairingu; ma `restaurant_id`, `dish_id`, `wine_id` |
-| PublishedVersion | tak | migawka pairingów (approved / modified / rejected) w `snapshot` (jsonb), `number` unikalny w restauracji; goście czytają najnowszą |
+| PublishedVersion | tak | migawka w `snapshot` (jsonb, od 2026-11-16 `schema: 2`): pary (approved / modified / rejected), tłumaczenia, profile smaku dań i win, skład karty (`menu.dishIds`); `number` unikalny w restauracji; goście czytają najnowszą przez `PublishedView` |
 | GuestInteraction | tak | zapisywana od E02 F1 (spec `2026-10-15-guest-usage-events`) przez `GuestInteractionRepository` (`record`, `listBySession`, `countGuestSessions`, od E04 F1 `usageTotals` — agregaty okna KPI; od E04 F3 `pairingStats` — pokazania i wybory per (danie, wino, źródło z `props.items[].tier`) w oknie, dla A1 i E10 S4; pamięć: do 10 000 zdarzeń). `session_id` = parametr URL `sid` (bez tabeli GuestSession); `source`, `context`, `menuVersion` (= `restaurant.published_at`) w `props`; kolumna `version_id` nie istnieje. Sesja gościa = `session_id` ze zdarzeniem `guest_session_started` |
 | ImportJob | tak | wiersze podglądu w kolumnie `rows` (jsonb) zamiast tabeli ImportRow |
 | User (`app_user`), Membership, Session | tak | hasło jako skrót scrypt; w `session` tylko SHA-256 tokenu; licznik prób i blokada w `app_user`; `membership.role`: owner, manager, sommelier, waiter. `sommelier_decision.actor_id` wskazuje konto (zwykła kolumna). Od 2026-11-05 (E12 F1): `membership.status` (`active` / `deactivated`), `version`, `deactivated_at`, `deactivated_by`; `AuthRepository.membershipsOf` zwraca tylko aktywne, więc dezaktywowana osoba traci dostęp przy następnym żądaniu |
@@ -236,9 +236,18 @@ Status pary jest pochodną ostatnich decyzji; tabela umożliwia raport „co zmi
 | id | uuid PK | |
 | restaurant_id | uuid FK | |
 | number | int | kolejny numer |
-| snapshot | jsonb | menu, wina, pary, ustawienia (to, co serwuje publiczne API). W implementacji: `pairings` (z `commentTranslations`) i `content` — tłumaczenia restauracji, dań i win, które widzą goście (zmiana tłumaczenia to zmiana do publikacji) |
+| snapshot | jsonb | menu, wina, pary, ustawienia (to, co serwuje publiczne API). W implementacji: `pairings` (z `commentTranslations`) i `content` — tłumaczenia restauracji, dań i win, które widzą goście (zmiana tłumaczenia to zmiana do publikacji). **Od 2026-11-16 (E13 F1, `schema: 2`)** także `profiles.dishes[]` / `profiles.wines[]` (`{id, profile}`: same skale silnika każdego nieusuniętego dania i wina, także ukrytych i nieaktywnych; bez `source` i danych o potwierdzeniu) oraz `menu.dishIds` (dania, które wersja zna: opublikowane, ukryte i zwolnione ze szkicu tą publikacją). Typ `PublishedSnapshot` i `buildSnapshot` / `readSnapshot` są w `core/src/services/publishing/snapshot.ts`. Wersja bez `schema` jest czytana jak dawniej (profile i widoczność z danych bieżących); migracja `Migration20261116160715_published_snapshot_v2` dopisała te pola tylko do najnowszej wersji każdej restauracji |
 | changes_count | int | |
 | published_by, published_at | | |
+
+**Co widzi gość (`PublishedView`, `core/src/services/publishing/published-view.ts`, E13 F1).** Jedna funkcja (`resolveView` / `loadPublishedView`) dla wszystkich ścieżek gościa, publicznego API, kodu polecenia i „Skuteczności par”:
+
+| Dane | Źródło |
+|---|---|
+| pary, tłumaczenia, profile smaku, skład karty | migawka obowiązującej wersji |
+| nazwa, opis bazowy, cena dania; ceny wina, `wine.active`; `dish.status = hidden`; ustawienia gościa | dane bieżące (działają natychmiast) |
+
+Danie jest widoczne, gdy jest w `menu.dishIds`, istnieje i ma bieżący status `published` (ukrycie i odkrycie działa od razu, w obie strony). Wino jest widoczne, gdy istnieje i ma profil w migawce; danie lub wino dodane po ostatniej publikacji czeka na następną. Restauracja nigdy nieopublikowana pokazuje stan bieżący. Licznik „niepublikowane zmiany” obejmuje też dania i wina, których profil różni się od migawki albo których migawka nie zna (`countProfileChanges`).
 
 Niezmienna; rollback = ustawienie `restaurant.current_version_id` na wcześniejszą wersję.
 

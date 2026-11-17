@@ -1146,7 +1146,7 @@ export const en = {
       saveSettings: 'Save settings',
       pending: (n: number) => `${n} unpublished ${n === 1 ? 'change' : 'changes'}`,
       latest: 'Guests see the latest version',
-      pendingText: (pairings: number, dishes: number) => `${pairings} pairings and ${dishes} new dishes. Publishing updates the guest app immediately; the QR code stays the same.`,
+      pendingText: (pairings: number, dishes: number, profiles: number) => `${pairings} pairings, ${dishes} new dishes and ${profiles} taste profiles (changed, or of items added since the last publish). Publishing updates the guest app immediately; the QR code stays the same.`,
       nothing: 'There is nothing to publish.',
       preview: 'Preview guest app',
       submit: 'Publish changes',
@@ -1413,7 +1413,7 @@ export const en = {
       readOnly: 'Your role cannot import files.',
       kinds: {
         menu: { noun: (n: number): string => (n === 1 ? 'dish' : 'dishes'), columns: 'Category, Name, Description, Price', hint: 'New dishes arrive as drafts with a draft taste profile. They go live when you publish.', updates: 'description, category and price' },
-        wines: { noun: (n: number): string => (n === 1 ? 'wine' : 'wines'), columns: 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price', hint: 'New wines are on your list at once and get engine pairing suggestions for your review.', updates: 'prices' },
+        wines: { noun: (n: number): string => (n === 1 ? 'wine' : 'wines'), columns: 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price', hint: 'New wines are on your list at once and get engine pairing suggestions for your review. Guests see them after the next publish.', updates: 'prices' },
         sales: {
           noun: (n: number): string => (n === 1 ? 'line' : 'lines'), columns: 'Date (business day), Check number, Guests (optional), Category, Item (optional), Quantity, Net amount',
           hint: 'Export item lines from your POS as CSV or Excel. Use the business day column, not a time stamp. Split large files by whole days. Guest names and card data are not needed — such columns are ignored.',

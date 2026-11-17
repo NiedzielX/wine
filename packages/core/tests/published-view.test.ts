@@ -41,7 +41,7 @@ function setup() {
 }
 
 const scores = async (rec: RecommendationService, dishId: string) => (await rec.forDish('halka', dishId, {}, 8))!.result.items.map((i) => [i.wine.id, i.matchScore]);
-const SESSION = { id: '11111111-1111-4111-8111-111111111111', staff: false };
+const SESSION = { id: '11111111-1111-4111-8111-111111111111', isNew: false, source: 'qr' as const };
 
 describe('snapshot v2 (R1, AC1)', () => {
   it('a publish stores schema 2, the profile of every dish and wine (hidden and inactive included) and the menu', async () => {

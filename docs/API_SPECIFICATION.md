@@ -76,7 +76,7 @@ Dezaktywacja działa od następnego żądania osoby (sesja zostaje, ale `GET /au
 | GET | `/restaurants/{id}/dishes` | S M | `?q=&category=&status=` |
 | GET | `/restaurants/{id}/wines` | S M W | `?q=&style=&active=` |
 | GET | `/restaurants/{id}/publish/preview` | S M | checklista i liczba zmian |
-| POST | `/restaurants/{id}/publish` | S M | tworzy PublishedVersion |
+| POST | `/restaurants/{id}/publish` | S M | tworzy PublishedVersion (migawka v2: pary, tłumaczenia, profile, skład karty). Opcjonalne ciało `{expectedLatest}` (numer najnowszej wersji widziany przez klienta, `0` = brak publikacji): inny numer → 409 `version_conflict`, nic nie jest zapisane; nieznane pole → 422. Puste ciało publikuje jak dotąd |
 | GET | `/restaurants/{id}/versions` | S M | historia publikacji |
 | POST | `/restaurants/{id}/versions/{versionId}/restore` | M | rollback |
 | GET | `/restaurants/{id}/qr` | S M | `?format=svg|png&size=1024` |

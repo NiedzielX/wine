@@ -1020,7 +1020,7 @@ export const pl = {
       saveSettings: 'Zapisz ustawienia',
       pending: (n: number) => `Nieopublikowane zmiany: ${n}`,
       latest: 'Goście widzą najnowszą wersję',
-      pendingText: (pairings: number, dishes: number) => `Parowania: ${pairings}, nowe dania: ${dishes}. Publikacja od razu aktualizuje aplikację gościa; kod QR się nie zmienia.`,
+      pendingText: (pairings: number, dishes: number, profiles: number) => `Parowania: ${pairings}, nowe dania: ${dishes}, profile smaku (zmienione lub pozycji dodanych po ostatniej publikacji): ${profiles}. Publikacja od razu aktualizuje aplikację gościa; kod QR się nie zmienia.`,
       nothing: 'Nie ma nic do opublikowania.',
       preview: 'Podgląd aplikacji gościa',
       submit: 'Opublikuj zmiany',
@@ -1276,7 +1276,7 @@ export const pl = {
       readOnly: 'Twoja rola nie pozwala importować plików.',
       kinds: {
         menu: { noun: (n: number) => plural(n, 'danie', 'dania', 'dań'), columns: 'Kategoria, Nazwa, Opis, Cena', hint: 'Nowe dania trafiają jako szkice ze szkicem profilu smaku. Goście zobaczą je po publikacji.', updates: 'opis, kategoria i cena' },
-        wines: { noun: (n: number) => plural(n, 'wino', 'wina', 'win'), columns: 'Producent, Wino, Rocznik, Region, Szczep, Styl, Cena kieliszka, Cena butelki', hint: 'Nowe wina od razu trafiają do karty i dostają propozycje parowań do Twojego przeglądu.', updates: 'ceny' },
+        wines: { noun: (n: number) => plural(n, 'wino', 'wina', 'win'), columns: 'Producent, Wino, Rocznik, Region, Szczep, Styl, Cena kieliszka, Cena butelki', hint: 'Nowe wina od razu trafiają do karty i dostają propozycje parowań do Twojego przeglądu. Goście zobaczą je po następnej publikacji.', updates: 'ceny' },
         sales: {
           noun: (n: number) => plural(n, 'pozycję', 'pozycje', 'pozycji'), columns: 'Data (dzień biznesowy), Nr rachunku, Goście (opcjonalnie), Kategoria, Pozycja (opcjonalnie), Ilość, Kwota netto',
           hint: 'Wyeksportuj z kasy pozycje rachunków jako CSV albo Excel. Użyj kolumny dnia biznesowego, nie znacznika czasu. Duże pliki dziel po całych dniach. Nazwiska gości i dane kart nie są potrzebne — takie kolumny są pomijane.',

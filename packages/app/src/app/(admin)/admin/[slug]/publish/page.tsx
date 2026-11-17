@@ -101,7 +101,7 @@ export default async function PublishPage({ params, searchParams }: Props) {
             <div>
               <p className="text-lg font-medium">{p.pendingChanges ? m.pending(p.pendingChanges) : m.latest}</p>
               <p className="text-sm text-muted-foreground">
-                {p.pendingChanges ? m.pendingText(p.pendingPairings, p.draftDishes.length) : m.nothing}
+                {p.pendingChanges ? m.pendingText(p.pendingPairings, p.draftDishes.length, p.pendingProfiles) : m.nothing}
               </p>
             </div>
             <div className="flex gap-2">
