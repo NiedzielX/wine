@@ -87,7 +87,7 @@ flowchart LR
 | 1 | Login | e-mail, hasło | `POST /auth/login` |
 | 2 | Dashboard | baner z liczbą propozycji / nawigacja Menu | `GET /restaurants/{id}/analytics/summary` |
 | 3 | Menu | wybór dania (status, pokrycie pairingami) | `GET /restaurants/{id}/dishes` |
-| 4 | Dish details | korekta profilu (podgląd na żywo), zapis | `PATCH /dishes/{id}` |
+| 4 | Dish details | korekta profilu: skale 0–5, „Show how the match changes” (przed → po dla każdego wina, bez zapisu), „Save and confirm” albo „Save as draft”; goście widzą zmianę po publikacji (E13 F2) | `GET /dishes/{id}/profile/preview`, `PUT /dishes/{id}/profile` (`If-Match`) |
 | 5 | Pairings | „Approve” propozycji, rola Primary, kolejność, notatka | `PATCH /pairings/{id}`, `POST /pairings/{id}/decisions` |
 | 6 | Review queue | przegląd pozostałych dań, „Approve all for this dish” | `POST /restaurants/{id}/pairings/bulk-decision` |
 | 7 | Publish | checklista, ustawienia gościa, „Publish changes” | `POST /restaurants/{id}/publish` |

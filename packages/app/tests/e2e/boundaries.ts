@@ -48,7 +48,7 @@ export async function payload(s: Session, path: string): Promise<string> {
  * last-seen column, so reads do not change it; `guest_interaction` (usage events) changes on guest page views by design (tests
  * override it per case). Tables left out entirely: `NOT_DIGESTED` below.
  */
-export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'session', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal', 'guest_interaction'];
+export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'session', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal', 'guest_interaction', 'profile_edit'];
 /**
  * The ONLY tables deliberately left out of the digest, each with its reason. Nothing else may be left out: `assertTablesCovered()`
  * accepts a table outside TABLES only when it is named here.
@@ -134,11 +134,12 @@ export async function callAction(s: Session | undefined, exportedName: string, p
 /**
  * A server action of the panel, sent the way a browser without JavaScript sends its form: multipart POST with the action id from the
  * build's own manifest as `$ACTION_ID_<id>`, the session cookie and a same-origin `Origin`, to a page of `slug` that hosts it.
- * Returns the redirect target (`?saved=` / `?error=`).
+ * Returns the redirect target (`?saved=` / `?error=`). `hosts` replaces the default pages for an action that only one page references
+ * (the profile editors of A3 and A5).
  */
-export async function runAction(s: Session, exportedName: string, slug: string, fields: Record<string, string>): Promise<{ status: number; location: string }> {
+export async function runAction(s: Session, exportedName: string, slug: string, fields: Record<string, string>, hosts: readonly string[] = ACTION_HOSTS): Promise<{ status: number; location: string }> {
   const id = actionId(exportedName);
-  for (const host of ACTION_HOSTS) {
+  for (const host of hosts) {
     const form = new FormData();
     form.set(`$ACTION_ID_${id}`, '');
     for (const [k, v] of Object.entries({ slug, back: `/admin/${slug}`, ...fields })) form.set(k, v);

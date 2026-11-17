@@ -105,7 +105,7 @@ async function issue(dishIds: string[] = [duck.id], sid = crypto.randomUUID()): 
 beforeAll(async () => {
   const c = (await createRequestScope()).cradle;
   service = new RecommendationCodeService({
-    restaurantRepository: c.restaurantRepository, wineRepository: c.wineRepository, dishRepository: c.dishRepository,
+    restaurantRepository: c.restaurantRepository, wineRepository: c.wineRepository, dishRepository: c.dishRepository, pairingRepository: c.pairingRepository, publishRepository: c.publishRepository,
     recommendationCodeRepository: c.recommendationCodeRepository, clock: c.clock, logger: c.logger,
     idGenerator: { uuid: uuidAvoidingHandPickedCodes }
   });

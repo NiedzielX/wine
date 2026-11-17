@@ -10,6 +10,12 @@ import type { DishRow, GuestInteractionRow, ImportJobRow, OpportunityDismissalRo
 const lvl = (n: number) => Math.max(0, Math.min(5, n)) as Level;
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
+/** Who confirmed a profile and when; absent (not null) when nobody did, so a profile without it equals one built without it. */
+const confirmation = (p: { confirmedAt?: Date | null; confirmedBy?: string | null }) => ({
+  ...(p.confirmedAt ? { confirmedAt: p.confirmedAt.toISOString() } : {}),
+  ...(p.confirmedBy ? { confirmedBy: p.confirmedBy } : {})
+});
+
 export function toRestaurant(r: RestaurantRow): Restaurant {
   return {
     id: r.id, slug: r.slug, name: r.name, tagline: r.tagline, address: r.address, city: r.city,
@@ -27,7 +33,7 @@ export function toDish(d: DishRow): Dish {
     profile: {
       intensity: lvl(p.intensity), fat: lvl(p.fat), salt: lvl(p.salt), sweetness: lvl(p.sweetness), acidity: lvl(p.acidity),
       spice: lvl(p.spice), umami: lvl(p.umami), smoke: lvl(p.smoke), creaminess: lvl(p.creaminess),
-      protein: p.protein, cooking: p.cooking, source: p.source
+      protein: p.protein, cooking: p.cooking, source: p.source, ...confirmation(p)
     },
     translations: cleanTranslations(d.translations, DISH_TEXT_FIELDS)
   };
@@ -43,7 +49,7 @@ export function toWine(w: WineRow): Wine {
     profile: {
       sweetness: lvl(p.sweetness), acidity: lvl(p.acidity), tannin: lvl(p.tannin), body: lvl(p.body), alcohol: Number(p.alcohol),
       fruitiness: lvl(p.fruitiness), oak: lvl(p.oak), aromatic: lvl(p.aromatic), freshness: lvl(p.freshness),
-      style: p.style, adventurous: p.adventurous
+      style: p.style, adventurous: p.adventurous, ...(p.source === 'confirmed' ? {} : { source: p.source }), ...confirmation(p)
     },
     translations: cleanTranslations(w.translations, WINE_TEXT_FIELDS)
   };

@@ -76,7 +76,7 @@ Dezaktywacja działa od następnego żądania osoby (sesja zostaje, ale `GET /au
 | GET | `/restaurants/{id}/dishes` | S M | `?q=&category=&status=` |
 | GET | `/restaurants/{id}/wines` | S M W | `?q=&style=&active=` |
 | GET | `/restaurants/{id}/publish/preview` | S M | checklista i liczba zmian |
-| POST | `/restaurants/{id}/publish` | S M | tworzy PublishedVersion |
+| POST | `/restaurants/{id}/publish` | S M | tworzy PublishedVersion (migawka v2: pary, tłumaczenia, profile, skład karty). Opcjonalne ciało `{expectedLatest}` (numer najnowszej wersji widziany przez klienta, `0` = brak publikacji): inny numer → 409 `version_conflict`, nic nie jest zapisane; nieznane pole → 422. Puste ciało publikuje jak dotąd |
 | GET | `/restaurants/{id}/versions` | S M | historia publikacji |
 | POST | `/restaurants/{id}/versions/{versionId}/restore` | M | rollback |
 | GET | `/restaurants/{id}/qr` | S M | `?format=svg|png&size=1024` |
@@ -124,7 +124,9 @@ GET /v1/public/restaurants/halka/menu
 | POST | `/dishes` | S M | `{restaurantId, name, description, category, price}`; profil szkicowany automatycznie |
 | GET | `/dishes/{id}` | S M | danie z profilem |
 | PATCH | `/dishes/{id}` | S M | pola dania |
-| PUT | `/dishes/{id}/profile` | S | profil; ustawia `source=confirmed`, przelicza `modelScore` i propozycje |
+| GET | `/dishes/{dishId}/profile?restaurant={slug}` | S M | `{profile, version}`; odcisk profilu także w nagłówku `ETag` (uprawnienie `profiles.edit`; E13 F2) |
+| PUT | `/dishes/{dishId}/profile?restaurant={slug}` | S M | ciało `{profile, confirm}` (`strictObject`: skale 0–5 całkowite, `protein`, `cooking`; `confirm: true` = potwierdzony, `false` = szkic); **`If-Match: "<odcisk>"` wymagany** (428 bez, 400 niepoprawny, 409 `version_conflict` gdy profil zmieniono od odczytu); odpowiedź `{changed, profile, version}` + `ETag`; brak zmiany → `changed: false`, bez wpisu audytu. **Nie przelicza `modelScore` ani propozycji** (robi to publikacja i regeneracja par); goście widzą zmianę po następnej publikacji. Każda zmiana zapisuje wiersz `profile_edit` |
+| GET | `/dishes/{dishId}/profile/preview?restaurant={slug}&intensity=…&protein=…` | S M | podgląd „Jak zmieni się dopasowanie” (te same parametry co formularz GET w panelu, ten sam schemat Zod): wiersze `{otherId, otherName, before, after, delta, pairing}` dla aktywnych win, top propozycji gościa przed i po, podsumowanie (zatwierdzone pary ze zmianą wyniku, przekroczenia progu `minModelScore`). Tylko odczyt: wyniki z `pairingScore`, bez zapisu, sieci i LLM |
 | DELETE | `/dishes/{id}` | S M | soft delete |
 | GET | `/dishes/{id}/pairings` | S M | pary dania (wszystkie statusy) |
 | PUT | `/dishes/{id}/pairings/order` | S | `{pairingIds: [...]}` → rank 1..n |
@@ -187,7 +189,9 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
 | POST | `/wines` | S M | nowa pozycja karty; profil z domyślnych szczepu i stylu |
 | GET | `/wines/{id}` | S M | wino z profilem |
 | PATCH | `/wines/{id}` | S M | ceny, `active`, nota, serwowanie; walidacja: `glassPrice < bottlePrice` |
-| PUT | `/wines/{id}/profile` | S | profil wina |
+| GET | `/wines/{id}/profile?restaurant={slug}` | S M | jak dla dania: `{profile, version}` + `ETag` |
+| PUT | `/wines/{id}/profile?restaurant={slug}` | S M | `{profile, confirm}` (skale 0–5, `alcohol` 0–25 co 0,1, `style`, `adventurous`), `If-Match` jak dla dania; `confirm: false` ustawia `grape_defaults` (zachowuje `catalog`), `true` — `confirmed` z autorem i czasem |
+| GET | `/wines/{id}/profile/preview?restaurant={slug}&body=…&style=…` | S M | jak dla dania: wiersze dla dań z karty i lista dań, w których wino wchodzi do najlepszych propozycji lub z nich wypada |
 | DELETE | `/wines/{id}` | S M | soft delete |
 | GET | `/wines/{id}/best-dishes` | S M | odwrotny ranking: dania najlepiej pasujące do wina |
 

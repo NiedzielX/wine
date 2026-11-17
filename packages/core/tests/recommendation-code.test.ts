@@ -185,6 +185,8 @@ describe('RecommendationCodeService.issue (R3–R5, R13, Q4, Q18)', () => {
     const extra = Array.from({ length: 13 }, (_, i) => ({ ...published[0], id: uuid(0xd00 + i), name: `Dish ${i}` }));
     store.dishes.get(ds.restaurant.id)!.push(...extra);
     const repos = createMemoryRepositories(store);
+    // guests see a dish only once a publish knows it (spec 2026-11-04-panel-completion, R2)
+    await repos.publishRepository.publish(ds.restaurant.id, { actor: 'Test', at: NOW.toISOString(), id: uuid(0xe00) });
     let n = 0;
     const big = new RecommendationCodeService({ ...repos, clock: { now: () => NOW }, idGenerator: { uuid: () => randomish(++n) }, logger: createLogger(() => {}) });
     expect(await big.issue('halka', choice({ dishIds: extra.map((d) => d.id) }))).toBeNull();
