@@ -149,8 +149,24 @@ System Administrator to flaga `is_staff` na User (poza Membership).
 | cooking | enum | `raw`, `cured`, `poached`, `seared`, `roasted`, `grilled`, `braised`, `fried`, `baked`, `none` |
 | source | enum | `draft` (import, reguły lub lokalny LLM), `confirmed` (personel) |
 | drafted_by | text | `rules-1.0`, `local-llm:qwen2.5-7b`, … |
-| confirmed_by, confirmed_at | uuid, timestamptz | |
+| confirmed_by, confirmed_at | text, timestamptz | kto i kiedy potwierdził (E13 F2: `profile_confirmed_by` w tabeli `dish`; nazwa wyświetlana, nie klucz obcy); `confirmed_at` ustawia „Zapisz i potwierdź”, „Zapisz jako szkic” zeruje oba |
 | embedding | vector(384) null | opcjonalnie, pgvector; podobieństwo dań |
+
+### ProfileEdit (E13 F2, tabela `profile_edit`)
+
+Dziennik zmian profili smaku, tylko do dopisywania (jak `sommelier_decision`). Wiersz powstaje w tej samej transakcji co zapis profilu i tylko przy faktycznej zmianie (skale lub stan szkic/potwierdzony).
+
+| Pole | Typ | Uwagi |
+|---|---|---|
+| id | uuid PK | |
+| restaurant_id | uuid FK | każde zapytanie z `restaurantId` |
+| kind | enum | `dish`, `wine` |
+| subject_id | uuid | **bez klucza obcego**: historia przeżywa usunięcie dania lub wina |
+| actor, actor_id | text, uuid null | wyświetlana nazwa i konto (zwykłe kolumny, historia przeżywa konta) |
+| before, after | jsonb | skale i stan (`source`, `confirmedAt`, `confirmedBy`) przed i po |
+| created_at | timestamptz | czas z `Clock` aplikacji; indeks `(restaurant_id, created_at)` |
+
+Odcisk profilu (`profileVersion`, `core/src/services/catalog/profile-rules.ts`) to `expectedVersion` formularzy i `If-Match` API: dania i wina nie mają kolumny wersji, więc odcisk obejmuje skale i stan.
 
 ### Wine
 
@@ -186,7 +202,8 @@ Pozycja na karcie konkretnej restauracji (cena i dostępność są lokalne).
 | alcohol | numeric(3,1) | % |
 | style | enum | `sparkling`, `white`, `rose`, `orange`, `red`, `sweet` |
 | adventurous | bool | poza klasycznymi oczekiwaniami (orange, PIWI, mniej znane regiony) |
-| source | enum | `grape_defaults`, `catalog`, `confirmed` |
+| source | enum | `grape_defaults`, `catalog`, `confirmed`; w UI wszystko poza `confirmed` to „szkic”. Zapis „jako szkic” daje `grape_defaults` (istniejące `catalog` zostaje); w domenie brak `source` = `confirmed` |
+| confirmed_by, confirmed_at | text, timestamptz | jak w DishProfile (E13 F2: kolumny `profile_confirmed_by`, `profile_confirmed_at` w tabeli `wine`) |
 | embedding | vector(384) null | opcjonalnie |
 
 ### Pairing

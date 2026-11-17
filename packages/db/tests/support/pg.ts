@@ -30,7 +30,7 @@ export async function freshDatabase(baseUrl: string, name: string): Promise<Mikr
 
 /** Empties every table and loads the demo data again. */
 export async function resetData(orm: MikroORM): Promise<void> {
-  await orm.em.getConnection().execute('truncate table auth_event, auth_token, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await orm.em.getConnection().execute('truncate table auth_event, auth_token, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, profile_edit, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
   await new DemoSeeder().run(orm.em.fork());
 }
 

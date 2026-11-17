@@ -105,23 +105,23 @@ Skale jako natywne `select`/`radio` w `fieldset` + `legend`, widoczny focus, kon
 
 ## Kryteria akceptacji
 F1
-- [ ] **AC1 (R1)** Publikacja tworzy wersję z `schema: 2`, `profiles` (wszystkie nieusunięte dania i wina) i `menu.dishIds`; wersja v1 odczytana przez `readSnapshot` daje te same dania i profile co dziś. *Test jednostkowy core + kontrakt (pamięć i PostgreSQL).*
-- [ ] **AC2 (R1, Q1)** Po publikacji zmiana profilu dania nie zmienia `matchScore` widzianego przez gościa (`RecommendationService.forDish`) aż do kolejnej publikacji; dotychczasowe wyniki Halki identyczne jak przed F1. *Test serwisu + test golden (ranking niezmieniony).*
-- [ ] **AC3 (R2)** Danie `draft` ani spoza `menu.dishIds` nie jest widoczne w `publishedMenu`, `forDish`, `forTable`, `wineDetails`, trasie publicznego menu i G9/G11; `hidden` znika od razu, a ponowne odkrycie dania (`hidden` → `published`) przywraca je od razu, bez publikacji; danie dodane po ostatniej publikacji (nie ma go w `menu.dishIds`) i wino bez profilu w migawce są niewidoczne. *Test serwisów i tras.*
-- [ ] **AC4 (R1)** Backfill: po migracji najnowsza wersja każdej restauracji ma profile i skład karty równe stanowi sprzed migracji; starsze wersje bez zmian. *`test:db` (replay migracji, lekcja).*
-- [ ] **AC5 (R12)** Dwie równoległe publikacje: jedna się udaje, druga dostaje `version_conflict`, numery bez luk i duplikatów. *`test:db`, dwie sesje.*
-- [ ] **AC6** `npm run schema:check` zgodne dla czterech baz; trasy gościa i `/api/v1/public` zwracają ten sam kształt co przed F1. *`schema:check`, test tras, `smoke`.*
+- [x] **AC1 (R1)** Publikacja tworzy wersję z `schema: 2`, `profiles` (wszystkie nieusunięte dania i wina) i `menu.dishIds`; wersja v1 odczytana przez `readSnapshot` daje te same dania i profile co dziś. *Test jednostkowy core + kontrakt (pamięć i PostgreSQL).*
+- [x] **AC2 (R1, Q1)** Po publikacji zmiana profilu dania nie zmienia `matchScore` widzianego przez gościa (`RecommendationService.forDish`) aż do kolejnej publikacji; dotychczasowe wyniki Halki identyczne jak przed F1. *Test serwisu + test golden (ranking niezmieniony).*
+- [x] **AC3 (R2)** Danie `draft` ani spoza `menu.dishIds` nie jest widoczne w `publishedMenu`, `forDish`, `forTable`, `wineDetails`, trasie publicznego menu i G9/G11; `hidden` znika od razu, a ponowne odkrycie dania (`hidden` → `published`) przywraca je od razu, bez publikacji; danie dodane po ostatniej publikacji (nie ma go w `menu.dishIds`) i wino bez profilu w migawce są niewidoczne. *Test serwisów i tras.*
+- [x] **AC4 (R1)** Backfill: po migracji najnowsza wersja każdej restauracji ma profile i skład karty równe stanowi sprzed migracji; starsze wersje bez zmian. *`test:db` (replay migracji, lekcja).*
+- [x] **AC5 (R12)** Dwie równoległe publikacje: jedna się udaje, druga dostaje `version_conflict`, numery bez luk i duplikatów. *`test:db`, dwie sesje.*
+- [x] **AC6** `npm run schema:check` zgodne dla czterech baz; trasy gościa i `/api/v1/public` zwracają ten sam kształt co przed F1. *`schema:check`, test tras, `smoke`.*
 
 F2
-- [ ] **AC7 (R3)** `setDishProfile` z poprawnym wejściem zapisuje profil, zwraca `changed: true`; wejście poza skalą (6, −1, 2,5), nieznane `protein` albo dodatkowe pole → `validation_failed` z `fields`. *Test jednostkowy.*
-- [ ] **AC8 (R3)** Zapis z nieaktualnym `expectedVersion` (odcisk) nie zmienia danych i daje `version_conflict`; zapis bez zmian → `changed: false`, brak wiersza w `profile_edit`. *Kontrakt (pamięć i PostgreSQL) + współbieżność w `test:db`.*
-- [ ] **AC9 (R4)** „Zapisz i potwierdź” ustawia `source = confirmed`, `confirmedBy`, `confirmedAt` (czas z `Clock`); „Zapisz jako szkic” ustawia `draft` (dla wina wg Q4); „Potwierdź bez zmian” zmienia tylko stan. *Test serwisu.*
-- [ ] **AC10 (R5)** Każda zmiana zapisuje `profile_edit` z `before`/`after`, `actor` i `actorId`; wiersz przeżywa usunięcie dania. *Kontrakt.*
-- [ ] **AC11 (R6)** Dla dania Halki z profilem zmienionym o +2 w `intensity` podgląd zwraca wiersze z `after = pairingScore(kandydat, wino).score` i `before = pairingScore(bieżący, wino).score` dla każdego aktywnego wina oraz oznacza pary zatwierdzone ze zmianą wyniku; nic nie jest zapisane. *Test jednostkowy porównujący z `pairingScore`; asercja braku zapisu.*
-- [ ] **AC12 (R6, N03)** Podgląd nie używa sieci, `Math.random` ani czasu (deterministyczny dla tych samych danych). *Test powtórzenia + przegląd importów (`check:boundaries`).*
-- [ ] **AC13 (R7)** Z wyłączonym JavaScriptem: wybór skal i „Pokaż podgląd” (GET) renderuje tabelę „przed / po” na A3 i A5; z JS odpowiedź trasy podglądu ma ten sam wynik. *Test SSR + e2e bez JS + test trasy.*
-- [ ] **AC14 (R8)** Rola kelnera i użytkownik innej restauracji dostają 403 na `PUT` profilu i podgląd; sommelier, GM i owner mogą. *Test tras (wzór `restaurant-owner-scope.test.ts`).*
-- [ ] **AC15 (R4, Q1)** Po zapisie w A11 licznik „niepublikowane zmiany” rośnie o 1, lista kontrolna „profile to szkice” maleje po potwierdzeniu, a G3 gościa pokazuje stary wynik do publikacji. *E2E panel + gość.* UI A3/A5 przy 390 i 1440 px bez poziomego przewijania, banner stanu widoczny.
+- [x] **AC7 (R3)** `setDishProfile` z poprawnym wejściem zapisuje profil, zwraca `changed: true`; wejście poza skalą (6, −1, 2,5), nieznane `protein` albo dodatkowe pole → `validation_failed` z `fields`. *Test jednostkowy.*
+- [x] **AC8 (R3)** Zapis z nieaktualnym `expectedVersion` (odcisk) nie zmienia danych i daje `version_conflict`; zapis bez zmian → `changed: false`, brak wiersza w `profile_edit`. *Kontrakt (pamięć i PostgreSQL) + współbieżność w `test:db`.*
+- [x] **AC9 (R4)** „Zapisz i potwierdź” ustawia `source = confirmed`, `confirmedBy`, `confirmedAt` (czas z `Clock`); „Zapisz jako szkic” ustawia `draft` (dla wina wg Q4); „Potwierdź bez zmian” zmienia tylko stan. *Test serwisu.*
+- [x] **AC10 (R5)** Każda zmiana zapisuje `profile_edit` z `before`/`after`, `actor` i `actorId`; wiersz przeżywa usunięcie dania. *Kontrakt.*
+- [x] **AC11 (R6)** Dla dania Halki z profilem zmienionym o +2 w `intensity` podgląd zwraca wiersze z `after = pairingScore(kandydat, wino).score` i `before = pairingScore(bieżący, wino).score` dla każdego aktywnego wina oraz oznacza pary zatwierdzone ze zmianą wyniku; nic nie jest zapisane. *Test jednostkowy porównujący z `pairingScore`; asercja braku zapisu.*
+- [x] **AC12 (R6, N03)** Podgląd nie używa sieci, `Math.random` ani czasu (deterministyczny dla tych samych danych). *Test powtórzenia + przegląd importów (`check:boundaries`).*
+- [x] **AC13 (R7)** Z wyłączonym JavaScriptem: wybór skal i „Pokaż podgląd” (GET) renderuje tabelę „przed / po” na A3 i A5; z JS odpowiedź trasy podglądu ma ten sam wynik. *Test SSR + e2e bez JS + test trasy.*
+- [x] **AC14 (R8)** Rola kelnera i użytkownik innej restauracji dostają 403 na `PUT` profilu i podgląd; sommelier, GM i owner mogą. *Test tras (wzór `restaurant-owner-scope.test.ts`).*
+- [x] **AC15 (R4, Q1)** Po zapisie w A11 licznik „niepublikowane zmiany” rośnie o 1, lista kontrolna „profile to szkice” maleje po potwierdzeniu, a G3 gościa pokazuje stary wynik do publikacji. *E2E panel + gość.* UI A3/A5 przy 390 i 1440 px bez poziomego przewijania, banner stanu widoczny.
 
 F3
 - [ ] **AC16 (R9)** `history` zwraca wersje malejąco z autorem, czasem, `changesCount`, stanem; pusta lista dla restauracji bez publikacji. *Kontrakt + SSR.*
@@ -175,4 +175,15 @@ F6
 - 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja
-(Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
+Status zostaje `in-progress` (F3 do F6 przed nami). Log: `.ai/runs/2026-11-16-panel-profile-editing-f1-f2.md`.
+
+**F1 (AC1 do AC6)** zrobione: migawka v2, `PublishedView`, migracja danych `Migration20261116160715_published_snapshot_v2`, `expectedLatest`. **F2 (AC7 do AC15)** zrobione: `ProfileService`, `ProfilePreviewService`, `profile_edit`, `profiles.edit`, A3/A5, trasy `PUT/GET …/profile` i `…/profile/preview`, migracja `Migration20261117105101_profile_editing`.
+
+Odstępstwa od projektu F2:
+- Podgląd bez JS to dwa formularze: GET z skalami (tabela po stronie serwera) i POST zapisujący dokładnie wartości z podglądu (ukryte kopie); zapis bez wcześniejszego podglądu zapisuje wartości zapisane. Odświeżanie na żywo z JS (debounce) **nie jest zrobione**; trasa `profile/preview` istnieje.
+- `GET …/profile` (profil i odcisk w `ETag`) dodane ponad specyfikację, żeby klient API miał skąd wziąć `If-Match`.
+- Szkic wina daje `grape_defaults` (istniejące `catalog` zostaje): domena nie zna `catalogWineId` (Q4 częściowo).
+- `opportunity-service` i `opportunity-rules` zostają na danych bieżących (widok panelu), nie na `PublishedView`.
+- Filtr `?profile=draft` w A2/A4 nie jest zrobiony; A11 ma pozycję „profile win to szkice”.
+- Waiter nie ma logowania do panelu (login 403), więc AC14 dla kelnera dowodzi tabela uprawnień i test odmowy logowania, a odmowy tras: właściciel innej restauracji.
+

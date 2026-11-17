@@ -1,5 +1,5 @@
 import type { Actor } from '../../auth/types';
-import type { Dish, Restaurant, RestaurantSettings } from '../../domain/types';
+import type { Dish, Restaurant, RestaurantSettings, Wine } from '../../domain/types';
 import { DEFAULT_RESTAURANT_SETTINGS } from '../../domain/types';
 import { NotFoundError, ValidationError } from '../../errors';
 import type { PublishedVersionInfo, Repositories } from '../../ports/repositories';
@@ -32,6 +32,8 @@ export interface PublishPreview {
   withoutPrimary: Dish[];
   unreviewedSuggestions: number;
   draftProfiles: Dish[];
+  /** active wines whose profile is not confirmed (spec 2026-11-04-panel-completion, R4, A11) */
+  draftWineProfiles: Wine[];
 }
 
 export class PublishService {
@@ -65,7 +67,8 @@ export class PublishService {
       pendingChanges: pendingPairings + draftDishes.length + pendingContent + pendingProfiles,
       withoutPrimary: live.filter((x) => !primary.has(x.id)),
       unreviewedSuggestions: pairings.filter((p) => p.status === 'suggested').length,
-      draftProfiles: live.filter((x) => x.profile.source === 'draft')
+      draftProfiles: live.filter((x) => x.profile.source === 'draft'),
+      draftWineProfiles: wines.filter((w) => w.active && (w.profile.source ?? 'confirmed') !== 'confirmed')
     };
   }
 

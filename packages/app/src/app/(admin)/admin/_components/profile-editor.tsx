@@ -51,21 +51,24 @@ const LEVELS: Array<[number, string]> = [0, 1, 2, 3, 4, 5].map((n) => [n, String
 function PreviewTable({ rows, kind, t }: { rows: PreviewRow[]; kind: 'dish' | 'wine'; t: Dictionary }) {
   const m = t.admin.profileEditor;
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div>
+      <Table className="table-fixed sm:table-auto">
         <TableHeader>
           <TableRow>
             <TableHead>{kind === 'dish' ? m.colWine : m.colDish}</TableHead>
             <TableHead>{m.colScore}</TableHead>
-            <TableHead>{m.colDecision}</TableHead>
+            <TableHead className="hidden sm:table-cell">{m.colDecision}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((r) => (
             <TableRow key={r.otherId}>
-              <TableCell className="font-medium">{r.otherName}</TableCell>
-              <TableCell className="tabular-nums">{m.change(r.before, r.after, r.delta)}</TableCell>
-              <TableCell>{r.pairing ? <PairingStatusBadge status={r.pairing.status} t={t} /> : <span className="text-muted-foreground">{m.noDecision}</span>}</TableCell>
+              <TableCell className="whitespace-normal font-medium">
+                {r.otherName}
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground sm:hidden">{r.pairing ? t.admin.badges.status[r.pairing.status] : m.noDecision}</span>
+              </TableCell>
+              <TableCell className="whitespace-normal tabular-nums">{m.change(r.before, r.after, r.delta)}</TableCell>
+              <TableCell className="hidden sm:table-cell">{r.pairing ? <PairingStatusBadge status={r.pairing.status} t={t} /> : <span className="text-muted-foreground">{m.noDecision}</span>}</TableCell>
             </TableRow>
           ))}
         </TableBody>

@@ -68,6 +68,9 @@ export default async function PublishPage({ params, searchParams }: Props) {
             <Item ok={p.draftProfiles.length === 0} title={p.draftProfiles.length ? m.draftProfiles(p.draftProfiles.length) : m.allConfirmed} href={`${base}/menu`} action={m.check}>
               {p.draftProfiles.length ? names(p.draftProfiles) : m.allConfirmedText}
             </Item>
+            <Item ok={p.draftWineProfiles.length === 0} title={p.draftWineProfiles.length ? m.draftWineProfiles(p.draftWineProfiles.length) : m.allWineProfilesConfirmed} href={`${base}/wines`} action={m.check}>
+              {p.draftWineProfiles.length ? names(p.draftWineProfiles.map((w) => ({ name: `${w.producer} ${w.name}` }))) : m.allWineProfilesConfirmedText}
+            </Item>
             <Item ok={p.draftDishes.length === 0} title={p.draftDishes.length ? m.newDishes(p.draftDishes.length) : m.noNewDishes}>
               {p.draftDishes.length ? names(p.draftDishes) : m.noNewDishesText}
             </Item>
