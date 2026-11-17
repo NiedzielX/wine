@@ -45,7 +45,7 @@ Sommelier, GM i Owner poprawiają pola dania i wina na A3 i A5 zwykłym formular
 - **R12 (API)** `PATCH /api/v1/dishes/{id}/details?restaurant={slug}` i `PATCH /api/v1/wines/{id}/details?restaurant={slug}` (C1), `POST /api/v1/dishes/{id}/visibility?restaurant={slug}` `{hidden}` (C2), `POST /api/v1/dishes?restaurant={slug}` i `POST /api/v1/wines?restaurant={slug}` (C3): `handle()` z literalnym `route`, `parseBody` ze schematem z R3, odcisk w `If-Match` / `ETag`, błędy przez `guarded()`, id spoza UUID → 404 (lekcja `url-ids-vs-uuid-columns`). Istniejący `PATCH /wines/{id}` `{active}` zostaje bez zmian (BC §2; należy do E19). **[przegląd W1]** `ifMatch()` i `version(f)` czytają dziś tylko liczby całkowite: dochodzą warianty tekstowe, `ETag` w cudzysłowie, zniekształcony `If-Match` → 400. Odpowiedź: pełny obiekt pól z R1/R2 + `ETag`; `201` z `Location` dla tworzenia.
 - **R13 (i18n)** Wszystkie etykiety, podpowiedzi, komunikaty błędów pól (`required`, `too_long`, `not_positive`, `too_many_decimals`, `glass_not_below_bottle`, `duplicate`, `transition`, `not_a_number`, `not_allowed`, `out_of_range`, `invalid`, `invalid_chars`), flashe i linia audytu są w `packages/app/src/i18n/en.ts` i `pl.ts`; ceny i daty przez `Intl` (`pl`: „1 234 zł”). Formularz edytuje tekst bazowy (`source`), a sekcja „Translations” pozostaje osobnym formularzem; przy nazwie i opisie podpowiedź „This is the base text. Translations are below.” Test słowników obejmuje nowe klucze.
 - **R14 (dokumentacja)** `docs/SCREEN_SPECIFICATION.md` (nagłówek, A2–A5, nowy A32), `docs/SCREEN_MAP.md` (A32 i uprawnienia), `docs/API_SPECIFICATION.md` (trasy z R12; `PATCH /dishes/{id}` i `/wines/{id}` z kontraktu docelowego rozdzielone na `…/details` i `{active}`), `docs/USER_ROLES.md` (`catalog.edit`), `docs/DATA_MODEL.md` (`CatalogEdit`), `BACKWARD_COMPATIBILITY.md` (§2 nowe trasy, §3 nowa tabela, §5 nowe uprawnienie), `docs/security/threat-model.md` (wiersz dla nowych tras z id w ścieżce), `docs/USER_FLOWS.md` (poprawa ceny i dodanie wina), `scripts/smoke.mjs` (A32).
-- **R15 (zmiana tożsamości, C1) [przegląd B1]** Zmiana nazwy dania albo `producer` / `name` / `vintage` wina z parami `approved` / `modified` nie rusza par ani profilu, ale: (1) formularz pokazuje przy tych polach stałe ostrzeżenie z liczbą par („This dish has {n} sommelier pairings. Rename it only to correct the name, not to replace the dish.”); (2) wiersz audytu dostaje `identity: true`; (3) A3/A5 oznaczają pary „Check after rename” / „Sprawdź po zmianie nazwy”, dopóki para nie ma decyzji nowszej niż ten wiersz (wyliczane, bez nowej kolumny). Czy role bez `pairings.decide` (owner, manager) mogą zmieniać te pola: decyzja (g).
+- **R15 (zmiana tożsamości, C1) [przegląd B1]** Zmiana nazwy dania albo `producer` / `name` / `vintage` wina z parami `approved` / `modified` nie rusza par ani profilu, ale: (1) formularz pokazuje przy tych polach stałe ostrzeżenie z liczbą par („This dish has {n} sommelier pairings. Rename it only to correct the name, not to replace the dish.”); (2) wiersz audytu dostaje `identity: true`; (3) A3/A5 oznaczają pary „Check after rename” / „Sprawdź po zmianie nazwy”, dopóki para nie ma decyzji nowszej niż ten wiersz (wyliczane, bez nowej kolumny). (4) pola zmieniają wszyscy z `catalog.edit` (decyzja (g)=b, 2026-11-17), z osobnym polem potwierdzenia w formularzu; sommelier widzi wpis „Zmieniono nazwę, sprawdź pary” w „Do przeglądu”.
 
 ## Resolved assumptions (autonomous defaults)
 
@@ -143,17 +143,17 @@ A2, A4 (przyciski, C3), A3, A5 (formularz, ukryj/pokaż, audyt), A32 (nowy). Kod
 ## Ryzyka i otwarte pytania
 - **Import nadpisuje ręczne zmiany.** Ponowny import menu nadpisuje `description`, `category` i `price` każdego dopasowanego dania, a import win — ceny (`ImportService`, `dishUpdates` / `wineUpdates`); podgląd ostrzega dziś ogólnie (`exists`), ale nie o utracie ręcznej poprawki, a pusta kolumna kieliszka zeruje `glassPrice` (przegląd W7). Rekomendacja: plik zostaje źródłem cen, a podgląd importu (A8/A9) ostrzega `edited_manually`, gdy pozycja ma wpis `catalog_edit` nowszy niż ostatni import — decyzja (f).
 - **Edycja nazwy zmienia klucz dopasowania importu** (`normKey(name)`, `producer|name|vintage`): po zmianie nazwy kolejny import starej nazwy utworzy nową pozycję zamiast aktualizacji. Jawne w podpowiedzi przy polu i w `docs/USER_FLOWS.md`.
-- **Tłumaczenie z migawki a tekst bazowy na żywo** (R5) i **cena na żywo a ranking przy filtrze budżetu** (R6): świadome, jak dziś po imporcie (E13 Q2).
-- **Tabela uprawnień należy do E12**; audyt (Q7) rozstrzygnąć przed pierwszą migracją.
+- **Tłumaczenie z migawki a tekst na żywo** (R5) i **cena na żywo a ranking przy filtrze budżetu** (R6): świadome, jak po imporcie (E13 Q2).
+- **Uprawnienia należą do E12**; audyt (Q7) przed pierwszą migracją.
 - **`listNumber` może mieć historyczne duplikaty:** reguła działa tylko przy zmianie (AC2); przed C1a sprawdzić bazę demo zapytaniem `group by … having count(*) > 1`.
 
 ## Przegląd niezależny (2026-11-16)
-3 blokujące, 11 ważnych, 5 drobnych; poprawki w treści mają znacznik **[przegląd B1…W11]**. Blokujące: **B1** zmiana tożsamości omija sommeliera (§7; R15, AC20, decyzja (g)), **B2** dane zastane łamią nowe reguły (`validate.ts:62,44`), **B3** `parsePrice` czyta „58,500” jako tysiące (`normalize.ts:41`; `parseFormPrice`). Ważne: W1 `ifMatch()` i `version(f)` tylko liczby, W2 `normKey`, W3 `confirm` bez blokady doradczej, W4 znaki sterujące, W5 checkbox bez JS, W6 `grape`, W7 import zeruje `glassPrice` (`import-service.ts:289`), W8 demo, W9 AC6 i AC14, W10 nazwisko w audycie, W11 zakres „na żywo” w E13 Q2.
+3 blokujące, 11 ważnych, 5 drobnych; poprawki mają znacznik **[przegląd B1…W11]**. Blokujące: **B1** zmiana tożsamości omija sommeliera (R15, AC20, (g)), **B2** dane zastane łamią nowe reguły (`validate.ts:62,44`), **B3** `parsePrice` czyta „58,500” jako tysiące (`normalize.ts:41`). Ważne: W1 `ifMatch()`/`version(f)`, W2 `normKey`, W3 blokada doradcza, W4 znaki sterujące, W5 checkbox bez JS, W6 `grape`, W7 import zeruje `glassPrice` (`import-service.ts:289`), W8 demo, W9 AC6/AC14, W10 nazwisko w audycie, W11 zakres „na żywo” (E13 Q2).
 
 ## Przegląd niezależny (2026-11-17)
 Świeży kontekst; wnioski z 2026-11-16 sprawdzone w kodzie i podtrzymane. Potwierdzone: silnik czyta z pól R1/R2 tylko to, co R6 wymienia (ceny `recommend.ts:49-63,163`, kategoria `table.ts:113,128`, nazwa tylko w tekście uzasadnienia `table.ts:236-244`); tłumaczenia gość czyta już dziś z migawki (`memory-repositories.ts:286`, `content.ts:142-157`); `Actor` ma `id` i `name` (`auth/types.ts:4`). Poprawki: **[przegląd 2]**.
 
-**Blokujące (0 nowych).** Otwarte: decyzje (g), (h).
+**Blokujące:** 0 nowych.
 
 **Ważne (5)**
 - **N1 Kolejność blokad.** `confirm` importu bierze wiersz zadania, potem (wg W3) blokadę doradczą restauracji, potem wiersze dań (`import.ts:54`); edycja według R4 brała najpierw wiersz dania, potem blokadę: zakleszczenie. Naniesione: zawsze blokada doradcza (`hashtext('catalog:'||restaurant_id)`, inny prefiks niż `sales_record:`, `import.ts:78`), potem wiersze.
@@ -164,14 +164,14 @@ A2, A4 (przyciski, C3), A3, A5 (formularz, ukryj/pokaż, audyt), A32 (nowy). Kod
 
 **Drobne (5)** N6 szkic profilu (`draftDishProfile`) nie odświeża się po zmianie nazwy, opisu ani kategorii (jak w imporcie): podpowiedź przy karcie „Taste profile”. N7 `version` z formularza to nieprzezroczysty tekst, nie liczba (W1). N8 podwójne kliknięcie „Add” daje drugi `duplicate`: akceptowalne. N9 homoglify (cyrylickie „а”) omijają `normKey`; ryzyko niskie. N10 `listNumber` „następny wolny” = `max(100, …) + 1` jak import (`import-service.ts:281`), liczony pod blokadą z N1.
 
-**Decyzje właściciela** (rekomendacja): (a) „na żywo” z rozszerzeniem W11 i dopiskiem w E13: tak; (b) C3 po E13 F1: tak; (c) usuwanie osobno; (d) szczepy w E13 F2; (e) osobna tabela audytu; (f) `edited_manually` w C1b; (g) pola tożsamości tylko dla `pairings.decide` albo R15 dla wszystkich; (h) cykliczny reseed demo.
+**Decyzje właściciela** (rekomendacja): (a) „na żywo” z rozszerzeniem W11 i dopiskiem w E13: tak; (b) C3 po E13 F1: tak; (c) usuwanie osobno; (d) szczepy w E13 F2; (e) osobna tabela audytu; (f) `edited_manually` w C1b; (g) **b, 2026-11-17**: R15 dla wszystkich z `catalog.edit`; (h) **nie, odłożone 2026-11-17** (demo bez cyklicznego reseedu).
 
-**Werdykt:** brak sprzeczności z §7 i architekturą po poprawkach; do akceptacji po rozstrzygnięciu (g) i (h). Otwarte technicznie: `select` i `checkbox` w `useActionState` bez JS: prototyp na początku C1b.
+**Werdykt:** brak sprzeczności z §7 i architekturą po poprawkach; gotowa do akceptacji ((g), (h) rozstrzygnięte). Otwarte technicznie: `select` i `checkbox` w `useActionState` bez JS: prototyp na początku C1b.
 
 ## Changelog
 - 2026-11-16 — Autor: not recorded (źródło: `.ai/runs/2026-11-16-catalog-field-editing-spec.md`).
-- 2026-11-16 — Przegląd niezależny: 3 blokujące, 11 ważnych, 5 drobnych; poprawki R1–R3, R5, R8, R10–R13, R15, AC1, AC3, AC6, AC8, AC14/14b, AC20.
-- 2026-11-17 — Przegląd niezależny: 0 nowych blokujących, 5 ważnych, 5 drobnych; poprawki R1, R2, R4, R7, R11, AC3, AC14, nowe AC21, Projekt `db`.
+- 2026-11-16 — Przegląd niezależny: 3 blokujące, 11 ważnych, 5 drobnych (poprawki w R1–R15 i AC).
+- 2026-11-17 — Przegląd niezależny: 0 nowych blokujących, 5 ważnych, 5 drobnych (R1–R11, AC3, AC14, AC21, `db`). Właściciel: (g)=b, (h) odłożone.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
