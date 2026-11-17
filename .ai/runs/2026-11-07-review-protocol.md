@@ -2,12 +2,12 @@
 started: 2026-11-07 13:10
 ended: 2026-11-07 13:50
 agent: Claude Code (pod-agent w worktree, na zlecenie sesji nadrzędnej)
-spec: brak — zadanie procesowe zlecone przez koordynatora (lekcja 17), bez zmiany zachowania produktu
+spec: brak — zadanie procesowe zlecone przez koordynatora, bez zmiany zachowania produktu
 related: [.ai/docs/fix-verification.md, .ai/docs/parallel-work.md]
 outcome: success
 ---
 
-# Część procesowa lekcji 17: protokół review, paczka recenzenta, listy kontrolne, etykiety, rutyna nocna
+# Część procesowa: protokół review, paczka recenzenta, listy kontrolne, etykiety, rutyna nocna
 
 ## Zadanie
 Zapisać protokół review (trzy warstwy bramek, triage kolejki, ochrona gałęzi), zaimplementować `npm run review:pack` (bez opisu PR w wyniku), listy kontrolne, tabelę etykiet i opis, co powinna mówić rutyna nocna. Bez push, bez PR, bez zapisów w GitHubie.

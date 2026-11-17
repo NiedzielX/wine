@@ -7,7 +7,7 @@ outcome: success (gałąź lokalna, bez push i bez PR: limit WIP, PR otworzy koo
 related: [.ai/runs/2026-11-07-security-review.md]
 ---
 
-# Lekcja 18 („tester z AI”) dopasowana do repozytorium
+# Protokół QA z agentami dopasowany do repozytorium
 
 ## Zadanie
 Protokół QA dla agentów bez równoległego testera-właściciela, szablon błędu, baza wiedzy QA, gotowe prompty oraz utwardzenie środowiska poleceń operatora (cel bazy na stderr, ostrzeżenie o cieniu `DATABASE_URL`).

@@ -7,13 +7,13 @@ outcome: success
 related: [.ai/runs/2026-11-07-review-protocol.md]
 ---
 
-# Lekcja 21 (praca wielomodelowa) w procesie: niezależność recenzentów, schematy wejścia/wyjścia recenzenta, walidator
+# Praca wielomodelowa w procesie: niezależność recenzentów, schematy wejścia/wyjścia recenzenta, walidator
 
 ## Zadanie
-Przenieść lekcję 21 kursu (orkiestrator / implementer / recenzenci, różne rodziny modeli, 3 rundy, triage uwag po jednej, nie głosowaniem) do procesu: sekcja w `review-protocol.md`, lista triage w `review-checklists.md`, schematy JSON wejścia i wyjścia recenzenta, `scripts/review-validate.mjs` z testami (najpierw czerwone), wskazówka w `parallel-work.md`, lekcja i draft specyfikacji opcjonalnego harnessu wielorodzinnego (bez implementacji). Gałąź `docs/lesson-21-multi-model-review`, bez push i PR.
+Wprowadzić pracę wielomodelową (orkiestrator / implementer / recenzenci, różne rodziny modeli, 3 rundy, triage uwag po jednej, nie głosowaniem) do procesu: sekcja w `review-protocol.md`, lista triage w `review-checklists.md`, schematy JSON wejścia i wyjścia recenzenta, `scripts/review-validate.mjs` z testami (najpierw czerwone), wskazówka w `parallel-work.md`, lekcja i draft specyfikacji opcjonalnego harnessu wielorodzinnego (bez implementacji). Gałąź `docs/lesson-21-multi-model-review`, bez push i PR.
 
 ## Przebieg
-- 14:11 Gałąź z `origin/main` (dc13b66). Przeczytane: `AGENTS.md`, `review-protocol.md`, `review-checklists.md`, `parallel-work.md`, `nightly-review-routine.md`, `review-pack.mjs` (+ lib), `process-templates.md`, `commands.md`, lekcje 17 i main-guard. `npm ci` w worktree (brak `node_modules`).
+- 14:11 Gałąź z `origin/main` (dc13b66). Przeczytane: `AGENTS.md`, `review-protocol.md`, `review-checklists.md`, `parallel-work.md`, `nightly-review-routine.md`, `review-pack.mjs` (+ lib), `process-templates.md`, `commands.md`, lekcje `review-pack-not-author-story` i `script-main-guard-vs-paths`. `npm ci` w worktree (brak `node_modules`).
 - Konwencja schematów: w repo nie ma `*.schema.json` ani katalogu schematów; zgodnie z briefem `.ai/schemas/`.
 - `npm ci` z npm 10 odmawia (`engines` npm ≥ 11.6); użyte `npx -y npm@11.20.0 ci` (wersja z `packageManager`).
 - Schematy `review-input` (bez pola na uzasadnienie autora: `additionalProperties: false`, `round` 1–3, `findingsRequested`) i `review-output` (każde ustalenie z `evidence` ≥ 10 znaków, `inputDigest` SHA-256, `reviewer.family`/`model`). Walidator bez zależności: interpreter podzbioru JSON Schema, nieznane słowo kluczowe schematu = wyjątek (fail closed); reguły między plikami: digest i runda odpowiedzi względem jednego wejścia, unikalne id ustaleń, `min ≤ max`.
@@ -31,7 +31,7 @@ Przenieść lekcję 21 kursu (orkiestrator / implementer / recenzenci, różne r
 - `npm run build` nie uruchomiony: zmiana nie dotyka kodu pakietów budowanych (tylko `scripts/`, testy w `testkit`, dokumenty).
 
 ## Wynik
-Gotowe lokalnie na gałęzi `docs/lesson-21-multi-model-review`, bez push i PR. Niezweryfikowane: druga rodzina modeli nie istnieje (opisane jako brak), harness tylko jako draft. Dług: `.ai/lessons.md` ma ~460 B zapasu do limitu: przy następnej lekcji trzeba oznaczyć część lekcji jako nieaktualne albo awansować je do `AGENTS.md`.
+Gotowe lokalnie na gałęzi roboczej, bez push i PR. Niezweryfikowane: druga rodzina modeli nie istnieje (opisane jako brak), harness tylko jako draft. Dług: `.ai/lessons.md` ma ~460 B zapasu do limitu: przy następnej lekcji trzeba oznaczyć część lekcji jako nieaktualne albo awansować je do `AGENTS.md`.
 
 ## Poprawki po review PR #140 (2026-11-09, ten sam przebieg)
 - Uwagi koordynatora potwierdzone w kodzie: (1) sprawdzenie digestu i rundy działało tylko przy dokładnie jednym wejściu, więc sama odpowiedź z dowolnym `inputDigest` dawała OK; (2) komunikat błędu parsowania przepisywał `e.message` V8, który cytuje początek pliku, a wyjście podawało tylko `basename`; (3) brak sprawdzenia, że odpowiedzi są od różnych recenzentów; (4) za mało miejsca w `.ai/lessons.md`.

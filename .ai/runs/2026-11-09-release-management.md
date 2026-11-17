@@ -2,18 +2,18 @@
 started: 2026-11-09 14:48
 ended: 2026-11-09 15:05
 agent: Claude Code / claude-opus-5-5 (pod-agent w worktree)
-spec: brak — dokumentacja procesu i narzędzia repozytorium (lekcja 22, polecenie właściciela); follow-upy jako draft `.ai/specs/2026-11-09-release-management-automation.md`
+spec: brak — dokumentacja procesu i narzędzia repozytorium (polecenie właściciela); follow-upy jako draft `.ai/specs/2026-11-09-release-management-automation.md`
 outcome: success
 related: [.ai/runs/2026-11-09-multi-model-review.md]
 ---
 
-# Lekcja 22 (zarządzanie wydaniem) przeniesiona na projekt jednego właściciela, bez decyzji właściciela
+# Zarządzanie wydaniem dla projektu jednego właściciela, bez decyzji właściciela
 
 ## Zadanie
-Polecenie właściciela (przez sesję nadrzędną): przenieść lekcję 22 kursu (release management z Open Mercato) na Wine Match. Dostarczyć: `docs/RELEASING.md`, kontrakt zgodności wstecznej, `UPGRADE_NOTES.md`, skrypty `release-version.mjs` i `release-notes.mjs` z testami (najpierw czerwone), szkic workflow `release.yml` (tylko `workflow_dispatch`, bez publikacji pakietów i bez wdrożenia), lekcję z linią w indeksie, draft specyfikacji follow-upów, wskaźniki z `CONTRIBUTING.md` / `parallel-work.md`. Bez push i bez PR; commit lokalny.
+Polecenie właściciela (przez sesję nadrzędną): wdrożyć w Wine Match proces zarządzania wydaniem. Dostarczyć: `docs/RELEASING.md`, kontrakt zgodności wstecznej, `UPGRADE_NOTES.md`, skrypty `release-version.mjs` i `release-notes.mjs` z testami (najpierw czerwone), szkic workflow `release.yml` (tylko `workflow_dispatch`, bez publikacji pakietów i bez wdrożenia), lekcję z linią w indeksie, draft specyfikacji follow-upów, wskaźniki z `CONTRIBUTING.md` / `parallel-work.md`. Bez push i bez PR; commit lokalny.
 
 ## Przebieg
-- Gałąź `docs/lesson-22-release-management` z `origin/main` (68e5b26). `node_modules` przez `npx -y npm@11.20.0 ci` (systemowy npm 10.9.9 nie spełnia `engines`).
+- Gałąź robocza z `origin/main` (68e5b26). `node_modules` przez `npx -y npm@11.20.0 ci` (systemowy npm 10.9.9 nie spełnia `engines`).
 - Przeczytane: `AGENTS.md` (§3, §5, §6.1, §8, §9), `.ai/docs/review-protocol.md`, `parallel-work.md`, `engineering-standards.md` (nagłówki, §11–§12), `commands.md`, `process-templates.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `SDLC.md` (etykiety, bramki), `docs/DEPLOYMENT.md` (§5, §8, §10–§15), `docs/OPERATIONS.md`, `.github/workflows/*`, `scripts/check-context.mjs`, `scripts/review-validate.mjs` (konwencja skryptu i strażnika `main`), skille `om-close-fixed-issues`, `om-auto-manage-issues`, `om-auto-update-changelog`, `om-apply-upgrade-notes`, `om-merge-buddy`, `.ai/agentic.config.json`, `.ai/specs/backlog.md`.
 - **Odstępstwo od polecenia (kontrakt):** w repozytorium jest już `BACKWARD_COMPATIBILITY.md` (19 KB, osiem powierzchni, ścieżki zmian, „Poza kontraktem”), na który wskazują `SDLC.md`, `CONTRIBUTING.md` i `DEPLOYMENT.md`. Drugi plik `docs/COMPATIBILITY.md` byłby duplikatem, który się rozjedzie. Zamiast niego uzupełniam istniejący kontrakt o to, czego brakowało względem lekcji: sekcję „Jak zapisać zmianę łamiącą” (wpis w `UPGRADE_NOTES.md`, format, przykład, testy), „Co wolno zmieniać swobodnie” (rozszerzenie „Poza kontraktem”) i zgodność wersji. Każde nowe twierdzenie sprawdzone w kodzie (sekcja Weryfikacja).
 - Nagłówki `CHANGELOG.md` mają format Keep a Changelog (`## [X.Y.Z] - YYYY-MM-DD`), a skille `om-close-fixed-issues` i `om-auto-update-changelog` szukają `# X.Y.Z (YYYY-MM-DD)` (format Open Mercato). Skill `om-auto-update-changelog` mówi „dopasuj istniejący format”, więc zostajemy przy Keep a Changelog, a w `RELEASING.md` podajemy `--since vX.Y.Z` (tag) zamiast `last-release`.
@@ -38,7 +38,7 @@ Polecenie właściciela (przez sesję nadrzędną): przenieść lekcję 22 kursu
 - Wszystkie polecenia npm przez `npx -y npm@11.20.0` (systemowy npm 10.9.9).
 
 ## Wynik
-Gotowe lokalnie, jeden commit na `docs/lesson-22-release-management`, bez push i bez PR (polecenie). Nie zweryfikowane: przebieg `release.yml` na GitHubie (zapytanie o checki, `gh release create` szkicu, idempotencja), job `image` (nigdy nie przeszedł na `main`), skille `om-close-fixed-issues` / `om-auto-manage-issues` z argumentami z `RELEASING.md` (nie uruchamiane: mutują tracker).
+Gotowe lokalnie, jeden commit na gałęzi roboczej, bez push i bez PR (polecenie). Nie zweryfikowane: przebieg `release.yml` na GitHubie (zapytanie o checki, `gh release create` szkicu, idempotencja), job `image` (nigdy nie przeszedł na `main`), skille `om-close-fixed-issues` / `om-auto-manage-issues` z argumentami z `RELEASING.md` (nie uruchamiane: mutują tracker).
 
 Decyzje właściciela (zebrane w `docs/RELEASING.md` §11 i w drafcie spec): wersja 1.0, licencja, rytm wydań, hosting/domena/rejestr, `image` i CodeQL jako wymagane checki, włączenie `release.yml` po przeglądzie, zmiana zakresów `@wine-match/testkit` na `"*"`, kanał ogłoszeń, kamienie milowe.
 
@@ -57,7 +57,7 @@ Oba review: approve z uwagami nieblokującymi. Zrobione wszystkie dziewięć:
 
 Weryfikacja: nowe testy najpierw czerwone (9 failed, 30 passed), potem 39/39; logika kroku tworzenia wydania wykonana lokalnie na zaślepce `gh` w 10 scenariuszach (świeży szkic, publikacja, 403 przy tagu, tag na innym commicie, tag tutaj, ponowne uruchomienie, nieaktualny szkic, dwa szkice, opublikowane tutaj, opublikowane bez taga): oczekiwane kody i komunikaty. `lint` 0, `typecheck` 0, `npm test` 0 (testkit 487), `check:context` 0 błędów, `check:qa`, `check:routes`, `secrets:scan` OK. Workflow nadal nie uruchomiony na GitHubie.
 
-## Uzupełnienie z materiału lekcji 22 (osobny commit, tylko dokumentacja)
+## Uzupełnienie (osobny commit, tylko dokumentacja)
 `docs/RELEASING.md`: §12 „Próba odtworzenia z taga” (czysty worktree starego taga, obraz nigdy z bieżącego checkoutu, ścieżka B z `pg_restore`, `smoke --production`, zapis w `.ai/runs/…-recovery-drill.md`; raz przed pierwszym prawdziwym wydaniem, tylko instancja próbna) i wiersz w §11; tabela pięciu punktów kontrolnych lekcji w §6; zdanie o kolejce PR-ów i scalaniu tylko po wyraźnej zgodzie właściciela w §5. Draft spec: R10 (`om-auto-upgrade-*` jako opcja) i R11 (skrypt próby). `.ai/lessons.md` bez zmian. `check:context` 0 błędów, `secrets:scan` OK. Próba nie wykonana (wymaga Dockera i instancji próbnej).
 
 ## Lekcje

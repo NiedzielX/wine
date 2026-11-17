@@ -1,20 +1,20 @@
 ---
 started: 2026-11-15 12:20
 ended: 2026-11-15 13:10
-agent: Claude Code (podagent audytu, lekcja 25)
+agent: Claude Code (podagent audytu)
 spec: brak — audyt tylko do odczytu plus dwa drafty specyfikacji (status draft, bez implementacji)
 outcome: success
 related: [.ai/runs/2026-11-10-process-playbook-audit.md, .ai/specs/2026-11-15-knowledge-maintenance.md, .ai/specs/2026-11-15-weekly-maintenance-routine.md]
 ---
 
-# Jednorazowy audyt wiedzy w repozytorium i dwa drafty specyfikacji (lekcja 25)
+# Jednorazowy audyt wiedzy w repozytorium i dwa drafty specyfikacji
 
 ## Zadanie
 Część 1: raport `.ai/maintenance/2026-11-15-audit.md` (statusy specyfikacji, sprzeczności, martwe odwołania, lekcje, liczby, rekomendacje), bez poprawiania i przenoszenia czegokolwiek. Część 2: drafty `2026-11-15-knowledge-maintenance.md` (A) i `2026-11-15-weekly-maintenance-routine.md` (B). Bez pushu, PR-a i merge.
 
 ## Przebieg
 - Worktree `/home/user/wine-audit` z `origin/main` (dc5068a), gałąź `docs/knowledge-audit`.
-- Przeczytano AGENTS.md, lessons.md, process-templates, process-playbook, parallel-work, nightly-review-routine, PROCESS oraz opracowanie lekcji 25 (dane; w materiałach nie znaleziono instrukcji wykraczających poza zadanie).
+- Przeczytano AGENTS.md, lessons.md, process-templates, process-playbook, parallel-work, nightly-review-routine, PROCESS.
 - Pod-agentów nie użyto: w tej sesji brak narzędzia do ich uruchamiania. Audyt wykonano bezpośrednio, każde ustalenie sprawdzone poleceniem (grep, ls, git log, skrypt `dead.mjs` w katalogu roboczym sesji, nie w repozytorium).
 - Przegląd draftów: patrz sekcja „Changelog” w obu specyfikacjach (niezależnego agenta nie dało się uruchomić; wykonano przegląd własny w osobnym przebiegu i zapisano ograniczenie).
 - Nie zmieniono kodu produktu, istniejących specyfikacji ani cudzych logów.

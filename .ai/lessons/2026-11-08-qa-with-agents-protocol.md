@@ -10,7 +10,7 @@ promoted:
 # QA agenta jest wiarygodne dopiero z wyrocznią, niezależnym weryfikatorem i znanym celem bazy
 
 ## Kontekst
-Lekcja 18 kursu („tester z AI”) dopasowana do repozytorium, w którym właściciel nie jest domyślnym testerem równoległym. W lekcji wyeksportowany `DATABASE_URL` skierował seeder na obcą bazę, a agent kliknął w zły element i mimo to zaraportował PASS.
+Protokół QA z agentami dopasowany do repozytorium, w którym właściciel nie jest domyślnym testerem równoległym. W przykładzie wyeksportowany `DATABASE_URL` skierował seeder na obcą bazę, a agent kliknął w zły element i mimo to zaraportował PASS.
 
 ## Przyczyna
 Agent testujący własne założenia nie widzi własnych błędów; „przeszło” bez wyroczni (AC, linia docs) nic nie znaczy; zrzut nieobejrzany nie jest dowodem; środowisko nieweryfikowane (cel bazy, cień `DATABASE_URL`, prawdziwe dane po zalogowaniu) unieważnia całą sesję.

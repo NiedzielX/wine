@@ -26,7 +26,7 @@ Rytm: **wydajemy, gdy jest gotowe**, nie według kalendarza. Stały rytm (np. co
 
 ## 2. Model gałęzi: jedna gałąź `main`
 
-Open Mercato ma `develop` (wydania nocne, środowisko deweloperskie, migawka pakietów po każdym merge) i `main` (stabilne); wydanie to jeden zbiorczy PR „release X.Y.Z” z `develop` do `main`, na którym widać zakres, konflikty i wszystkie checki naraz. **My mamy tylko `main`** i tak zostaje, bo:
+Duże projekty open source mają `develop` (wydania nocne, środowisko deweloperskie, migawka pakietów po każdym merge) i `main` (stabilne); wydanie to jeden zbiorczy PR „release X.Y.Z” z `develop` do `main`, na którym widać zakres, konflikty i wszystkie checki naraz. **My mamy tylko `main`** i tak zostaje, bo:
 
 - jeden właściciel, najwyżej 3 PR-y w review (`.ai/docs/parallel-work.md` §1), a każdy PR przechodzi przed merge pełne CI z `strict: true` (gałąź aktualna z `main`, `review-protocol.md` §7). `main` jest więc zawsze w stanie „po weryfikacji zbiorczej”: druga gałąź dodałaby synchronizację bez nowej informacji;
 - nie publikujemy pakietów (wszystkie są `private`), więc nie ma migawek do testowania; nie mamy też środowiska deweloperskiego (decyzja właściciela, §11).

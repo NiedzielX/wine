@@ -8,7 +8,7 @@ author_model: "not recorded"
 reviewed_by: "not recorded (sub-agent in a fresh context, model unknown)"
 ---
 
-# Utwardzenie warsztatu agenta AI (lekcja 9: bezpieczeństwo narzędzi)
+# Utwardzenie warsztatu agenta AI (bezpieczeństwo narzędzi)
 
 ## Problem
 Agenci AI pracują w tym repozytorium autonomicznie (`om-auto-*`, logi w `.ai/runs/`), a repo nie ma twardych granic dla agenta. Audyt z 2026-10-25 (tylko odczyt) wykazał:
@@ -73,7 +73,7 @@ Kolejność: (0) skaner uruchomiony na repo, liczba trafień do logu; (1) tabela
 
 ## Przegląd niezależny (2026-10-25, pod-agent w świeżym kontekście)
 Przyjęte: hook w Node zamiast `bash` + `jq` (AGENTS §1.5, brak zależności, zawodzenie zamykające bez `jq`), parsowanie komendy na tokeny z wyjątkami dla opisów, normalizacja prefiksów, wyjątek dla czyszczenia katalogów budowania, przypadki dozwolone w tabeli, format allowlisty z hashem, tryb `--root` skanera, symlinki, pliki binarne, `-z`, kompletniejsza lista `excludedCommands`, `.env.template` w R1 i R6, `git ls-files -ci` w AC6, rozbicie AC2 i doprecyzowanie AC8, uwagi o `permissions.deny` kontra komendy basha, wiersz `secrets:scan` w §1.5.
-Odrzucone lub odłożone: `Edit` w `deny` dla `.claude/` (poza zakresem, zob. wyżej), przeniesienie `security-notes.md` do `docs/` (zostaje w korzeniu, zgodnie z nazwą z kursu), zakaz `allowUnsandboxedCommands: true` (zostaje `false` jak w lekcji; brakującą komendę dopisuje się do `excludedCommands`).
+Odrzucone lub odłożone: `Edit` w `deny` dla `.claude/` (poza zakresem, zob. wyżej), przeniesienie `security-notes.md` do `docs/` (zostaje w korzeniu), zakaz `allowUnsandboxedCommands: true` (zostaje `false`; brakującą komendę dopisuje się do `excludedCommands`).
 
 ## Ryzyka i otwarte pytania
 - **Sandbox nie został uruchomiony w żywym Claude Code** (brak `bubblewrap`, `socat` i interaktywnego agenta), dlatego jest wyłączony domyślnie. Konfiguracja pochodzi z dokumentacji i jest sprawdzana strukturalnie; lista `allowedDomains` i `excludedCommands` wymaga weryfikacji przez `npm ci && npm run build && npm test` w sandboxie, zanim ktoś go włączy.

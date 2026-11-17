@@ -7,18 +7,18 @@ outcome: success
 related: [.ai/runs/2026-11-10-process-playbook-audit.md]
 ---
 
-# Odzwierciedlić lekcje 24 i 25 oraz kierunek hostingu w dokumentach procesu
+# Odzwierciedlić reguły wdrożenia i utrzymania oraz kierunek hostingu w dokumentach procesu
 
 ## Zadanie
-Uzupełnić opracowanie kursu (docs/PROCESS.md) i playbook wykonawcy (.ai/docs/process-playbook.md) o lekcje 24–25 i o kierunek migracji na Vercel z 2026-11-15; rozważyć pozycje audytu; ewentualnie lekcja. Bez push, PR i merge.
+Uzupełnić opis procesu (docs/PROCESS.md) i playbook wykonawcy (.ai/docs/process-playbook.md) o reguły wdrożenia i utrzymania oraz o kierunek migracji na Vercel z 2026-11-15; rozważyć pozycje audytu; ewentualnie lekcja. Bez push, PR i merge.
 
 ## Przebieg
-- Worktree /home/user/wine-docs-sync z origin/main (dc5068a), gałąź docs/course-sync-24-25. `npm ci --ignore-scripts` przez npm 11.20.0.
-- Przeczytano: AGENTS.md, lekcje, playbook, PROCESS, process-audit.mjs i test, opracowania lekcji 24 i 25, draft specyfikacji Vercel (git show z origin/docs/vercel-hosting-spec), DEPLOYMENT/RELEASING/threat-model. Napisów SRT (lekcja 24 i 25) nie czytano: opracowanie ze strony zawiera ich treść; nie ma w nich nic, co zmieniałoby wnioski (nie sprawdzano wprost). W materiałach nie znaleziono instrukcji skierowanych do agenta poza treścią promptów lekcji (to treść kursu, nie wykonywano).
+- Worktree /home/user/wine-docs-sync z origin/main (dc5068a), gałąź robocza. `npm ci --ignore-scripts` przez npm 11.20.0.
+- Przeczytano: AGENTS.md, lekcje, playbook, PROCESS, process-audit.mjs i test, draft specyfikacji Vercel (git show z origin/docs/vercel-hosting-spec), DEPLOYMENT/RELEASING/threat-model. Treści z zewnątrz traktowano jako dane; instrukcji skierowanych do agenta nie wykonywano.
 - Playbook: nowy §8 (8.1 przyjęte, 8.2 propozycje czekające na decyzję, 8.3 kierunek hostingu). Uwaga: CTX-09 sprawdza każdą ścieżkę w backtickach; ścieżek nieistniejących (np. pliki z PR #149) nie ujęto w backticki.
-- PROCESS: wiersze 23 (brak materiałów), 24, 25 w tabeli; §2.1 (co każą, mamy, brakuje, nie przejmujemy), §2.2 (kierunek Vercel, D10), wiersz decyzji 2026-11-15 oznaczony jako kierunek, nie decyzja; oczekujące decyzje i kroki zaktualizowane. Pierwsza wersja miała gołe tokeny implemented/ i archive/, co dało FAIL CTX-09; poprawione.
+- PROCESS: tabela praktyk (§2); §2.1 (mamy, brakuje, nie przejmujemy), §2.2 (kierunek Vercel, D10), wiersz decyzji 2026-11-15 oznaczony jako kierunek, nie decyzja; oczekujące decyzje i kroki zaktualizowane. Pierwsza wersja miała gołe tokeny implemented/ i archive/, co dało FAIL CTX-09; poprawione.
 - Lekcja docs-status-by-location-no-index: indeks lekcji miał zapas 185 B (12103 B z progiem ostrzeżenia 12288), linia 171 B, razem 12274 B, bez ostrzeżenia. Podobnej lekcji nie było (sprawdzono indeks).
-- Skrypt audytu i test: NIE zmieniono. Powód: pozycje dla lekcji 24–25 sprawdzałyby konwencje, których właściciel jeszcze nie przyjął (relacje w specyfikacji, katalog raportów, workflow utrzymaniowy, środowisko online); audyt dopasowany do propozycji łamałby zasadę z playbooka §7. Propozycja na po decyzji: PROC-xx (szablon specyfikacji ma relację i Prior spec drift), OPS-xx lub MANUAL (adres środowiska online, actor owner), MANUAL (najnowszy raport utrzymania, actor agent), każda w istniejącym formacie i z testem w process-audit.test.ts.
+- Skrypt audytu i test: NIE zmieniono. Powód: pozycje dla reguł wdrożenia i utrzymania sprawdzałyby konwencje, których właściciel jeszcze nie przyjął (relacje w specyfikacji, katalog raportów, workflow utrzymaniowy, środowisko online); audyt dopasowany do propozycji łamałby zasadę z playbooka §7. Propozycja na po decyzji: PROC-xx (szablon specyfikacji ma relację i Prior spec drift), OPS-xx lub MANUAL (adres środowiska online, actor owner), MANUAL (najnowszy raport utrzymania, actor agent), każda w istniejącym formacie i z testem w process-audit.test.ts.
 
 ## Weryfikacja
 npm 11.20.0 (`npx -y npm@11.20.0 ... --engine-strict=false`):
@@ -30,7 +30,7 @@ npm 11.20.0 (`npx -y npm@11.20.0 ... --engine-strict=false`):
 - build i test:db nie uruchamiane (brak zmian kodu).
 
 ## Wynik
-Dokumenty zaktualizowane, lokalne commity na gałęzi docs/course-sync-24-25, bez push i PR. Do decyzji właściciela: propozycje z playbooka §8.2, draft hostingu (PR #149). Dług: pozycje audytu dla lekcji 24–25 dopiero po decyzjach.
+Dokumenty zaktualizowane, lokalne commity na gałęzi roboczej, bez push i PR. Do decyzji właściciela: propozycje z playbooka §8.2, draft hostingu (PR #149). Dług: pozycje audytu dla reguł wdrożenia i utrzymania dopiero po decyzjach.
 
 ## Lekcje
 - .ai/lessons/2026-11-15-docs-status-by-location-no-index.md

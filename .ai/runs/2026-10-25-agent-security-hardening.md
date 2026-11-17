@@ -7,10 +7,10 @@ outcome: partial
 related: [.ai/runs/2026-10-25-pos-item-name-privacy.md]
 ---
 
-# Utwardzenie warsztatu agenta AI (lekcja 9): `deny`, hook, skan sekretów, CODEOWNERS, security-notes
+# Utwardzenie warsztatu agenta AI: `deny`, hook, skan sekretów, CODEOWNERS, security-notes
 
 ## Zadanie
-Plan z lekcji 9 zatwierdzony przez właściciela w czacie (bramki G0–G5): audyt, specyfikacja, wdrożenie, test prompt injection. Spec: `.ai/specs/2026-10-25-agent-security-hardening.md`.
+Plan zatwierdzony przez właściciela w czacie (bramki G0–G5): audyt, specyfikacja, wdrożenie, test prompt injection. Spec: `.ai/specs/2026-10-25-agent-security-hardening.md`.
 
 ## Przebieg
 - Audyt tylko do odczytu: brak `.claude/settings.json`, `.mcp.json` i hooków; 42 skille z `open-mercato/skills` z hashami w locku, bez dynamicznego kontekstu; brak realnych sekretów (16 trafień wzorca przed allowlistą, wszystkie testowe); CI z `contents: read`; ochrona `main` z 5 checkami, `strict`, `enforce_admins`, 0 wymaganych approvals; szerokie testy uprawnień. Luki: brak `deny`/sandboxa/hooka, wąski `.gitignore`, brak skanu sekretów i `CODEOWNERS`.

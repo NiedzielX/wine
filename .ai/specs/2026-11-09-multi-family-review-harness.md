@@ -8,7 +8,7 @@ author_model: claude-opus-5-5
 reviewed_by: not recorded
 ---
 
-# Opcjonalny harness review wielorodzinnego (lekcja 21)
+# Opcjonalny harness review wielorodzinnego
 
 **Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).**
 
