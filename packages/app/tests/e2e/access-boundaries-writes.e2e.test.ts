@@ -105,11 +105,16 @@ describe('access boundaries, part 3: mass assignment (T-35), the remaining serve
 
   it('T-35: write routes without a body and the panel\'s form actions ignore fields they do not read: the row they change shows only their own change, the other tenant is untouched', async () => {
     const B0 = await bistroTables();
-    // publish: a body pointing at another restaurant and a version number is ignored; Halka gets the next version, Bistro nothing
+    // publish: Halka gets the next version, Bistro nothing
     const lastHalka = Number((await queryDatabase<{ n: string }>(db(), 'select coalesce(max(number), 0)::text as n from published_version where restaurant_id = $1', [halkaId]))[0]!.n);
     const free = (await queryDatabase<{ d: string; w: string }>(db(), `select d.id as d, w.id as w from dish d cross join wine w where d.restaurant_id = $1 and w.restaurant_id = $1 and d.status = 'published' and w.active and not exists (select 1 from pairing p where p.dish_id = d.id and p.wine_id = w.id) limit 1`, [halkaId]))[0]!;
     expect((await send(marta, 'POST', `/api/v1/pairings?restaurant=${HALKA}`, { dishId: free.d, wineId: free.w })).status).toBe(201);
-    const pub = await send(marta, 'POST', `/api/v1/restaurants/${HALKA}/publish`, EXTRAS(bistroId));
+    // publish reads one optional field (`expectedLatest`, strict body): planted fields are refused and change nothing
+    const beforeRefused = await bistroTables();
+    expect((await send(marta, 'POST', `/api/v1/restaurants/${HALKA}/publish`, EXTRAS(bistroId))).status).toBe(422);
+    expect(await bistroTables()).toBe(beforeRefused);
+    expect(Number((await queryDatabase<{ n: string }>(db(), 'select coalesce(max(number), 0)::text as n from published_version where restaurant_id = $1', [halkaId]))[0]!.n)).toBe(lastHalka);
+    const pub = await send(marta, 'POST', `/api/v1/restaurants/${HALKA}/publish`, { expectedLatest: lastHalka });
     expect(pub.status).toBe(201);
     expect(((await pub.json()) as { number: number }).number).toBe(lastHalka + 1);
     // delete an invitation and cancel an import with a body: only that row goes
