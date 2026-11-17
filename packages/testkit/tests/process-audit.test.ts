@@ -29,7 +29,7 @@ function good(): Record<string, string> {
     'CLAUDE.md': '# CLAUDE.md\n\n@AGENTS.md\n',
     'SDLC.md': 'Labels: review, changes-requested, merge-queue, needs-qa, qa-approved, risk-high, do-not-merge.\n',
     'CODE_REVIEW.md': '# Review\n',
-    'CONTRIBUTING.md': '- Proces: [docs/PROCES_I_KURS.md](docs/PROCES_I_KURS.md), wykonawca: [.ai/docs/process-playbook.md](.ai/docs/process-playbook.md)\n',
+    'CONTRIBUTING.md': '- Proces: [docs/PROCESS.md](docs/PROCESS.md), wykonawca: [.ai/docs/process-playbook.md](.ai/docs/process-playbook.md)\n',
     'BACKWARD_COMPATIBILITY.md': '# BC\n',
     'UPGRADE_NOTES.md': '# Upgrade\n',
     'CHANGELOG.md': '# Changelog\n\n## [Unreleased]\n',
@@ -76,7 +76,7 @@ function good(): Record<string, string> {
     '.ai/docs/process-playbook.md': `# Playbook\n\n${PROMPT}\nPętla: \`npm run audit:process\`, protokół \`.ai/docs/review-protocol.md\`, katalog \`.ai/runs/\`.\n`,
     '.ai/schemas/review-input.schema.json': '{}', '.ai/schemas/review-output.schema.json': '{}',
     '.ai/qa/README.md': '# QA\n', '.ai/qa/INDEX.md': '# Index\n',
-    'docs/PROCES_I_KURS.md': `# Proces\n\n${PROMPT}\nZobacz [playbook](../.ai/docs/process-playbook.md) i \`SDLC.md\`.\n`,
+    'docs/PROCESS.md': `# Proces\n\n${PROMPT}\nZobacz [playbook](../.ai/docs/process-playbook.md) i \`SDLC.md\`.\n`,
     'docs/RELEASING.md': '# R\n', 'docs/OPERATIONS.md': '# O\n', 'docs/CONTINUITY.md': '# C\n', 'docs/PRODUCT_CONCEPT.md': '# P\n',
     'docs/DEPLOYMENT.md': '# D\n\n## 10. ROLLBACK (wycofanie)\n',
     'docs/security/threat-model.md': '# T\n', 'docs/security/dast-coverage.md': '# D\n',
@@ -203,7 +203,7 @@ describe('process-audit finds one gap at a time', () => {
 
   it('fails when the START PROMPT in the playbook and in the human document differ', () => {
     const files = good();
-    files['docs/PROCES_I_KURS.md'] = files['docs/PROCES_I_KURS.md'].replace('wykonaj go', 'zrób coś innego');
+    files['docs/PROCESS.md'] = files['docs/PROCESS.md'].replace('wykonaj go', 'zrób coś innego');
     expect(byId(audit(files), 'PROC-07').status).toBe('FAIL');
   });
 
