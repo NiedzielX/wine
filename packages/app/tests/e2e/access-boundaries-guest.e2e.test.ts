@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BISTRO, HALKA, assertTablesCovered, base, bistroOwner, bistroSommelier, db, digest, errorCode, get, halkaManager, halkaSommelier, origin, runAction, send, snapshotDatabase, stageImport, type Session } from './boundaries';
 
 /**
- * Lesson 16 (security), docs/security/threat-model.md T-33 and T-34, part 2 of the access-boundary matrix.
+ * docs/security/threat-model.md T-33 and T-34, part 2 of the access-boundary matrix.
  *  - T-33: guests (the `/r/{slug}` pages and the public API) see the PUBLISHED state only: no unpublished pairing decision, note or
  *    translation, no draft or hidden dish, no hidden wine, no note of a rejected or unreviewed pairing, nothing of another restaurant.
  *    The proof compares WHOLE payloads: every guest surface is read before and after a set of unpublished changes and must be

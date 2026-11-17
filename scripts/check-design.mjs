@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Design guard for the guest app (docs/DESIGN_SYSTEM.md, lesson 06). Fails the build when:
+ * Design guard for the guest app (docs/DESIGN_SYSTEM.md). Fails the build when:
  *  - a text colour token in guest.css is below WCAG AA (4.5:1) on the paper or surface background;
  *  - the guest screens use more distinct raw colours, text sizes or radii than the baseline.
  * The baselines are a ratchet: they only go down. When a value is removed, lower its baseline here.

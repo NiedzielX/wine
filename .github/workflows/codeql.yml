@@ -1,9 +1,9 @@
-# CodeQL (lesson 14): deterministic static analysis of the TypeScript code for security problems, as an extra check
+# CodeQL: deterministic static analysis of the TypeScript code for security problems, as an extra check
 # on every pull request. The repository is public, so it is free. It follows data flow from request input to
 # dangerous places (SQL, paths, HTML), which an agent reading one file can miss. The result appears as a check and as
 # annotations on the pull request; whether it BLOCKS a merge is a branch protection rule (a repository setting that
 # the maintainer sets: add "CodeQL / analyze" to the required checks once the first runs are clean).
-# `security-extended` (added 2026-11-07, lesson 16 / docs/security/threat-model.md): the broader query suite, on top
+# `security-extended` (added 2026-11-07, docs/security/threat-model.md): the broader query suite, on top
 # of the default one — more coverage (e.g. more injection and crypto patterns), more false positives. A new alert it
 # raises is reported and reviewed, never mass-suppressed; a genuine false positive gets a dismissal with a reason on
 # the specific alert, not a change to this file.

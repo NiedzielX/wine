@@ -14,7 +14,7 @@
 # The main-only guard below is in this file, so anyone with write access could dispatch a branch whose copy of the file
 # drops it. The server-side guard is the environment's "Deployment branches: main" rule (same reasoning as release.yml).
 #
-# Supply chain (lesson 18): actions pinned by full SHA, the same pins as ci.yml; the checkout keeps no token
+# Supply chain: actions pinned by full SHA, the same pins as ci.yml; the checkout keeps no token
 # (persist-credentials: false); the job has read-only contents; npm runs with ignore-scripts (.npmrc).
 
 name: Demo database

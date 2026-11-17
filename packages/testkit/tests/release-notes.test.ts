@@ -7,7 +7,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { checkChangelog, checkUpgradeNotes, promote, renderRelease } from '../../../scripts/release-notes.mjs';
 
 /**
- * Lesson 22 (release management): the release body comes from CHANGELOG.md (Keep a Changelog, `## [Unreleased]`,
+ * The release body comes from CHANGELOG.md (Keep a Changelog, `## [Unreleased]`,
  * `## [X.Y.Z] - YYYY-MM-DD`) and, for anything not backward compatible, from UPGRADE_NOTES.md. Deterministic, offline.
  */
 const SCRIPT = fileURLToPath(new URL('../../../scripts/release-notes.mjs', import.meta.url));

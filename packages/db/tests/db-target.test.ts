@@ -7,7 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { announceDbTarget, describeDbTarget, parseDotenvValue, resetDbTargetAnnouncement, shadowWarning } from '../src/db-target';
 
 /**
- * Lesson 18 (QA with AI): an exported DATABASE_URL pointed the seeder at an unrelated database and nobody saw it. Operator commands now
+ * An exported DATABASE_URL pointed the seeder at an unrelated database and nobody saw it. Operator commands now
  * say WHICH database they act on (host:port/dbname, never credentials) and shout when the process environment overrides `.env`.
  * Connection strings are built from fragments so that `npm run secrets:scan` does not mistake the fixtures for secrets.
  */
