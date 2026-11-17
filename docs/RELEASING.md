@@ -1,6 +1,6 @@
 # Wydawanie wersji (release)
 
-Jak z tego, co jest na `main`, powstaje wersja `vX.Y.Z`, która trafia do restauracji. Źródło: lekcja 22 kursu (zarządzanie wydaniem na przykładzie Open Mercato: 130+ kontrybutorów, 160 otwartych PR-ów), przeniesiona na projekt z jednym właścicielem. Wdrożenie, aktualizacja i **wycofanie**: [DEPLOYMENT.md](DEPLOYMENT.md) (§10, §11). Kontrakty: [BACKWARD_COMPATIBILITY.md](../BACKWARD_COMPATIBILITY.md). Zmiany łamiące: [UPGRADE_NOTES.md](../UPGRADE_NOTES.md). Monitoring po wdrożeniu: [OPERATIONS.md](OPERATIONS.md).
+Jak z tego, co jest na `main`, powstaje wersja `vX.Y.Z`, która trafia do restauracji. Procedura jest dopasowana do projektu z jednym właścicielem. Wdrożenie, aktualizacja i **wycofanie**: [DEPLOYMENT.md](DEPLOYMENT.md) (§10, §11). Kontrakty: [BACKWARD_COMPATIBILITY.md](../BACKWARD_COMPATIBILITY.md). Zmiany łamiące: [UPGRADE_NOTES.md](../UPGRADE_NOTES.md). Monitoring po wdrożeniu: [OPERATIONS.md](OPERATIONS.md).
 
 > **Stan.** Nic nie jest jeszcze otagowane (`CHANGELOG.md`, sekcja `[0.2.0]`). Workflow `.github/workflows/release.yml` to szkic, który nie był uruchomiony; job CI `image` nie przeszedł jeszcze na `main` (DEPLOYMENT.md §14). Pierwsze wydanie przejdzie tę listę ręcznie, krok po kroku.
 
@@ -98,9 +98,9 @@ Wszystko na commicie, który zostanie otagowany (PR wydania po merge = `main`).
 
 Wynik (PASS/FAIL na scenariusz, środowisko, `QA head: <sha>`) w opisie PR-a wydania.
 
-**Pięć punktów kontrolnych z lekcji 22 i gdzie je spełniamy** (każdy musi być „tak” przed §7 pkt 2):
+**Pięć punktów kontrolnych wydania i gdzie je spełniamy** (każdy musi być „tak” przed §7 pkt 2):
 
-| Punkt lekcji | U nas |
+| Punkt kontrolny | U nas |
 |---|---|
 | 1. Wybrane zgłoszenia i PR-y do wydania | §4 (porządek w zgłoszeniach) i lista scalonych PR-ów w opisie PR-a wydania (§5 pkt 6); otwarte `priority-high` w zakresie rozstrzyga właściciel |
 | 2. Gałąź przedwydaniowa ze stabilnym CI, aktualnym `CHANGELOG.md` i `UPGRADE_NOTES.md` | gałąź PR-a wydania `release/vX.Y.Z` (§5), wiersze 1–8 tej listy |
@@ -150,9 +150,9 @@ Po oknie obserwacji właściciel ogłasza wydanie restauracjom (co nowego, co zr
 | Kanał ogłoszeń dla restauracji, kamienie milowe | otwarte | §4, §8 |
 | Próba odtworzenia z taga (raz przed pierwszym prawdziwym wydaniem) | nie wykonana | §12 |
 
-## 12. Próba odtworzenia z taga (ćwiczenie odzyskiwania)
+## 12. Próba odtworzenia z taga (próba odzyskiwania)
 
-Praca domowa lekcji 22: wydanie z changelogiem, migracja zaplanowana **z wycofaniem**, GitHub Release, a potem **odtworzenie poprzedniej wersji z taga**, żeby udowodnić, że procedura odzyskiwania działa. To **próba**: właściciel (albo operator) robi ją **raz przed pierwszym prawdziwym wydaniem**, potem po każdej zmianie obrazu, Compose albo procesu wycofania. Wyłącznie na instancji próbnej (DEPLOYMENT.md §13, osobny projekt Compose `-p wine-trial`, osobna baza), nigdy na produkcji; agent może przygotować polecenia, wykonuje człowiek.
+Pełna próba cyklu: wydanie z changelogiem, migracja zaplanowana **z wycofaniem**, GitHub Release, a potem **odtworzenie poprzedniej wersji z taga**, żeby udowodnić, że procedura odzyskiwania działa. To **próba**: właściciel (albo operator) robi ją **raz przed pierwszym prawdziwym wydaniem**, potem po każdej zmianie obrazu, Compose albo procesu wycofania. Wyłącznie na instancji próbnej (DEPLOYMENT.md §13, osobny projekt Compose `-p wine-trial`, osobna baza), nigdy na produkcji; agent może przygotować polecenia, wykonuje człowiek.
 
 > **Uwaga, destrukcyjne polecenia (`pg_restore --clean`, `down -v`).** `docker-compose.yml` ma na stałe `name: wine-match`, więc polecenie `docker compose` bez `-p` dotyka projektu produkcyjnego. **Każde** `docker compose` w tej sekcji, także skopiowane z DEPLOYMENT.md §9, §10.3 i §13, ma mieć `-p wine-trial` i biec wyłącznie na instancji próbnej (osobny host albo osobna maszyna, nigdy na hoście produkcji). Przed krokiem 4 uruchom `docker compose -p wine-trial ps` i sprawdź, że widzisz usługi próbne, a nie produkcyjne.
 
