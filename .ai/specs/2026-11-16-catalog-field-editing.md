@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-progress
 created: 2026-11-16
 owner: Filip Niedziela
 related: [.ai/specs/2026-11-04-panel-completion.md (E13), .ai/specs/2026-11-04-restaurant-operations.md (E19), .ai/specs/2026-11-04-data-and-import-completion.md (E20), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12), .ai/specs/implemented/2026-10-14-phase3-sommelier-writes.md, .ai/specs/2026-11-16-interactive-demo-entry.md, .ai/runs/2026-11-16-catalog-field-editing-spec.md]

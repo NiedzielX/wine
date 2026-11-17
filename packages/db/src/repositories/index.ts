@@ -4,6 +4,8 @@ import {
   ENGINE_VERSION, InvariantError, NotFoundError, VersionConflictError, buildSnapshot, currentContent, readContentSnapshot, readSnapshot, sameTranslations,
   type PublishInput, type PublishedVersionRecord,
   profileVersion, dishScales, wineScales,
+  assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion,
+  type CatalogEditRecord, type CatalogEditRepository, type CatalogWriteRepository, type DishFields, type WineFields,
   type ContentWriteRepository, type DishProfile, type WineProfile, type ProfileEditRecord, type ProfileWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
@@ -12,10 +14,11 @@ import {
   type CheckKey, type CheckTotals, type SalesPeriod, type SalesRepository
 } from '@wine-match/core';
 import {
-  DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, ProfileEditEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
+  CatalogEditEntity, DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, ProfileEditEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
   type PublishedVersionRow
 } from '../entities';
 import { translate } from './errors';
+import { lockCatalog } from './locks';
 import { isUuid } from './ids';
 import { toRecommendationCode, type RecommendationCodeSqlRow } from '../mappers';
 import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairing, toRestaurant, toWine } from '../mappers';
@@ -439,6 +442,101 @@ export class PgProfileWriteRepository implements ProfileWriteRepository {
     const out = rows.map((r) => ({ id: r.id, kind: r.kind, subjectId: r.subjectId, actor: r.actor, actorId: r.actorId ?? null, before: r.before, after: r.after, at: r.createdAt.toISOString() }));
     this.em.clear();
     return out;
+  }
+}
+
+/**
+ * Writes of dish and wine fields. One transaction: the catalog lock of the restaurant, the row `FOR UPDATE`, the caller's
+ * fingerprint against the locked row, uniqueness (name, wine key, list number) re-checked on the locked state, the fields
+ * and the audit row together. Everything is scoped by `restaurant_id`; a foreign or unknown id is NotFoundError.
+ */
+export class PgCatalogWriteRepository implements CatalogWriteRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  private audit(em: EntityManager, restaurantId: string, e: CatalogEditRecord) {
+    em.create(CatalogEditEntity, {
+      id: e.id, restaurant: em.getReference(RestaurantEntity, restaurantId), kind: e.kind, subjectId: e.subjectId, action: e.action, actor: e.actor,
+      actorId: e.actorId, before: e.before, after: e.after, identity: e.identity, createdAt: new Date(e.at)
+    });
+  }
+
+  async updateDish(restaurantId: string, dishId: string, next: DishFields, expectedVersion: string | undefined, edit: CatalogEditRecord) {
+    if (!isUuid(dishId) || !isUuid(restaurantId)) throw new NotFoundError('Dish');
+    try {
+      await this.em.transactional(async (em) => {
+        await lockCatalog(em, restaurantId);
+        const d = await em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!d) throw new NotFoundError('Dish');
+        const current = dishFieldsOf(toDish(d));
+        checkFieldsVersion(dishFieldsVersion(current), expectedVersion);
+        const all = await em.find(DishEntity, { restaurant: restaurantId, deletedAt: null });
+        assertDishUnique(current, next, d.id, all.map((x) => ({ id: x.id, name: x.name })));
+        d.name = next.name;
+        d.description = next.description;
+        d.category = next.category;
+        d.price = next.price;
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async updateWine(restaurantId: string, wineId: string, next: WineFields, expectedVersion: string | undefined, edit: CatalogEditRecord) {
+    if (!isUuid(wineId) || !isUuid(restaurantId)) throw new NotFoundError('Wine');
+    try {
+      await this.em.transactional(async (em) => {
+        await lockCatalog(em, restaurantId);
+        const w = await em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!w) throw new NotFoundError('Wine');
+        const current = wineFieldsOf(toWine(w));
+        checkFieldsVersion(wineFieldsVersion(current), expectedVersion);
+        const all = await em.find(WineEntity, { restaurant: restaurantId, deletedAt: null });
+        assertWineUnique(current, next, w.id, all.map(toWine));
+        w.producer = next.producer;
+        w.name = next.name;
+        w.vintage = next.vintage === 'NV' ? null : next.vintage;
+        w.region = next.region;
+        w.country = next.country;
+        w.tastingNote = next.tastingNote;
+        w.listNumber = next.listNumber;
+        w.bottlePrice = next.bottlePrice;
+        w.glassPrice = next.glassPrice;
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+}
+
+export class PgCatalogEditRepository implements CatalogEditRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  async list(restaurantId: string, filter: { kind?: 'dish' | 'wine'; subjectId?: string; identityOnly?: boolean } = {}) {
+    if (!isUuid(restaurantId) || (filter.subjectId && !isUuid(filter.subjectId))) return [];
+    const rows = await this.em.find(
+      CatalogEditEntity,
+      {
+        restaurant: restaurantId, ...(filter.kind ? { kind: filter.kind } : {}), ...(filter.subjectId ? { subjectId: filter.subjectId } : {}),
+        ...(filter.identityOnly ? { identity: true } : {})
+      },
+      { orderBy: { createdAt: 'desc', id: 'asc' } }
+    );
+    const out: CatalogEditRecord[] = rows.map((r) => ({
+      id: r.id, kind: r.kind, subjectId: r.subjectId, action: r.action, actor: r.actor, actorId: r.actorId ?? null, before: r.before ?? null, after: r.after,
+      identity: r.identity, at: r.createdAt.toISOString()
+    }));
+    this.em.clear();
+    return out;
+  }
+
+  async latest(restaurantId: string, kind: 'dish' | 'wine', subjectId: string) {
+    return (await this.list(restaurantId, { kind, subjectId }))[0] ?? null;
   }
 }
 
