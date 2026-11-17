@@ -8,6 +8,7 @@ import { CatalogEditService } from '../src/services/catalog/catalog-edit-service
 import { dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../src/services/catalog/catalog-edit-rules';
 import { PublishService } from '../src/services/publishing/publish-service';
 import { SommelierService } from '../src/services/pairings/sommelier-service';
+import { AdminService } from '../src/services/dashboard/admin-service';
 
 /** Spec 2026-11-16-catalog-field-editing, C1a: CatalogEditService (R1 to R6, R9, R10, R15; AC1 to AC6, AC20, AC21). */
 
@@ -77,7 +78,9 @@ describe('updateDish (R1, R3, R10, AC1, AC5)', () => {
   it('reports every wrong field, writes nothing and refuses extra fields and an empty body (AC1)', async () => {
     const t = setup();
     const d = halibut();
-    expect(await fieldsOf(t.svc.updateDish('halka', d.id, { name: '', price: 0, category: 'Snacks' }, ACTOR))).toEqual({ name: 'required', price: 'not_positive', category: 'invalid' });
+    expect(await fieldsOf(t.svc.updateDish('halka', d.id, { name: '', price: 0, description: 'x'.repeat(1001) }, ACTOR))).toEqual({ name: 'required', price: 'not_positive', description: 'too_long' });
+    // a value of the wrong type is refused first, before anything is looked up or any content rule is applied
+    expect(await fieldsOf(t.svc.updateDish('halka', d.id, { category: 'Snacks', price: 'ten' }, ACTOR))).toEqual({ category: 'invalid', price: 'invalid' });
     expect(await fieldsOf(t.svc.updateDish('halka', d.id, { price: 12.345 }, ACTOR))).toEqual({ price: 'too_many_decimals' });
     expect(await fieldsOf(t.svc.updateDish('halka', d.id, { profile: {}, status: 'hidden' }, ACTOR))).toMatchObject({ profile: 'unknown_field', status: 'unknown_field' });
     expect(await fieldsOf(t.svc.updateDish('halka', d.id, {}, ACTOR))).toEqual({ body: 'required' });
@@ -244,5 +247,48 @@ describe('a rename of something with sommelier pairings (R15, AC20)', () => {
     expect((await t.svc.updateWine('halka', wineId, { region: 'Elsewhere' }, ACTOR, undefined, { identityConfirmed: false })).changed).toBe(true);
     expect((await t.svc.updateWine('halka', wineId, { vintage: 1999 }, ACTOR, undefined, { identityConfirmed: true })).changed).toBe(true);
     expect((await t.repos.catalogEditRepository.latest(RID, 'wine', wineId))!.identity).toBe(true);
+  });
+});
+
+describe('what A3, A5 and the review queue show after an edit (R10, R11, R15, AC20, AC21)', () => {
+  it('marks the pairings of a renamed dish until each has a newer decision, and lists it in the review queue', async () => {
+    const t = setup();
+    const admin = new AdminService(t.repos);
+    const d = halibut();
+    const approved = (await t.repos.pairingRepository.listByDish(RID, d.id)).filter((p) => p.status === 'approved' || p.status === 'modified');
+    expect((await admin.dishDetail('halka', d.id))!.pairsToCheck).toBe(0);
+    await t.svc.updateDish('halka', d.id, { price: 70 }, ACTOR);
+    expect((await admin.dishDetail('halka', d.id))!.pairsToCheck).toBe(0);
+    expect((await admin.reviewQueue('halka'))!.renamed).toEqual([]);
+    await t.svc.updateDish('halka', d.id, { name: 'Duck breast, new name' }, ACTOR);
+    const after = (await admin.dishDetail('halka', d.id))!;
+    expect(after.pairsToCheck).toBe(approved.length);
+    expect(after.lastEdit).toMatchObject({ actor: ACTOR.name });
+    expect((await admin.reviewQueue('halka'))!.renamed).toMatchObject([{ kind: 'dish', id: d.id, name: 'Duck breast, new name', pairs: approved.length }]);
+    // a decision on one pair after the rename clears its mark
+    const first = (await t.repos.pairingRepository.listByDish(RID, d.id)).find((p) => p.id === approved[0].id)!;
+    await t.som.setComment('halka', first.id, 'Checked after the rename', ACTOR, first.version);
+    expect((await admin.dishDetail('halka', d.id))!.pairsToCheck).toBe(approved.length - 1);
+    // the wine side: each approved pair of a renamed wine is marked, the others are not
+    const pair = approved[1] ?? approved[0];
+    const wineId = pair.wineId;
+    await t.svc.updateWine('halka', wineId, { vintage: 1999 }, ACTOR);
+    const wd = (await admin.wineDetail('halka', wineId))!;
+    expect(wd.approvedFor.some((x) => x.checkAfterRename)).toBe(true);
+    expect(wd.pairsToCheck).toBe(wd.approvedFor.filter((x) => x.checkAfterRename).length);
+  });
+
+  it('names the stale translation languages until the next publish, only for the fields the last edit changed', async () => {
+    const t = setup();
+    const admin = new AdminService(t.repos);
+    const d = halibut();
+    await t.repos.contentWriteRepository.setDishTranslations(RID, d.id, { en: { name: 'Duck' } });
+    await t.publish.publish('halka', ACTOR);
+    await t.svc.updateDish('halka', d.id, { price: 71 }, ACTOR);
+    expect((await admin.dishDetail('halka', d.id))!.staleLocales).toEqual([]);
+    await t.svc.updateDish('halka', d.id, { name: 'Duck breast, new name' }, ACTOR);
+    expect((await admin.dishDetail('halka', d.id))!.staleLocales).toEqual(['en']);
+    await t.repos.publishRepository.publish(RID, { actor: ACTOR.name, at: '2026-12-01T10:00:00.000Z', id: '00000000-0000-4000-8000-0000000000bb' });
+    expect((await admin.dishDetail('halka', d.id))!.staleLocales).toEqual([]);
   });
 });

@@ -33,7 +33,7 @@ export function TranslationsCard({ action, hidden, fields, translations, version
   const m = t.admin.translations;
   const names = t.common.languageNames;
   return (
-    <Card className="lg:col-span-2">
+    <Card id="translations" className="lg:col-span-2">
       <CardHeader>
         <CardTitle>{m.title}</CardTitle>
         <CardDescription>{m.text} {m.base(names[contentLocale])}. {m.afterPublish}</CardDescription>

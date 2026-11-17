@@ -20,11 +20,13 @@ const dishFieldShape = {
 /** The fields as the service reads them (the service decides "nothing sent" itself, see `CatalogEditService`). */
 export const dishFieldsSchema = z.strictObject(dishFieldShape).partial();
 
-/** The request body of `PATCH /dishes/{id}/details`: the fields, at least one of them. */
-export const dishDetailsSchema = dishFieldsSchema.refine((o) => Object.keys(o).length > 0, 'required');
-
-/** The names a body may carry, with any value: the first look at an input, before the values are checked. */
-export const dishShapeSchema = z.strictObject({ name: z.unknown(), description: z.unknown(), category: z.unknown(), price: z.unknown() }).partial()
+/**
+ * The first look at an input (and the body schema of `PATCH /dishes/{id}/details`): only the names a body may carry, each with a
+ * value of the right TYPE, and at least one of them. The content rules (length, characters, the price's range and decimals) are
+ * `dishFieldsSchema`'s and run in the service after the fields that equal the stored ones are set aside, so a stored value that
+ * breaks a new rule never blocks editing another field (R1).
+ */
+export const dishShapeSchema = z.strictObject({ name: z.string(), description: z.string(), category: z.enum(DISH_CATEGORY_VALUES), price: z.number() }).partial()
   .refine((o) => Object.keys(o).length > 0, 'required');
 
 export type DishDetailsInput = z.output<typeof dishFieldsSchema>;

@@ -39,12 +39,10 @@ const wineFieldShape = {
 
 export const wineFieldsSchema = z.strictObject(wineFieldShape).partial();
 
-/** The request body of `PATCH /wines/{id}/details`: the fields, at least one of them. */
-export const wineDetailsSchema = wineFieldsSchema.refine((o) => Object.keys(o).length > 0, 'required');
-
+/** The first look at a wine input: names and types only, at least one field (see `dishShapeSchema`); the content rules run in the service. */
 export const wineShapeSchema = z.strictObject({
-  producer: z.unknown(), name: z.unknown(), vintage: z.unknown(), region: z.unknown(), country: z.unknown(), tastingNote: z.unknown(),
-  listNumber: z.unknown(), bottlePrice: z.unknown(), pouredByGlass: z.unknown(), glassPrice: z.unknown()
+  producer: z.string(), name: z.string(), vintage: z.union([z.literal('NV'), z.number().int()]), region: z.string(), country: z.string(), tastingNote: z.string(),
+  listNumber: z.number().int().nullable(), bottlePrice: z.number(), pouredByGlass: z.boolean(), glassPrice: z.number()
 }).partial().refine((o) => Object.keys(o).length > 0, 'required');
 
 export type WineDetailsInput = z.output<typeof wineFieldsSchema>;

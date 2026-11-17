@@ -5,9 +5,9 @@ import {
 } from '../src/services/catalog/catalog-edit-rules';
 import type { DishFields, WineFields } from '../src/ports/repositories';
 import { catalogText, cleanCatalogText } from '../src/validators/catalog/catalog-text';
-import { dishDetailsSchema, dishFieldsSchema, dishShapeSchema } from '../src/validators/catalog/dish-fields.schema';
+import { dishFieldsSchema, dishShapeSchema } from '../src/validators/catalog/dish-fields.schema';
 import { parseFormPrice } from '../src/validators/catalog/form-price';
-import { wineDetailsSchema, wineFieldsSchema } from '../src/validators/catalog/wine-fields.schema';
+import { wineFieldsSchema, wineShapeSchema } from '../src/validators/catalog/wine-fields.schema';
 import { parseWith } from '../src/validators/parse';
 
 /** Spec 2026-11-16-catalog-field-editing, C1a: R1 to R4 as pure rules (AC1, AC2, AC3, AC5). */
@@ -64,9 +64,8 @@ describe('dish schema (R1, AC1)', () => {
   });
 
   it('keeps unknown keys out, including __proto__, and wants at least one field in a body', () => {
-    expect(Object.keys(fieldsOf(() => parseWith(dishDetailsSchema, JSON.parse('{"__proto__": 1}'))))).toContain('__proto__');
-    expect(fieldsOf(() => parseWith(dishDetailsSchema, {}))).toEqual({ body: 'required' });
-    expect(fieldsOf(() => parseWith(dishShapeSchema, {}))).toEqual({ body: 'required' });
+    expect(Object.keys(fieldsOf(() => parseWith(dishShapeSchema, JSON.parse('{"__proto__": 1}'))))).toContain('__proto__');
+        expect(fieldsOf(() => parseWith(dishShapeSchema, {}))).toEqual({ body: 'required' });
   });
 });
 
@@ -80,7 +79,7 @@ describe('wine schema (R2, AC2)', () => {
     expect(fieldsOf(() => parseWith(wineFieldsSchema, { listNumber: 10000 }))).toEqual({ listNumber: 'out_of_range' });
     expect(fieldsOf(() => parseWith(wineFieldsSchema, { bottlePrice: 100_000.5, glassPrice: 0 }))).toEqual({ bottlePrice: 'out_of_range', glassPrice: 'not_positive' });
     expect(fieldsOf(() => parseWith(wineFieldsSchema, { pouredByGlass: 'yes', producer: ' ', name: 'x'.repeat(161) }))).toEqual({ pouredByGlass: 'invalid', producer: 'required', name: 'too_long' });
-    expect(fieldsOf(() => parseWith(wineDetailsSchema, {}))).toEqual({ body: 'required' });
+    expect(fieldsOf(() => parseWith(wineShapeSchema, {}))).toEqual({ body: 'required' });
   });
 });
 

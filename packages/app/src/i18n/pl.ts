@@ -607,6 +607,8 @@ export const pl = {
         profile_confirmed: () => 'Profil zapisany i potwierdzony. Goście zobaczą go po publikacji.',
         profile_draft: () => 'Profil zapisany jako szkic. Goście zobaczą go po publikacji.',
         profile_unchanged: () => 'Nic do zmiany: profil jest już taki.',
+        catalog_saved: (languages: string) => `Zapisano. Goście widzą zmianę od razu. Tłumaczenia zostają jak w publikacji: sprawdź je.${languages ? ` Tłumaczenia (${languages.toUpperCase().split(',').join(', ')}) mogą być nieaktualne.` : ''}`,
+        catalog_unchanged: () => 'Nic do zmiany: dane są już takie.',
         translations: () => 'Tłumaczenia zapisane. Goście zobaczą je po publikacji.',
         content: () => 'Język treści i tłumaczenia zapisane. Goście zobaczą je po publikacji.',
         suggestion_added: () => 'Dodano do propozycji — zatwierdź je w „Propozycjach silnika”. Goście zobaczą zmianę dopiero po zatwierdzeniu i publikacji.',
@@ -666,6 +668,7 @@ export const pl = {
         member_deactivated: 'Dostęp tej osoby jest odebrany. Przywróć go przed zmianą roli.',
         already_member: 'Ta osoba jest już w zespole tej restauracji. Jeśli odebrano jej dostęp, przywróć go na liście.',
         invitation_conflict: 'Inne zaproszenie na ten adres powstało w tej samej chwili. Spróbuj ponownie.',
+        catalog_conflict: 'Ktoś zmienił menu lub kartę win, gdy ten import był otwarty, i jedna z nowych pozycji już istnieje. Nic nie zaimportowano: zacznij import od nowa.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
     },
@@ -802,6 +805,7 @@ export const pl = {
       toReview: (n: number) => `do przeglądu: ${n}`
     },
     dish: {
+      moreDetails: 'Pozostałe dane',
       back: 'Menu',
       managePairings: 'Zarządzaj parowaniami',
       details: 'Szczegóły',
@@ -850,6 +854,8 @@ export const pl = {
       show: 'Pokaż'
     },
     wine: {
+      moreDetails: 'Styl i podawanie',
+      bottleSize: 'Pojemność butelki',
       back: 'Karta win',
       listing: 'Karta i ceny',
       style: 'Styl',
@@ -887,6 +893,9 @@ export const pl = {
       doneText: 'Goście widzą najpierw Twoje zatwierdzone parowania, a pozostałe miejsca uzupełnia silnik.',
       noPrimary: 'Brak podstawowego wyboru',
       approveDish: 'Zatwierdź wszystkie dla dania',
+      renamedTitle: 'Zmieniono nazwę: sprawdź pary',
+      renamedText: 'Nazwa zmieniła się po decyzjach o tych parowaniach. Sprawdź, czy nadal pasują, potem zdecyduj ponownie albo zostaw je.',
+      renamedItem: (pairs: number) => `Zmieniono nazwę, sprawdź pary: ${pairs}`,
       openPairings: 'Otwórz parowania',
       approve: 'Zatwierdź',
       reject: 'Odrzuć'
@@ -1261,6 +1270,49 @@ export const pl = {
       guestWineTitle: 'Gdzie wino wchodzi do najlepszych propozycji lub z nich wypada',
       guestWineNone: 'Wino zachowuje miejsce w najlepszych propozycjach każdego dania.',
       error: 'Podgląd wymaga poprawnych wartości.'
+    },
+    catalog: {
+      dish: {
+        title: 'Dane dania',
+        text: 'Nazwa, opis, kategoria i cena, które goście czytają w menu. Zmiana jest od razu widoczna dla gości.',
+        name: 'Nazwa', description: 'Opis', category: 'Kategoria', price: 'Cena (zł)',
+        baseHint: 'To tekst bazowy. Tłumaczenia są niżej.',
+        renameHint: 'Zmiana nazwy zmienia dopasowanie importu z pliku: późniejszy import starej nazwy utworzy nowe danie.'
+      },
+      wine: {
+        title: 'Pozycja na karcie',
+        text: 'Producent, nazwa, rocznik, region, ceny i numer na karcie. Zmiana jest od razu widoczna dla gości.',
+        producer: 'Producent', name: 'Wino', vintage: 'Rocznik (rok albo NV)', region: 'Region', country: 'Kraj', tastingNote: 'Nota degustacyjna',
+        listNumber: 'Nr na karcie', listNumberHint: 'Zostaw puste, jeśli wina nie ma na drukowanej karcie.', bottlePrice: 'Cena butelki (zł)',
+        pouredByGlass: 'Na kieliszki', glassPrice: 'Cena kieliszka (zł)', glassHint: 'Liczy się tylko, gdy wino jest na kieliszki; w przeciwnym razie zostaw bez zmian.',
+        baseHint: 'To tekst bazowy. Tłumaczenia są niżej.'
+      },
+      save: 'Zapisz zmiany',
+      readOnly: 'Twoja rola nie może zmieniać tych danych.',
+      identity: {
+        dish: 'To danie ma {n} parowań sommeliera. Zmień nazwę tylko po to, by ją poprawić, nie by zastąpić danie.',
+        wine: 'To wino ma {n} parowań sommeliera. Zmień producenta, nazwę lub rocznik tylko po to, by je poprawić, nie by zastąpić wino.',
+        confirm: 'Poprawiam, nie zastępuję'
+      },
+      lastEditBy: 'Ostatnia zmiana: {name}, {date}',
+      lastEdit: 'Ostatnia zmiana: {date}',
+      stale: 'Tłumaczenia ({languages}) mogą być nieaktualne.',
+      staleLink: 'Sprawdź tłumaczenia',
+      checkAfterRename: 'Sprawdź po zmianie nazwy',
+      pairsToCheck: 'Parowania do sprawdzenia po zmianie nazwy: {n}',
+      errors: {
+        required: 'Uzupełnij to pole.', too_long: 'Za długie.', not_positive: 'Musi być większe od zera.', too_many_decimals: 'Najwyżej dwa miejsca po przecinku.',
+        glass_not_below_bottle: 'Kieliszek musi kosztować mniej niż butelka.', duplicate: 'Inna pozycja ma już tę nazwę.', transition: 'Ta zmiana nie jest dozwolona.',
+        not_a_number: 'Wpisz liczbę, np. 58 albo 58,50.', not_allowed: 'Włącz „Na kieliszki”, aby ustawić cenę kieliszka.', out_of_range: 'Poza dozwolonym zakresem.',
+        invalid: 'Niepoprawna wartość.', invalid_chars: 'Usuń znaki sterujące lub niewidoczne.', identity_unconfirmed: 'Potwierdź, że poprawiasz nazwę.',
+        unknown_field: 'Nieznane pole.'
+      } as Record<string, string>,
+      formErrors: {
+        version_conflict_dish: 'Ktoś w międzyczasie zmienił to danie. Odśwież stronę.',
+        version_conflict_wine: 'Ktoś w międzyczasie zmienił to wino. Odśwież stronę.',
+        forbidden: 'Nie masz uprawnień do tej zmiany.', not_found: 'Ta pozycja już nie istnieje.', validation_failed: 'Sprawdź zaznaczone niżej pola. Nic nie zapisano.',
+        unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione; spróbuj ponownie.'
+      } as Record<string, string>
     },
     translations: {
       title: 'Tłumaczenia',

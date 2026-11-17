@@ -6,8 +6,10 @@ import type { Repositories } from '../../ports/repositories';
 import { orderReviewed } from '../pairings/pairing-rules';
 import { countProfileChanges } from '../publishing/snapshot';
 import { countContentChanges, localizeComment, localizeDish, localizeRestaurant, localizeWine } from '../../i18n/content';
+import type { CatalogEditRecord } from '../../ports/repositories';
+import { dishFieldsOf, dishFieldsVersion, staleTranslationLocales, wineFieldsOf, wineFieldsVersion } from '../catalog/catalog-edit-rules';
 
-export type AdminServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository'>;
+export type AdminServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository' | 'catalogEditRepository'>;
 
 /**
  * Read models for the restaurant / sommelier dashboard. Read-only: writes arrive with Phase 3.
@@ -16,6 +18,8 @@ export type AdminServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dish
 
 const isApproved = (p: Pairing) => p.status === 'approved' || p.status === 'modified';
 const ci = (s: string) => s.toLocaleLowerCase('en');
+/** A sommelier-decided pairing with no decision newer than the last rename of its dish or wine (R15): derived, no column. */
+const needsCheck = (p: Pairing, rename: Pick<CatalogEditRecord, 'at'>) => isApproved(p) && p.updatedAt <= rename.at;
 
 export interface RestaurantOverview {
   restaurant: Restaurant;
@@ -37,7 +41,19 @@ export interface MenuView { restaurant: Restaurant; rows: AdminMenuRow[]; total:
 export interface ScoredWine { wine: Wine; score: number; why: string }
 export interface ScoredDish { dish: Dish; score: number; why: string }
 
-export interface DishDetail {
+/** What A3 and A5 show about the last edit of the fields (spec 2026-11-16-catalog-field-editing, R10, R11, R15). */
+export interface CatalogEditInfo {
+  /** the fingerprint of the editable fields: the hidden `version` of the form, the `ETag` of the API */
+  fieldsVersion: string;
+  /** the newest audit row (who and when); the page shows the name only to roles with `audit.view` */
+  lastEdit: { actor: string; at: string } | null;
+  /** languages whose translation guests still read from the last publish although the last edit changed its field (R11, N2) */
+  staleLocales: Locale[];
+  /** approved or modified pairings that have no decision newer than the last rename (R15) */
+  pairsToCheck: number;
+}
+
+export interface DishDetail extends CatalogEditInfo {
   restaurant: Restaurant;
   /** in the panel's language */
   dish: Dish;
@@ -51,19 +67,22 @@ export interface AdminWineRow { wine: Wine; approvedPairings: number }
 export interface WineFilter { q?: string; style?: WineStyle }
 export interface WineListView { restaurant: Restaurant; rows: AdminWineRow[]; total: number; active: number; byGlass: number }
 
-export interface WineDetail {
+export interface WineDetail extends CatalogEditInfo {
   restaurant: Restaurant;
   wine: Wine;
   /** as stored (the translation form) */
   source: Wine;
   bestDishes: ScoredDish[];
-  approvedFor: Array<{ dish: Dish; role: PairingRole | null; status: Pairing['status'] }>;
+  approvedFor: Array<{ dish: Dish; role: PairingRole | null; status: Pairing['status']; checkAfterRename: boolean }>;
 }
 
 export interface ReviewItem { pairing: Pairing; wine: Wine; why: string }
 export interface ReviewGroup { dish: Dish; hasPrimary: boolean; items: ReviewItem[] }
+/** A dish or wine renamed since its pairings were last decided: "Name changed, check the pairs" (R15). */
+export interface RenamedItem { kind: 'dish' | 'wine'; id: string; name: string; pairs: number; at: string }
 export interface ReviewQueue {
   restaurant: Restaurant;
+  renamed: RenamedItem[];
   progress: { reviewedDishes: number; dishesWithPairings: number; suggestions: number };
   groups: ReviewGroup[];
 }
@@ -255,6 +274,21 @@ export class AdminService {
     };
   }
 
+  /** The audit-derived facts A3 and A5 show (R10, R11, R15). `pairs` are the pairings of this dish or wine. */
+  private async catalogInfo(restaurantId: string, kind: 'dish' | 'wine', subjectId: string, fieldsVersion: string, pairs: Pairing[]): Promise<CatalogEditInfo> {
+    const edits = this.repos.catalogEditRepository;
+    const [last, identity, published] = await Promise.all([edits.latest(restaurantId, kind, subjectId), edits.list(restaurantId, { kind, subjectId, identityOnly: true }), this.repos.publishRepository.latest(restaurantId)]);
+    let staleLocales: Locale[] = [];
+    if (last && (!published || last.at > published.publishedAt)) {
+      const content = await this.repos.publishRepository.publishedContent(restaurantId);
+      staleLocales = staleTranslationLocales(kind, Object.keys(last.after), (kind === 'dish' ? content.dishes : content.wines).get(subjectId));
+    }
+    return {
+      fieldsVersion, lastEdit: last ? { actor: last.actor, at: last.at } : null, staleLocales,
+      pairsToCheck: identity[0] ? pairs.filter((p) => needsCheck(p, identity[0])).length : 0
+    };
+  }
+
   async dishDetail(slug: string, dishId: string, locale: Locale = 'en'): Promise<DishDetail | null> {
     const d = await this.load(slug, locale);
     const dish = d?.dishes.find((x) => x.id === dishId);
@@ -266,8 +300,11 @@ export class AdminService {
       .slice(0, TOP)
       .map(({ wine, score, why }) => ({ wine, score, why }));
     const ps = d.pairings.filter((p) => p.dishId === dish.id);
+    const source = d.raw.dishes.find((x) => x.id === dish.id) ?? dish;
+    const info = await this.catalogInfo(d.restaurant.id, 'dish', dish.id, dishFieldsVersion(dishFieldsOf(source)), ps);
     return {
-      restaurant: d.restaurant, dish, source: d.raw.dishes.find((x) => x.id === dish.id) ?? dish, topMatches,
+      ...info,
+      restaurant: d.restaurant, dish, source, topMatches,
       pairings: { approved: ps.filter(isApproved).length, suggested: ps.filter((p) => p.status === 'suggested').length, rejected: ps.filter((p) => p.status === 'rejected').length, hasPrimary: ps.some((p) => isApproved(p) && p.role === 'primary') }
     };
   }
@@ -295,13 +332,17 @@ export class AdminService {
       .sort((a, b) => b.score - a.score || a.dish.id.localeCompare(b.dish.id))
       .slice(0, TOP)
       .map(({ dish, score, why }) => ({ dish, score, why }));
-    const approvedFor = d.pairings
-      .filter((p) => p.wineId === wine.id && isApproved(p))
+    const mine = d.pairings.filter((p) => p.wineId === wine.id);
+    const source = d.raw.wines.find((x) => x.id === wine.id) ?? wine;
+    const info = await this.catalogInfo(d.restaurant.id, 'wine', wine.id, wineFieldsVersion(wineFieldsOf(source)), mine);
+    const renamedAt = (await this.repos.catalogEditRepository.list(d.restaurant.id, { kind: 'wine', subjectId: wine.id, identityOnly: true }))[0];
+    const approvedFor = mine
+      .filter((p) => isApproved(p))
       .flatMap((p) => {
         const dish = d.dishes.find((x) => x.id === p.dishId);
-        return dish ? [{ dish, role: p.role, status: p.status }] : [];
+        return dish ? [{ dish, role: p.role, status: p.status, checkAfterRename: renamedAt ? needsCheck(p, renamedAt) : false }] : [];
       });
-    return { restaurant: d.restaurant, wine, source: d.raw.wines.find((x) => x.id === wine.id) ?? wine, bestDishes, approvedFor };
+    return { ...info, restaurant: d.restaurant, wine, source, bestDishes, approvedFor };
   }
 
   async reviewQueue(slug: string, locale: Locale = 'en'): Promise<ReviewQueue | null> {
@@ -322,8 +363,19 @@ export class AdminService {
     }
     const pairedIds = new Set(d.pairings.map((p) => p.dishId));
     const reviewedIds = new Set(d.pairings.filter(isApproved).map((p) => p.dishId));
+    const renamed: RenamedItem[] = [];
+    const seen = new Set<string>();
+    for (const e of await this.repos.catalogEditRepository.list(d.restaurant.id, { identityOnly: true })) {
+      const key = `${e.kind}:${e.subjectId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const item = e.kind === 'dish' ? d.dishes.find((x) => x.id === e.subjectId) : d.wines.find((x) => x.id === e.subjectId);
+      if (!item) continue;
+      const pairs = d.pairings.filter((p) => (e.kind === 'dish' ? p.dishId : p.wineId) === e.subjectId && needsCheck(p, e)).length;
+      if (pairs > 0) renamed.push({ kind: e.kind, id: e.subjectId, name: 'producer' in item ? `${item.producer} ${item.name}` : item.name, pairs, at: e.at });
+    }
     return {
-      restaurant: d.restaurant,
+      restaurant: d.restaurant, renamed,
       progress: { reviewedDishes: [...pairedIds].filter((id) => reviewedIds.has(id)).length, dishesWithPairings: pairedIds.size, suggestions: d.pairings.filter((p) => p.status === 'suggested').length },
       groups
     };

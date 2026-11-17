@@ -26,10 +26,14 @@ export interface CatalogEditResult<F> {
 }
 
 /**
- * Options of the panel's forms. `identityConfirmed` is only asked for when given: the form of A3 and A5 has a separate
+ * Options of the panel's forms. `identityConfirmed` is only asked for when options are given: the form of A3 and A5 has a separate
  * confirmation for a rename of something that has sommelier pairings (R15); the API does not send it.
  */
-export interface CatalogEditOptions { identityConfirmed?: boolean }
+export interface CatalogEditOptions {
+  identityConfirmed?: boolean;
+  /** plan and check everything, write nothing (a form that already knows one field is wrong still wants the other fields' problems) */
+  validateOnly?: boolean;
+}
 
 /**
  * Commands that edit the fields of dishes and wines (spec 2026-11-16-catalog-field-editing, R1 to R5, R15). Like every
@@ -91,6 +95,7 @@ export class CatalogEditService {
     const plan = planDishEdit(current, values, { selfId: dish.id, others });
     if (!plan.changed) return { changed: false, fields: current, version, staleLocales: [] };
     if (plan.identity) await this.requireIdentityConfirmation('name', opts, async () => (await this.d.pairingRepository.listByDish(r.id, dish.id)).filter((p) => p.status === 'approved' || p.status === 'modified').length);
+    if (opts?.validateOnly) return { changed: true, fields: plan.next, version, staleLocales: [] };
     const at = this.d.clock.now().toISOString();
     await this.d.catalogWriteRepository.updateDish(r.id, dish.id, plan.next, expectedVersion, this.record('dish', dish.id, actor, at, plan));
     return { changed: true, fields: plan.next, version: dishFieldsVersion(plan.next), staleLocales: await this.stale(r.id, 'dish', dish.id, plan.keys) };
@@ -110,6 +115,7 @@ export class CatalogEditService {
     const plan = planWineEdit(current, values, { selfId: wine.id, others, maxVintage: this.d.clock.now().getUTCFullYear() + 1 });
     if (!plan.changed) return { changed: false, fields: current, version, staleLocales: [] };
     if (plan.identity) await this.requireIdentityConfirmation('name', opts, async () => (await this.d.pairingRepository.listByRestaurant(r.id)).filter((p) => p.wineId === wine.id && (p.status === 'approved' || p.status === 'modified')).length);
+    if (opts?.validateOnly) return { changed: true, fields: plan.next, version, staleLocales: [] };
     const at = this.d.clock.now().toISOString();
     await this.d.catalogWriteRepository.updateWine(r.id, wine.id, plan.next, expectedVersion, this.record('wine', wine.id, actor, at, plan));
     return { changed: true, fields: plan.next, version: wineFieldsVersion(plan.next), staleLocales: await this.stale(r.id, 'wine', wine.id, plan.keys) };
