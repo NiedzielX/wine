@@ -1,8 +1,8 @@
 import { Migrator } from '@mikro-orm/migrations';
 import { MikroORM } from '@mikro-orm/postgresql';
 import {
-  AdminService, AuthService, RecommendationCodeService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset, teamContract, invitationContract, InvitationService, SECOND_RESTAURANT, TeamService, type SecondRestaurant, type AuthEvent,
-  createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, type Repositories
+  AdminService, AuthService, RecommendationCodeService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, ProfilePreviewService, ProfileService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset, teamContract, invitationContract, InvitationService, SECOND_RESTAURANT, TeamService, type SecondRestaurant, type AuthEvent,
+  createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, dishScales, wineScales, type PublishedSnapshot, type Repositories
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
 import { createDatabase } from '@wine-match/testkit';
@@ -20,6 +20,8 @@ import { MembershipEntity, PairingEntity, UserEntity } from '../src/entities';
 import { PgAuthAuditRepository, PgTeamRepository } from '../src/repositories/team';
 import { PgInvitationRepository } from '../src/repositories/invitations';
 import { Migration20261106114659_auth_token } from '../src/migrations/Migration20261106114659_auth_token';
+import { Migration20261117105101_profile_editing } from '../src/migrations/Migration20261117105101_profile_editing';
+import { Migration20261116160715_published_snapshot_v2 } from '../src/migrations/Migration20261116160715_published_snapshot_v2';
 import { PgAuthRepository } from '../src/repositories/auth';
 import { PgImportRepository } from '../src/repositories/import';
 import { NodeImportFileParser } from '../src/import';
@@ -27,7 +29,7 @@ import { NodeSessionTokens, ScryptPasswordHasher, hashPassword, verifyPassword }
 import { RestaurantEntity } from '../src/entities';
 import { readFileSync } from 'node:fs';
 import {
-  PgContentWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
+  PgContentWriteRepository, PgProfileWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
   PgRestaurantWriteRepository, PgSalesRepository, PgWineRepository, PgWineWriteRepository
 } from '../src/repositories';
 import { DemoSeeder } from '../src/seeders/DemoSeeder';
@@ -84,6 +86,7 @@ function pgRepos(orm: MikroORM): Repositories {
     restaurantWriteRepository: new PgRestaurantWriteRepository({ em }),
     publishRepository: new PgPublishRepository({ em }),
     contentWriteRepository: new PgContentWriteRepository({ em }),
+    profileWriteRepository: new PgProfileWriteRepository({ em }),
     importRepository: new PgImportRepository({ em }),
     opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em }),
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),
@@ -106,7 +109,9 @@ function services(repos: Repositories) {
     admin: new AdminService(repos),
     imp: new ImportService({ ...repos, importFileParser: new NodeImportFileParser(), clock, idGenerator }),
     restaurantSvc: new RestaurantService(repos),
-    tr: new TranslationService(repos)
+    tr: new TranslationService(repos),
+    profiles: new ProfileService({ ...repos, clock, idGenerator }),
+    preview: new ProfilePreviewService(repos)
   };
 }
 
@@ -1058,6 +1063,136 @@ run('PostgreSQL', () => {
       // the repository, given that user as the existing account, accepts (the comparison lowers the stored side)
       const got = await new PgInvitationRepository({ em: orm.em.fork() }).accept({ tokenHash: tokens.hash(issued.token), now: new Date().toISOString(), membershipId: ids(), eventId: ids(), newAccount: null, existingUserId: otherId });
       expect(got).toMatchObject({ userId: otherId, role: 'sommelier' });
+    });
+  });
+
+  describe('published snapshot v2 on PostgreSQL (spec 2026-11-04-panel-completion, F1)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const sql = <T>(query: string, params: unknown[] = []) => orm.em.getConnection().execute<T[]>(query, params);
+    const run = async (fn: 'up' | 'down') => {
+      const migration = new Migration20261116160715_published_snapshot_v2(orm.em.getDriver(), orm.config);
+      migration.reset();
+      await migration[fn]();
+      for (const q of migration.getQueries()) await migration.execute(q);
+    };
+    const snapshots = async () => (await sql<{ number: number; snapshot: PublishedSnapshot }>('select number, snapshot from published_version where restaurant_id = ? order by number', [ds.restaurant.id]));
+
+    it('the backfill gives the latest version the profiles and menu guests saw before it; older versions stay as they were (AC4)', async () => {
+      const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+      const hidden = ds.dishes.find((d) => d.status === 'published' && d.id !== duck.id)!;
+      const draft = ds.dishes.find((d) => d.status === 'draft')!;
+      // the state before F1: versions without schema 2 (down), two of them, and working data that differs from the demo
+      await run('down');
+      await sql(`insert into published_version (id, restaurant_id, number, snapshot, changes_count, published_by, published_at)
+        select ?, restaurant_id, 2, snapshot, 0, 'Test', now() from published_version where restaurant_id = ? and number = 1`, [randomUUID(), ds.restaurant.id]);
+      await sql('update dish set profile_intensity = 0, profile_protein = ? where id = ?', ['fish', duck.id]);
+      await sql("update dish set status = 'hidden' where id = ?", [hidden.id]);
+      const [v1Before] = await snapshots();
+      expect(v1Before.snapshot.schema).toBeUndefined();
+      // guests before F1: current profiles and visibility
+      const before = await services(pgRepos(orm)).rec.forDish('halka', duck.id, {}, 8);
+
+      await run('up');
+      const [v1, v2] = await snapshots();
+      expect(v1.snapshot).toEqual(v1Before.snapshot);
+      expect(v2.snapshot.schema).toBe(2);
+      const current = await pgRepos(orm).dishRepository.listByRestaurant(ds.restaurant.id);
+      const wines = await pgRepos(orm).wineRepository.listByRestaurant(ds.restaurant.id);
+      expect(new Map(v2.snapshot.profiles!.dishes.map((d) => [d.id, d.profile]))).toEqual(new Map(current.map((d) => [d.id, dishScales(d.profile)])));
+      expect(new Map(v2.snapshot.profiles!.wines.map((w) => [w.id, w.profile]))).toEqual(new Map(wines.map((w) => [w.id, wineScales(w.profile)])));
+      expect([...v2.snapshot.menu!.dishIds].sort()).toEqual(current.filter((d) => d.status !== 'draft').map((d) => d.id).sort());
+      expect(v2.snapshot.menu!.dishIds).toContain(hidden.id);
+      expect(v2.snapshot.menu!.dishIds).not.toContain(draft.id);
+      // what guests see is the same before and after the backfill
+      const after = await services(pgRepos(orm)).rec.forDish('halka', duck.id, {}, 8);
+      expect(after!.result.items.map((i) => [i.wine.id, i.matchScore])).toEqual(before!.result.items.map((i) => [i.wine.id, i.matchScore]));
+      expect(after!.dish.profile.protein).toBe('fish');
+      // a second up changes nothing (a version that has schema is left alone)
+      await run('up');
+      expect((await snapshots())[1].snapshot).toEqual(v2.snapshot);
+    });
+
+    it('guests keep the published profile after a profile change, and get the new one with the next publish (AC2)', async () => {
+      const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+      const s = services(pgRepos(orm));
+      const scores = async () => (await services(pgRepos(orm)).rec.forDish('halka', duck.id, {}, 8))!.result.items.map((i) => `${i.wine.id}:${i.matchScore}`);
+      const before = await scores();
+      await sql('update dish set profile_intensity = 0, profile_fat = 0, profile_umami = 0 where id = ?', [duck.id]);
+      expect(await scores()).toEqual(before);
+      expect((await s.publish.preview('halka')).pendingProfiles).toBe(1);
+      await services(pgRepos(orm)).publish.publish('halka', MARTA, { expectedLatest: 1 });
+      expect(await scores()).not.toEqual(before);
+    });
+  });
+  describe('profile editing on PostgreSQL (spec 2026-11-04-panel-completion, F2)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const sql = <T>(query: string, params: unknown[] = []) => orm.em.getConnection().execute<T[]>(query, params);
+    const duck = () => ds.dishes.find((d) => d.name === 'Duck breast')!;
+
+    it('saves a profile with its audit row, confirmed and as a draft; the row comes back through the repositories (AC9, AC10)', async () => {
+      const s = services(pgRepos(orm));
+      const next = (duck().profile.intensity + 1) % 6;
+      await s.profiles.setDishProfile('halka', duck().id, { ...dishScales(duck().profile), intensity: next }, MARTA, { confirm: true });
+      expect((await pgRepos(orm).dishRepository.findById(ds.restaurant.id, duck().id))!.profile).toMatchObject({ intensity: next, source: 'confirmed', confirmedBy: MARTA.name });
+      const row = (await sql<{ profile_confirmed_by: string; profile_confirmed_at: string; profile_source: string }>('select profile_confirmed_by, profile_confirmed_at, profile_source from dish where id = ?', [duck().id]))[0];
+      expect(row).toMatchObject({ profile_confirmed_by: MARTA.name, profile_source: 'confirmed' });
+      expect(row.profile_confirmed_at).toBeTruthy();
+      const wine = ds.wines.find((w) => w.active)!;
+      await s.profiles.setWineProfile('halka', wine.id, wineScales(wine.profile), MARTA, { confirm: false });
+      const draft = (await pgRepos(orm).wineRepository.findById(ds.restaurant.id, wine.id))!.profile;
+      expect(draft.source).toBe('grape_defaults');
+      expect([draft.confirmedAt ?? null, draft.confirmedBy ?? null]).toEqual([null, null]);
+      await s.profiles.setWineProfile('halka', wine.id, wineScales(wine.profile), MARTA, { confirm: true });
+      const reconfirmed = (await pgRepos(orm).wineRepository.findById(ds.restaurant.id, wine.id))!.profile;
+      expect([reconfirmed.source ?? 'confirmed', reconfirmed.confirmedBy]).toEqual(['confirmed', MARTA.name]);
+      const edits = await pgRepos(orm).profileWriteRepository.listProfileEdits(ds.restaurant.id);
+      expect(edits.map((e) => e.kind).sort()).toEqual(['dish', 'wine', 'wine']);
+      expect(edits.find((e) => e.kind === 'dish')).toMatchObject({ actor: MARTA.name, actorId: MARTA.id, subjectId: duck().id });
+    });
+
+    it('the audit row outlives the dish it describes: no foreign key to the dish (AC10)', async () => {
+      const s = services(pgRepos(orm));
+      const dish = ds.dishes.find((d) => d.status === 'draft')!;
+      await s.profiles.confirmDishProfile('halka', dish.id, MARTA);
+      expect((await pgRepos(orm).profileWriteRepository.listProfileEdits(ds.restaurant.id, { subjectId: dish.id })).length).toBe(1);
+      await sql('delete from pairing where dish_id = ?', [dish.id]);
+      await sql('delete from dish where id = ?', [dish.id]);
+      const kept = await pgRepos(orm).profileWriteRepository.listProfileEdits(ds.restaurant.id, { subjectId: dish.id });
+      expect(kept.length).toBe(1);
+      expect(kept[0].after).toMatchObject({ source: 'confirmed' });
+    });
+
+    it('an edit is an unpublished change and guests keep the old scores until the next publish; the preview writes nothing (AC2, AC11, AC15)', async () => {
+      const s = services(pgRepos(orm));
+      const scores = async () => (await services(pgRepos(orm)).rec.forDish('halka', duck().id, {}, 8))!.result.items.map((i) => `${i.wine.id}:${i.matchScore}`);
+      const before = await scores();
+      const n0 = (await s.publish.preview('halka')).pendingChanges;
+      const candidate = { ...dishScales(duck().profile), intensity: 5, fat: 5, umami: 5, acidity: 0 };
+      const digestBefore = (await sql<{ d: string }>("select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) as d from dish x"))[0];
+      await s.preview.previewDish('halka', duck().id, candidate);
+      expect((await sql<{ d: string }>("select md5(coalesce(string_agg(x::text, '|' order by x::text), '')) as d from dish x"))[0]).toEqual(digestBefore);
+      expect(await sql('select 1 from profile_edit')).toEqual([]);
+      await s.profiles.setDishProfile('halka', duck().id, candidate, MARTA, { confirm: true });
+      expect((await s.publish.preview('halka')).pendingChanges).toBe(n0 + 1);
+      expect(await scores()).toEqual(before);
+      await s.publish.publish('halka', MARTA);
+      expect(await scores()).not.toEqual(before);
+    });
+
+    it('the migration adds the columns and the table, and down removes them again (up/down)', async () => {
+      const columns = async () => (await sql<{ n: string }>("select count(*)::text as n from information_schema.columns where (table_name = 'dish' and column_name = 'profile_confirmed_by') or (table_name = 'wine' and column_name in ('profile_confirmed_at', 'profile_confirmed_by'))"))[0].n;
+      const table = async () => (await sql<{ n: string }>("select count(*)::text as n from information_schema.tables where table_name = 'profile_edit'"))[0].n;
+      expect([await columns(), await table()]).toEqual(['3', '1']);
+      const migration = new Migration20261117105101_profile_editing(orm.em.getDriver(), orm.config);
+      const run = async (fn: 'up' | 'down') => {
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      await run('down');
+      expect([await columns(), await table()]).toEqual(['0', '0']);
+      await run('up');
+      expect([await columns(), await table()]).toEqual(['3', '1']);
     });
   });
 });

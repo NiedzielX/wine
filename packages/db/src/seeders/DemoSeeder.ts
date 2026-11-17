@@ -1,8 +1,8 @@
 import type { EntityManager } from '@mikro-orm/postgresql';
 import { Seeder } from '@mikro-orm/seeder';
-import { ENGINE_VERSION, buildDemoDataset, contentSnapshot, demoUuid, pairingScore, type DemoDataset } from '@wine-match/core';
+import { ENGINE_VERSION, buildDemoDataset, buildSnapshot, contentSnapshot, demoUuid, pairingScore, type DemoDataset } from '@wine-match/core';
 import { assertSeedAllowed } from './seed-guard';
-import { DishEntity, MembershipEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, UserEntity, WineEntity, type PublishedSnapshot } from '../entities';
+import { DishEntity, MembershipEntity, PairingEntity, PublishedVersionEntity, RestaurantEntity, UserEntity, WineEntity } from '../entities';
 
 /**
  * Loads the Halka demo restaurant (same data and ids as DATA_SOURCE=memory).
@@ -65,22 +65,12 @@ export class DemoSeeder extends Seeder {
     em.create(PublishedVersionEntity, {
       id: demoUuid('published_version_1'), restaurant: r, number: 1, changesCount: 0, publishedBy: restaurant.wineDirector,
       publishedAt: new Date(restaurant.publishedAt ?? '1970-01-01T00:00:00.000Z'),
-      snapshot: snapshotOf(data)
+      snapshot: buildSnapshot({ restaurant, dishes, wines, pairings })
     });
     await em.flush();
   }
 }
 
-/** Version 1 of the demo as guests see it: the decided pairings and the translations. */
-function snapshotOf({ restaurant, dishes, wines, pairings }: DemoDataset): PublishedSnapshot {
-  return {
-    pairings: pairings.filter((p) => p.status !== 'suggested').map((p) => ({
-      id: p.id, dishId: p.dishId, wineId: p.wineId, status: p.status as 'approved' | 'modified' | 'rejected', role: p.role, rank: p.rank,
-      comment: p.comment, commentTranslations: p.commentTranslations, modelScore: p.modelScore, source: p.source, updatedBy: p.updatedBy, updatedAt: p.updatedAt
-    })),
-    content: contentSnapshot(restaurant, dishes, wines)
-  };
-}
 
 const empty = (t: object | null | undefined) => !t || Object.keys(t).length === 0;
 
@@ -107,6 +97,7 @@ async function fillTranslations(em: EntityManager, data: DemoDataset): Promise<v
   if (v1 && !v1.snapshot.content) {
     const decided = new Map(data.pairings.map((p) => [p.id, p.commentTranslations]));
     v1.snapshot = {
+      ...v1.snapshot,
       pairings: v1.snapshot.pairings.map((p) => ({ ...p, commentTranslations: p.commentTranslations ?? decided.get(p.id) ?? {} })),
       content: contentSnapshot(data.restaurant, data.dishes, data.wines)
     };

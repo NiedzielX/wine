@@ -8,6 +8,7 @@ import type { Repositories, ServiceDayPeriod } from '../../ports/repositories';
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import { codeFromUuid, normalizeCode, type CodeLength } from '../../recommendation-code/code-format';
 import { serviceDay, shiftServiceDay } from '../../recommendation-code/service-day';
+import { loadPublishedView } from '../publishing/published-view';
 
 /** At most this many recommendations per guest session and service day (R13): a loop over `table=` cannot drain the code space. */
 export const MAX_CODES_PER_SESSION_DAY = 30;
@@ -64,7 +65,7 @@ export type CodeActor = 'staff_view';
 /** The one answer for a code that is unknown, of another restaurant, of another service day or malformed (R6, AC8). */
 export const CODE_NOT_FOUND = 'code_not_found';
 
-export interface RecommendationCodeServiceDeps extends Pick<Repositories, 'restaurantRepository' | 'wineRepository' | 'dishRepository' | 'recommendationCodeRepository'> {
+export interface RecommendationCodeServiceDeps extends Pick<Repositories, 'restaurantRepository' | 'wineRepository' | 'dishRepository' | 'pairingRepository' | 'publishRepository' | 'recommendationCodeRepository'> {
   clock: Clock;
   idGenerator: IdGenerator;
   logger: Pick<Logger, 'warn'>;
@@ -85,18 +86,16 @@ export class RecommendationCodeService {
    * `MAX_TABLE_DISHES` valid dishes are named, the session reached its limit (R13), or the code space is exhausted.
    */
   async issue(slug: string, input: IssueCodeInput): Promise<IssuedCode | null> {
-    const { restaurantRepository, wineRepository, dishRepository, recommendationCodeRepository: codes } = this.deps;
+    const { restaurantRepository, recommendationCodeRepository: codes } = this.deps;
     const restaurant = await restaurantRepository.findBySlug(slug);
     if (!restaurant) return null;
-    const wine = await wineRepository.findById(restaurant.id, input.wineId);
+    // what guests see (spec 2026-11-04-panel-completion, R2): a wine or dish outside the published view gets no code
+    const view = await loadPublishedView(this.deps, restaurant);
+    const wine = view.wine(input.wineId);
     if (!wine || !wine.active) return null;
 
     // R5: only published dishes of this restaurant; unknown, unpublished and foreign ids are dropped
-    let dishIds: string[] = [];
-    if (input.dishIds.length) {
-      const published = new Set((await dishRepository.listByRestaurant(restaurant.id, { statuses: ['published'] })).map((d) => d.id));
-      dishIds = [...new Set(input.dishIds)].filter((id) => published.has(id)).sort();
-    }
+    const dishIds = [...new Set(input.dishIds)].filter((id) => view.dish(id) !== null).sort();
     if (dishIds.length > MAX_TABLE_DISHES) return null;
     const context = dishIds.length === 0 ? 'direct' : dishIds.length === 1 ? 'dish' : 'table';
 

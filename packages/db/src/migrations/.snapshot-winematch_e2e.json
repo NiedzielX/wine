@@ -498,7 +498,7 @@
           "autoincrement": false,
           "primary": false,
           "nullable": true,
-          "unique": false,
+          "unique": true,
           "length": null,
           "precision": null,
           "scale": null,
@@ -601,13 +601,16 @@
       },
       "indexes": [
         {
-          "columnNames": [],
-          "composite": false,
+          "columnNames": [
+            "restaurant_id",
+            "email"
+          ],
+          "composite": true,
           "constraint": false,
           "keyName": "auth_token_pending_invite_unique",
           "primary": false,
-          "unique": false,
-          "expression": "create unique index auth_token_pending_invite_unique on auth_token (restaurant_id, email) where kind = 'invite' and used_at is null and revoked_at is null"
+          "unique": true,
+          "where": "(kind = 'invite'::text) AND (used_at IS NULL) AND (revoked_at IS NULL)"
         },
         {
           "columnNames": [
@@ -644,8 +647,9 @@
       "checks": [
         {
           "name": "auth_token_invite_shape_check",
-          "expression": "kind <> 'invite' or (restaurant_id is not null and role is not null and role <> 'waiter')",
-          "definition": "check (kind <> 'invite' or (restaurant_id is not null and role is not null and role <> 'waiter'))"
+          "expression": "(kind <> 'invite'::text) OR ((restaurant_id IS NOT NULL) AND (role IS NOT NULL) AND (role <> 'waiter'::text))",
+          "definition": "CHECK (((kind <> 'invite'::text) OR ((restaurant_id IS NOT NULL) AND (role IS NOT NULL) AND (role <> 'waiter'::text))))",
+          "columnName": "kind"
         },
         {
           "name": "auth_token_kind_check",
@@ -862,6 +866,23 @@
           "collation": null,
           "enumItems": [],
           "mappedType": "datetime"
+        },
+        "profile_confirmed_by": {
+          "name": "profile_confirmed_by",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
         },
         "profile_cooking": {
           "name": "profile_cooking",
@@ -2564,13 +2585,15 @@
           "unique": true
         },
         {
-          "columnNames": [],
+          "columnNames": [
+            "dish_id"
+          ],
           "composite": false,
           "constraint": false,
           "keyName": "pairing_one_primary_per_dish",
           "primary": false,
-          "unique": false,
-          "expression": "create unique index pairing_one_primary_per_dish on pairing (dish_id) where role = 'primary' and status in ('approved', 'modified')"
+          "unique": true,
+          "where": "(role = 'primary'::text) AND (status = ANY (ARRAY['approved'::text, 'modified'::text]))"
         },
         {
           "columnNames": [
@@ -2648,6 +2671,214 @@
             "id"
           ],
           "referencedTableName": "public.wine"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "profile_edit",
+      "schema": "public",
+      "columns": {
+        "actor": {
+          "name": "actor",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "after": {
+          "name": "after",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "json"
+        },
+        "before": {
+          "name": "before",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "json"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "dish",
+            "wine"
+          ],
+          "mappedType": "enum"
+        },
+        "restaurant_id": {
+          "name": "restaurant_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "profile_edit_pkey",
+          "primary": true,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "restaurant_id",
+            "created_at"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "profile_edit_restaurant_id_created_at_index",
+          "primary": false,
+          "unique": false
+        }
+      ],
+      "checks": [
+        {
+          "name": "profile_edit_kind_check",
+          "expression": "\"kind\" in ('dish', 'wine')",
+          "definition": "check (\"kind\" in ('dish', 'wine'))",
+          "columnName": "kind"
+        }
+      ],
+      "triggers": [],
+      "foreignKeys": {
+        "profile_edit_restaurant_id_foreign": {
+          "columnNames": [
+            "restaurant_id"
+          ],
+          "constraintName": "profile_edit_restaurant_id_foreign",
+          "localTableName": "public.profile_edit",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.restaurant"
         }
       },
       "comment": null
@@ -3211,13 +3442,19 @@
       },
       "indexes": [
         {
-          "columnNames": [],
-          "composite": false,
+          "columnNames": [
+            "restaurant_id",
+            "service_day",
+            "session_id",
+            "wine_id",
+            "serving",
+            "dish_ids"
+          ],
+          "composite": true,
           "constraint": false,
           "keyName": "recommendation_code_choice_unique",
           "primary": false,
-          "unique": false,
-          "expression": "create unique index recommendation_code_choice_unique on recommendation_code (restaurant_id, service_day, session_id, wine_id, serving, dish_ids)"
+          "unique": true
         },
         {
           "columnNames": [
@@ -3865,13 +4102,17 @@
           "unique": true
         },
         {
-          "columnNames": [],
-          "composite": false,
+          "columnNames": [
+            "restaurant_id",
+            "business_date",
+            "recommendation_code"
+          ],
+          "composite": true,
           "constraint": false,
           "keyName": "sales_record_recommendation_code_idx",
           "primary": false,
           "unique": false,
-          "expression": "create index sales_record_recommendation_code_idx on sales_record (restaurant_id, business_date, recommendation_code) where recommendation_code is not null"
+          "where": "recommendation_code IS NOT NULL"
         },
         {
           "columnNames": [
@@ -3889,8 +4130,8 @@
       "checks": [
         {
           "name": "sales_record_covers_check",
-          "expression": "covers >= 0 and covers <= 999",
-          "definition": "check (covers >= 0 and covers <= 999)",
+          "expression": "(covers >= 0) AND (covers <= 999)",
+          "definition": "CHECK (((covers >= 0) AND (covers <= 999)))",
           "columnName": "covers"
         },
         {
@@ -3902,7 +4143,7 @@
         {
           "name": "sales_record_quantity_check",
           "expression": "quantity <> 0",
-          "definition": "check (quantity <> 0)",
+          "definition": "CHECK ((quantity <> (0)::numeric))",
           "columnName": "quantity"
         }
       ],
@@ -4731,6 +4972,40 @@
           "collation": null,
           "enumItems": [],
           "mappedType": "smallint"
+        },
+        "profile_confirmed_at": {
+          "name": "profile_confirmed_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "profile_confirmed_by": {
+          "name": "profile_confirmed_by",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
         },
         "profile_freshness": {
           "name": "profile_freshness",

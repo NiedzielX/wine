@@ -10,15 +10,17 @@ import type { Membership, Principal, Role } from './types';
 export type Permission =
   | 'panel.view' | 'pairings.decide' | 'wines.toggle' | 'publish' | 'settings.change' | 'import.manage' | 'restaurant.edit'
   // E12 owns this table; other epics append their entries after these (spec 2026-11-04-staff-accounts-and-roles, R1)
-  | 'team.manage' | 'audit.view' | 'staff.lookup';
+  | 'team.manage' | 'audit.view' | 'staff.lookup'
+  // E13 (spec 2026-11-04-panel-completion, R8): editing taste profiles of dishes and wines
+  | 'profiles.edit';
 
-const BUSINESS: Permission[] = ['panel.view', 'wines.toggle', 'publish', 'settings.change', 'import.manage', 'restaurant.edit', 'team.manage', 'audit.view', 'staff.lookup'];
+const BUSINESS: Permission[] = ['panel.view', 'wines.toggle', 'publish', 'settings.change', 'import.manage', 'restaurant.edit', 'team.manage', 'audit.view', 'staff.lookup', 'profiles.edit'];
 
 const MATRIX: Record<Role, readonly Permission[]> = {
   owner: BUSINESS,
   manager: BUSINESS,
   // the sommelier imports and publishes but does not edit the restaurant's own details (docs/USER_ROLES.md)
-  sommelier: ['panel.view', 'pairings.decide', 'wines.toggle', 'publish', 'settings.change', 'import.manage', 'staff.lookup'],
+  sommelier: ['panel.view', 'pairings.decide', 'wines.toggle', 'publish', 'settings.change', 'import.manage', 'staff.lookup', 'profiles.edit'],
   // waiters use the staff lookup (G9/G11) and have no dashboard login in the MVP: no `panel.view`
   waiter: ['staff.lookup']
 };

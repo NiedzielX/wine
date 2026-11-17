@@ -68,6 +68,9 @@ export default async function PublishPage({ params, searchParams }: Props) {
             <Item ok={p.draftProfiles.length === 0} title={p.draftProfiles.length ? m.draftProfiles(p.draftProfiles.length) : m.allConfirmed} href={`${base}/menu`} action={m.check}>
               {p.draftProfiles.length ? names(p.draftProfiles) : m.allConfirmedText}
             </Item>
+            <Item ok={p.draftWineProfiles.length === 0} title={p.draftWineProfiles.length ? m.draftWineProfiles(p.draftWineProfiles.length) : m.allWineProfilesConfirmed} href={`${base}/wines`} action={m.check}>
+              {p.draftWineProfiles.length ? names(p.draftWineProfiles.map((w) => ({ name: `${w.producer} ${w.name}` }))) : m.allWineProfilesConfirmedText}
+            </Item>
             <Item ok={p.draftDishes.length === 0} title={p.draftDishes.length ? m.newDishes(p.draftDishes.length) : m.noNewDishes}>
               {p.draftDishes.length ? names(p.draftDishes) : m.noNewDishesText}
             </Item>
@@ -101,12 +104,12 @@ export default async function PublishPage({ params, searchParams }: Props) {
             <div>
               <p className="text-lg font-medium">{p.pendingChanges ? m.pending(p.pendingChanges) : m.latest}</p>
               <p className="text-sm text-muted-foreground">
-                {p.pendingChanges ? m.pendingText(p.pendingPairings, p.draftDishes.length) : m.nothing}
+                {p.pendingChanges ? m.pendingText(p.pendingPairings, p.draftDishes.length, p.pendingProfiles) : m.nothing}
               </p>
             </div>
             <div className="flex gap-2">
               <Button asChild variant="outline"><Link href={`/r/${slug}`}>{m.preview}</Link></Button>
-              <ActionButton action={publishChanges} fields={common} variant="default" size="default" disabled={p.pendingChanges === 0 || !access.can('publish')}>{m.submit}</ActionButton>
+              <ActionButton action={publishChanges} fields={{ ...common, expectedLatest: String(p.lastVersion?.number ?? 0) }} variant="default" size="default" disabled={p.pendingChanges === 0 || !access.can('publish')}>{m.submit}</ActionButton>
             </div>
           </CardContent>
         </Card>
