@@ -166,6 +166,14 @@ export function ifMatch(req: NextRequest): number | undefined | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+/** `If-Match: "a1b2c3d4-120"` → the token without quotes or `W/`; undefined when absent, null when empty (spec 2026-11-04-panel-completion, Q12). */
+export function ifMatchToken(req: NextRequest): string | undefined | null {
+  const raw = req.headers.get('if-match');
+  if (raw === null) return undefined;
+  const token = raw.replace(/^W\//, '').replace(/"/g, '').trim();
+  return /^[0-9a-f]{8}-\d{1,6}$/.test(token) ? token : null;
+}
+
 /** The largest JSON body any route accepts. A row-edit batch of 2000 rows is well below this. */
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 

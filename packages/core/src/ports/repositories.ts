@@ -6,8 +6,8 @@ import type { CommentTranslations, DishTranslations, PublishedContent, Restauran
 import type { Locale } from '../i18n/locale';
 import type { PublishedVersionRecord } from '../services/publishing/snapshot';
 import type {
-  CodeSummary, Dish, EntityStatus, GuestEventName, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, PairingRole, PairingStatus, RecommendationCodeRecord,
-  Restaurant, RestaurantSettings, Wine
+  CodeSummary, Dish, DishProfile, EntityStatus, GuestEventName, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, PairingRole, PairingStatus, RecommendationCodeRecord,
+  Restaurant, RestaurantSettings, Wine, WineProfile
 } from '../domain/types';
 
 /**
@@ -163,6 +163,31 @@ export interface PublishRepository {
 
 export interface RestaurantContent { contentLocale: Locale; translations: RestaurantTranslations }
 
+/** One row of the profile audit trail (spec 2026-11-04-panel-completion, R5): append-only, outlives the dish or wine. */
+export interface ProfileEditRecord {
+  id: string;
+  kind: 'dish' | 'wine';
+  subjectId: string;
+  actor: string;
+  actorId: string | null;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  at: string;
+}
+
+/**
+ * Writes of taste profiles (R3, R5). Atomically, under a lock on the row: when `expected` is given and the stored
+ * profile's fingerprint (`profileVersion`) differs, nothing changes and VersionConflictError is thrown; otherwise the
+ * profile and its audit row are written together. Unknown ids (or another restaurant's) → NotFoundError. The change
+ * reaches guests on the next publish.
+ */
+export interface ProfileWriteRepository {
+  setDishProfile(restaurantId: string, dishId: string, next: DishProfile, edit: ProfileEditRecord, expected?: DishProfile): Promise<void>;
+  setWineProfile(restaurantId: string, wineId: string, next: WineProfile, edit: ProfileEditRecord, expected?: WineProfile): Promise<void>;
+  /** the audit rows of the restaurant, newest first (ties: id), optionally of one dish or wine */
+  listProfileEdits(restaurantId: string, filter?: { kind?: 'dish' | 'wine'; subjectId?: string }): Promise<ProfileEditRecord[]>;
+}
+
 /**
  * Writes of translated content. Each write is atomic: when `expected` is given and the stored translations differ
  * from it, nothing changes and VersionConflictError is thrown. Unknown ids (or another restaurant's) → NotFoundError.
@@ -312,6 +337,7 @@ export interface Repositories {
   restaurantWriteRepository: RestaurantWriteRepository;
   publishRepository: PublishRepository;
   contentWriteRepository: ContentWriteRepository;
+  profileWriteRepository: ProfileWriteRepository;
   importRepository: ImportRepository;
   opportunityDismissalRepository: OpportunityDismissalRepository;
   guestInteractionRepository: GuestInteractionRepository;

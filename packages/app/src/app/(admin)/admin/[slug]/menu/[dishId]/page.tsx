@@ -5,11 +5,13 @@ import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { DishStatusBadge, ProfileBadge, ScoreBadge } from '../../../_components/badges';
 import { PanelExplain } from '../../../_components/explain';
-import { first, zl } from '../../../_components/format';
+import { first, formatDateTime, zl } from '../../../_components/format';
 import { Flash } from '../../../_components/flash';
 import { TranslationsCard } from '../../../_components/translations-form';
-import { saveDishTranslations } from '../../actions';
-import { ENGINE_FACTS, TEXT_LIMITS, translationsVersion } from '@wine-match/core';
+import { ProfileEditor } from '../../../_components/profile-editor';
+import { dishProfileState } from '../../../_components/profile-page';
+import { confirmDishProfile, saveDishProfile, saveDishTranslations } from '../../actions';
+import { ENGINE_FACTS, TEXT_LIMITS, profileVersion, translationsVersion } from '@wine-match/core';
 import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
@@ -27,12 +29,16 @@ const SCALES = ['intensity', 'fat', 'salt', 'sweetness', 'acidity', 'spice', 'um
 export default async function DishPage({ params, searchParams }: Props) {
   const { slug, dishId } = await params;
   const sp = await searchParams;
-  const canTranslate = (await requireAccess(slug)).can('import.manage');
+  const access = await requireAccess(slug);
+  const canTranslate = access.can('import.manage');
+  const canEditProfile = access.can('profiles.edit');
   const { locale, t } = await getI18n();
   const m = t.admin.dish;
-  const d = await (await getRequestScope()).cradle.adminService.dishDetail(slug, dishId, locale);
+  const cradle = (await getRequestScope()).cradle;
+  const d = await cradle.adminService.dishDetail(slug, dishId, locale);
   if (!d) notFound();
   const { dish, source, topMatches, pairings } = d;
+  const editor = await dishProfileState(cradle, slug, source, sp, canEditProfile);
   const tm = t.admin.translations.fields;
   const p = dish.profile;
 
@@ -105,6 +111,13 @@ export default async function DishPage({ params, searchParams }: Props) {
             <Badge variant="outline" className="mt-5">{t.admin.common.scale}</Badge>
           </CardContent>
         </Card>
+
+        <ProfileEditor
+          kind="dish" t={t} locale={locale} slug={slug} subjectId={dish.id} path={`/admin/${slug}/menu/${dish.id}`} canEdit={canEditProfile}
+          values={editor.values} version={profileVersion(source.profile)} preview={editor.preview} previewInvalid={editor.previewInvalid}
+          state={{ confirmed: source.profile.source === 'confirmed', source: source.profile.source, by: source.profile.confirmedBy ?? null, at: source.profile.confirmedAt ? formatDateTime(source.profile.confirmedAt, locale) : null }}
+          actions={{ save: saveDishProfile, confirm: confirmDishProfile }}
+        />
 
         <TranslationsCard
           action={saveDishTranslations} hidden={{ slug, back: `/admin/${slug}/menu/${dish.id}`, dishId: dish.id }} t={t} canEdit={canTranslate}

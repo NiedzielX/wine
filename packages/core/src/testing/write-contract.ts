@@ -1,11 +1,13 @@
 import type { ContractRunner } from './contract-types';
 import type { DemoDataset } from '../demo/dataset';
-import type { Pairing } from '../domain/types';
+import type { Level, Pairing } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import { countContentChanges } from '../i18n/content';
 import { pairingScore } from '../engine/scoring';
 import type { DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
 import { SommelierService } from '../services/pairings/sommelier-service';
+import { loadPublishedView } from '../services/publishing/published-view';
+import { dishScales, wineScales } from '../services/publishing/snapshot';
 
 /**
  * Behaviour every write implementation must have. Used by the memory tests in core and by the
@@ -231,6 +233,40 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       await repos.contentWriteRepository.setRestaurantContent(rid(), { contentLocale: 'pl', translations: { en: { city: 'Warsaw' } } }, { contentLocale: r.contentLocale, translations: r.translations });
       t.expect(await repos.restaurantRepository.findBySlug(r.slug)).toMatchObject({ contentLocale: 'pl', translations: { en: { city: 'Warsaw' } } });
       await t.expect(repos.contentWriteRepository.setRestaurantContent(rid(), { contentLocale: 'en', translations: {} }, { contentLocale: r.contentLocale, translations: r.translations })).rejects.toBeInstanceOf(VersionConflictError);
+    });
+
+    t.it('writes a profile and its audit row together against the fingerprint the caller saw, scoped by restaurant (R3, R5, AC8, AC10)', async () => {
+      const duck = duck0();
+      const edit = (kind: 'dish' | 'wine', subjectId: string, id: string, at: string) =>
+        ({ id, kind, subjectId, actor: 'Marta', actorId: null, before: { a: 1 }, after: { a: 2 }, at });
+      const confirmed = { ...dishScales(duck.profile), intensity: ((duck.profile.intensity + 1) % 6) as Level, source: 'confirmed' as const, confirmedAt: '2026-11-17T09:00:00.000Z', confirmedBy: 'Marta' };
+      await repos.profileWriteRepository.setDishProfile(rid(), duck.id, confirmed, edit('dish', duck.id, '10000000-0000-4000-8000-000000000001', '2026-11-17T09:00:00.000Z'), duck.profile);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.profile).toMatchObject({ intensity: confirmed.intensity, source: 'confirmed', confirmedAt: '2026-11-17T09:00:00.000Z', confirmedBy: 'Marta' });
+      // stale: the caller saw the profile from before; nothing changes and no audit row is added
+      await t.expect(repos.profileWriteRepository.setDishProfile(rid(), duck.id, { ...confirmed, fat: 5 }, edit('dish', duck.id, '10000000-0000-4000-8000-000000000002', '2026-11-17T09:01:00.000Z'), duck.profile)).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.profile.fat).toBe(duck.profile.fat);
+      t.expect((await repos.profileWriteRepository.listProfileEdits(rid())).map((e) => e.id)).toEqual(['10000000-0000-4000-8000-000000000001']);
+      // another restaurant's id (or an unknown one) is not found, and writes no audit row either
+      await t.expect(repos.profileWriteRepository.setDishProfile(OTHER, duck.id, confirmed, edit('dish', duck.id, '10000000-0000-4000-8000-000000000003', '2026-11-17T09:02:00.000Z'))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.profileWriteRepository.setDishProfile(rid(), OTHER, confirmed, edit('dish', OTHER, '10000000-0000-4000-8000-000000000004', '2026-11-17T09:02:00.000Z'))).rejects.toBeInstanceOf(NotFoundError);
+      const wine = ds.wines[0];
+      const next = { ...wineScales(wine.profile), alcohol: 14.5, source: 'grape_defaults' as const, confirmedAt: null, confirmedBy: null };
+      await repos.profileWriteRepository.setWineProfile(rid(), wine.id, next, edit('wine', wine.id, '10000000-0000-4000-8000-000000000005', '2026-11-17T09:03:00.000Z'), wine.profile);
+      const stored = (await repos.wineRepository.findById(rid(), wine.id))!.profile;
+      t.expect(stored).toMatchObject({ alcohol: 14.5, source: 'grape_defaults' });
+      t.expect([stored.confirmedAt ?? null, stored.confirmedBy ?? null]).toEqual([null, null]);
+      await t.expect(repos.profileWriteRepository.setWineProfile(rid(), wine.id, next, edit('wine', wine.id, '10000000-0000-4000-8000-000000000006', '2026-11-17T09:04:00.000Z'), wine.profile)).rejects.toBeInstanceOf(VersionConflictError);
+      await t.expect(repos.profileWriteRepository.setWineProfile(OTHER, wine.id, next, edit('wine', wine.id, '10000000-0000-4000-8000-000000000007', '2026-11-17T09:04:00.000Z'))).rejects.toBeInstanceOf(NotFoundError);
+      // newest first, filtered by kind and by object, never another restaurant's
+      t.expect((await repos.profileWriteRepository.listProfileEdits(rid())).map((e) => e.id)).toEqual(['10000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001']);
+      t.expect((await repos.profileWriteRepository.listProfileEdits(rid(), { kind: 'wine' })).map((e) => e.subjectId)).toEqual([wine.id]);
+      t.expect((await repos.profileWriteRepository.listProfileEdits(rid(), { subjectId: duck.id })).length).toBe(1);
+      t.expect(await repos.profileWriteRepository.listProfileEdits(OTHER)).toEqual([]);
+      // the edit is an unpublished change: guests keep the published profile until the next publish
+      const view = await loadPublishedView(repos, ds.restaurant);
+      t.expect(view.dish(duck.id)!.profile.intensity).toBe(duck.profile.intensity);
+      await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-11-17T10:00:00.000Z', id: '10000000-0000-4000-8000-0000000000aa' });
+      t.expect((await loadPublishedView(repos, ds.restaurant)).dish(duck.id)!.profile.intensity).toBe(confirmed.intensity);
     });
 
     t.it('guests see translations of the published version only; publish takes the current ones', async () => {

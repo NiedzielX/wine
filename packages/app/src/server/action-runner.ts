@@ -38,6 +38,16 @@ export async function translationsOrInvalid(run: () => Promise<Record<string, st
   }
 }
 
+/** A profile that breaks its schema (a scale out of range, a stray value) is reported as `profile_invalid`. */
+export async function profileOrInvalid(run: () => Promise<Record<string, string>>): Promise<Record<string, string>> {
+  try {
+    return await run();
+  } catch (e) {
+    if (domainError(e)?.code === 'validation_failed') return { error: 'profile_invalid' };
+    throw e;
+  }
+}
+
 /** Only paths inside this restaurant's dashboard are accepted (no open redirect). */
 export function safeBack(slug: string, back: string): string {
   const root = `/admin/${slug}`;

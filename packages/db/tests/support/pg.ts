@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { MembershipEntity, RestaurantEntity, UserEntity } from '../../src/entities';
 import { ormConfig } from '../../src/config';
 import {
-  PgContentWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository,
+  PgContentWriteRepository, PgProfileWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository,
   PgRecommendationCodeRepository, PgRestaurantRepository, PgRestaurantWriteRepository, PgSalesRepository, PgWineRepository, PgWineWriteRepository
 } from '../../src/repositories';
 import { PgImportRepository } from '../../src/repositories/import';
@@ -61,6 +61,7 @@ export function pgRepos(orm: MikroORM): Repositories {
     restaurantWriteRepository: new PgRestaurantWriteRepository({ em }),
     publishRepository: new PgPublishRepository({ em }),
     contentWriteRepository: new PgContentWriteRepository({ em }),
+    profileWriteRepository: new PgProfileWriteRepository({ em }),
     importRepository: new PgImportRepository({ em }),
     opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em }),
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),

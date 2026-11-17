@@ -1,6 +1,7 @@
 'use server';
 
-import { act, localeFields, str, translationsOrInvalid, version } from '@/server/action-runner';
+import { dishProfileFromQuery, wineProfileFromQuery } from '@wine-match/core';
+import { act, localeFields, profileOrInvalid, str, translationsOrInvalid, version } from '@/server/action-runner';
 
 /**
  * Server actions of the dashboard: plain form posts that call a service and redirect back with the
@@ -50,6 +51,34 @@ export async function saveWineTranslations(form: FormData) {
     await c.translationService.setWineTranslations(slug, str(f, 'wineId'), localeFields(f, ['tastingNote', 'region', 'country']), actor, str(f, 'version') || undefined);
     return { saved: 'translations' };
   }));
+}
+
+const field = (f: FormData) => (k: string) => (f.has(k) ? str(f, k) : null);
+const profileFlash = (r: { changed: boolean }, confirm: boolean) => ({ saved: r.changed ? (confirm ? 'profile_confirmed' : 'profile_draft') : 'profile_unchanged' });
+
+/** A3 "Edit taste profile": the scales of the form, saved confirmed (`confirm=true`) or as a draft (spec 2026-11-04-panel-completion, R3, R4). */
+export async function saveDishProfile(form: FormData) {
+  return act(form, 'profiles.edit', async ({ c, slug, actor, form: f }) => profileOrInvalid(async () => {
+    const confirm = str(f, 'confirm') === 'true';
+    return profileFlash(await c.profileService.setDishProfile(slug, str(f, 'dishId'), dishProfileFromQuery(field(f)), actor, { confirm, expectedVersion: str(f, 'version') || undefined }), confirm);
+  }));
+}
+
+/** A5 "Edit taste profile". */
+export async function saveWineProfile(form: FormData) {
+  return act(form, 'profiles.edit', async ({ c, slug, actor, form: f }) => profileOrInvalid(async () => {
+    const confirm = str(f, 'confirm') === 'true';
+    return profileFlash(await c.profileService.setWineProfile(slug, str(f, 'wineId'), wineProfileFromQuery(field(f)), actor, { confirm, expectedVersion: str(f, 'version') || undefined }), confirm);
+  }));
+}
+
+/** "Confirm without changes": the stored scales become confirmed. */
+export async function confirmDishProfile(form: FormData) {
+  return act(form, 'profiles.edit', async ({ c, slug, actor, form: f }) => profileFlash(await c.profileService.confirmDishProfile(slug, str(f, 'dishId'), actor, str(f, 'version') || undefined), true));
+}
+
+export async function confirmWineProfile(form: FormData) {
+  return act(form, 'profiles.edit', async ({ c, slug, actor, form: f }) => profileFlash(await c.profileService.confirmWineProfile(slug, str(f, 'wineId'), actor, str(f, 'version') || undefined), true));
 }
 
 export async function movePairing(form: FormData) {

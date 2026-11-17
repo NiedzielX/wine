@@ -1,13 +1,14 @@
 import type { AuthEvent, AuthUser, Invitation, Membership, MembershipStatus, Role, SessionRecord, TeamMember } from '../auth/types';
 import { assertMayInvite, assertPlatformMayInvite, invitationStillValid } from '../auth/invitation-rules';
 import type { DemoDataset } from '../demo/dataset';
-import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine } from '../domain/types';
+import type { Dish, DishProfile, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine, WineProfile } from '../domain/types';
 import { assertChangeEvents, assertInvitationEvent, assertValidAuthEvent, authEventLimit } from '../auth/audit-rules';
 import { assertChangeAllowed, assertKeepsAnOwner } from '../auth/team-rules';
 import { AlreadyMemberError, ForbiddenError, InvalidTokenError, InvariantError, NotFoundError, ValidationError, VersionConflictError } from '../errors';
 import type { AcceptInvitation, AcceptedInvitation, CreateInvitation, InvitationPreview, InvitationRepository, RevokeInvitation } from '../ports/invitations';
 import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
 import { currentContent, readContentSnapshot, sameTranslations, type DishTranslations, type WineTranslations } from '../i18n/content';
+import { profileVersion } from '../services/catalog/profile-rules';
 import { buildSnapshot, readSnapshot, type PublishedVersionRecord } from '../services/publishing/snapshot';
 import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
@@ -16,7 +17,7 @@ import type { SalesRepository } from '../ports/sales';
 import { aggregateChecks } from '../services/sales/sales-kpis';
 import type { CheckKey, SalesPeriod, SalesRecord } from '../services/sales/types';
 import type {
-  ContentWriteRepository, DecisionRecord, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo, PublishInput,
+  ContentWriteRepository, DecisionRecord, ProfileEditRecord, ProfileWriteRepository, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo, PublishInput,
   PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, UsageTotals, PairingStat, PairingStatSource, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
@@ -73,6 +74,8 @@ export class MemoryStore {
   readonly pairings = new Map<string, Pairing[]>();
   readonly versions = new Map<string, StoredVersion[]>();
   readonly decisions: Array<DecisionRecord & { restaurantId: string }> = [];
+  /** the profile audit trail, oldest first (spec 2026-11-04-panel-completion, R5) */
+  readonly profileEdits: Array<ProfileEditRecord & { restaurantId: string }> = [];
   readonly users: AuthUser[] = [];
   readonly memberships: StoredMembership[] = [];
   /** the authentication trail, oldest first */
@@ -337,6 +340,33 @@ export class MemoryContentWriteRepository implements ContentWriteRepository {
     if (expected !== undefined && !sameTranslations({ contentLocale: r.contentLocale, translations: r.translations }, expected)) throw new VersionConflictError();
     r.contentLocale = next.contentLocale;
     r.translations = copy(next.translations);
+  }
+}
+
+export class MemoryProfileWriteRepository implements ProfileWriteRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async setDishProfile(restaurantId: string, dishId: string, next: DishProfile, edit: ProfileEditRecord, expected?: DishProfile) {
+    const d = (this.store.dishes.get(restaurantId) ?? []).find((x) => x.id === dishId);
+    if (!d) throw new NotFoundError('Dish');
+    if (expected !== undefined && profileVersion(d.profile) !== profileVersion(expected)) throw new VersionConflictError();
+    d.profile = copy(next);
+    this.store.profileEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  async setWineProfile(restaurantId: string, wineId: string, next: WineProfile, edit: ProfileEditRecord, expected?: WineProfile) {
+    const w = (this.store.wines.get(restaurantId) ?? []).find((x) => x.id === wineId);
+    if (!w) throw new NotFoundError('Wine');
+    if (expected !== undefined && profileVersion(w.profile) !== profileVersion(expected)) throw new VersionConflictError();
+    w.profile = copy(next);
+    this.store.profileEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  async listProfileEdits(restaurantId: string, filter: { kind?: 'dish' | 'wine'; subjectId?: string } = {}) {
+    return this.store.profileEdits
+      .filter((e) => e.restaurantId === restaurantId && (!filter.kind || e.kind === filter.kind) && (!filter.subjectId || e.subjectId === filter.subjectId))
+      .map(({ restaurantId: _r, ...e }) => copy(e))
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? -1 : 1));
   }
 }
 
@@ -953,6 +983,7 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     restaurantWriteRepository: new MemoryRestaurantWriteRepository(store),
     publishRepository: new MemoryPublishRepository(store),
     contentWriteRepository: new MemoryContentWriteRepository(store),
+    profileWriteRepository: new MemoryProfileWriteRepository(store),
     importRepository: new MemoryImportRepository(store),
     opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
     guestInteractionRepository: new MemoryGuestInteractionRepository(store),
