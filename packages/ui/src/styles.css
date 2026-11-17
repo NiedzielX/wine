@@ -106,6 +106,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Reserve the scrollbar's width so the page does not shift sideways when a route is taller or shorter than the viewport. */
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }

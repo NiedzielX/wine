@@ -45,5 +45,7 @@
   :root { color-scheme: light; }
   /* Sticky top bar (~57px) and bottom action bar (~110px) must never cover a focused or scrolled-to element. */
   html { scroll-padding-top: 4.5rem; scroll-padding-bottom: 7.5rem; }
+  /* Reserve the scrollbar's width: no sideways jump when a route is taller or shorter than the viewport. */
+  html { scrollbar-gutter: stable; }
   body { @apply bg-page font-sans text-ink antialiased; }
 }
