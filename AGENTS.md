@@ -80,7 +80,7 @@ Wszystkie polecenia (testy, build, skrypty operatora, bramki): `.ai/docs/command
 
 ### 1.6 Standardy inżynieryjne
 
-Skrót; pełna wersja (w tym konwencja pojęć domenowych): `.ai/docs/architecture-rules.md` §1.6; mapowanie reguł: `.ai/docs/engineering-standards.md`.
+Skrót; pełna wersja (w tym konwencja pojęć domenowych): `.ai/docs/architecture-rules.md` §1.6; reguły i miejsca ich egzekwowania: `.ai/docs/engineering-standards.md`.
 - **Trasa API** (`app/src/server/`): `handle()` / `handlePublic()`, ciało wyłącznie przez `parseBody(req, schemat)` ze schematem Zod `strictObject` z `core/validators/`, bez własnego `try/catch` (błędy mapuje `guarded()`).
 - **Logi** tylko przez `logger`, **konfiguracja** tylko przez `env()` (leniwa; `next build` nie wymaga środowiska ani bazy; konfiguracja decydująca o widoczności zawodzi zamykająco). `console.*` jest zabronione.
 - Klucze wybierane przez klienta (`constructor`, `__proto__`): `Map` lub `Object.fromEntries`, nie zwykły obiekt. Stany pusty / błąd / ładowanie: `EmptyState`, `ErrorMessage`, `LoadingMessage` z `@wine-match/ui`.

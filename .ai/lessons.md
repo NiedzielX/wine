@@ -57,7 +57,7 @@ Format linii (najnowsze na górze):
 - [2026-10-16] [Bez Dockera PostgreSQL z `embedded-postgres`](lessons/2026-10-16-postgres-without-docker.md) — poza repozytorium; równoległe agenty: własny katalog i port.
 - [2026-10-16] [Strony serwerowe testuj w Vitest przez `prerender`](lessons/2026-10-16-ssr-page-tests-with-prerender.md) — `react-dom/static` z atrapami `next/headers`.
 - [2026-10-15] [Next.js 16 nadpisuje `Vary` stron](lessons/2026-10-15-nextjs-vary-header-overwritten.md) — sprawdzaj nagłówki `curl -D -` na `next start`.
-- [2026-10-15] [Dokument „do wdrożenia” może dotyczyć innego produktu](lessons/2026-10-15-adopting-a-foreign-standard.md) — zapisz mapowanie reguł i odstępstwa, sprawdź każdą na kodzie.
+- [2026-10-15] [Dokument „do wdrożenia” może nie pasować do repozytorium](lessons/2026-10-15-adopting-an-external-standard.md) — zapisz mapowanie reguł i odstępstwa, sprawdź każdą na kodzie.
 - [2026-10-15] [Klucze od klienta](lessons/2026-10-15-client-chosen-keys.md) — `promoted: AGENTS.md §1.6`.
 - [2026-10-15] [Konfiguracja zawodzi zamykająco, budowanie jej nie wymaga](lessons/2026-10-15-config-fails-closed-and-boot-without-env.md) — `promoted: AGENTS.md §1.6`.
 - [2026-10-14] [Import plików](lessons/2026-10-14-import-conventions.md) — `promoted: AGENTS.md §1.3`.
