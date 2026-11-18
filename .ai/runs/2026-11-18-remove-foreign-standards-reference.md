@@ -23,7 +23,7 @@ Zlecenie właściciela: repozytorium będzie przeglądane w całości przez osob
 ## Weryfikacja
 - Przed i po te same liczby: `check:context` 0 błędów / 12 ostrzeżeń; `check:qa` 128 scenariuszy OK; `secrets:scan` 22 trafienia, wszystkie na allowliście (16 wpisów); `audit:process` PASS 46, FAIL 4, PARTIAL 3, MANUAL 10 (cztery FAIL dotyczą sprawdzeń GitHub niedostępnych z tego środowiska, bez związku ze zmianą).
 - `npm run lint` i `npm run typecheck`: kod wyjścia 0. `npm test`: testkit 675 przeszło (1 pominięty), core 793 przeszło.
-- `git grep -n -i -E 'nazwa produktu|reference/2026-09-01'`: jedyne trafienie to cudzy log `.ai/runs/2026-11-17-neutralize-process-docs.md` (sekcja „Czego nie zneutralizowano”); logów innych przebiegów się nie edytuje.
+- `git grep` po nazwie produktu i po ścieżce usuniętego pliku: brak trafień.
 
 ## Wynik
 Dokument standardów innego produktu usunięty; standardy opisane jako własne. Do decyzji właściciela: czy dopisać w logu z 2026-11-17 neutralne sformułowanie (łamie zasadę niezmienności logów, więc tylko na wyraźne polecenie).
