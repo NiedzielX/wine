@@ -13,7 +13,7 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | Wine + WineProfile | tak | profil jako embeddable: kolumny `profile_*` w tabeli `wine` |
 | Pairing | tak | unikalność (dish, wine), częściowy indeks unikalny „jeden Primary na danie”, `version` do blokady optymistycznej |
 | SommelierDecision | tak | audyt, `actor` jako tekst do czasu wprowadzenia User; **bez klucza obcego** do pairingu (kolumna `pairing_id`), żeby historia przeżyła usunięcie pairingu; ma `restaurant_id`, `dish_id`, `wine_id` |
-| PublishedVersion | tak | migawka pairingów (approved / modified / rejected) w `snapshot` (jsonb), `number` unikalny w restauracji; goście czytają najnowszą |
+| PublishedVersion | tak | migawka w `snapshot` (jsonb, od 2026-11-16 `schema: 2`): pary (approved / modified / rejected), tłumaczenia, profile smaku dań i win, skład karty (`menu.dishIds`); `number` unikalny w restauracji; goście czytają najnowszą przez `PublishedView` |
 | GuestInteraction | tak | zapisywana od E02 F1 (spec `2026-10-15-guest-usage-events`) przez `GuestInteractionRepository` (`record`, `listBySession`, `countGuestSessions`, od E04 F1 `usageTotals` — agregaty okna KPI; od E04 F3 `pairingStats` — pokazania i wybory per (danie, wino, źródło z `props.items[].tier`) w oknie, dla A1 i E10 S4; pamięć: do 10 000 zdarzeń). `session_id` = parametr URL `sid` (bez tabeli GuestSession); `source`, `context`, `menuVersion` (= `restaurant.published_at`) w `props`; kolumna `version_id` nie istnieje. Sesja gościa = `session_id` ze zdarzeniem `guest_session_started` |
 | ImportJob | tak | wiersze podglądu w kolumnie `rows` (jsonb) zamiast tabeli ImportRow |
 | User (`app_user`), Membership, Session | tak | hasło jako skrót scrypt; w `session` tylko SHA-256 tokenu; licznik prób i blokada w `app_user`; `membership.role`: owner, manager, sommelier, waiter. `sommelier_decision.actor_id` wskazuje konto (zwykła kolumna). Od 2026-11-05 (E12 F1): `membership.status` (`active` / `deactivated`), `version`, `deactivated_at`, `deactivated_by`; `AuthRepository.membershipsOf` zwraca tylko aktywne, więc dezaktywowana osoba traci dostęp przy następnym żądaniu |
@@ -149,8 +149,24 @@ System Administrator to flaga `is_staff` na User (poza Membership).
 | cooking | enum | `raw`, `cured`, `poached`, `seared`, `roasted`, `grilled`, `braised`, `fried`, `baked`, `none` |
 | source | enum | `draft` (import, reguły lub lokalny LLM), `confirmed` (personel) |
 | drafted_by | text | `rules-1.0`, `local-llm:qwen2.5-7b`, … |
-| confirmed_by, confirmed_at | uuid, timestamptz | |
+| confirmed_by, confirmed_at | text, timestamptz | kto i kiedy potwierdził (E13 F2: `profile_confirmed_by` w tabeli `dish`; nazwa wyświetlana, nie klucz obcy); `confirmed_at` ustawia „Zapisz i potwierdź”, „Zapisz jako szkic” zeruje oba |
 | embedding | vector(384) null | opcjonalnie, pgvector; podobieństwo dań |
+
+### ProfileEdit (E13 F2, tabela `profile_edit`)
+
+Dziennik zmian profili smaku, tylko do dopisywania (jak `sommelier_decision`). Wiersz powstaje w tej samej transakcji co zapis profilu i tylko przy faktycznej zmianie (skale lub stan szkic/potwierdzony).
+
+| Pole | Typ | Uwagi |
+|---|---|---|
+| id | uuid PK | |
+| restaurant_id | uuid FK | każde zapytanie z `restaurantId` |
+| kind | enum | `dish`, `wine` |
+| subject_id | uuid | **bez klucza obcego**: historia przeżywa usunięcie dania lub wina |
+| actor, actor_id | text, uuid null | wyświetlana nazwa i konto (zwykłe kolumny, historia przeżywa konta) |
+| before, after | jsonb | skale i stan (`source`, `confirmedAt`, `confirmedBy`) przed i po |
+| created_at | timestamptz | czas z `Clock` aplikacji; indeks `(restaurant_id, created_at)` |
+
+Odcisk profilu (`profileVersion`, `core/src/services/catalog/profile-rules.ts`) to `expectedVersion` formularzy i `If-Match` API: dania i wina nie mają kolumny wersji, więc odcisk obejmuje skale i stan.
 
 ### Wine
 
@@ -186,7 +202,8 @@ Pozycja na karcie konkretnej restauracji (cena i dostępność są lokalne).
 | alcohol | numeric(3,1) | % |
 | style | enum | `sparkling`, `white`, `rose`, `orange`, `red`, `sweet` |
 | adventurous | bool | poza klasycznymi oczekiwaniami (orange, PIWI, mniej znane regiony) |
-| source | enum | `grape_defaults`, `catalog`, `confirmed` |
+| source | enum | `grape_defaults`, `catalog`, `confirmed`; w UI wszystko poza `confirmed` to „szkic”. Zapis „jako szkic” daje `grape_defaults` (istniejące `catalog` zostaje); w domenie brak `source` = `confirmed` |
+| confirmed_by, confirmed_at | text, timestamptz | jak w DishProfile (E13 F2: kolumny `profile_confirmed_by`, `profile_confirmed_at` w tabeli `wine`) |
 | embedding | vector(384) null | opcjonalnie |
 
 ### Pairing
@@ -236,9 +253,18 @@ Status pary jest pochodną ostatnich decyzji; tabela umożliwia raport „co zmi
 | id | uuid PK | |
 | restaurant_id | uuid FK | |
 | number | int | kolejny numer |
-| snapshot | jsonb | menu, wina, pary, ustawienia (to, co serwuje publiczne API). W implementacji: `pairings` (z `commentTranslations`) i `content` — tłumaczenia restauracji, dań i win, które widzą goście (zmiana tłumaczenia to zmiana do publikacji) |
+| snapshot | jsonb | menu, wina, pary, ustawienia (to, co serwuje publiczne API). W implementacji: `pairings` (z `commentTranslations`) i `content` — tłumaczenia restauracji, dań i win, które widzą goście (zmiana tłumaczenia to zmiana do publikacji). **Od 2026-11-16 (E13 F1, `schema: 2`)** także `profiles.dishes[]` / `profiles.wines[]` (`{id, profile}`: same skale silnika każdego nieusuniętego dania i wina, także ukrytych i nieaktywnych; bez `source` i danych o potwierdzeniu) oraz `menu.dishIds` (dania, które wersja zna: opublikowane, ukryte i zwolnione ze szkicu tą publikacją). Typ `PublishedSnapshot` i `buildSnapshot` / `readSnapshot` są w `core/src/services/publishing/snapshot.ts`. Wersja bez `schema` jest czytana jak dawniej (profile i widoczność z danych bieżących); migracja `Migration20261116160715_published_snapshot_v2` dopisała te pola tylko do najnowszej wersji każdej restauracji |
 | changes_count | int | |
 | published_by, published_at | | |
+
+**Co widzi gość (`PublishedView`, `core/src/services/publishing/published-view.ts`, E13 F1).** Jedna funkcja (`resolveView` / `loadPublishedView`) dla wszystkich ścieżek gościa, publicznego API, kodu polecenia i „Skuteczności par”:
+
+| Dane | Źródło |
+|---|---|
+| pary, tłumaczenia, profile smaku, skład karty | migawka obowiązującej wersji |
+| nazwa, opis bazowy, cena dania; ceny wina, `wine.active`; `dish.status = hidden`; ustawienia gościa | dane bieżące (działają natychmiast) |
+
+Danie jest widoczne, gdy jest w `menu.dishIds`, istnieje i ma bieżący status `published` (ukrycie i odkrycie działa od razu, w obie strony). Wino jest widoczne, gdy istnieje i ma profil w migawce; danie lub wino dodane po ostatniej publikacji czeka na następną. Restauracja nigdy nieopublikowana pokazuje stan bieżący. Licznik „niepublikowane zmiany” obejmuje też dania i wina, których profil różni się od migawki albo których migawka nie zna (`countProfileChanges`).
 
 Niezmienna; rollback = ustawienie `restaurant.current_version_id` na wcześniejszą wersję.
 

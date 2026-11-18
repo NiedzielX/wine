@@ -159,7 +159,7 @@ function snapshot(): string {
 
 // ---------- the profile of each route ----------
 type Auth = 'none' | 'session' | 'bearer';
-interface Built { params: Record<string, string>; query: string; body?: Json }
+interface Built { params: Record<string, string>; query: string; body?: Json; headers?: Record<string, string> }
 interface Profile {
   key: string; auth: Auth;
   /** the account that holds the permission; `deny` is an account of the same restaurant that must be refused */
@@ -185,6 +185,8 @@ interface Profile {
 }
 const q = (s = SLUG) => `restaurant=${encodeURIComponent(s)}`;
 const FAKE = '00000000-0000-4000-8000-00000000f00d';
+const DISH_PROFILE = { intensity: 3, fat: 3, salt: 2, sweetness: 1, acidity: 2, spice: 0, umami: 3, smoke: 1, creaminess: 2, protein: 'fish', cooking: 'seared' };
+const WINE_PROFILE = { sweetness: 1, acidity: 4, tannin: 0, body: 2, alcohol: 12.5, fruitiness: 3, oak: 0, aromatic: 2, freshness: 4, style: 'white', adventurous: false };
 
 const PROFILES: Profile[] = [
   { key: 'GET /api/v1/health', auth: 'none', write: false, repeatable: true, build: () => ({ params: {}, query: '' }), queryJunk: { x: [200] } },
@@ -230,7 +232,19 @@ const PROFILES: Profile[] = [
   { key: 'PATCH /api/v1/pairings/{id}', auth: 'session', user: 'marta', deny: 'tomasz', write: true, repeatable: false, body: 'json', ifMatch: true, idStatus: [404],
     build: () => ({ params: { id: FAKE }, query: q(), body: { status: 'approved' } }), junk: { status: ENUM_JUNK, role: ENUM_JUNK, comment: [[], {}, 12345, true, null, 'x'.repeat(1001)] } },
   { key: 'DELETE /api/v1/pairings/{id}', auth: 'session', user: 'marta', deny: 'tomasz', write: true, repeatable: false, ifMatch: true, idStatus: [404],
-    build: () => ({ params: { id: FAKE }, query: q() }) }
+    build: () => ({ params: { id: FAKE }, query: q() }) },
+
+  // E13 F2: the profile routes. The If-Match fingerprint has its own format (`<8 hex>-<length>`), so the valid request carries one.
+  { key: 'GET /api/v1/dishes/{dishId}/profile', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q() }) },
+  { key: 'PUT /api/v1/dishes/{dishId}/profile', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { profile: DISH_PROFILE, confirm: true } }),
+    junk: { profile: [...TYPE_JUNK, { ...DISH_PROFILE, intensity: 6 }, { ...DISH_PROFILE, protein: 'x' }, { ...DISH_PROFILE, extra: 1 }], confirm: BOOL_JUNK } },
+  { key: 'GET /api/v1/dishes/{dishId}/profile/preview', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: `${q()}&${new URLSearchParams(Object.fromEntries(Object.entries(DISH_PROFILE).map(([k, v]) => [k, String(v)]))).toString()}` }),
+    queryJunk: { intensity: [404, 422], fat: [404, 422], protein: [422], cooking: [422] } },
+  { key: 'GET /api/v1/wines/{id}/profile', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { id: FAKE }, query: q() }) },
+  { key: 'PUT /api/v1/wines/{id}/profile', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { id: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { profile: WINE_PROFILE, confirm: true } }),
+    junk: { profile: [...TYPE_JUNK, { ...WINE_PROFILE, alcohol: 40 }, { ...WINE_PROFILE, style: 'x' }, { ...WINE_PROFILE, extra: 1 }], confirm: BOOL_JUNK } },
+  { key: 'GET /api/v1/wines/{id}/profile/preview', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { id: FAKE }, query: `${q()}&${new URLSearchParams(Object.fromEntries(Object.entries(WINE_PROFILE).map(([k, v]) => [k, String(v)]))).toString()}` }),
+    queryJunk: { body: [404, 422], alcohol: [404, 422], style: [422], adventurous: [404, 422] } }
 ];
 
 // ---------- the harness ----------
@@ -249,7 +263,7 @@ async function send(p: Profile, o: Opts = {}): Promise<Res> {
   const base = p.build();
   const method = methodOf(p);
   const handler = modules[fileOf(patternOf(p))]![method] as Handler;
-  const headers: Record<string, string> = { host: 'localhost:3000', ...(p.ifMatch && !o.noIfMatch ? { 'if-match': '1' } : {}), ...o.headers };
+  const headers: Record<string, string> = { host: 'localhost:3000', ...(p.ifMatch && !o.noIfMatch ? { 'if-match': '1' } : {}), ...(o.noIfMatch ? {} : base.headers), ...o.headers };
   const who = o.as === undefined ? p.user : o.as;
   const session = who && typeof who === 'string' ? fx[who] : null;
   if (session) {

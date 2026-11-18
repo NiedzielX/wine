@@ -364,3 +364,7 @@ Spec `2026-10-16-sommelier-opportunities` (E10, D17). Okazja to jedno zdanie z l
 **Ekrany (F2–F4):** A14 `/admin/{slug}/opportunities` (wszystkie okazje, `scope: 'all'`, z S4 i S5), karta na A6 (okazje S1–S3 dania, `scope: 'dish'`) i linia „Opportunities: n” na A1 (S1–S3 całej karty); szczegóły w [SCREEN_SPECIFICATION.md](SCREEN_SPECIFICATION.md) (A1, A6, A14). Zdanie każdej okazji buduje aplikacja ze słownika (`admin.opportunities.sentences`) z `evidence`.
 
 **Halka (dane demo, `wm-rules-1.1.0`):** przy pierwszym otwarciu 6 okazji — S1 = 0 (każde danie ma propozycje albo Primary), S2 = 2 (przegrzebki i sandacz → Solaris 85 na kieliszek; remis 85 z Rieslingiem Kabinett i Sancerre rozstrzyga `id`), S3 = 4 (Sancerre 87 i Riesling Kabinett 87 → śledź bałtycki, De Nit Rosé 86 i Bannockburn Pinot Noir 85 → risotto). Deska serów nie daje S2, bo jest szkicem (`draft`). Lista jest zapisana w teście.
+
+## Podgląd zmiany profilu w panelu (E13 F2)
+
+Ekrany A3 i A5 pokazują, jak zmieni się Match Score po edycji profilu („How the match changes”). Podgląd (`core/src/services/catalog/profile-preview-service.ts`) wywołuje wyłącznie `pairingScore` i `recommendForDish` na kandydacie i na zapisanym profilu: **bez nowych reguł, wag i progów**, bez sieci, losowości i czasu. `ENGINE_VERSION` bez zmian. Zapis profilu nie przelicza `modelScore` istniejących par; goście liczą wynik z profilu z opublikowanej migawki.

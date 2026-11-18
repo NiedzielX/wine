@@ -458,11 +458,14 @@ describe('ImportService: wines', () => {
     expect(after).toMatchObject({ glassPrice: 48, bottlePrice: 230, profile: morgon.profile, grapes: morgon.grapes, listNumber: morgon.listNumber });
   });
 
-  it('new wines show up for guests at once (wines are live), but only as engine picks', async () => {
+  it('new wines reach guests with the next publish (spec 2026-11-04-panel-completion, R2), and only as engine picks', async () => {
     const job = await t.imp.upload('halka', 'wines', file('wines.csv'), ACTOR);
     await t.imp.confirm('halka', job.id, ACTOR);
     const dishes = await t.repos.dishRepository.listByRestaurant(rid(), { statuses: ['published'] });
-    const seen = (await Promise.all(dishes.map((d) => t.rec.forDish('halka', d.id)))).flatMap((r) => r!.result.items).filter((i) => i.wine.producer === 'Weingut Keller' || i.wine.producer === 'Isole e Olena');
+    const imported = async () => (await Promise.all(dishes.map((d) => t.rec.forDish('halka', d.id)))).flatMap((r) => r!.result.items).filter((i) => i.wine.producer === 'Weingut Keller' || i.wine.producer === 'Isole e Olena');
+    expect(await imported()).toEqual([]);
+    await t.repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-15T12:00:00.000Z', id: '00000000-0000-4000-8000-00000000f001' });
+    const seen = await imported();
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.every((i) => i.tier === 2 && !i.sommelier)).toBe(true);
   });

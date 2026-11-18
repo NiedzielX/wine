@@ -32,7 +32,17 @@ export interface DishProfile {
   cooking: CookingMethod;
   /** Who produced the profile: imported draft or confirmed by staff. */
   source: 'draft' | 'confirmed';
+  /** when and by whom the profile was confirmed (spec 2026-11-04-panel-completion, R4); absent or null for older data */
+  confirmedAt?: string | null;
+  confirmedBy?: string | null;
 }
+
+/** The taste scales of a dish a form or the engine reads (the profile without who confirmed it). */
+export const PROTEIN_TYPES: readonly ProteinType[] = ['beef', 'game', 'poultry', 'pork', 'fish', 'shellfish', 'vegetable', 'mushroom', 'dairy', 'dessert'];
+export const COOKING_METHODS: readonly CookingMethod[] = ['raw', 'cured', 'poached', 'seared', 'roasted', 'grilled', 'braised', 'fried', 'baked', 'none'];
+
+/** Where a wine profile comes from: grape defaults, a shared catalog, or confirmed by staff (R4, Q4). */
+export type WineProfileSource = 'grape_defaults' | 'catalog' | 'confirmed';
 
 export interface Dish {
   id: string;
@@ -60,6 +70,10 @@ export interface WineProfile {
   style: WineStyle;
   /** true for wines outside classic expectations (orange, PIWI grapes, lesser-known regions) */
   adventurous: boolean;
+  /** absent = confirmed (fixtures and older data); anything but `confirmed` is shown as a draft */
+  source?: WineProfileSource;
+  confirmedAt?: string | null;
+  confirmedBy?: string | null;
 }
 
 export interface Wine {
