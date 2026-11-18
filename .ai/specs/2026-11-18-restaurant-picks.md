@@ -159,18 +159,18 @@ Sposób: gałąź z samą zmianą `AGENTS.md`, opis cytujący D24, link do specy
 - **`showUnreviewed = false`** ukrywa pozycje tier 2, więc także wybory; A27 pokazuje to ostrzeżeniem.
 
 **Pytania otwarte (z rekomendacją).**
-- **O1** Czy F1 wymaga opinii prawnej przed startem? *Rekomendacja: nie (liczba surowa, etykieta jawna); opinia przed F2 i przed D22/D25, zlecić teraz.*
-- **O2** Czy zatwierdzasz E19 F2 jako **zastąpione** tą specyfikacją (nie rozszerzone)? *Rekomendacja: tak; powody w „Nakładanie”.*
-- **O3** Progi: próg surowego wyniku 75, limit 5 wyborów, najwyżej 2 awanse na listę. *Rekomendacja: przyjąć jako punkt wyjścia i potwierdzić krokiem 1 (`engine:matrix`); to hipotezy bez danych.*
-- **O4** Pierwsza pozycja z wyboru ma nagłówek „Wybór restauracji” zamiast „Polecane do Twojego dania”. *Rekomendacja: tak (uczciwość; to nie najlepsza propozycja silnika).*
-- **O5** Wino z wyboru będące parą sommeliera: pieczęć bez etykiety. *Rekomendacja: tak.*
-- **O6** Kto zmienia zbiór? *Rekomendacja: owner i manager; sommelier widzi i publikuje, bez osobnego prawa weta w F1.*
-- **O7** Wybór w „cały stół” (G6) i G11. *Rekomendacja: nie w F1; osobna kalibracja `TABLE_*`.*
-- **O8** Domyślnie tryb ostrożny; czy F2 (liczba, pułap +5, nazwa „Polecenie restauracji”, próg 75) w ogóle ma powstać i kiedy? *Rekomendacja: zdecydować po pomiarze z pilotażu F1; do tego czasu nie budować.*
-- **O9** Daty ważności i wybory per danie. *Rekomendacja: nie w F1; okres obowiązywania daje publikacja (w tym zaplanowana, E13 F5).*
-- **O10** Wpis w regulaminie: zakaz używania wyboru do ukrytej płatnej promocji (U8). *Rekomendacja: dodać przed pierwszym klientem, razem z zapisem o danych zagregowanych (D23).*
+- **O1** [OK 2026-11-18] Czy F1 wymaga opinii prawnej przed startem? *Rekomendacja: nie (liczba surowa, etykieta jawna); opinia przed F2 i przed D22/D25, zlecić teraz.*
+- **O2** [OK 2026-11-18] Czy zatwierdzasz E19 F2 jako **zastąpione** tą specyfikacją (nie rozszerzone)? *Rekomendacja: tak; powody w „Nakładanie”.*
+- **O3** [OK 2026-11-18] Progi: próg surowego wyniku 75, limit 5 wyborów, najwyżej 2 awanse na listę. *Rekomendacja: przyjąć jako punkt wyjścia i potwierdzić krokiem 1 (`engine:matrix`); to hipotezy bez danych.*
+- **O4** [OK 2026-11-18] Pierwsza pozycja z wyboru ma nagłówek „Wybór restauracji” zamiast „Polecane do Twojego dania”. *Rekomendacja: tak (uczciwość; to nie najlepsza propozycja silnika).*
+- **O5** [OK 2026-11-18] Wino z wyboru będące parą sommeliera: pieczęć bez etykiety. *Rekomendacja: tak.*
+- **O6** [OK 2026-11-18] Kto zmienia zbiór? *Rekomendacja: owner i manager; sommelier widzi i publikuje, bez osobnego prawa weta w F1.*
+- **O7** [OK 2026-11-18] Wybór w „cały stół” (G6) i G11. *Rekomendacja: nie w F1; osobna kalibracja `TABLE_*`.*
+- **O8** [OK 2026-11-18] Domyślnie tryb ostrożny; czy F2 (liczba, pułap +5, nazwa „Polecenie restauracji”, próg 75) w ogóle ma powstać i kiedy? *Rekomendacja: zdecydować po pomiarze z pilotażu F1; do tego czasu nie budować.*
+- **O9** [OK 2026-11-18] Daty ważności i wybory per danie. *Rekomendacja: nie w F1; okres obowiązywania daje publikacja (w tym zaplanowana, E13 F5).*
+- **O10** [OK 2026-11-18] Wpis w regulaminie: zakaz używania wyboru do ukrytej płatnej promocji (U8). *Rekomendacja: dodać przed pierwszym klientem, razem z zapisem o danych zagregowanych (D23).*
 - **O12** **[przegląd]** Próg 75 nie ogranicza odwrócenia wyników: wybór 75 może stanąć nad propozycją 95. *Rekomendacja: dodatkowo okno względne `PICK_WINDOW` (np. 10 pkt od najlepszego `matchScore` tier 2, jak `BEST_VALUE_WINDOW` = 8); decyzja i test w AC3 przed krokiem 2.*
-- **O11** Czy E17 ma wyłączać pozycje z flagą `pick` z sygnału „pasuje”? *Rekomendacja: tak (pętla zwrotna); zmiana założeń E17 przez właściciela.*
+- **O11** [OK 2026-11-18] Czy E17 ma wyłączać pozycje z flagą `pick` z sygnału „pasuje”? *Rekomendacja: tak (pętla zwrotna); zmiana założeń E17 przez właściciela.*
 
 ## Przegląd niezależny (2026-11-18)
 Przegląd w świeżym kontekście; twierdzenia o kodzie sprawdzone w `engine/recommend.ts`, `snapshot.ts`, `published-view.ts`, `publish-service.ts`, `recommendation-service.ts`, repozytoriach pamięci i PG. Poprawki naniesiono w treści z **[przegląd]**. Wynik: 3 blokujące, 9 ważnych, 5 drobnych; po poprawkach spec nadaje się do akceptacji, z decyzją O12 przed krokiem 2.
@@ -205,6 +205,7 @@ Przegląd w świeżym kontekście; twierdzenia o kodzie sprawdzone w `engine/rec
 ## Changelog
 - 2026-11-18 — Autor/recenzent: not recorded / not recorded (draft napisany przez agenta; źródło: `.ai/runs/2026-11-18-restaurant-picks-spec.md`).
 - 2026-11-18 — Przegląd niezależny: sekcja „Przegląd niezależny”, poprawki z **[przegląd]** (R1, R5, R8, R11, R13, R15, AC5, AC6, AC11, podział na PR, O12); `status` bez zmian (draft).
+- 2026-11-18 — Właściciel przyjął rekomendacje do O1–O11 (O12 otwarte); `status` bez zmian (draft).
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, log przebiegu, odstępstwa od projektu.)
