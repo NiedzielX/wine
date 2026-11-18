@@ -5,7 +5,7 @@ import { NEW_RESTAURANT } from './new-restaurant';
 import { BISTRO, HALKA, assertTablesCovered, base, bistroOwner, bistroSommelier, callAction, db, digest, errorCode, get, halkaManager, halkaSommelier, members, origin, postForm, runAction, send, snapshotDatabase, stageImport, type Session } from './boundaries';
 
 /**
- * Lesson 16 (security), docs/security/threat-model.md T-35 and T-36, part 3 of the access-boundary matrix.
+ * docs/security/threat-model.md T-35 and T-36, part 3 of the access-boundary matrix.
  *  - T-35, mass assignment: every write route of `check:routes` and the panel's server actions get the fields a client must never set
  *    (`restaurantId`, `id`, `role`, `status`, `createdBy`, `version`, `published`, `approved` ...). A JSON body is refused whole by its
  *    `strictObject` schema (422, nothing written); a route without a body and a form action ignore what they do not read, and the row

@@ -2,18 +2,18 @@
 status: draft
 created: 2026-11-09
 owner: właściciel (Filip)
-related: [docs/RELEASING.md, .ai/runs/2026-11-09-lesson-22-release-management.md, .ai/lessons/2026-11-09-release-is-a-human-decision.md, .ai/specs/2026-10-15-production-deployment.md]
+related: [docs/RELEASING.md, .ai/runs/2026-11-09-release-management.md, .ai/lessons/2026-11-09-release-is-a-human-decision.md, .ai/specs/2026-10-15-production-deployment.md]
 superseded_by:
 author_model: claude-opus-5-5
 reviewed_by: not recorded
 ---
 
-# Automatyzacja zarządzania wydaniem: propozycje na później (lekcja 22)
+# Automatyzacja zarządzania wydaniem: propozycje na później
 
 **Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).** To lista propozycji z pytaniami, nie plan do wykonania w całości: właściciel wybiera pozycje (albo żadnej), a każda wybrana dostaje własną fazę z kryteriami.
 
 ## Problem
-`docs/RELEASING.md` opisuje wydanie dla jednego właściciela: jedna gałąź `main`, PR wydania jako weryfikacja zbiorcza, ręcznie uruchamiany szkic `release.yml`, porządek w zgłoszeniach skillami `om-close-fixed-issues` i `om-auto-manage-issues`. Lekcja 22 pokazuje więcej narzędzi (Open Mercato: nocne wydania z `develop`, środowisko deweloperskie, podgląd per PR, kolejka scalania, automatyczny PR zastępczy z zasługą autora). Dziś ich nie potrzebujemy albo blokują je decyzje właściciela (hosting, domena), ale część stanie się potrzebna przy pierwszej restauracji pilotażowej albo drugiej osobie w projekcie.
+`docs/RELEASING.md` opisuje wydanie dla jednego właściciela: jedna gałąź `main`, PR wydania jako weryfikacja zbiorcza, ręcznie uruchamiany szkic `release.yml`, porządek w zgłoszeniach skillami `om-close-fixed-issues` i `om-auto-manage-issues`. Większe projekty stosują więcej narzędzi (nocne wydania z `develop`, środowisko deweloperskie, podgląd per PR, kolejka scalania, automatyczny PR zastępczy z zasługą autora). Dziś ich nie potrzebujemy albo blokują je decyzje właściciela (hosting, domena), ale część stanie się potrzebna przy pierwszej restauracji pilotażowej albo drugiej osobie w projekcie.
 
 ## Cel i zakres
 Zebrać propozycje, warunki ich sensowności i pytania do właściciela w jednym miejscu.
@@ -50,7 +50,7 @@ Do opracowania po wyborze pozycji. Punkty wyjścia: `docs/RELEASING.md`, `.githu
 - Ryzyko: każdy automat wdrażający dostaje sekret; wymaga osobnego środowiska GitHub z akceptacją właściciela i modelu zagrożeń (`docs/security/threat-model.md`).
 
 ## Changelog
-- 2026-11-09 — Autor/recenzent: claude-opus-5-5 / not recorded (draft bez przeglądu; log `.ai/runs/2026-11-09-lesson-22-release-management.md`).
+- 2026-11-09 — Autor/recenzent: claude-opus-5-5 / not recorded (draft bez przeglądu; log `.ai/runs/2026-11-09-release-management.md`).
 
 ## Realizacja
 (brak: draft)

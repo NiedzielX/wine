@@ -92,7 +92,7 @@ export async function run(argv: string[], environment: Environment, deps: Invite
 async function main(): Promise<number> {
   const rootEnv = fileURLToPath(new URL('../.env', import.meta.url));
   if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
-  announceDbTarget({ command: 'user:invite' }); // stderr, before anything is read or written (lesson 18)
+  announceDbTarget({ command: 'user:invite' }); // stderr, before anything is read or written
   const { createRequestScope } = await import('../packages/app/src/server/container');
   const { env } = await import('../packages/app/src/server/env');
   const { invitationLink } = await import('../packages/app/src/server/invitations');

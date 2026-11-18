@@ -1,6 +1,6 @@
-# Audyt generycznego wyglądu (lekcja 06, ćwiczenie 1)
+# Audyt generycznego wyglądu
 
-Data: 2026-10-19. Zakres: aplikacja gościa (`packages/app/src/app/(guest)`), panel (`packages/app/src/app/(admin)`, `packages/ui/src`). Metoda: ręczny przegląd kodu i zrzutów, wzorce z listy lekcji, `scripts/check-design.mjs`. Przeglądarki nie użyto w tym przebiegu; kontrast liczony z tokenów. Wykrywacz jako agent (prompt z lekcji) nie był jeszcze uruchomiony na tym raporcie.
+Data: 2026-10-19. Zakres: aplikacja gościa (`packages/app/src/app/(guest)`), panel (`packages/app/src/app/(admin)`, `packages/ui/src`). Metoda: ręczny przegląd kodu i zrzutów, wzorce generycznego wyglądu interfejsów z AI, `scripts/check-design.mjs`. Przeglądarki nie użyto w tym przebiegu; kontrast liczony z tokenów. Wykrywacz jako agent nie był jeszcze uruchomiony na tym raporcie.
 
 ## 1. Znaki generycznego wyglądu
 
@@ -23,7 +23,7 @@ Data: 2026-10-19. Zakres: aplikacja gościa (`packages/app/src/app/(guest)`), pa
 | tekst pomocniczy `ink-3` poniżej 4,5:1 (3,73:1) | cały gość, 13 miejsc | naprawione: `#6f646a`, 5,1:1 |
 | obramowania chipów i przycisków poniżej 3:1 (1,57:1 na białym) | chipy, przyciski, pola | naprawione: token `control` `#8c8087`, 3,8:1 (WCAG 1.4.11) |
 | menu bez dań: pusty formularz i przycisk, który nic nie zwraca | G5 (stolik) | naprawione: komunikat jak na G1 (PR #82, do sprawdzenia) |
-| fokus i kontrast przycisku „Indigo” z lekcji | n/d | nie dotyczy, bo kolor marki |
+| fokus i kontrast przycisku „Indigo” (typowy generyczny wygląd) | n/d | nie dotyczy, bo kolor marki |
 | stany ładowania, pusto, błąd | wszystkie ekrany gościa | sprawdzone grepem: pusto i błąd są na ekranach z listami i wynikami; zostaje G5 (PR #82) |
 | linie tekstu dłuższe niż 75 znaków | G3, G7, G12 | nie zmierzone w przeglądarce. Do sprawdzenia przy 1440 px |
 | komunikaty błędów bez wskazówki | formularze panelu | przegląd: pola z komunikatem co zrobić (np. „podaj cenę w złotych”); bez zmian w tym przebiegu |

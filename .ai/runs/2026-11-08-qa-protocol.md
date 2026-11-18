@@ -4,10 +4,10 @@ ended: 2026-11-08 13:55
 agent: Claude Code / claude-sonnet-5-5
 spec: brak (dokumentacja procesu i mała zmiana narzędzi operatora; zakres z zadania koordynatora)
 outcome: success (gałąź lokalna, bez push i bez PR: limit WIP, PR otworzy koordynator)
-related: [.ai/runs/2026-11-07-lesson-16-security.md]
+related: [.ai/runs/2026-11-07-security-review.md]
 ---
 
-# Lekcja 18 („tester z AI”) dopasowana do repozytorium
+# Protokół QA z agentami dopasowany do repozytorium
 
 ## Zadanie
 Protokół QA dla agentów bez równoległego testera-właściciela, szablon błędu, baza wiedzy QA, gotowe prompty oraz utwardzenie środowiska poleceń operatora (cel bazy na stderr, ostrzeżenie o cieniu `DATABASE_URL`).

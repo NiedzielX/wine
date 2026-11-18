@@ -45,11 +45,11 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 - Odświeżenie README, backlogu E11–E22, notatek bezpieczeństwa, ról i opisu usuwania danych (#131); krótkie README, `SECURITY.md` (zgłaszanie podatności) i szczegóły w `docs/DEVELOPMENT.md` (#151).
 - Odchudzenie `AGENTS.md` i indeksu lekcji pod budżety kontekstu (#142); ostrzeżenie o rozjeździe tabeli §1.1 z `package.json` i `check:context -- --fix-versions` (#145).
 - `@wine-match/testkit` jako workspace z zakresem `"*"`, wymuszane w `release:version` (#144); proces wydania: `docs/RELEASING.md`, `UPGRADE_NOTES.md`, `release:version`, `release:notes` (#143).
-- Synteza kursu (lekcje 1–22), playbook wykonawcy i `npm run audit:process` (#147); lekcje 24–25 i kierunek hostingu (#150); szkic specyfikacji hostingu na Vercel (#149); audyt wiedzy 2026-11-15 i dwa szkice specyfikacji utrzymania wiedzy (#153).
+- Playbook wykonawcy i `npm run audit:process` (#147); reguły wdrożenia i utrzymania oraz kierunek hostingu (#150); szkic specyfikacji hostingu na Vercel (#149); audyt wiedzy 2026-11-15 i dwa szkice specyfikacji utrzymania wiedzy (#153).
 - Test odporności każdej trasy `api/v1` na złe wejście; klucze wybrane przez klienta są przycinane do 80 znaków w treści odpowiedzi 422 (#152).
 - Zależności i CI: grupy minor-and-patch (#124, #138), `@testcontainers/postgresql` 12.2.1 (#139), akcje `setup-node` (#111), `upload-artifact` (#137) i `checkout` (#141).
 - Poprawki: identyfikator spoza UUID to „nieznany”, nie 500 (#109); flaky test kodu kelnera (#106).
-- Proces wydania (lekcja 22): `docs/RELEASING.md`, `UPGRADE_NOTES.md`, §9 w `BACKWARD_COMPATIBILITY.md`, `npm run release:version` i `npm run release:notes`, szkic workflow `release.yml` (tylko ręcznie, bez publikacji pakietów i wdrożenia).
+- Proces wydania: `docs/RELEASING.md`, `UPGRADE_NOTES.md`, §9 w `BACKWARD_COMPATIBILITY.md`, `npm run release:version` i `npm run release:notes`, szkic workflow `release.yml` (tylko ręcznie, bez publikacji pakietów i wdrożenia).
 
 ### Analityka, sprzedaż, okazje (E02–E04, E10)
 - E02: sesja gościa w URL (`sid`) i zdarzenia odsłon (#61), wybór wina i podgląd kelnera (#63).

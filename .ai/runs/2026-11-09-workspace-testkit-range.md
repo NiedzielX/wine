@@ -4,7 +4,7 @@ ended: 2026-11-09 21:10
 agent: Claude Code / claude-opus-5-5 (pod-agent, worktree)
 spec: brak — zmiana zakresów zależności wewnętrznych, przygotowana w docs/RELEASING.md §5 pkt 4 / §11
 outcome: success
-related: [.ai/runs/2026-11-09-lesson-22-release-management.md]
+related: [.ai/runs/2026-11-09-release-management.md]
 ---
 
 # Zakresy `@wine-match/testkit` jako dowiązanie do workspace (bez rejestru)

@@ -1,6 +1,6 @@
 # Praca równoległa agentów: zasady i klasyfikacja zadań
 
-Źródło: lekcja 13 kursu (zadania równoległe i automatyzacja). Lekcja pokazuje, że więcej agentów nie skraca drogi do wydania: wąskim gardłem jest uwaga człowieka (review, QA, integracja), a nie pisanie kodu (prawo Amdahla). Ten plik zamienia to w zasady dla tego repozytorium i klasyfikuje zadania z planu `.ai/specs/2026-11-04-product-completion-plan.md`. Zasady skrótem są w `AGENTS.md` §8.
+Więcej agentów nie skraca drogi do wydania: wąskim gardłem jest uwaga człowieka (review, QA, integracja), a nie pisanie kodu (prawo Amdahla). Ten plik zamienia to w zasady dla tego repozytorium i klasyfikuje zadania z planu `.ai/specs/2026-11-04-product-completion-plan.md`. Zasady skrótem są w `AGENTS.md` §8.
 
 ## 1. Zasady
 
@@ -10,13 +10,13 @@
 4. **Zadania typu M (maintenance, research, automatyczny review) mogą iść szerzej**, bo nie wymagają uwagi przy pisaniu. Ich PR-y przechodzą przez review jak każde inne, ale odbieramy je partiami (punkt 6).
 5. **Nadzór wyjątkami.** Agent najpierw próbuje sam (wg skilli `om-auto-*`). Zatrzymuje się tylko na decyzji należącej do człowieka (zakres, zachowanie produktu, zgoda na merge, zewnętrzne decyzje). Nie zatrzymuje się po każdym kroku, żeby ktoś kliknął „dalej”.
 6. **Pytania do właściciela idą partiami**, w jednym miejscu (podsumowanie na końcu przebiegu), a nie pojedynczo w trakcie. Review otwartych PR-ów w stałym bloku czasu, nie w ciągłym przełączaniu.
-7. **Izolacja:** jedna specyfikacja i jedna faza = jeden worktree = jeden PR (`AGENTS.md` §8). Agenci nie dzielą katalogu roboczego. Konflikty rozwiązujemy przy scalaniu, a safety net to testy (lekcje 12 i 13: izolacja w worktree plus scalanie z testami daje najlepszy wynik).
+7. **Izolacja:** jedna specyfikacja i jedna faza = jeden worktree = jeden PR (`AGENTS.md` §8). Agenci nie dzielą katalogu roboczego. Konflikty rozwiązujemy przy scalaniu, a safety net to testy (izolacja w worktree plus scalanie z testami daje najlepszy wynik).
 8. **Nie więcej agentów niż pracy.** Narzut komunikacji rośnie szybciej niż liczba agentów, więc dzielimy zadanie tylko tak, jak wymaga tego jego struktura.
 9. **Miara postępu:** zamknięte PR-y, które przeszły bramkę QA (`SDLC.md`), i czas od zlecenia do merge. Nie liczba agentów, tokenów ani PR-ów.
 10. **Przy kodzie o dużym znaczeniu** (silnik, uprawnienia, pieniądze) wolno wygenerować 2–3 warianty i wybrać najlepszy; do review idzie tylko wybrany.
-11. **Bramka `risk-high`** (lekcja 16, dodana 2026-11-07 po PR #127): faza oznaczona `risk-high` (E12 F3–F6, E21, E15 i każda nowa powierzchnia auth, tenanta albo płatności) nie przechodzi do „gotowe”, dopóki `docs/security/threat-model.md` nie jest zaktualizowany (stabilne identyfikatory `T-xx` bez zmian, nowe zagrożenia dopisane na końcu, każde „Control today” ponownie zweryfikowane z `plik:linia`) i dopóki każda nowa granica dostępu nie ma karty dowodowej „trzech sprawdzeń” (`.ai/docs/engineering-standards.md` §10: kontrola pozytywna dla obu kont, odmowa odczytu, odmowa zapisu, stan po próbie). QA reviewer sprawdza oba przed zgodą na merge, obok bramki `risk-high` z `SDLC.md`.
-12. **Praca wielomodelowa** (lekcja 21): równolegle idą tylko recenzenci (nie zmieniają plików); spec pisze jeden agent i kod pisze jeden agent (implementer w osobnym worktree, bez rozumowania autora specyfikacji). Pełny przepływ (orkiestrator, implementer, recenzenci z ≥ 2 rodzin modeli, najwyżej 3 rundy spec + 3 kodu) tylko dla `risk-high` lub dużego modułu z pełną specyfikacją, najlepiej w nocy; małe zmiany robi jeden agent. Zasady: `review-protocol.md` §9.
-13. **Wydanie** (lekcja 22) jest decyzją właściciela, nie skutkiem pracy w tle: agent przygotowuje PR wydania (wersja, notatki, porządek w zgłoszeniach), a tag, publikację, wdrożenie i ogłoszenie robi właściciel. Jedna gałąź `main`, PR wydania jako weryfikacja zbiorcza, poprawki stabilizujące kwestionujemy. Proces: `docs/RELEASING.md`.
+11. **Bramka `risk-high`** (dodana 2026-11-07 po PR #127): faza oznaczona `risk-high` (E12 F3–F6, E21, E15 i każda nowa powierzchnia auth, tenanta albo płatności) nie przechodzi do „gotowe”, dopóki `docs/security/threat-model.md` nie jest zaktualizowany (stabilne identyfikatory `T-xx` bez zmian, nowe zagrożenia dopisane na końcu, każde „Control today” ponownie zweryfikowane z `plik:linia`) i dopóki każda nowa granica dostępu nie ma karty dowodowej „trzech sprawdzeń” (`.ai/docs/engineering-standards.md` §10: kontrola pozytywna dla obu kont, odmowa odczytu, odmowa zapisu, stan po próbie). QA reviewer sprawdza oba przed zgodą na merge, obok bramki `risk-high` z `SDLC.md`.
+12. **Praca wielomodelowa:** równolegle idą tylko recenzenci (nie zmieniają plików); spec pisze jeden agent i kod pisze jeden agent (implementer w osobnym worktree, bez rozumowania autora specyfikacji). Pełny przepływ (orkiestrator, implementer, recenzenci z ≥ 2 rodzin modeli, najwyżej 3 rundy spec + 3 kodu) tylko dla `risk-high` lub dużego modułu z pełną specyfikacją, najlepiej w nocy; małe zmiany robi jeden agent. Zasady: `review-protocol.md` §9.
+13. **Wydanie** jest decyzją właściciela, nie skutkiem pracy w tle: agent przygotowuje PR wydania (wersja, notatki, porządek w zgłoszeniach), a tag, publikację, wdrożenie i ogłoszenie robi właściciel. Jedna gałąź `main`, PR wydania jako weryfikacja zbiorcza, poprawki stabilizujące kwestionujemy. Proces: `docs/RELEASING.md`.
 
 ## 2. Typy zadań
 
@@ -64,15 +64,15 @@ Klasyfikacja jest wiążąca dla kolejności prac. Zmienia ją tylko zmiana tego
 - Przy każdej fazie obowiązuje przebieg z `fix-verification.md`: pod-agent dokańcza fazę w osobnym worktree, druga sesja robi review, poprawki idą z czerwonym testem, PR otwiera sesja nadrzędna (limit 3 w review).
 - Następna w kolejce wg §3: E12 F2 (typ S) jako jedyne zadanie implementacyjne w obszarze auth, plus najwyżej dwa niezależne zadania typu P (na przykład E21 F2 kopie i E22 F1 kalkulator), plus dowolnie zadania M.
 
-## 6. Narzędzia: stan względem lekcji
+## 6. Narzędzia: stan i braki
 
-Mamy: Claude Code w aplikacji desktopowej, worktree na zadanie, skille `om-auto-*`, bramkę QA, `check:qa` i skrypty `test-env`. Brakuje względem macierzy z lekcji:
+Mamy: Claude Code w aplikacji desktopowej, worktree na zadanie, skille `om-auto-*`, bramkę QA, `check:qa` i skrypty `test-env`. Brakuje względem listy kryteriów narzędzi:
 - jednego widoku „co czeka na mnie” (kolejka zadań ze statusami);
 - automatycznego sprzątania worktree (osobne, ręcznie utrzymywane worktree zostają po przerwanej pracy);
 - krótkich logów zadań w tle (dziś są w przebiegach `.ai/runs`);
 - nocnej automatyzacji (§5).
 
-Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktujemy ją jako listę kryteriów, a nie ranking.
+Ocena zależy od celów: traktujemy to jako listę kryteriów, a nie ranking.
 
 ## 7. Jak pracujemy dziś i co zmieniamy
 
@@ -83,7 +83,7 @@ Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktu
 2. Jedno zadanie typu S w obszarze, resztę zadań niezależnych typu P lub M.
 3. Pytania partiami, review w stałych blokach.
 4. Po zgodzie właściciela: nocny automatyczny review (§5).
-5. Wszystkie zadania implementacyjne z kryteriami akceptacji mają scenariusze `.ai/qa` (reguła z lekcji 12), więc automatyczne sprawdzenie zastępuje część ręcznego QA.
+5. Wszystkie zadania implementacyjne z kryteriami akceptacji mają scenariusze `.ai/qa`, więc automatyczne sprawdzenie zastępuje część ręcznego QA.
 
 ## 5. Automatyzacja nocna (włączona 2026-11-05)
 
@@ -93,15 +93,15 @@ Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktu
 - **Pierwszy przebieg (2026-11-06, 03:02 UTC) zadziałał:** komentarze pod pięcioma otwartymi PR-ami (#103, #111, #113, #114, #121), jeden `request changes` (#114: typy `@types/node` 26 przy runtime Node 22, trafne). Uwaga z przebiegu: w środowisku chmurowym `gh` korzysta z REST (GraphQL bywa niedostępny), więc polecenia `gh pr list` i `gh pr comment` mogą nie działać; rutyna radzi sobie przez `gh api`. Log przebiegów: `RemoteTrigger` `list_runs` i `get_run_log` dla rutyny.
 - Następna w kolejności: triage nowych zgłoszeń (duplikaty, zakres, powiązania).
 
-## 6. Narzędzia: stan względem lekcji
+## 6. Narzędzia: stan i braki
 
-Mamy: Claude Code w aplikacji desktopowej, worktree na zadanie, skille `om-auto-*`, bramkę QA, `check:qa` i skrypty `test-env`. Brakuje względem macierzy z lekcji:
+Mamy: Claude Code w aplikacji desktopowej, worktree na zadanie, skille `om-auto-*`, bramkę QA, `check:qa` i skrypty `test-env`. Brakuje względem listy kryteriów narzędzi:
 - jednego widoku „co czeka na mnie” (kolejka zadań ze statusami);
 - automatycznego sprzątania worktree (osobne, ręcznie utrzymywane worktree zostają po przerwanej pracy);
 - krótkich logów zadań w tle (dziś są w przebiegach `.ai/runs`);
 - nocnej automatyzacji (§5).
 
-Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktujemy ją jako listę kryteriów, a nie ranking.
+Ocena zależy od celów: traktujemy to jako listę kryteriów, a nie ranking.
 
 ## 7. Jak pracujemy dziś i co zmieniamy
 
@@ -112,9 +112,9 @@ Ocena zależy od celów: macierz lekcji była ustawiona pod Cezara, więc traktu
 2. Jedno zadanie typu S w obszarze, resztę zadań niezależnych typu P lub M.
 3. Pytania partiami, review w stałych blokach.
 4. Po zgodzie właściciela: nocny automatyczny review (§5).
-5. Wszystkie zadania implementacyjne z kryteriami akceptacji mają scenariusze `.ai/qa` (reguła z lekcji 12), więc automatyczne sprawdzenie zastępuje część ręcznego QA.
+5. Wszystkie zadania implementacyjne z kryteriami akceptacji mają scenariusze `.ai/qa`, więc automatyczne sprawdzenie zastępuje część ręcznego QA.
 
-## 9. Znaczenie etykiet PR (ściągawka z lekcji 17)
+## 9. Znaczenie etykiet PR
 
 Numeracja: w tym pliku powtarzają się nagłówki „§6” i „§7” (stan z `main`, nie ruszane tutaj), więc tabela ma numer 9; odwołania „protokół §N” dotyczą `review-protocol.md`, „parallel-work §N” tego pliku.
 

@@ -1,6 +1,6 @@
 # Nocna rutyna review: co jej instrukcja powinna mówić
 
-Stan: **projekt do porównania, nie zmieniono rutyny** (koordynator porównuje ją z tym dokumentem; zmiana przez `RemoteTrigger` lub w ustawieniach rutyny, opis rutyny: `.ai/docs/parallel-work.md` §5). Wymagania wynikają z `.ai/docs/review-protocol.md` (lekcja 17).
+Stan: **projekt do porównania, nie zmieniono rutyny** (koordynator porównuje ją z tym dokumentem; zmiana przez `RemoteTrigger` lub w ustawieniach rutyny, opis rutyny: `.ai/docs/parallel-work.md` §5). Wymagania wynikają z `.ai/docs/review-protocol.md`.
 
 ## Wymagania wobec instrukcji (prompt)
 

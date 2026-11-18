@@ -2,7 +2,7 @@
 started: 2026-11-05 13:00
 ended: 2026-11-05 15:00
 agent: Claude Code / claude-sonnet-5-5
-spec: brak — infrastruktura QA z lekcji 12 (nie zmienia funkcji produktu)
+spec: brak — infrastruktura QA (nie zmienia funkcji produktu)
 outcome: success
 related: [.ai/runs/2026-11-05-staff-code-test-flake.md]
 ---
@@ -10,10 +10,10 @@ related: [.ai/runs/2026-11-05-staff-code-test-flake.md]
 # Infrastruktura QA: scenariusze Markdown, override skilla, test-env
 
 ## Zadanie
-Lekcja 12 (testy integracyjne): właściciel polecił uzupełnić luki: brak `.ai/qa` ze scenariuszami, brak lokalnego override'u `om-integration-tests`, brak skryptów `test-env up/down`, niestabilny test (osobny PR #106) oraz powiązanie AC ze scenariuszami.
+Testy integracyjne: właściciel polecił uzupełnić luki: brak `.ai/qa` ze scenariuszami, brak lokalnego override'u `om-integration-tests`, brak skryptów `test-env up/down`, niestabilny test (osobny PR #106) oraz powiązanie AC ze scenariuszami.
 
 ## Przebieg
-- Lokalny override `.ai/skills/om-integration-tests/SKILL.md` i `references/best-practices.md` (15 zasad z lekcji plus dodatki projektu).
+- Lokalny override `.ai/skills/om-integration-tests/SKILL.md` i `references/best-practices.md` (15 zasad plus dodatki projektu).
 - Agenci: skrypty `.ai/scripts/test-env-up.sh` i `test-env-down.sh` według kontraktu `om-prepare-test-env`; 60 scenariuszy w `.ai/qa/{AREA}/` dla wszystkich `it` testów e2e, `README.md`, `INDEX.md` i `scripts/check-qa-scenarios.mjs`.
 - Reguła scenariuszy w szablonie specyfikacji, `AGENTS.md` §6.1 i planie epików (PR #105); `check:qa` w jobie `lint`; `.gitattributes` dla skryptów `.sh`.
 

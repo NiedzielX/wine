@@ -1,4 +1,4 @@
-# Dependabot (lesson 14): known-vulnerable dependencies arrive as pull requests instead of waiting for someone to run
+# Dependabot: known-vulnerable dependencies arrive as pull requests instead of waiting for someone to run
 # an audit. Vulnerability alerts are a repository setting (Settings > Advanced Security); this file only configures the
 # version updates. Kept small on purpose: at most 2 open pull requests, so they do not break the limit of 3 pull
 # requests waiting for review (.ai/docs/parallel-work.md), and a 14-day cooldown, the same rule as for adding
@@ -24,7 +24,7 @@ updates:
         update-types: [minor, patch]
   # Every action in .github/workflows is pinned by a full commit SHA with a trailing "# vX.Y.Z" comment. Dependabot
   # understands that form: it bumps the SHA and the comment together, after the same 14-day cooldown. Review such a
-  # pull request as a change of code that runs in CI with the repository token (lesson 18).
+  # pull request as a change of code that runs in CI with the repository token.
   - package-ecosystem: github-actions
     directory: /
     schedule:

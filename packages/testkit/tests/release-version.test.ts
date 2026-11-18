@@ -7,7 +7,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { checkVersions, planSet } from '../../../scripts/release-version.mjs';
 
 /**
- * Lesson 22 (release management): one version in the root package.json, every workspace package.json and the
+ * One version in the root package.json, every workspace package.json and the
  * workspace entries of package-lock.json. `--check` runs in the release checklist and the release workflow; `--set`
  * changes ONLY the packages' own `version` fields, never a dependency range. Internal `@wine-match/*` dependencies must be
  * `"*"`: npm 11 links the workspace for any range its version satisfies, but a fixed range stops matching after a bump

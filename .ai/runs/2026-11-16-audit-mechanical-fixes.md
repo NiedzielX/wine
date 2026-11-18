@@ -20,7 +20,7 @@ Zastosować wyłącznie pozycje oznaczone w audycie jako „bezpieczne, mechanic
 - `.ai/docs/commands.md`: dopisane `check:design` (`package.json:45`, CI `ci.yml:102`) i `storybook` / `storybook:build` (`package.json:23-24`).
 - `AGENTS.md` §1.2: dopisany `testkit`; §1.4: trzeci layout `(showcase)` (`packages/app/src/app/(showcase)/layout.tsx`).
 - `.ai/lessons.md`: skrócone linie 7 awansowanych lekcji (18, 23, 42, 58, 67, 68, 69); pozostałe 8 były już minimalne.
-- `docs/PROCES_I_KURS.md:58,173,182` i `.ai/docs/process-playbook.md:60`: granice dostępu części 2–3 wdrożone w #146 (`dc5068a`); po #150 nadal nieaktualne.
+- `docs/PROCESS.md:58,173,182` i `.ai/docs/process-playbook.md:60`: granice dostępu części 2–3 wdrożone w #146 (`dc5068a`); po #150 nadal nieaktualne.
 - `.ai/docs/process-templates.md`: drzewo `.ai/` uzupełnione o katalogi `docs`, `qa`, `maintenance`, `skills`, `trackers`, `browsers`, `scripts`, `schemas`, `analysis` (C-16).
 - Pominięte: C-13 (audyt się myli: `scripts/` w specyfikacji jest względne do `packages/db`, pliki istnieją w `packages/db/scripts/`), C-14 (`.claude/commands/` wymaga decyzji/zmiany w `.claude/`), S-06/S-08 i `staff-accounts-and-roles` (edycja treści specyfikacji), limit per IP (patrz Wynik).
 
@@ -32,7 +32,7 @@ Zastosować wyłącznie pozycje oznaczone w audycie jako „bezpieczne, mechanic
 - Skan względnych linków Markdown (poza `runs/`, `maintenance/`): po zmianach brak martwych linków poza placeholderami szablonów.
 
 ## Wynik
-Wszystkie zakresowe poprawki zastosowane. Uwaga dla właściciela: audyt (S-03, tabela C) mówi, że limit per IP jest otwarty, ale #148 (`f34ad08`) go wdrożył, a #152 dodał test odporności API; teksty o tym w `docs/PROCES_I_KURS.md` (§3, §6) i `process-playbook.md:61-64` są nieaktualne, nie ruszone (poza zakresem).
+Wszystkie zakresowe poprawki zastosowane. Uwaga dla właściciela: audyt (S-03, tabela C) mówi, że limit per IP jest otwarty, ale #148 (`f34ad08`) go wdrożył, a #152 dodał test odporności API; teksty o tym w `docs/PROCESS.md` (§3, §6) i `process-playbook.md:61-64` są nieaktualne, nie ruszone (poza zakresem).
 
 ## Lekcje
 brak

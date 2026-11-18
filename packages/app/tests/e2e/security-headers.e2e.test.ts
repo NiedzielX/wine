@@ -2,7 +2,7 @@ import { DEMO_PASSWORD } from '@wine-match/core';
 import { describe, expect, inject, it } from 'vitest';
 
 /**
- * Lesson 16, script-level DAST (docs/security/threat-model.md T-14, T-15, T-16; coverage in docs/security/dast-coverage.md): the BUILT app
+ * Script-level DAST (docs/security/threat-model.md T-14, T-15, T-16; coverage in docs/security/dast-coverage.md): the BUILT app
  * under `next start`, plain `fetch`, no browser. Security headers on every kind of answer, cookie flags, and error answers that
  * carry no stack trace, file path or library name. What it does not cover is listed in the coverage file, not here.
  */

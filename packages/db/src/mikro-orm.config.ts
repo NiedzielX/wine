@@ -9,7 +9,7 @@ const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 // One .env for the whole monorepo (repo root). Variables already set in the environment win.
 if (existsSync(here('../../../.env'))) process.loadEnvFile(here('../../../.env'));
-// The MikroORM CLI (`db:seed`, `db:migrate`, ...) loads this file first: say which database it is about to touch (lesson 18).
+// The MikroORM CLI (`db:seed`, `db:migrate`, ...) loads this file first: say which database it is about to touch.
 announceDbTarget({ command: 'db' });
 
 /** CLI configuration: `npm run migration:create | migration:up | seed` in packages/db. */

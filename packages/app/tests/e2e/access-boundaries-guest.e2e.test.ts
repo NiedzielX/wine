@@ -1,9 +1,10 @@
 import { queryDatabase } from '@wine-match/testkit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { firstDifference, normalise } from './guest-compare';
 import { BISTRO, HALKA, assertTablesCovered, base, bistroOwner, bistroSommelier, db, digest, errorCode, get, halkaManager, halkaSommelier, origin, runAction, send, snapshotDatabase, stageImport, type Session } from './boundaries';
 
 /**
- * Lesson 16 (security), docs/security/threat-model.md T-33 and T-34, part 2 of the access-boundary matrix.
+ * docs/security/threat-model.md T-33 and T-34, part 2 of the access-boundary matrix.
  *  - T-33: guests (the `/r/{slug}` pages and the public API) see the PUBLISHED state only: no unpublished pairing decision, note or
  *    translation, no draft or hidden dish, no hidden wine, no note of a rejected or unreviewed pairing, nothing of another restaurant.
  *    The proof compares WHOLE payloads: every guest surface is read before and after a set of unpublished changes and must be
@@ -38,8 +39,7 @@ async function publish(s: Session, slug: string, nothing: 'must-publish' | 'may-
   expect(await errorCode(r), `publish ${slug}`).toBe('nothing_to_publish');
 }
 
-/** A guest answer as text with the per-request parts taken out (CSP nonce), so that two reads of an unchanged state are equal. */
-const normalise = (text: string) => text.replace(/nonce="[^"]*"/g, 'nonce=""').replace(/"nonce":"[^"]*"/g, '"nonce":""');
+/** A guest answer as text with the per-request parts taken out (CSP nonce, order of streamed rows: `guest-compare.ts`), so that two reads of an unchanged state are equal. */
 async function guest(path: string, init?: RequestInit): Promise<{ status: number; text: string }> {
   const res = await fetch(`${base()}${path}`, { redirect: 'manual', ...init });
   return { status: res.status, text: normalise(await res.text()) };
@@ -103,7 +103,8 @@ describe('access boundaries, part 2: guests and the published state (T-33), the 
     for (const [p, r] of Object.entries(before)) expect(r.status, `positive control ${p}`).toBe(200);
     expect(before[`/r/${HALKA}/menu?sid=${SID}`]!.text).toContain((await publishedDishes(HALKA))[0]!.name);
     const again = await surfaces(HALKA, watched, wine);
-    expect(again, 'two reads of an unchanged state are equal (the comparison is meaningful)').toEqual(before);
+    expect(firstDifference(before, again), 'two reads of an unchanged state are equal (the comparison is meaningful)').toBeNull();
+    expect(again).toEqual(before);
 
     // unpublished changes, through the panel's own API and actions
     // one change per request (pairingUpdateSchema), each with the pairing's current version
@@ -126,7 +127,8 @@ describe('access boundaries, part 2: guests and the published state (T-33), the 
 
     const after = await surfaces(HALKA, watched, wine);
     expect(leaks(after, unpublished), 'an unpublished value reached a guest').toEqual([]);
-    expect(after, 'every guest payload is unchanged until publish').toEqual(before);
+    expect(firstDifference(before, after), 'every guest payload is unchanged until publish').toBeNull();
+    expect(after).toEqual(before);
 
     // the sommelier picks of the public API are EXACTLY the approved pairings of the latest published snapshot (wines still active):
     // asked with the largest page (6), every pick is in the snapshot and every snapshot pick is served (all of them when they fit)
