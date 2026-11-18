@@ -56,7 +56,6 @@ Repozytorium będzie przeglądane w całości przez osoby z zewnątrz, więc ma 
 
 ### Czego nie zneutralizowano
 
-- `.ai/docs/reference/2026-09-01-devmentor-engineering-standards.md` i odwołania do niego (`.ai/docs/engineering-standards.md`, `.ai/docs/architecture-rules.md`, specyfikacja `2026-10-15-engineering-standards`, log `2026-10-15-engineering-standards`, wzmianka w `2026-11-15-knowledge-maintenance`): oryginał opisuje inny produkt, nosi w treści nazwę zewnętrznego pakietu szkoleniowego i ma adnotację „nie edytuj”. Decyzja (usunięcie albo przeniesienie poza repozytorium) należy do właściciela.
 - Wzmianki o zewnętrznym projekcie open source, z którego pochodzą skille `om-*` (`skills-lock.json`, kilka porównań w `docs/RELEASING.md`, logach i specyfikacjach): to źródło zainstalowanych skilli, nie atrybucja materiałów szkoleniowych; poza pojedynczymi zdaniami o przykładach z tego projektu, które przepisano.
 - Imię właściciela w kilku logach i specyfikacjach (poza zakresem zadania).
 - Nazwy rzeczywistych gałęzi i commitów w historii gita zawierają dawne słowa; historii nie zmieniano.
