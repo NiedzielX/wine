@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-18] [Dwa odczyty strony Next.js nie są bajt w bajt równe](lessons/2026-11-18-streamed-flight-rows-vary-in-order.md) — kolejność wierszy Flight w HTML to wyścig metadanych z treścią; porównuj przez `normalise` z `guest-compare.ts`.
 - [2026-11-17] [Po dodaniu migracji wyczyść pamięć podręczną Vite](lessons/2026-11-17-new-migration-stale-vite-glob.md) — `migrations-roundtrip` pada na „Unknown variable dynamic import” do czasu `rm -rf node_modules/.vite*`.
 - [2026-11-17] [`npm run build` pada co drugi raz na `SecurityFatalError`](lessons/2026-11-17-next-build-security-nudge-alternates.md) — to ostrzeżenie o podatności, nie błąd kodu: uruchom jeszcze raz i nie wykonuj `next upgrade` z komunikatu.
 - [2026-11-16] [Skakanie ekranu mierz z klasycznym paskiem, opóźnioną siecią i surowymi przesunięciami](lessons/2026-11-16-measuring-layout-jumps-in-headless-chromium.md) — Playwright domyślnie ukrywa paski przewijania, a CLS pomija 500 ms po kliknięciu.
@@ -56,7 +57,7 @@ Format linii (najnowsze na górze):
 - [2026-10-16] [Bez Dockera PostgreSQL z `embedded-postgres`](lessons/2026-10-16-postgres-without-docker.md) — poza repozytorium; równoległe agenty: własny katalog i port.
 - [2026-10-16] [Strony serwerowe testuj w Vitest przez `prerender`](lessons/2026-10-16-ssr-page-tests-with-prerender.md) — `react-dom/static` z atrapami `next/headers`.
 - [2026-10-15] [Next.js 16 nadpisuje `Vary` stron](lessons/2026-10-15-nextjs-vary-header-overwritten.md) — sprawdzaj nagłówki `curl -D -` na `next start`.
-- [2026-10-15] [Dokument „do wdrożenia” może dotyczyć innego produktu](lessons/2026-10-15-adopting-a-foreign-standard.md) — zapisz mapowanie reguł i odstępstwa, sprawdź każdą na kodzie.
+- [2026-10-15] [Dokument „do wdrożenia” może nie pasować do repozytorium](lessons/2026-10-15-adopting-an-external-standard.md) — zapisz mapowanie reguł i odstępstwa, sprawdź każdą na kodzie.
 - [2026-10-15] [Klucze od klienta](lessons/2026-10-15-client-chosen-keys.md) — `promoted: AGENTS.md §1.6`.
 - [2026-10-15] [Konfiguracja zawodzi zamykająco, budowanie jej nie wymaga](lessons/2026-10-15-config-fails-closed-and-boot-without-env.md) — `promoted: AGENTS.md §1.6`.
 - [2026-10-14] [Import plików](lessons/2026-10-14-import-conventions.md) — `promoted: AGENTS.md §1.3`.

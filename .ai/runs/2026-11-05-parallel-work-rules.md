@@ -2,15 +2,15 @@
 started: 2026-11-05 14:00
 ended: 2026-11-05 14:40
 agent: Claude Code / claude-sonnet-5-5
-spec: brak — zadanie domowe z lekcji 13 (dokumentacja procesu)
+spec: brak — dokumentacja procesu
 outcome: success
 related: [.ai/specs/2026-11-04-product-completion-plan.md]
 ---
 
-# Zasady pracy równoległej i klasyfikacja zadań (lekcja 13)
+# Zasady pracy równoległej i klasyfikacja zadań
 
 ## Zadanie
-Zadanie domowe z lekcji 13: sklasyfikować zadania (równoległe, sekwencyjne, interaktywne, 2–3 naraz), ustawić narzędzie lub opisać braki, zaproponować nocną automatyzację, opisać stan dzisiejszy i zmiany.
+Cel: sklasyfikować zadania (równoległe, sekwencyjne, interaktywne, 2–3 naraz), ustawić narzędzie lub opisać braki, zaproponować nocną automatyzację, opisać stan dzisiejszy i zmiany.
 
 ## Przebieg
 - Klasyfikacja oparta na tabeli epików i fazach ze specyfikacji E16, E20 i E21 (sprawdzone w plikach, nie z pamięci).

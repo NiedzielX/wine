@@ -1,6 +1,6 @@
 # Listy kontrolne review: soczewka ogólna i przejścia specjalistyczne
 
-Źródło: lekcja 17 kursu. Używa ich `npm run review:pack` (wkleja listę ogólną i przejścia wywołane zmienionymi ścieżkami do paczki recenzenta; plik jest czytany z gałęzi bazowej, nie z PR-a). Protokół: `.ai/docs/review-protocol.md`. Uzupełnia `CODE_REVIEW.md` (kontrole specyficzne dla repo) i `.ai/docs/engineering-standards.md` §8, nie zastępuje ich.
+Używa ich `npm run review:pack` (wkleja listę ogólną i przejścia wywołane zmienionymi ścieżkami do paczki recenzenta; plik jest czytany z gałęzi bazowej, nie z PR-a). Protokół: `.ai/docs/review-protocol.md`. Uzupełnia `CODE_REVIEW.md` (kontrole specyficzne dla repo) i `.ai/docs/engineering-standards.md` §8, nie zastępuje ich.
 
 **Przejścia specjalistyczne to dodatkowe przebiegi w świeżym kontekście** (jeden pod-agent na przejście), uruchamiane na większych lub ryzykowniejszych PR-ach; nie dokładaj ich do jednego, długiego review (wąska soczewka w czystym kontekście znajduje więcej niż szeroka w zatłoczonym). Przy `risk-high` wymagane są co najmniej dwa niezależne review w świeżym kontekście (protokół §2). Każda lista jest krótka i deterministyczna: odpowiedź to „tak / nie / nie dotyczy” z numerem linii diffu, nie ocena ogólna.
 
@@ -76,7 +76,7 @@ Reguła trzech sprawdzeń: `.ai/docs/engineering-standards.md` §10 (granica dos
 - [ ] Opis w dokumencie zgadza się z kodem (liczby, nazwy poleceń, ścieżki).
 
 <!-- checklist:triage -->
-**Triage uwag recenzentów (dla orkiestratora, nie dla recenzenta; lekcja 21, protokół §9).** `review:pack` nie wkleja tej listy do paczki. Dla **każdej** uwagi osobno, także zgłoszonej przez jednego recenzenta z wielu:
+**Triage uwag recenzentów (dla orkiestratora, nie dla recenzenta; protokół §9).** `review:pack` nie wkleja tej listy do paczki. Dla **każdej** uwagi osobno, także zgłoszonej przez jednego recenzenta z wielu:
 - [ ] Odpowiedź przeszła `npm run review:validate` z jedynym wejściem tej rundy (schemat, `inputDigest`, różni recenzenci); kompletu odpowiedzi skrypt nie sprawdza, policz je sam względem zleconych; odpowiedź niezgodna ze schematem wraca do recenzenta albo jest odrzucona w całości, orkiestrator jej nie „poprawia”.
 - [ ] Odtworzona w kodzie: otwarty `plik:linia`, przeczytany kontekst, a gdy się da, uruchomiony test lub wejście z dowodu recenzenta. Bez odtworzenia uwaga nie jest „prawdziwa”.
 - [ ] Klasyfikacja jednym słowem: `prawdziwa` / `halucynacja` / `poza zakresem` (prawdziwa, ale nie w tym PR: backlog lub log) + jedno zdanie dowodu (`plik:linia`, wynik testu, wymaganie R/AC). Nigdy „bo inni tego nie zgłosili” ani „bo dwóch się zgodziło”: decyduje dowód, nie liczba głosów.

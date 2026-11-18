@@ -10,7 +10,7 @@ related: [.ai/runs/2026-10-15-agent-pipeline-setup.md]
 # Warstwa produktowa SDLC (om-setup-discovery-pipeline)
 
 ## Zadanie
-Po lekcji 4 właściciel poprosił o uruchomienie `om-setup-discovery-pipeline`: pytania o role i zmiany w PR-ze. To pierwszy krok przed researchem, `om-discover` i `om-backlog`.
+Właściciel poprosił o uruchomienie `om-setup-discovery-pipeline`: pytania o role i zmiany w PR-ze. To pierwszy krok przed researchem, `om-discover` i `om-backlog`.
 
 ## Przebieg
 - Odpowiedzi właściciela: jest ekspert domenowy poza product ownerem (np. sommelier / Wine Director zatwierdzający reguły parowania); designera nie ma.

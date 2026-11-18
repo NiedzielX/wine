@@ -21,6 +21,15 @@ const ACCEPTED = [
     advisory: 'GHSA-vfj7-8cjw-p6xm',
     reason: 'unreachable: awilix glob loading is not used (container.ts registers every dependency explicitly)',
     expires: '2027-01-15'
+  },
+  {
+    // awilix → fast-glob → micromatch → picomatch@2.3.2 (ReDoS through single-branch repeated extglobs). No fixed release exists:
+    // picomatch 4.0.7 is the latest and is inside the vulnerable range. Same reachability argument as above: no glob pattern is
+    // ever evaluated, because awilix's loadModules/listModules are never called (container.ts registers every dependency by hand).
+    packages: ['picomatch'],
+    advisory: 'GHSA-fc5q-39xc-vjpf',
+    reason: 'unreachable: awilix glob loading is not used (container.ts registers every dependency explicitly)',
+    expires: '2027-01-15'
   }
 ];
 

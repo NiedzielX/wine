@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Release notes from CHANGELOG.md and UPGRADE_NOTES.md (lesson 22, docs/RELEASING.md). Deterministic, offline, no
+ * Release notes from CHANGELOG.md and UPGRADE_NOTES.md (docs/RELEASING.md). Deterministic, offline, no
  * dependencies. Format: Keep a Changelog, `## [Unreleased]` on top, then `## [X.Y.Z] - YYYY-MM-DD`, newest first
  * (the historical `## [0.2.0]` has no date and is accepted). Headings inside ``` fences are ignored (examples).
  * Versions are plain X.Y.Z everywhere (no prerelease, no +build, no leading zeros), like release-version.mjs.

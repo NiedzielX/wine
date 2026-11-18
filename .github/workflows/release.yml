@@ -1,4 +1,4 @@
-# DRAFT (lesson 22, docs/RELEASING.md section 5). Manual only; NOT a required check; has never run yet.
+# DRAFT (docs/RELEASING.md section 5). Manual only; NOT a required check; has never run yet.
 #
 # What it does, on `main` only, for a version the owner already prepared in a merged PR (package.json versions set with
 # `npm run release:version -- --set X.Y.Z --write`, CHANGELOG.md and UPGRADE_NOTES.md promoted with
@@ -23,7 +23,7 @@
 # What it does NOT do: publish packages (every package is private, nothing goes to npm), build or push an image,
 # deploy, change files or push commits. The release decision stays with the owner.
 #
-# Supply chain (lesson 18): actions pinned by full SHA, the same pins as ci.yml; checkouts keep no token
+# Supply chain: actions pinned by full SHA, the same pins as ci.yml; checkouts keep no token
 # (persist-credentials: false). The tag and the release are created through the REST API by `gh release create`
 # with GITHUB_TOKEN, which is given only to the steps that need it, so no git credential is ever written to disk and
 # no `git push` is needed. Only the `release` job has `contents: write`.

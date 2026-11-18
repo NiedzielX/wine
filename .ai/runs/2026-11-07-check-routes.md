@@ -7,7 +7,7 @@ outcome: success (PR #128 otwarty, review w toku; poprawki po review dwóch rece
 related: [.ai/docs/fix-verification.md]
 ---
 
-# Zadanie domowe lekcji 17: `check:routes`
+# `check:routes`
 
 ## Zadanie
 Jedną klasę błędu, która wróciła mimo review (trasa API z pominięciem wspólnego wrappera, E21 F1), zamienić w deterministyczne sprawdzenie, czerwone na wadliwej wersji z właściwego powodu i zielone na poprawnej, wpięte w wymagany job CI.

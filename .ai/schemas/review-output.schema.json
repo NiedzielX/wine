@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "wine-match/review-output/1",
-  "title": "Reviewer output (lesson 21)",
+  "title": "Reviewer output",
   "description": "One reviewer's answer to one review-input package. Every finding carries evidence (a failing test, an input with the wrong output, or the requirement it breaks); the orchestrator triages each finding on its own, never by vote. inputDigest is the SHA-256 of the exact input file bytes, so answers to different inputs cannot be merged. Protocol: .ai/docs/review-protocol.md section 9.",
   "type": "object",
   "additionalProperties": false,

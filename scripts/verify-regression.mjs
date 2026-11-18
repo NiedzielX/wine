@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * verify:regression — proof that a bug fix is a real fix (lesson 14: "a fix is a hypothesis").
+ * verify:regression — proof that a bug fix is a real fix ("a fix is a hypothesis").
  *
  * The test(s) of a fix must be RED on the code before the fix and GREEN on the code after it. This script runs the
  * same test files twice on the current branch:

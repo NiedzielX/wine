@@ -34,7 +34,7 @@
   --color-brass-soft: #f3ede1;
   --color-sage: #3b6a52;
   --color-sage-soft: #e5efe9;
-  /* Lesson 06 audit: borders of controls need 3:1 against their background (WCAG 1.4.11). Was #d4ccd0 (1.4:1). */
+  /* Audit: borders of controls need 3:1 against their background (WCAG 1.4.11). Was #d4ccd0 (1.4:1). */
   --color-control: #8c8087;
   --color-wine-soft: #f6eef1;
   --color-brass-ink: #5d4720;

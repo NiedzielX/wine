@@ -8,7 +8,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { checkFiles, loadSchemas, validate } from '../../../scripts/review-validate.mjs';
 
 /**
- * Lesson 21: the reviewer input package and the reviewer output have JSON contracts (`.ai/schemas/`). The input has
+ * The reviewer input package and the reviewer output have JSON contracts (`.ai/schemas/`). The input has
  * no place for the author's rationale; every finding carries evidence; all answers of a round refer to the same input.
  */
 const SCRIPT = fileURLToPath(new URL('../../../scripts/review-validate.mjs', import.meta.url));
