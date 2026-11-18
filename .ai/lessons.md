@@ -9,6 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-18] [Dwa odczyty strony Next.js nie są bajt w bajt równe](lessons/2026-11-18-streamed-flight-rows-vary-in-order.md) — kolejność wierszy Flight w HTML to wyścig metadanych z treścią; porównuj przez `normalise` z `guest-compare.ts`.
 - [2026-11-17] [Po dodaniu migracji wyczyść pamięć podręczną Vite](lessons/2026-11-17-new-migration-stale-vite-glob.md) — `migrations-roundtrip` pada na „Unknown variable dynamic import” do czasu `rm -rf node_modules/.vite*`.
 - [2026-11-17] [`npm run build` pada co drugi raz na `SecurityFatalError`](lessons/2026-11-17-next-build-security-nudge-alternates.md) — to ostrzeżenie o podatności, nie błąd kodu: uruchom jeszcze raz i nie wykonuj `next upgrade` z komunikatu.
 - [2026-11-16] [Skakanie ekranu mierz z klasycznym paskiem, opóźnioną siecią i surowymi przesunięciami](lessons/2026-11-16-measuring-layout-jumps-in-headless-chromium.md) — Playwright domyślnie ukrywa paski przewijania, a CLS pomija 500 ms po kliknięciu.
