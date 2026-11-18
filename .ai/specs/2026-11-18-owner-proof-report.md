@@ -185,33 +185,33 @@ Poniższe to **hipoteza** z P3 strategii; nic w tej specyfikacji jej nie wdraża
 - **Rozmiar zmiany:** migracja (`risk-high`: dwa niezależne przeglądy), nowe uprawnienie i trasy; kroki 1–7 trzymają PR-y małe.
 
 ### Pytania otwarte (z rekomendacją; decyzja: Filip)
-1. **Progi: 28 + 28 dni, 30 rachunków (D20), 14 dni z danymi na okno?** Rekomendacja: tak, z `PROOF_MIN_TRADING_DAYS = 14`; po pierwszym pilotażu skorygować na podstawie danych (30 rachunków daje przedział ok. ±17 pp dla jednego okna, a dla zmiany ok. ±25 pp: przy 30 + 30 rachunków `increase` pojawia się dopiero od ok. +27 pp **[przegląd]**, patrz H5; to cena prostoty, a próg wyższy opóźni wynik małych lokali).
-2. **Czy pokazywać procent okna poniżej 30 rachunków?** Rekomendacja: nie, tylko „N z M”.
-3. **Skąd dzień uruchomienia?** Rekomendacja: wpisuje owner/GM, formularz podpowiada dzień pierwszego wydanego kodu (wymaga jednej metody `firstServiceDay` w porcie kodów) lub pierwszej publikacji; nie wyprowadzać go automatycznie.
-4. **Kto widzi raport?** Rekomendacja: owner i GM (`proof.view`); sommelier nie (ma interes w wyniku i widzi kafelki sprzedaży na A1). Do potwierdzenia, bo `docs/USER_ROLES.md` dziś daje A1 sommelierowi.
-5. **„Miesiąc” czy okno 28 dni?** Rekomendacja: okno 28 dni (równe tygodnie); w tekście „4 tygodnie”, a daty zawsze podane.
-6. **Zamrażać migawkę raportu po zamknięciu okna?** Rekomendacja: nie w F1 (rachunki z importu mogą być zastępowane; pokazujemy „dane do dnia …”); jeśli właściciel chce „raport podpisany na dzień”, to F2+ z tabelą migawek i osobną migracją.
-7. **Czy dopuszczamy zmianę L po fakcie?** Rekomendacja: tak, ale tylko dopisaniem z powodem i widoczną historią (R5).
-8. **Zwrot abonamentu po 60 dniach: czy oferujemy, w którym planie i według którego wariantu (A, B, C)?** Rekomendacja: wariant A, tylko plan Pro, po opinii prawnej i zmianie regulaminu; do czasu pierwszego pilotażu nie obiecywać publicznie (A05 niesprawdzone).
-9. **Nazwa w EN:** „Proof report” (spójne ze strategią) czy neutralniej „Results report”, bo „proof” może brzmieć jak gwarancja? Rekomendacja: „Results report”; w PL „Raport dowodu” zostaje (słowo „dowód” jest z pozycjonowania).
-10. **Co jest „sukcesem” pilota (Q02, Q11, K03)?** Poza tą specyfikacją, ale raport go nie rozstrzyga: pokazuje liczby i niepewność. Rekomendacja: ustalić po poznaniu bazy, nie z góry +5 pp.
+1. [OK 2026-11-18] **Progi: 28 + 28 dni, 30 rachunków (D20), 14 dni z danymi na okno?** Rekomendacja: tak, z `PROOF_MIN_TRADING_DAYS = 14`; po pierwszym pilotażu skorygować na podstawie danych (30 rachunków daje przedział ok. ±17 pp dla jednego okna, a dla zmiany ok. ±25 pp: przy 30 + 30 rachunków `increase` pojawia się dopiero od ok. +27 pp **[przegląd]**, patrz H5; to cena prostoty, a próg wyższy opóźni wynik małych lokali).
+2. [OK 2026-11-18] **Czy pokazywać procent okna poniżej 30 rachunków?** Rekomendacja: nie, tylko „N z M”.
+3. [OK 2026-11-18] **Skąd dzień uruchomienia?** Rekomendacja: wpisuje owner/GM, formularz podpowiada dzień pierwszego wydanego kodu (wymaga jednej metody `firstServiceDay` w porcie kodów) lub pierwszej publikacji; nie wyprowadzać go automatycznie.
+4. [OK 2026-11-18] **Kto widzi raport?** Rekomendacja: owner i GM (`proof.view`); sommelier nie (ma interes w wyniku i widzi kafelki sprzedaży na A1). Do potwierdzenia, bo `docs/USER_ROLES.md` dziś daje A1 sommelierowi.
+5. [OK 2026-11-18] **„Miesiąc” czy okno 28 dni?** Rekomendacja: okno 28 dni (równe tygodnie); w tekście „4 tygodnie”, a daty zawsze podane.
+6. [OK 2026-11-18] **Zamrażać migawkę raportu po zamknięciu okna?** Rekomendacja: nie w F1 (rachunki z importu mogą być zastępowane; pokazujemy „dane do dnia …”); jeśli właściciel chce „raport podpisany na dzień”, to F2+ z tabelą migawek i osobną migracją.
+7. [OK 2026-11-18] **Czy dopuszczamy zmianę L po fakcie?** Rekomendacja: tak, ale tylko dopisaniem z powodem i widoczną historią (R5).
+8. [OK 2026-11-18] **Zwrot abonamentu po 60 dniach: czy oferujemy, w którym planie i według którego wariantu (A, B, C)?** Rekomendacja: wariant A, tylko plan Pro, po opinii prawnej i zmianie regulaminu; do czasu pierwszego pilotażu nie obiecywać publicznie (A05 niesprawdzone).
+9. [OK 2026-11-18] **Nazwa w EN:** „Proof report” (spójne ze strategią) czy neutralniej „Results report”, bo „proof” może brzmieć jak gwarancja? Rekomendacja: „Results report”; w PL „Raport dowodu” zostaje (słowo „dowód” jest z pozycjonowania).
+10. [OK 2026-11-18] **Co jest „sukcesem” pilota (Q02, Q11, K03)?** Poza tą specyfikacją, ale raport go nie rozstrzyga: pokazuje liczby i niepewność. Rekomendacja: ustalić po poznaniu bazy, nie z góry +5 pp.
 
 ## Przegląd niezależny (2026-11-18)
 Świeży kontekst, bez udziału autora. H2–H5 przeliczone skryptem (Wilson z = 1,96; Newcombe, metoda 10): zgodne z tabelą w granicach 0,05 pp (np. H2 [+2,73; +26,62], H5 [−10,16; +28,81]); H1 zgodne (5, 2, 40,0%; 50,0%; 33,3%). Poprawki w treści oznaczone **[przegląd]**; `status` bez zmian. Razem 19 ustaleń.
 
 ### Blokujące (naprawione w treści)
-1. **A32 zajęte** przez zatwierdzoną `2026-11-16-catalog-field-editing.md` (Q11) i `docs/SCREEN_SPECIFICATION.md` na `feat/catalog-field-editing-c1`. Raport = A33, druk = A34. `security-033` też zajęte na tej gałęzi: użyć 034–035 (`check:qa` odrzuca duplikaty).
-2. **Kompletność okna tylko z zegara.** Wczoraj bez importu (eksport ręczny, N04) dawało „kompletne” okno z 20 dniami danych i werdykt; dochodzi `window_not_imported` (`dataRange.to`). Dzień liczony `serviceDay` (cięcie 04:00, `recommendation-code/service-day.ts:8`), nie `localDate`, zgodnie z kodami E09.
-3. **Zapis L.** `PUT` dopisujący wiersz nie jest idempotentny, a „powód od drugiego wpisu” to sprawdź-potem-wstaw bez blokady (standardy §12.4). Teraz `POST`, `expectedCurrent`, 409, `seq` z `CHECK` w bazie, AC19.
+1. [OK 2026-11-18] **A32 zajęte** przez zatwierdzoną `2026-11-16-catalog-field-editing.md` (Q11) i `docs/SCREEN_SPECIFICATION.md` na `feat/catalog-field-editing-c1`. Raport = A33, druk = A34. `security-033` też zajęte na tej gałęzi: użyć 034–035 (`check:qa` odrzuca duplikaty).
+2. [OK 2026-11-18] **Kompletność okna tylko z zegara.** Wczoraj bez importu (eksport ręczny, N04) dawało „kompletne” okno z 20 dniami danych i werdykt; dochodzi `window_not_imported` (`dataRange.to`). Dzień liczony `serviceDay` (cięcie 04:00, `recommendation-code/service-day.ts:8`), nie `localDate`, zgodnie z kodami E09.
+3. [OK 2026-11-18] **Zapis L.** `PUT` dopisujący wiersz nie jest idempotentny, a „powód od drugiego wpisu” to sprawdź-potem-wstaw bez blokady (standardy §12.4). Teraz `POST`, `expectedCurrent`, 409, `seq` z `CHECK` w bazie, AC19.
 
 ### Ważne
-4. **Moc.** Przy 30 + 30 rachunkach `increase` dopiero od ok. +27 pp (przedział zmiany ok. ±25 pp, nie ±17); Q1 poprawione. Rekomendacja (nie wpisana): pokazywać „najmniejszą zmianę możliwą do wykazania przy tych próbach”.
-5. **Wariant A zwrotu** zwraca pieniądze w ok. 35% przypadków przy realnym +5 pp i n = 30; dopisane ryzyko (5).
-6. **Grupa „z kodem”** ma odsetek z definicji bliski 100% (kod przy zamówieniu wina, D16); zastrzeżenie R6 uzupełnione. Rekomendacja: rozważyć pokazywanie tylko liczby rachunków i przychodu.
-7. **Wielokrotne spojrzenia i niezależność.** Wilson ignoruje korelację w obrębie dnia; przedział jest „co najmniej tak szeroki”. Brak domyślnego okna: ustalić „najnowsze kompletne”. Zakaz L w przyszłości zmusza do wpisu po zobaczeniu danych: rekomendacja, by dopuścić L do +14 dni jako „zaplanowany”. Oznaczenie „L zmieniony po oknie 1” dodane.
-8. **Sommelier ma `import.manage`** i może zastąpić rachunki bazy; uzasadnienie R10 było nieścisłe (poprawione, Q4 do uzupełnienia).
-9. **N zapytań na N okien** i `salesPeriodSchema` ≤ 366 dni: jedno zapytanie, okna 1..12.
-10. **AC9** z podciągiem „AI” trafiałby w ładunek RSC; test na widocznym tekście, `\bAI\b`; zdanie werdyktu `increase` ustalone w R4.
+4. [OK 2026-11-18] **Moc.** Przy 30 + 30 rachunkach `increase` dopiero od ok. +27 pp (przedział zmiany ok. ±25 pp, nie ±17); Q1 poprawione. Rekomendacja (nie wpisana): pokazywać „najmniejszą zmianę możliwą do wykazania przy tych próbach”.
+5. [OK 2026-11-18] **Wariant A zwrotu** zwraca pieniądze w ok. 35% przypadków przy realnym +5 pp i n = 30; dopisane ryzyko (5).
+6. [OK 2026-11-18] **Grupa „z kodem”** ma odsetek z definicji bliski 100% (kod przy zamówieniu wina, D16); zastrzeżenie R6 uzupełnione. Rekomendacja: rozważyć pokazywanie tylko liczby rachunków i przychodu.
+7. [OK 2026-11-18] **Wielokrotne spojrzenia i niezależność.** Wilson ignoruje korelację w obrębie dnia; przedział jest „co najmniej tak szeroki”. Brak domyślnego okna: ustalić „najnowsze kompletne”. Zakaz L w przyszłości zmusza do wpisu po zobaczeniu danych: rekomendacja, by dopuścić L do +14 dni jako „zaplanowany”. Oznaczenie „L zmieniony po oknie 1” dodane.
+8. [OK 2026-11-18] **Sommelier ma `import.manage`** i może zastąpić rachunki bazy; uzasadnienie R10 było nieścisłe (poprawione, Q4 do uzupełnienia).
+9. [OK 2026-11-18] **N zapytań na N okien** i `salesPeriodSchema` ≤ 366 dni: jedno zapytanie, okna 1..12.
+10. [OK 2026-11-18] **AC9** z podciągiem „AI” trafiałby w ładunek RSC; test na widocznym tekście, `\bAI\b`; zdanie werdyktu `increase` ustalone w R4.
 11. **Zaokrąglenie przedziału** do pełnych pp mogło dać „od +0” przy `increase`; zaokrąglanie na zewnątrz.
 12. **Nazwa:** PL „Raport dowodu” przy „inconclusive” obiecuje więcej niż dane; rekomendacja „Raport wyników” (PL) i „Results report” (EN), `proof` tylko w ścieżce i uprawnieniach (Q9 nierozstrzygnięte).
 
@@ -224,6 +224,7 @@ Po poprawkach blokujących spec jest gotowa do akceptacji przez człowieka, z de
 ## Changelog
 - 2026-11-18 — Autor/recenzent: not recorded / not recorded (szkic).
 - 2026-11-18 — Przegląd niezależny (świeży kontekst, model nie zapisany): sekcja wyżej, poprawki oznaczone [przegląd]; ID ekranów A33/A34.
+- 2026-11-18 — Właściciel przyjął rekomendacje do pytań otwartych 1–10 (z zastrzeżeniami z przeglądu: moc, rola sommeliera, nazwa PL, wariant zwrotu); `status` bez zmian (draft).
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
