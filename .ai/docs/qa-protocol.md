@@ -1,6 +1,6 @@
 # Protokół QA: testowanie zmian widocznych dla użytkownika z pomocą agentów
 
-Źródło: lekcja 18 kursu („tester z AI”). Zasada nadrzędna tego repozytorium: **agent testuje sam, a właściciel nie jest domyślnie równoległym testerem.** Człowiek dostaje jedną krótką listę rzeczy, których agent ocenić nie umie (sekcja 8), a nie pytania przy każdym PR. Protokół uzupełnia `.ai/qa/README.md` (scenariusze e2e), `.ai/docs/fix-verification.md` (dowód naprawy) i `SDLC.md` (bramka QA, etykiety). Zapis wyników: `.ai/qa/knowledge/`.
+Zasada nadrzędna tego repozytorium: **agent testuje sam, a właściciel nie jest domyślnie równoległym testerem.** Człowiek dostaje jedną krótką listę rzeczy, których agent ocenić nie umie (sekcja 8), a nie pytania przy każdym PR. Protokół uzupełnia `.ai/qa/README.md` (scenariusze e2e), `.ai/docs/fix-verification.md` (dowód naprawy) i `SDLC.md` (bramka QA, etykiety). Zapis wyników: `.ai/qa/knowledge/`.
 
 ## 1. Kiedy QA jest wymagane, a kiedy nie
 
@@ -33,7 +33,7 @@ Numerowane przypadki, tabela:
 Zanim cokolwiek uznasz za wynik:
 1. Środowisko z `npm run test-env:up` (świeża baza, dane `halka` i `bistro-e2e`, zbudowana aplikacja) albo jawnie wskazane inne.
 2. **Cel bazy:** wypisz wyłącznie `host:port/nazwa_bazy` (polecenia operatora robią to same na stderr; nigdy hasło ani pełny `DATABASE_URL`). Nazwa i port muszą pasować do środowiska testowego (`winematch_qa_*`, `winematch_e2e`, kontener `wm-qa-pg-*`).
-3. **Odmów dalszej pracy**, gdy `DATABASE_URL` w środowisku procesu jest inny niż w `.env`, a nie ustawiłeś go celowo (polecenia drukują wtedy ostrzeżenie `WARNING: DATABASE_URL in the process environment differs from .env`). Naprawa to `unset DATABASE_URL`, nie przepisywanie `.env`. Przyczyna z lekcji 18: wyeksportowany `DATABASE_URL` skierował seeder na obcą bazę.
+3. **Odmów dalszej pracy**, gdy `DATABASE_URL` w środowisku procesu jest inny niż w `.env`, a nie ustawiłeś go celowo (polecenia drukują wtedy ostrzeżenie `WARNING: DATABASE_URL in the process environment differs from .env`). Naprawa to `unset DATABASE_URL`, nie przepisywanie `.env`. Przyczyna: wyeksportowany `DATABASE_URL` skierował seeder na obcą bazę.
 4. Zaloguj się kontem z seedu i **zobacz prawdziwe dane** (menu, wina, KPI), nie pusty ekran i nie kod 200. Konta demo: `marta@halka.pl` (sommelier), `tomasz@halka.pl` (GM), `kelner@halka.pl`; hasła z gitignorowanego `.ai/qa/test-env.env`, nie przepisuj ich do plików śledzonych.
 5. Zapisz w raporcie commit (`git rev-parse HEAD`), tryb (`DATA_SOURCE`), przeglądarkę i rozmiar okna.
 

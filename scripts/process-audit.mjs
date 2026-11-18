@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Process audit: what the course "AI Tech Leaders" (lessons 1–22) and the owner's decisions require of this repository,
+ * Process audit: what the project's process rules and the owner's decisions require of this repository,
  * checked from the files alone. It is the gap finder and progress meter of the executor in
- * .ai/docs/process-playbook.md; the human summary is docs/PROCES_I_KURS.md.
+ * .ai/docs/process-playbook.md; the human summary is docs/PROCESS.md.
  *
  * Usage:
  *   node scripts/process-audit.mjs                        table for this repository
@@ -177,12 +177,12 @@ function referencedPaths(text, docPath) {
 
 const PROMPT = /<!-- start-prompt:start -->\n([\s\S]*?)<!-- start-prompt:end -->/g;
 const PLAYBOOK = '.ai/docs/process-playbook.md';
-const HUMAN_DOC = 'docs/PROCES_I_KURS.md';
+const HUMAN_DOC = 'docs/PROCESS.md';
 
 /** Each check: id, area, severity, actor (who can close the gap), title, fix (where the fix belongs), run(fs). */
 function checks() {
   return [
-    // --- PROC: spec-driven process, run logs, lessons (lessons 2, 5, 11; AGENTS.md §3–§6)
+    // --- PROC: spec-driven process, run logs, lessons (AGENTS.md §3–§6)
     { id: 'PROC-01', area: 'PROC', severity: 'high', actor: 'agent', title: 'Process documents exist', fix: 'root',
       run: (fs) => needFiles(fs, ['AGENTS.md', 'CLAUDE.md', 'SDLC.md', 'CODE_REVIEW.md', 'CONTRIBUTING.md', 'BACKWARD_COMPATIBILITY.md', 'UPGRADE_NOTES.md', 'CHANGELOG.md', 'security-notes.md']) },
     { id: 'PROC-02', area: 'PROC', severity: 'high', actor: 'agent', title: '.ai/ structure (specs, runs, lessons, brief, backlog, pipeline config)', fix: '.ai/',
@@ -234,7 +234,7 @@ function checks() {
         return pa[0] === pb[0] ? pass('one START PROMPT, identical in both') : fail('START PROMPT differs between the playbook and the human doc');
       } },
 
-    // --- REV: review and acceptance (lessons 8, 14, 17, 21)
+    // --- REV: review and acceptance (review protocol)
     { id: 'REV-01', area: 'REV', severity: 'high', actor: 'agent', title: 'Review protocol documents', fix: '.ai/docs/',
       run: (fs) => needFiles(fs, ['CODE_REVIEW.md', '.ai/docs/review-protocol.md', '.ai/docs/review-checklists.md', '.ai/docs/fix-verification.md', '.ai/docs/nightly-review-routine.md']) },
     { id: 'REV-02', area: 'REV', severity: 'medium', actor: 'agent', title: 'Reviewer pack, review contract and regression proof scripts', fix: 'scripts/, package.json',
@@ -258,7 +258,7 @@ function checks() {
         return miss.length ? fail(`permissions.ask lacks ${short(miss)}`) : pass('gh pr merge asks the human');
       } },
 
-    // --- CI: safety net and supply chain (lessons 2, 9, 12, 14, 17, 18)
+    // --- CI: safety net and supply chain (CI, supply-chain pins)
     { id: 'CI-01', area: 'CI', severity: 'high', actor: 'agent', title: 'CI jobs: lint, secrets, design, unit, a11y, build, database, e2e, image', fix: '.github/workflows/ci.yml (review path)',
       run: (fs) => {
         const ids = jobIds(fs.read('.github/workflows/ci.yml'));
@@ -333,7 +333,7 @@ function checks() {
         return t !== null && triggers(t).includes('schedule') ? pass('scheduled') : fail('secrets-history.yml missing or not scheduled');
       } },
 
-    // --- TEST: test pyramid (lessons 2, 12, 14, 16, 17, 18)
+    // --- TEST: test pyramid (unit, database, e2e, QA)
     { id: 'TEST-01', area: 'TEST', severity: 'high', actor: 'agent', title: 'Test commands: unit, db, e2e, a11y, engine matrix, smoke, boot, regression', fix: 'package.json',
       run: (fs) => {
         const s = scriptsOf(fs);
@@ -358,13 +358,13 @@ function checks() {
         if (real.length) return pass(short(real));
         return fail(named.length ? `named like a fuzz test but no test sending API requests: ${short(named)}` : 'no *fuzz*/*robustness* test under packages/*/tests');
       } },
-    { id: 'TEST-05', area: 'TEST', severity: 'low', actor: 'owner', title: 'Mutation testing configured (StrykerJS, lesson 17)', fix: 'spec needs owner approval, then stryker config',
+    { id: 'TEST-05', area: 'TEST', severity: 'low', actor: 'owner', title: 'Mutation testing configured (StrykerJS)', fix: 'spec needs owner approval, then stryker config',
       run: (fs) => {
         const places = ['.', ...fs.dirs('packages').map((p) => `packages/${p}`)];
         const hits = places.flatMap((d) => fs.files(d, (x) => /^stryker\.(conf|config)\./.test(x)).map((x) => `${d}/${x}`));
         return hits.length ? pass(short(hits)) : fail('no stryker.conf.* / stryker.config.*');
       } },
-    { id: 'TEST-06', area: 'TEST', severity: 'low', actor: 'agent', title: 'Bundle-size gate (size-limit, lesson 17)', fix: 'package.json, CI',
+    { id: 'TEST-06', area: 'TEST', severity: 'low', actor: 'agent', title: 'Bundle-size gate (size-limit)', fix: 'package.json, CI',
       run: (fs) => {
         const pkg = scriptsOf(fs).pkg ?? {};
         const dep = { ...pkg.dependencies, ...pkg.devDependencies }['size-limit'];
@@ -372,7 +372,7 @@ function checks() {
         return dep || file.length ? pass(dep ? 'size-limit in package.json' : short(file)) : fail('no size-limit dependency or .size-limit file');
       } },
 
-    // --- SEC: agent and product security (lessons 9, 16, 18)
+    // --- SEC: agent and product security (agent config, threat model, supply chain)
     { id: 'SEC-01', area: 'SEC', severity: 'high', actor: 'agent', title: 'Deny reading .env and ~/.ssh', fix: '.claude/settings.json (review path)',
       run: (fs) => {
         const s = fs.json('.claude/settings.json');
@@ -423,7 +423,7 @@ function checks() {
     { id: 'SEC-08', area: 'SEC', severity: 'medium', actor: 'owner', title: 'Vulnerability reporting policy (SECURITY.md)', fix: 'owner decision, then SECURITY.md',
       run: (fs) => (['SECURITY.md', '.github/SECURITY.md', 'docs/SECURITY.md'].some((p) => fs.read(p) !== null) ? pass('present') : fail('no SECURITY.md')) },
 
-    // --- CTX: agents know what to do and do not burn context (lesson 10)
+    // --- CTX: agents know what to do and do not burn context
     { id: 'CTX-01', area: 'CTX', severity: 'high', actor: 'agent', title: 'AGENTS.md within budget', fix: 'AGENTS.md (move detail to .ai/docs)',
       run: (fs) => {
         const t = fs.read('AGENTS.md');
@@ -514,7 +514,7 @@ function checks() {
         return miss.length ? fail(`missing: ${short(miss)}`) : pass(`${n} references resolve`);
       } },
 
-    // --- REL: release management (lesson 22)
+    // --- REL: release management
     { id: 'REL-01', area: 'REL', severity: 'medium', actor: 'agent', title: 'Release docs: RELEASING, CHANGELOG [Unreleased], UPGRADE_NOTES', fix: 'docs/RELEASING.md, CHANGELOG.md',
       run: (fs) => {
         const r = needFiles(fs, ['docs/RELEASING.md', 'UPGRADE_NOTES.md']);
@@ -541,7 +541,7 @@ function checks() {
         return hits.length ? pass(short(hits)) : fail('no .ai/runs/*recovery-drill*.md');
       } },
 
-    // --- OPS: deployment and continuity (lessons 11, 22; E11)
+    // --- OPS: deployment and continuity (E11)
     { id: 'OPS-01', area: 'OPS', severity: 'high', actor: 'agent', title: 'Container build and compose', fix: 'Dockerfile, docker-compose.yml',
       run: (fs) => needFiles(fs, ['Dockerfile', 'docker-compose.yml', '.dockerignore', '.env.example']) },
     { id: 'OPS-02', area: 'OPS', severity: 'medium', actor: 'agent', title: 'Base images pinned by digest', fix: 'Dockerfile',
@@ -565,7 +565,7 @@ function checks() {
         return /^#{2,3} .*(ROLLBACK|wycofanie)/im.test(fs.read('docs/DEPLOYMENT.md')) ? pass('rollback section present') : fail('docs/DEPLOYMENT.md has no rollback section');
       } },
 
-    // --- PROD: product basics (course final-project checklist)
+    // --- PROD: product basics (project readiness checklist)
     { id: 'PROD-01', area: 'PROD', severity: 'medium', actor: 'agent', title: 'README, product concept, brief, backlog', fix: 'README.md, docs/, .ai/specs/',
       run: (fs) => needFiles(fs, ['README.md', 'docs/PRODUCT_CONCEPT.md', '.ai/specs/product-brief.md', '.ai/specs/backlog.md']) },
     { id: 'PROD-02', area: 'PROD', severity: 'medium', actor: 'owner', title: 'LICENSE chosen', fix: 'owner decision (CONTRIBUTING.md)',

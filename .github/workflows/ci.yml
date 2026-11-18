@@ -10,7 +10,7 @@
 #   image       the Docker image (targets runtime and migrator): static checks, start-up refusals, migrate, bootstrap, smoke.
 #               NOT a required check until the owner adds it in the branch protection (docs/DEPLOYMENT.md, "CI: the image job")
 #
-# Supply chain (lesson 18, security-notes.md section 13): every action is pinned by a full commit SHA with the release
+# Supply chain (security-notes.md section 13): every action is pinned by a full commit SHA with the release
 # in a trailing comment (Dependabot, ecosystem github-actions, updates both); checkouts do not keep the token
 # (persist-credentials: false); every job lists its own minimal permissions; npm runs with ignore-scripts (.npmrc).
 # Tools outside the lockfile (npm itself, agent-browser, the apt packages of `agent-browser install --with-deps`)

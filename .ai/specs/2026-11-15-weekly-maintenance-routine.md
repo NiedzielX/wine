@@ -10,7 +10,7 @@ reviewed_by: not recorded (independent agent, model unknown)
 
 # Cotygodniowa rutyna utrzymania wiedzy
 
-**Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).** Zależy od specyfikacji `2026-11-15-knowledge-maintenance.md` (A: katalog `.ai/maintenance/`, komenda `/audit-knowledge` z parametrem zakresu, gramatyka id, kolumna Stan). Źródło: workflow `weekly-maintenance` z lekcji 25, przeniesiony na rutynę Claude Code (jak `.ai/docs/nightly-review-routine.md`): bez Cezara, bez nowych usług.
+**Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).** Zależy od specyfikacji `2026-11-15-knowledge-maintenance.md` (A: katalog `.ai/maintenance/`, komenda `/audit-knowledge` z parametrem zakresu, gramatyka id, kolumna Stan). Źródło: workflow `weekly-maintenance`, przeniesiony na rutynę Claude Code (jak `.ai/docs/nightly-review-routine.md`): bez zewnętrznego orkiestratora, bez nowych usług.
 
 ## Problem
 Jednorazowy audyt (`.ai/maintenance/2026-11-15-audit.md`) pokazał dryf wiedzy po kilku dniach intensywnej pracy (8 sprzeczności, 16 martwych odwołań przy 35 specyfikacjach). Bez cyklicznego przeglądu dryf wróci, a pełny audyt jest drogi. Potrzebny jest tani, tygodniowy przegląd zawężony do tego, co się zmieniło, z porównaniem do poprzedniego raportu, żeby było widać, czy sprzeczności przybywa, czy ubywa.
@@ -18,7 +18,7 @@ Jednorazowy audyt (`.ai/maintenance/2026-11-15-audit.md`) pokazał dryf wiedzy p
 ## Cel i zakres
 Rutyna Claude Code raz w tygodniu, w **dwóch krokach**: (1) audyt zawężony do commitów scalonych do `main` w ostatnich 7 dniach, tylko do odczytu, wynik do pliku; (2) deterministyczna publikacja pliku (skrypt) jako PR-raport i komentarz w jednym issue. Pierwsze 4 tygodnie: **żadnych poprawek dokumentów**, tylko raport i issue.
 
-**Poza zakresem:** krok zależności (pokrywają go Dependabot i `npm run audit:gate`); krok `dead-code` (`knip`, `jscpd`): osobna, późniejsza propozycja (nowa zależność wymaga specyfikacji, `AGENTS.md` §1.1); zmiana `AGENTS.md`, §7 i §9; Cezar i każda nowa usługa; scalanie, zatwierdzanie PR-ów, ustawianie `status: approved`, przenoszenie specyfikacji; poprawki kodu produktu; wpisy `.ai/maintenance/` w `.github/CODEOWNERS` (osobny PR właściciela, patrz spec A); wiersze lekcji 23-25 w `docs/PROCES_I_KURS.md` (osobny PR dokumentacyjny, otwarty jako #150; jego stanu nie ustalono z repozytorium), nie należą do A ani B.
+**Poza zakresem:** krok zależności (pokrywają go Dependabot i `npm run audit:gate`); krok `dead-code` (`knip`, `jscpd`): osobna, późniejsza propozycja (nowa zależność wymaga specyfikacji, `AGENTS.md` §1.1); zmiana `AGENTS.md`, §7 i §9; zewnętrzny orkiestrator i każda nowa usługa; scalanie, zatwierdzanie PR-ów, ustawianie `status: approved`, przenoszenie specyfikacji; poprawki kodu produktu; wpisy `.ai/maintenance/` w `.github/CODEOWNERS` (osobny PR właściciela, patrz spec A); aktualizacja `docs/PROCESS.md` (osobny PR dokumentacyjny, otwarty jako #150; jego stanu nie ustalono z repozytorium), nie należą do A ani B.
 
 ## Wymagania
 - **R1 Harmonogram.** Raz w tygodniu, **niedziela 04:00 UTC** (05:00 zimą / 06:00 latem w Europe/Warsaw; harmonogram rutyn jest w UTC, jak nocny review o 03:00 UTC w `.ai/docs/parallel-work.md` §5, a godzina 04:00 omija jego przebieg), rutyna Claude Code skonfigurowana przez właściciela poza repozytorium. Instrukcja rutyny jest w repozytorium: `.ai/docs/weekly-maintenance-routine.md` (≤ 24 KiB), a rutyna ją tylko wskazuje; zmiana instrukcji = PR. **Jedno źródło promptu audytu:** instrukcja nie powtarza promptu, tylko wywołuje `/audit-knowledge since=<data>` ze spec A (czy rutyna w chmurze uruchamia komendy z repozytorium: nie ustalono, sprawdza faza 0).
@@ -85,7 +85,7 @@ Kolejność AC → dowód: AC0 log przebiegu suchego; AC1 `check:context`, `git 
 - **Wykonalność w chmurze:** dodano fazę 0 i AC0/AC4 przed F3; `.claude/settings.json` ma `permissions.ask` dla zapisów `gh api` (zweryfikowane), więc konfiguracja uprawnień rutyny jest osobna; GraphQL bywa niedostępny (`.ai/docs/parallel-work.md` §5), więc REST; godzina w UTC.
 - **Allowlista zamiast czarnej listy** (R5), kontrola w CI jako zmiana `.github/` przez właściciela; brak zmian `status:`, brak symlinków, `docs/` poza allowlistą; raport parsowany skryptem.
 - **WIP:** zweryfikowano, że `parallel-work.md` §1 pkt 1 i playbook wyłączają typ M z limitu; PR-raport się nie liczy, ale najwyżej jeden otwarty (R9).
-- **Fazy:** kolejność A → raport bazowy → faza 0 → F1 → F2 → F3; szacunek F1 „≈ 150 linii” zastąpiono 600-900 linii i podziałem na F1a/F1b; rutyna wyłączana po dwóch słabych przebiegach (R7); aktualizację `docs/PROCES_I_KURS.md` usunięto z F1 (osobny PR #150).
+- **Fazy:** kolejność A → raport bazowy → faza 0 → F1 → F2 → F3; szacunek F1 „≈ 150 linii” zastąpiono 600-900 linii i podziałem na F1a/F1b; rutyna wyłączana po dwóch słabych przebiegach (R7); aktualizację `docs/PROCESS.md` usunięto z F1 (osobny PR #150).
 - Odrzucone: brak. Zmodyfikowane: „bez narzędzi zapisu” w kroku 1 zinterpretowano jako brak zapisu poza jednym lokalnym plikiem raportu i brak zapisu do GitHuba (inaczej wynik nie miałby gdzie trafić); czy to wystarcza w chmurze, sprawdza faza 0.
 
 ## Realizacja

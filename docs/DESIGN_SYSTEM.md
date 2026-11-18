@@ -1,6 +1,6 @@
 # Design system — aplikacja gościa
 
-Źródło: lekcja 06 „Design system — warstwa wizualna w nowym podejściu” (materiały AI Tech Leaders). Dokument jest zasadą dla agentów i ludzi: każda wartość wizualna w aplikacji gościa ma być decyzją stąd, a nie przypadkiem. Panel (`packages/ui`, shadcn) ma osobny motyw i nie jest objęty tą specyfikacją, poza zasadami kontrastu i dostępności.
+Dokument jest zasadą dla agentów i ludzi: każda wartość wizualna w aplikacji gościa ma być decyzją stąd, a nie przypadkiem. Panel (`packages/ui`, shadcn) ma osobny motyw i nie jest objęty tą specyfikacją, poza zasadami kontrastu i dostępności.
 
 Egzekwowanie: `npm run check:design` (część `npm run build`, skrypt `scripts/check-design.mjs`).
 
@@ -85,7 +85,7 @@ Dla agentów: wybieraj komponent po tabeli, nie po wyglądzie. Jeśli żaden nie
 - Ciemny motyw: nie w tej wersji. Każdy token miałby drugą wartość; do dodania osobnym krokiem.
 - Animacje: brak. Zasada z sekcji 3 obowiązuje, a `<details>` nie ma animacji.
 
-## 6. Stan prac (lekcja 06)
+## 6. Stan prac
 
 - [x] Krok 1: referencje (sekcja 1).
 - [x] Krok 2: tokeny w trzech warstwach (sekcja 2).

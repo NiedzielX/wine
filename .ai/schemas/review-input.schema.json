@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "wine-match/review-input/1",
-  "title": "Reviewer input package (lesson 21)",
+  "title": "Reviewer input package",
   "description": "What every reviewer of one round gets, identical for all of them. There is deliberately no field for the author's rationale, PR description, commit messages or another reviewer's output: additionalProperties is false, so such a field fails validation. Protocol: .ai/docs/review-protocol.md section 9.",
   "type": "object",
   "additionalProperties": false,

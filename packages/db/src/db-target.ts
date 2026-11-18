@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Which database does an operator command act on? (lesson 18: an exported DATABASE_URL silently pointed the seeder at an unrelated
+ * Which database does an operator command act on? (an exported DATABASE_URL silently pointed the seeder at an unrelated
  * database.) Operator commands print `host:port/dbname` to stderr BEFORE acting and warn loudly when the process environment
  * overrides `.env` (a variable already in the environment wins over the file, see `process.loadEnvFile`).
  * Credentials never leave this module: only host, port and database name are ever formatted, and an unparseable value is not echoed.

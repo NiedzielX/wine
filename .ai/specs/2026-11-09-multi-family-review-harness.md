@@ -2,13 +2,13 @@
 status: draft
 created: 2026-11-09
 owner: właściciel (Filip)
-related: [.ai/docs/review-protocol.md, .ai/runs/2026-11-09-lesson-21-multi-model-review.md, .ai/lessons/2026-11-09-reviewers-from-different-model-families.md]
+related: [.ai/docs/review-protocol.md, .ai/runs/2026-11-09-multi-model-review.md, .ai/lessons/2026-11-09-reviewers-from-different-model-families.md]
 superseded_by:
 author_model: claude-opus-5-5
 reviewed_by: not recorded
 ---
 
-# Opcjonalny harness review wielorodzinnego (lekcja 21)
+# Opcjonalny harness review wielorodzinnego
 
 **Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).**
 
@@ -55,7 +55,7 @@ Skrypt `npm run review:fanout`, który rozsyła jeden plik wejścia do skonfigur
 8. Czy w tym repo wystarczy na razie ręczny przepływ (zewnętrzny recenzent + `review:validate`), a harness poczekać, aż pełny przepływ zostanie użyty kilka razy?
 
 ## Changelog
-- 2026-11-09 — Autor/recenzent: claude-opus-5-5 / not recorded (draft bez niezależnego przeglądu; źródło: `.ai/runs/2026-11-09-lesson-21-multi-model-review.md`).
+- 2026-11-09 — Autor/recenzent: claude-opus-5-5 / not recorded (draft bez niezależnego przeglądu; źródło: `.ai/runs/2026-11-09-multi-model-review.md`).
 
 ## Realizacja
 (Brak: draft.)

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Validates reviewer input packages and reviewer outputs against `.ai/schemas/review-input.schema.json` and
- * `.ai/schemas/review-output.schema.json` (lesson 21, `.ai/docs/review-protocol.md` §9). Deterministic, offline, no
+ * `.ai/schemas/review-output.schema.json` (`.ai/docs/review-protocol.md` §9). Deterministic, offline, no
  * dependencies: it reads only the files it is given and the two schemas.
  *
  *   npm run review:validate -- <file.json> [<file.json> ...]

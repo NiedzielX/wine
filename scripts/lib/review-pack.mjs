@@ -1,5 +1,5 @@
 /**
- * Review pack (lesson 17, "review i odbiór zadań"): the package a REVIEWER gets instead of the author's story.
+ * Review pack: the package a REVIEWER gets instead of the author's story.
  *
  * It contains ONLY: the unified diff (with file list and size stats), the linked spec section(s), the repository's
  * review checklist for the PR's risk, and the CI status of the head commit. It never contains the PR title, body,

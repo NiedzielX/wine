@@ -3,14 +3,14 @@ date: 2026-11-09
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-09-lesson-21-multi-model-review.md
+source: .ai/runs/2026-11-09-multi-model-review.md
 promoted:
 ---
 
 # Niezależne review to różne rodziny modeli, to samo wejście i triage każdej uwagi z dowodem, nie głosowanie
 
 ## Kontekst
-Lekcja 21 kursu (praca wielomodelowa). Błędy silnych modeli są coraz bardziej skorelowane, recenzent tej samej rodziny ma te same ślepe plamy i wyżej ocenia tekst swojej rodziny, a recenzent, który widzi zdanie autora, zwykle się z nim zgadza. Zgoda kilku modeli nie jest dowodem (potrafią zgodnie potwierdzić wymyślone pojęcie). U nas wszystkie sesje i pod-agenty to dziś Claude, więc „dwa niezależne review” przy `risk-high` to w praktyce dwa przebiegi jednej rodziny.
+Błędy silnych modeli są coraz bardziej skorelowane, recenzent tej samej rodziny ma te same ślepe plamy i wyżej ocenia tekst swojej rodziny, a recenzent, który widzi zdanie autora, zwykle się z nim zgadza. Zgoda kilku modeli nie jest dowodem (potrafią zgodnie potwierdzić wymyślone pojęcie). U nas wszystkie sesje i pod-agenty to dziś Claude, więc „dwa niezależne review” przy `risk-high` to w praktyce dwa przebiegi jednej rodziny.
 
 ## Przyczyna
 Niezależność recenzenta zależy od trzech rzeczy naraz: innej rodziny modelu, identycznego wejścia bez uzasadnienia autora i tego, że orkiestrator ocenia każdą uwagę osobno. Kolejny przebieg tego samego modelu bywa przydatny, ale nie jest niezależną opinią.

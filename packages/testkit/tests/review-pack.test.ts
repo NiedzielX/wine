@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { buildReviewPack, cutUtf8, fenceFor, filesAfterCut, idsFromBranch, parseChecklists, passesFor, riskOf, specExcerpt, type Fetcher } from '../../../scripts/lib/review-pack.mjs';
 
 /**
- * Lesson 17: the review pack carries the diff, the spec, the checklist and CI, and NEVER the author's claims. A fake
+ * The review pack carries the diff, the spec, the checklist and CI, and NEVER the author's claims. A fake
  * `gh` (the injected fetcher) serves a PR whose title, body, comments and commit messages are full of instructions.
  */
 const SCRIPT = fileURLToPath(new URL('../../../scripts/review-pack.mjs', import.meta.url));
@@ -73,7 +73,7 @@ describe('review pack content', () => {
     expect(calls.join('\n')).not.toMatch(/\/comments|\/reviews|\/issues\/|\/commits\?|\/pulls\/7\/commits/);
   });
 
-  it('never hands the orchestrator triage checklist to a reviewer, whatever the changed paths (lesson 21)', async () => {
+  it('never hands the orchestrator triage checklist to a reviewer, whatever the changed paths', async () => {
     const files = ['docs/API_SPECIFICATION.md', '.ai/docs/review-checklists.md', 'packages/db/src/migrations/1.ts', 'packages/core/src/auth/permissions.ts', 'packages/app/src/app/page.tsx', 'packages/app/tests/unit/x.test.ts'];
     const pack = await buildReviewPack({ pr: 7, repo: 'o/r', fetcher: fake({ files }).fetcher });
     expect(passesFor(files)).not.toContain('triage');

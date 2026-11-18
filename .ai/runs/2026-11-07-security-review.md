@@ -7,13 +7,13 @@ outcome: success (model zagrożeń, trzy granice sprawdzone bez luki, nagłówki
 related: [.ai/runs/2026-11-05-tenant-isolation-e2e.md, .ai/runs/2026-11-06-e12-f2-invitations.md, .ai/runs/2026-10-25-agent-security-hardening.md]
 ---
 
-# Lekcja 16 (bezpieczeństwo) zastosowana do Wine Match
+# Przegląd bezpieczeństwa Wine Match
 
 ## Zadanie
-Zadanie domowe lekcji 16: model zagrożeń (Shostack, STRIDE), trzy granice dostępu sprawdzone na działającej instancji, skaner statyczny i skryptowy DAST z tego, co jest w repo, reguła „trzech sprawdzeń”, karty dowodowe. Warunki: tylko lokalna, jednorazowa instancja z danymi syntetycznymi; bez pobierania narzędzi; bez PR, push i merge.
+Zakres: model zagrożeń (Shostack, STRIDE), trzy granice dostępu sprawdzone na działającej instancji, skaner statyczny i skryptowy DAST z tego, co jest w repo, reguła „trzech sprawdzeń”, karty dowodowe. Warunki: tylko lokalna, jednorazowa instancja z danymi syntetycznymi; bez pobierania narzędzi; bez PR, push i merge.
 
 ## Przebieg
-- Gałąź `sec/lesson-16-security-review` z `39d695b` (`main`). Dokumenty: `docs/security/threat-model.md` + `.mmd`, `docs/security/dast-coverage.md`.
+- Gałąź przeglądu bezpieczeństwa z `39d695b` (`main`). Dokumenty: `docs/security/threat-model.md` + `.mmd`, `docs/security/dast-coverage.md`.
 - Środowisko: PostgreSQL 16.15 (Homebrew, własny katalog w scratchpadzie) na `127.0.0.1:50301`; instancja ręczna (`next start`, `127.0.0.1:50311`, baza `winematch_sec`, dane demo + `restaurant:create`) do sond, a testy e2e na własnej bazie `winematch_e2e` przez `TEST_DATABASE_URL`. Własny proces zatrzymany po PID (nie `pkill`).
 - Wybór trzech granic (największy skutek, największa szansa, że istniejące testy ich nie dotykają): T-01 id obiektu innego tenanta pod własnym slugiem (istniejące testy sprawdzały tylko slug), T-02 szczeble hierarchii i pola spoza schematu, T-03 zaproszenie (pola formularza, flaga `platform`, drugie użycie) wraz z pokazem tylko do odczytu (T-03b).
 - Wynik: **żadnej luki w kontroli dostępu**; za to trzy luki w nagłówkach (T-14, T-15) i dwie obserwacje (T-17 500 przy zepsutym kodowaniu ścieżki, T-20 seeder przy braku `NODE_ENV` tylko ostrzega).
@@ -23,7 +23,7 @@ Zadanie domowe lekcji 16: model zagrożeń (Shostack, STRIDE), trzy granice dost
 
 ## Karty dowodowe (granice dostępu)
 
-Wspólne pola: baza `39d695b`, commit z testami `daf1e09` (gałąź `sec/lesson-16-security-review`), 2026-11-07 12:44–13:05 CET, PostgreSQL 16.15 na `127.0.0.1:50301`, zbudowana aplikacja (`next build`, `next start`), dane syntetyczne: demo `halka` (konta publiczne demo) i `bistro-e2e` z `restaurant:create` (konta testowe z `new-restaurant.ts`). Dowód: `npm run test:e2e` w `packages/app` (plik `tests/e2e/access-boundaries.e2e.test.ts`), 4 testy zielone; każdy test porównuje całe ładunki API i skrót 12 tabel przed i po.
+Wspólne pola: baza `39d695b`, commit z testami `daf1e09` (gałąź przeglądu bezpieczeństwa), 2026-11-07 12:44–13:05 CET, PostgreSQL 16.15 na `127.0.0.1:50301`, zbudowana aplikacja (`next build`, `next start`), dane syntetyczne: demo `halka` (konta publiczne demo) i `bistro-e2e` z `restaurant:create` (konta testowe z `new-restaurant.ts`). Dowód: `npm run test:e2e` w `packages/app` (plik `tests/e2e/access-boundaries.e2e.test.ts`), 4 testy zielone; każdy test porównuje całe ładunki API i skrót 12 tabel przed i po.
 
 ### Karta 1: izolacja tenantów po id obiektu (T-01)
 - **Hipoteza:** użytkownik restauracji B, wysyłając id obiektu restauracji A pod własnym slugiem, może go odczytać lub zmienić (BOLA).

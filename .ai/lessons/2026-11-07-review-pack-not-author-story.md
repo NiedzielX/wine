@@ -3,14 +3,14 @@ date: 2026-11-07
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-07-review-protocol-lesson-17.md
+source: .ai/runs/2026-11-07-review-protocol.md
 promoted:
 ---
 
 # Recenzent dostaje paczkę (diff, spec, lista kontrolna, CI), nigdy opis PR-a autora
 
 ## Kontekst
-Lekcja 17 kursu („review i odbiór zadań”). Auto-review LLM znajduje tylko około 15-45% błędów, które później zgłaszają ludzie, więc jest pierwszym sitem, nie decyzją. Opis PR-a, komentarze i komunikaty commitów to deklaracje autora (człowieka, bota, forka), które mierzalnie wpływają na recenzenta: w badaniu z lekcji opis „ta zmiana jest bezpieczna” obniżył wykrywalność najsłabszego modelu o 93 punkty, a przekonujące opisy pisane przez model przepuściły 17 z 17 podatności.
+Auto-review LLM znajduje tylko około 15-45% błędów, które później zgłaszają ludzie, więc jest pierwszym sitem, nie decyzją. Opis PR-a, komentarze i komunikaty commitów to deklaracje autora (człowieka, bota, forka), które mierzalnie wpływają na recenzenta: w badaniu nad recenzentami LLM opis „ta zmiana jest bezpieczna” obniżył wykrywalność najsłabszego modelu o 93 punkty, a przekonujące opisy pisane przez model przepuściły 17 z 17 podatności.
 
 ## Przyczyna
 Naturalny sposób zlecenia review („zrecenzuj PR #N”) daje recenzentowi wszystko, w tym uzasadnienie autora. U nas wszystkie PR-y idą z konta właściciela, więc o niezależności decyduje wyłącznie świeży kontekst i to, co recenzent widzi.
