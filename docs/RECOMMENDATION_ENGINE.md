@@ -368,3 +368,21 @@ Spec `2026-10-16-sommelier-opportunities` (E10, D17). Okazja to jedno zdanie z l
 ## Podgląd zmiany profilu w panelu (E13 F2)
 
 Ekrany A3 i A5 pokazują, jak zmieni się Match Score po edycji profilu („How the match changes”). Podgląd (`core/src/services/catalog/profile-preview-service.ts`) wywołuje wyłącznie `pairingScore` i `recommendForDish` na kandydacie i na zapisanym profilu: **bez nowych reguł, wag i progów**, bez sieci, losowości i czasu. `ENGINE_VERSION` bez zmian. Zapis profilu nie przelicza `modelScore` istniejących par; goście liczą wynik z profilu z opublikowanej migawki.
+
+## Warstwa wyborów restauracji (poza silnikiem)
+
+Spec `2026-11-18-restaurant-picks` (faza 1, R8–R11). Restauracja może oznaczyć do `PICKS_MAX` = 5 własnych win; w trybie ostrożnym zmienia to **wyłącznie kolejność w grupie propozycji silnika (tier 2) i etykietę**. **To nie są reguły silnika:** `engine/` i `ENGINE_VERSION` bez zmian, żaden `matchScore`, `rankScore`, `why`, `tier` ani `sommelier` się nie zmienia (R02). Kod: `packages/core/src/ranking/` (`restaurant-picks.ts` — stałe i czysta `applyRestaurantPicks`, `rank-for-guest.ts` — wspólne `rankForGuest`), testy: `packages/core/tests/restaurant-picks.test.ts`. Wersja warstwy to `RANKING_LAYER_VERSION` (osobna od `ENGINE_VERSION`; zapis do migawki, zdarzeń i kodu polecenia dopiero w kolejnych krokach).
+
+Warstwa działa na wyniku `recommendForDish` policzonym dla całej listy win (tylko przy niepustym zbiorze wyborów; przy pustym ścieżka jest dotychczasowa, bit w bit), potem przycina do `limit` (domyślnie 4), zeruje `bestValue` i liczy go od nowa na wynikowej liście, a dopiero potem działa filtr „niesprawdzone” (`showUnreviewed`). `rankForGuest` to jedyna ścieżka rankingu gościa; wołają ją serwis rekomendacji i (w kolejnych krokach) symulator.
+
+| Reguła | Znaczenie |
+|---|---|
+| `pick.tier2_only` | zmienia się tylko kolejność pozycji `tier === 2`; para sommeliera (tier 0 i 1) zostaje na miejscu dla każdego zbioru |
+| `pick.min_score` | wybór kwalifikuje się od surowego `matchScore >= PICK_MIN_SCORE` (`MIN_MODEL_SCORE + 13` = 75) |
+| `pick.window` | i tylko w oknie `PICK_WINDOW` = 10 pkt od najlepszego `matchScore` w tier 2 (wybór 75 nie staje nad propozycją 95) |
+| `pick.promote_cap` | na początek grupy tier 2 przechodzi najwyżej `PICKS_PROMOTED_MAX` = 2 kwalifikujących się wyborów, w kolejności silnika; kolejne zostają na miejscach, z etykietą |
+| `pick.no_seal` | pozycja z wyboru nie dostaje pieczęci ani roli sommeliera; znak to `restaurantPick: true` (pole tylko przy kwalifikującym się wyborze, brak pola = lista silnika bez zmian) |
+| `pick.budget_untouched` | przy łagodzeniu budżetu (`notice`) nic się nie przestawia ani nie oznacza (lista jest tylko przycinana do `limit`) |
+| `pick.deterministic` | remisy rozstrzyga klucz silnika (`rankScore`, cena, id wina), nigdy kolejność wejścia |
+
+Stałe są propozycją bez danych (O3, O12); zmiana stałej lub reguły podnosi `RANKING_LAYER_VERSION`.
