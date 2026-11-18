@@ -68,7 +68,7 @@ Mapowanie AC → dowód: AC1 `git diff`, `audit:process`; AC2 skrypt/przegląd; 
 - **Q7 Drugi wyjątek dla `implemented/`** (R7): rekomendacja „dozwolony”; alternatywa „zabroniony”, wtedy C-11 i C-12 zostają jako `out-of-scope`.
 - **Ryzyko: konfiguracja agenta w `.claude/`** (`AGENTS.md` §9): zmiana tylko przez PR; komenda może zapisać wyłącznie jeden plik raportu (AC3). Trzy nogi (§9): komenda czyta repozytorium lokalnie, bez sieci i bez `gh`; brak wyjścia na zewnątrz.
 - **Ryzyko: `.ai/maintenance/` i `.ai/skills/` nie ma w `.github/CODEOWNERS`** (obecne wpisy: `.claude/`, `.agents/`, `scripts/`, `.github/`, `.ai/docs/` i inne; zweryfikowane). Propozycja wpisów `/.ai/maintenance/ @NiedzielX` i `/.ai/skills/ @NiedzielX` jako osobny PR właściciela (`.github/` jest jego), poza tym zakresem; do tego czasu PR-y dotykające tych katalogów wymagają ręcznego przeglądu.
-- **Ryzyko: audyt kosztuje** (pierwszy audyt DevMentora: 7 agentów). Pełny audyt jako jednorazowy jest akceptowalny; zakres zawężony (`since=`) dla rutyny, limit ≤ 4 pod-agentów naraz.
+- **Ryzyko: audyt kosztuje** (pierwszy audyt: 7 agentów). Pełny audyt jako jednorazowy jest akceptowalny; zakres zawężony (`since=`) dla rutyny, limit ≤ 4 pod-agentów naraz.
 - **Ryzyko: fałszywe alarmy audytu** (np. „niewdrożona” przy kodzie pod innym symbolem). Mitigacja: zasada dowodu, „nie ustalono”, próbkowanie w AC4.
 - **Nie ustalono:** czy frontmatter `allowed-tools` komendy przyjmuje regułę ścieżkową `Write(...)`; koszt jednego przebiegu pełnego audytu; stan PR #150.
 

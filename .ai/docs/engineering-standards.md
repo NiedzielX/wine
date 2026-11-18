@@ -2,20 +2,18 @@
 
 Status: obowiązuje · zatwierdzone przez właściciela poleceniem z 2026-10-15 · specyfikacja wdrożenia: `.ai/specs/implemented/2026-10-15-engineering-standards.md`
 
-## Skąd ten dokument
+## Zasada nadrzędna
 
-Źródłem jest dokument **„DevMentor — Engineering Standards & Package Structure”** (2026-09-01), napisany dla innego produktu. Oryginał leży w `.ai/docs/reference/2026-09-01-devmentor-engineering-standards.md` i **nie jest naszym standardem**. Ten plik to jego adaptacja do Wine Match: zasady, które mają u nas zastosowanie, są przetłumaczone na nasze nazwy i granice, a każde odstępstwo ma powód. Gdy ten plik i oryginał się różnią, wygrywa ten plik.
+Gdy dwie zasady ciągną w różne strony, wybierz tę, która robi zmianę **mniejszą i bardziej jawną**, a nie tę, która wygląda „bardziej enterprise”.
 
-Zasada nadrzędna oryginału, którą zachowujemy: *gdy dwie zasady ciągną w różne strony, wybierz tę, która robi zmianę **mniejszą i bardziej jawną**, a nie tę, która wygląda „bardziej enterprise”.*
+## 1. Reguły i miejsca ich egzekwowania
 
-## 1. Co wdrożone, co nie, i dlaczego
-
-| Standard z oryginału | W Wine Match | Egzekwowane przez |
+| Reguła | Ustalenie w Wine Match | Egzekwowane przez |
 |---|---|---|
 | Podkatalog na pojęcie w warstwach | **Tak**: `core/services/<pojęcie>/`, `db/entities/<pojęcie>/`, `core/validators/<pojęcie>/` | konwencja + przegląd |
-| Kierunek `app → core → db` | **Nie.** U nas `app → {core, db, ui}`, `db → core`, `ui` samodzielne | `scripts/check-boundaries.mjs`, `oxlint` (`no-restricted-imports`) |
-| Warstwa HTTP w `core/src/http` | **W `app/src/server`** (`core` nie zna HTTP ani Next.js) | `oxlint`, przegląd |
-| Koperta `{ok,data}` | **Nie**: sukces to czysty JSON, błąd `{error:{code,message,fields?}}` (kontrakt w `docs/API_SPECIFICATION.md`) | testy `npm run smoke` |
+| Kierunek zależności | `app → {core, db, ui}`, `db → core`, `ui` samodzielne | `scripts/check-boundaries.mjs`, `oxlint` (`no-restricted-imports`) |
+| Warstwa HTTP | **W `app/src/server`** (`core` nie zna HTTP ani Next.js) | `oxlint`, przegląd |
+| Koperta odpowiedzi API | Sukces to czysty JSON, błąd `{error:{code,message,fields?}}` (kontrakt w `docs/API_SPECIFICATION.md`) | testy `npm run smoke` |
 | Trasa bez własnego `try/catch` | **Tak**: `handle()` i `handlePublic()` w `server/api-auth.ts` | `grep` w przeglądzie; smoke (500 → ogólny komunikat) |
 | `makeCrudRoute`, `CrudForm`, `DataTable`, `apiCall` | **Nie budujemy** (patrz §3) | — |
 | `feedback/{EmptyState,ErrorMessage,LoadingMessage}` | **Tak**: `packages/ui/src/backend/feedback` | przegląd |
@@ -24,17 +22,17 @@ Zasada nadrzędna oryginału, którą zachowujemy: *gdy dwie zasady ciągną w r
 | Zdarzenia domenowe `core/events` | **Nie teraz** (YAGNI). Dodać razem z pierwszą funkcją, która ich potrzebuje | — |
 | Build i start bez bazy | **Tak** | `npm run boot:check`, job CI „bez bazy” |
 | Transakcja przy „sprawdź i zapisz” | **Tak** (`commit`, `confirm`, `publish`) | testy kontraktu na PostgreSQL |
-| Hasła: bcrypt ≥12 / argon2id | **scrypt N=2^15, r=8, p=3** (równoważna siła wg OWASP) + przeliczanie starych skrótów przy logowaniu | `db/tests/scrypt.test.ts`, test integracyjny |
-| JWT HS256 | **Nie dotyczy**: nieprzezroczysty token sesji, w bazie tylko jego SHA-256 | `core/tests/auth.test.ts` |
+| Hasła | **scrypt N=2^15, r=8, p=3** (równoważna siła wg OWASP) + przeliczanie starych skrótów przy logowaniu | `db/tests/scrypt.test.ts`, test integracyjny |
+| Sesje | Nieprzezroczysty token sesji, w bazie tylko jego SHA-256 | `core/tests/auth.test.ts` |
 | Ciasteczka, CSRF | **Tak** (httpOnly, Secure w produkcji, SameSite=Lax, `X-CSRF-Token`) | `npm run smoke` |
 | Limit prób logowania per IP + e-mail | **Per konto** (5 prób / 15 min). Per IP wymaga decyzji o zaufanym serwerze pośredniczącym — **otwarte** | testy `AuthService` |
-| Własność rekordu zamiast ról | **Odwrotnie**: role i izolacja restauracji są wymaganiem produktu | `authorize()`, testy uprawnień |
+| Role i izolacja restauracji | Wymaganie produktu; zasada „sprawdzaj konkretny rekord” zostaje | `authorize()`, testy uprawnień |
 | Mass assignment przez Zod | **Tak**: obiekty `strictObject`, nieznane pola → 422 `unknown_field` | `core/tests/validators.test.ts` |
-| `pino` z redakcją | **Własny logger** `core/logging` (bez nowej zależności) z redakcją kluczy i wzorców w tekście | `core/tests/logging.test.ts` |
-| Konfiguracja z `env.ts` (Zod) | **Tak**: `core/config/env.ts`, `app/src/server/env.ts` | `core/tests/env.test.ts`, `boot:check` |
+| Logowanie z redakcją | **Własny logger** `core/logging` (bez nowej zależności) z redakcją kluczy i wzorców w tekście | `core/tests/logging.test.ts` |
+| Konfiguracja (Zod) | **Tak**: `core/config/env.ts`, `app/src/server/env.ts` | `core/tests/env.test.ts`, `boot:check` |
 | `npm audit` w bramce | **Tak**: `npm run audit:gate` z jawną, datowaną listą wyjątków | CI |
 | Wersje przypięte dokładnie | **Tak** (`save-exact`), poza zależnościami wewnętrznymi `@wine-match/*`: te mają `"*"`, żeby npm zawsze dowiązywał workspace, nie rejestr | `npm run release:version` |
-| ESLint | **`oxlint`** (`typescript-eslint` wymaga TypeScript `<6.1`, mamy 7) | `npm run lint`, CI |
+| Lint | **`oxlint`** (`typescript-eslint` wymaga TypeScript `<6.1`, mamy 7) | `npm run lint`, CI |
 | Lista kontrolna przeglądu | **Tak**: §6 i `.github/pull_request_template.md` | przegląd |
 
 ## 2. Nazewnictwo
@@ -54,7 +52,7 @@ Zasada nadrzędna oryginału, którą zachowujemy: *gdy dwie zasady ciągną w r
 | Strona | `page.tsx`, domyślny eksport `<Segment>Page` | `SetupPage` |
 | Komponent | surowy shadcn w `ui/src/components/` (z `npx shadcn add`, lokalne poprawki opisane w `packages/ui/AGENTS.md`); generyczny wzorzec panelu w `ui/src/backend/<kategoria>/`; komponent jednej strony obok jej `page.tsx` do czasu drugiego użycia | `EmptyState` |
 
-Zdarzenia (`concept.entity.action`) opisuje oryginał; nie mamy ich, więc nie ma u nas konwencji.
+Zdarzeń domenowych (`concept.entity.action`) nie mamy, więc nie ma dla nich konwencji; powstanie razem z pierwszą funkcją, która ich potrzebuje.
 
 ## 3. Warstwa API i UI: nie pisz drugi raz tego samego
 
@@ -67,7 +65,7 @@ Zdarzenia (`concept.entity.action`) opisuje oryginał; nie mamy ich, więc nie m
 - `logger.ts`: jedyny moduł, który drukuje. Reszta loguje przez `logger`.
 - `env.ts`: zwalidowana konfiguracja, czytana leniwie.
 
-**Klient — nie budujemy `apiCall`, `CrudForm`, `DataTable`, `makeCrudRoute`.** Panel to komponenty serwerowe i akcje serwerowe z formularzami, które działają bez JavaScriptu (decyzja Fazy 3), a żaden nasz zasób nie jest zwykłym CRUD-em. Reguła z oryginału zostaje: **pierwszy `fetch` z klienta idzie przez jedną funkcję `apiCall`**, a nie rozsiany po komponentach — wtedy ją dodajemy. Stany pusty / błąd / ładowanie: tylko `EmptyState`, `ErrorMessage`, `LoadingMessage` z `@wine-match/ui`.
+**Klient — nie budujemy `apiCall`, `CrudForm`, `DataTable`, `makeCrudRoute`.** Panel to komponenty serwerowe i akcje serwerowe z formularzami, które działają bez JavaScriptu (decyzja Fazy 3), a żaden nasz zasób nie jest zwykłym CRUD-em. Reguła zostaje: **pierwszy `fetch` z klienta idzie przez jedną funkcję `apiCall`**, a nie rozsiany po komponentach — wtedy ją dodajemy. Stany pusty / błąd / ładowanie: tylko `EmptyState`, `ErrorMessage`, `LoadingMessage` z `@wine-match/ui`.
 
 ## 4. Architektura
 
