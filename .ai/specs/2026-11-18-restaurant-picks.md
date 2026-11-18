@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-18
 owner: Filip Niedziela
 related: [.ai/specs/product-brief.md (D22, D24, D25, R02, R06, N02), .ai/specs/2026-11-04-restaurant-operations.md (E19, F2 zastępowane), .ai/specs/2026-11-04-panel-completion.md (E13 F1, F2 na main), .ai/specs/2026-11-04-learning-layer-shadow-model.md (E17), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12, tabela uprawnień), .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, docs/RECOMMENDATION_ENGINE.md, docs/security/threat-model.md, .ai/runs/2026-11-18-restaurant-picks-spec.md, "strategia produktu: .ai/specs/research/benchmarks/2026-11-16-product-strategy-vs-sommelierbot.md (na gałęzi docs/product-strategy-vs-competitors, jeszcze nie na main; P12, część 1)"]
@@ -169,7 +169,7 @@ Sposób: gałąź z samą zmianą `AGENTS.md`, opis cytujący D24, link do specy
 - **O8** [OK 2026-11-18] Domyślnie tryb ostrożny; czy F2 (liczba, pułap +5, nazwa „Polecenie restauracji”, próg 75) w ogóle ma powstać i kiedy? *Rekomendacja: zdecydować po pomiarze z pilotażu F1; do tego czasu nie budować.*
 - **O9** [OK 2026-11-18] Daty ważności i wybory per danie. *Rekomendacja: nie w F1; okres obowiązywania daje publikacja (w tym zaplanowana, E13 F5).*
 - **O10** [OK 2026-11-18] Wpis w regulaminie: zakaz używania wyboru do ukrytej płatnej promocji (U8). *Rekomendacja: dodać przed pierwszym klientem, razem z zapisem o danych zagregowanych (D23).*
-- **O12** **[przegląd]** Próg 75 nie ogranicza odwrócenia wyników: wybór 75 może stanąć nad propozycją 95. *Rekomendacja: dodatkowo okno względne `PICK_WINDOW` (np. 10 pkt od najlepszego `matchScore` tier 2, jak `BEST_VALUE_WINDOW` = 8); decyzja i test w AC3 przed krokiem 2.*
+- **O12** [OK 2026-11-18: tak, `PICK_WINDOW` 10 pkt] **[przegląd]** Próg 75 nie ogranicza odwrócenia wyników: wybór 75 może stanąć nad propozycją 95. *Rekomendacja: dodatkowo okno względne `PICK_WINDOW` (np. 10 pkt od najlepszego `matchScore` tier 2, jak `BEST_VALUE_WINDOW` = 8); decyzja i test w AC3 przed krokiem 2.*
 - **O11** [OK 2026-11-18] Czy E17 ma wyłączać pozycje z flagą `pick` z sygnału „pasuje”? *Rekomendacja: tak (pętla zwrotna); zmiana założeń E17 przez właściciela.*
 
 ## Przegląd niezależny (2026-11-18)
@@ -205,7 +205,7 @@ Przegląd w świeżym kontekście; twierdzenia o kodzie sprawdzone w `engine/rec
 ## Changelog
 - 2026-11-18 — Autor/recenzent: not recorded / not recorded (draft napisany przez agenta; źródło: `.ai/runs/2026-11-18-restaurant-picks-spec.md`).
 - 2026-11-18 — Przegląd niezależny: sekcja „Przegląd niezależny”, poprawki z **[przegląd]** (R1, R5, R8, R11, R13, R15, AC5, AC6, AC11, podział na PR, O12); `status` bez zmian (draft).
-- 2026-11-18 — Właściciel przyjął rekomendacje do O1–O11 (O12 otwarte); `status` bez zmian (draft).
+- 2026-11-18 — Zatwierdzona (approved); rekomendacje O1–O12 przyjęte, O12: okno 10 pkt.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commity, log przebiegu, odstępstwa od projektu.)
