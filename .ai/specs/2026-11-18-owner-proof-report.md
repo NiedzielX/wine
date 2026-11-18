@@ -200,18 +200,18 @@ Poniższe to **hipoteza** z P3 strategii; nic w tej specyfikacji jej nie wdraża
 Świeży kontekst, bez udziału autora. H2–H5 przeliczone skryptem (Wilson z = 1,96; Newcombe, metoda 10): zgodne z tabelą w granicach 0,05 pp (np. H2 [+2,73; +26,62], H5 [−10,16; +28,81]); H1 zgodne (5, 2, 40,0%; 50,0%; 33,3%). Poprawki w treści oznaczone **[przegląd]**; `status` bez zmian. Razem 19 ustaleń.
 
 ### Blokujące (naprawione w treści)
-1. [OK 2026-11-18] **A32 zajęte** przez zatwierdzoną `2026-11-16-catalog-field-editing.md` (Q11) i `docs/SCREEN_SPECIFICATION.md` na `feat/catalog-field-editing-c1`. Raport = A33, druk = A34. `security-033` też zajęte na tej gałęzi: użyć 034–035 (`check:qa` odrzuca duplikaty).
-2. [OK 2026-11-18] **Kompletność okna tylko z zegara.** Wczoraj bez importu (eksport ręczny, N04) dawało „kompletne” okno z 20 dniami danych i werdykt; dochodzi `window_not_imported` (`dataRange.to`). Dzień liczony `serviceDay` (cięcie 04:00, `recommendation-code/service-day.ts:8`), nie `localDate`, zgodnie z kodami E09.
-3. [OK 2026-11-18] **Zapis L.** `PUT` dopisujący wiersz nie jest idempotentny, a „powód od drugiego wpisu” to sprawdź-potem-wstaw bez blokady (standardy §12.4). Teraz `POST`, `expectedCurrent`, 409, `seq` z `CHECK` w bazie, AC19.
+1. **A32 zajęte** przez zatwierdzoną `2026-11-16-catalog-field-editing.md` (Q11) i `docs/SCREEN_SPECIFICATION.md` na `feat/catalog-field-editing-c1`. Raport = A33, druk = A34. `security-033` też zajęte na tej gałęzi: użyć 034–035 (`check:qa` odrzuca duplikaty).
+2. **Kompletność okna tylko z zegara.** Wczoraj bez importu (eksport ręczny, N04) dawało „kompletne” okno z 20 dniami danych i werdykt; dochodzi `window_not_imported` (`dataRange.to`). Dzień liczony `serviceDay` (cięcie 04:00, `recommendation-code/service-day.ts:8`), nie `localDate`, zgodnie z kodami E09.
+3. **Zapis L.** `PUT` dopisujący wiersz nie jest idempotentny, a „powód od drugiego wpisu” to sprawdź-potem-wstaw bez blokady (standardy §12.4). Teraz `POST`, `expectedCurrent`, 409, `seq` z `CHECK` w bazie, AC19.
 
 ### Ważne
-4. [OK 2026-11-18] **Moc.** Przy 30 + 30 rachunkach `increase` dopiero od ok. +27 pp (przedział zmiany ok. ±25 pp, nie ±17); Q1 poprawione. Rekomendacja (nie wpisana): pokazywać „najmniejszą zmianę możliwą do wykazania przy tych próbach”.
-5. [OK 2026-11-18] **Wariant A zwrotu** zwraca pieniądze w ok. 35% przypadków przy realnym +5 pp i n = 30; dopisane ryzyko (5).
-6. [OK 2026-11-18] **Grupa „z kodem”** ma odsetek z definicji bliski 100% (kod przy zamówieniu wina, D16); zastrzeżenie R6 uzupełnione. Rekomendacja: rozważyć pokazywanie tylko liczby rachunków i przychodu.
-7. [OK 2026-11-18] **Wielokrotne spojrzenia i niezależność.** Wilson ignoruje korelację w obrębie dnia; przedział jest „co najmniej tak szeroki”. Brak domyślnego okna: ustalić „najnowsze kompletne”. Zakaz L w przyszłości zmusza do wpisu po zobaczeniu danych: rekomendacja, by dopuścić L do +14 dni jako „zaplanowany”. Oznaczenie „L zmieniony po oknie 1” dodane.
-8. [OK 2026-11-18] **Sommelier ma `import.manage`** i może zastąpić rachunki bazy; uzasadnienie R10 było nieścisłe (poprawione, Q4 do uzupełnienia).
-9. [OK 2026-11-18] **N zapytań na N okien** i `salesPeriodSchema` ≤ 366 dni: jedno zapytanie, okna 1..12.
-10. [OK 2026-11-18] **AC9** z podciągiem „AI” trafiałby w ładunek RSC; test na widocznym tekście, `\bAI\b`; zdanie werdyktu `increase` ustalone w R4.
+4. **Moc.** Przy 30 + 30 rachunkach `increase` dopiero od ok. +27 pp (przedział zmiany ok. ±25 pp, nie ±17); Q1 poprawione. Rekomendacja (nie wpisana): pokazywać „najmniejszą zmianę możliwą do wykazania przy tych próbach”.
+5. **Wariant A zwrotu** zwraca pieniądze w ok. 35% przypadków przy realnym +5 pp i n = 30; dopisane ryzyko (5).
+6. **Grupa „z kodem”** ma odsetek z definicji bliski 100% (kod przy zamówieniu wina, D16); zastrzeżenie R6 uzupełnione. Rekomendacja: rozważyć pokazywanie tylko liczby rachunków i przychodu.
+7. **Wielokrotne spojrzenia i niezależność.** Wilson ignoruje korelację w obrębie dnia; przedział jest „co najmniej tak szeroki”. Brak domyślnego okna: ustalić „najnowsze kompletne”. Zakaz L w przyszłości zmusza do wpisu po zobaczeniu danych: rekomendacja, by dopuścić L do +14 dni jako „zaplanowany”. Oznaczenie „L zmieniony po oknie 1” dodane.
+8. **Sommelier ma `import.manage`** i może zastąpić rachunki bazy; uzasadnienie R10 było nieścisłe (poprawione, Q4 do uzupełnienia).
+9. **N zapytań na N okien** i `salesPeriodSchema` ≤ 366 dni: jedno zapytanie, okna 1..12.
+10. **AC9** z podciągiem „AI” trafiałby w ładunek RSC; test na widocznym tekście, `\bAI\b`; zdanie werdyktu `increase` ustalone w R4.
 11. **Zaokrąglenie przedziału** do pełnych pp mogło dać „od +0” przy `increase`; zaokrąglanie na zewnątrz.
 12. **Nazwa:** PL „Raport dowodu” przy „inconclusive” obiecuje więcej niż dane; rekomendacja „Raport wyników” (PL) i „Results report” (EN), `proof` tylko w ścieżce i uprawnieniach (Q9 nierozstrzygnięte).
 
