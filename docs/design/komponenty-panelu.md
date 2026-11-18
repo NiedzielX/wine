@@ -1,4 +1,4 @@
-# Komponenty panelu: kontrakty (lekcja 06)
+# Komponenty panelu: kontrakty
 
 Źródło: `packages/ui/src`. Każdy komponent: do czego służy, czego użyć zamiast, warianty i stany. Nowy komponent dopisujemy tutaj w tym samym PR. Storybook z tymi stories: `packages/ui` (osobny PR, patrz `docs/DESIGN_SYSTEM.md`).
 

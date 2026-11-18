@@ -4,7 +4,7 @@ import { NEW_RESTAURANT, NEW_RESTAURANT_TEAM } from './new-restaurant';
 import { BISTRO, HALKA, type Member, type Session, base, bistroManager, bistroOwner, bistroSommelier, db, digest, errorCode, get, halkaManager, halkaSommelier, members, origin, payload, sampleCsv, send, signIn, stageImport } from './boundaries';
 
 /**
- * Lesson 16 (security), docs/security/threat-model.md T-01, T-02, T-03: access boundaries on PostgreSQL, with real sessions and plain
+ * docs/security/threat-model.md T-01, T-02, T-03: access boundaries on PostgreSQL, with real sessions and plain
  * `fetch` against the built app. Every check has the four parts of the "three checks" rule (.ai/docs/engineering-standards.md §Access
  * boundaries): a positive control for BOTH accounts (the call works for the one who owns the data), a refused read, a refused write,
  * and the state AFTER the attempts: whole payloads and a digest of every table the attempts could touch, not a count.

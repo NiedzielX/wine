@@ -154,7 +154,7 @@ Reguły `oxlint` w `.oxlintrc.json`: brak `any` (`typescript/no-explicit-any`), 
 
 ## 10. Granice dostępu: reguła trzech sprawdzeń
 
-Źródło: lekcja 16 kursu (bezpieczeństwo), `docs/security/threat-model.md`. „Odmowa” bez dowodu, że dane się nie ruszyły, i test bez kontroli pozytywnej to nie jest sprawdzenie granicy. Granica dostępu to: izolacja tenantów (slug i id obiektu), hierarchia ról, flaga i token zaproszenia, tryb tylko do odczytu pokazu, każde nowe wejście, które ktoś zamyka przed kimś.
+Zob. `docs/security/threat-model.md`. „Odmowa” bez dowodu, że dane się nie ruszyły, i test bez kontroli pozytywnej to nie jest sprawdzenie granicy. Granica dostępu to: izolacja tenantów (slug i id obiektu), hierarchia ról, flaga i token zaproszenia, tryb tylko do odczytu pokazu, każde nowe wejście, które ktoś zamyka przed kimś.
 
 Każda granica ma test HTTP na prawdziwej instancji (e2e na PostgreSQL, zbudowana aplikacja, prawdziwe sesje; szablon: `packages/app/tests/e2e/access-boundaries.e2e.test.ts`), a w nim:
 
@@ -167,7 +167,7 @@ Dodatkowo: gdy dodajesz kontrolę, **zepsuj ją na chwilę** (mutacja: usuń fil
 
 **Polityka 403/404** (`docs/security/threat-model.md` §4.1, T-34): obcy slug odpowiada jak nieistniejący (403 z sesją, przekierowanie do logowania bez niej), obce id jak nieistniejące (404, `error=not_found`); 403 tylko dla roli poniżej uprawnienia we własnej restauracji. Test porównuje status **i ciało** obcego i brakującego. **Strona, layout i akcja panelu** wołają `requireAccess`/`act()`/`perform()` przed pierwszym odczytem, nigdy w `Promise.all` z odczytami: pilnuje `npm run check:pages` (reguła z lekcji `2026-11-08-page-reads-data-in-parallel-with-layout-check`). **Gość** czyta tylko opublikowaną migawkę: test porównuje całe ładunki gościa przed i po zmianach nieopublikowanych (`access-boundaries-guest.e2e.test.ts`). **Matryca zmienia wspólną bazę e2e**, więc plik bierze `snapshotDatabase()` w `beforeAll` i przywraca ją w `afterAll`.
 
-## 11. Rozmiar PR i przegląd (lekcja 17 kursu)
+## 11. Rozmiar PR i przegląd
 
 Przegląd, który powtarza się mimo lekcji, zamieniamy w sprawdzenie maszynowe (przykład: `npm run check:routes`, `.ai/lessons/2026-11-07-deterministic-check-over-review.md`); poniższe reguły dotyczą tego, co zostaje człowiekowi i recenzentowi.
 

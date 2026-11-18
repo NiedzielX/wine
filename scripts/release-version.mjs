@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One version for the whole monorepo (lesson 22, docs/RELEASING.md). Deterministic, offline, no dependencies.
+ * One version for the whole monorepo (docs/RELEASING.md). Deterministic, offline, no dependencies.
  *
  *   npm run release:version                         same as --check
  *   npm run release:version -- --check [--expect X.Y.Z]

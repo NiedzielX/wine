@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * review:pack: the package a reviewer gets for one pull request (diff, spec section, checklist for the risk, CI),
- * without the author's title, description, comments or commit messages (lesson 17; `.ai/docs/review-protocol.md`).
+ * without the author's title, description, comments or commit messages (`.ai/docs/review-protocol.md`).
  *
  * Usage: npm run review:pack -- <pr number> [--repo owner/name] [--out file [--force]] [--max-diff-bytes N]
  * Read-only: `gh api` GET requests (REST only). Needs `gh` signed in; the token is never read or printed here.

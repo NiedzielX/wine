@@ -2,7 +2,7 @@
 started: 2026-11-05 15:00
 ended: 2026-11-05 16:30
 agent: Claude Code / claude-sonnet-5-5 (testy ręczne: pod-agent w świeżej sesji)
-spec: brak — poprawka błędu znalezionego w teście ręcznym (lekcja 14)
+spec: brak — poprawka błędu znalezionego w teście ręcznym
 outcome: success
 related: [.ai/lessons/2026-11-05-url-ids-vs-uuid-columns.md]
 ---
@@ -10,7 +10,7 @@ related: [.ai/lessons/2026-11-05-url-ids-vs-uuid-columns.md]
 # Szukanie błędów jak użytkownik: id spoza UUID daje 500
 
 ## Zadanie
-Zadanie domowe z lekcji 14: przetestować aplikację od strony użytkownika, znaleźć 1–2 błędy na przypadkach brzegowych, naprawić z dowodem „czerwony przed, zielony po”, review drugim agentem.
+Cel: przetestować aplikację od strony użytkownika, znaleźć 1–2 błędy na przypadkach brzegowych, naprawić z dowodem „czerwony przed, zielony po”, review drugim agentem.
 
 ## Przebieg
 - Aplikacja zbudowana lokalnie (`npm run test-env:up`, PostgreSQL bez Dockera). Brak przeglądarki, więc testy przez HTTP.

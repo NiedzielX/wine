@@ -10,7 +10,7 @@ promoted: AGENTS.md §9
 # Łańcuch dostaw CI: akcje przypięte SHA, skrypty instalacyjne wyłączone, hook to guardrail
 
 ## Kontekst
-Lekcja 18 (łańcuch dostaw i uprawnienia agenta). CI używało ruchomych tagów akcji (`@v4`), checkout zostawiał token w `.git/config`, `npm ci` uruchamiał skrypty instalacyjne zależności, a narzędzia spoza lockfile'a (npm globalnie, `agent-browser`) nie były nigdzie wypisane.
+Łańcuch dostaw i uprawnienia agenta. CI używało ruchomych tagów akcji (`@v4`), checkout zostawiał token w `.git/config`, `npm ci` uruchamiał skrypty instalacyjne zależności, a narzędzia spoza lockfile'a (npm globalnie, `agent-browser`) nie były nigdzie wypisane.
 
 ## Przyczyna
 Ruchomy tag i skrypt instalacyjny to kod, który zmienia się lub uruchamia bez przeglądu, a w CI ma dostęp do tokenu repozytorium. Domyślne ustawienia narzędzi są wygodne, nie bezpieczne.

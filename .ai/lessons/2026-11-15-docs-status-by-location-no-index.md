@@ -3,14 +3,14 @@ date: 2026-11-15
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-15-course-sync-24-25.md
+source: .ai/runs/2026-11-15-deployment-maintenance-rules.md
 promoted:
 ---
 
 # Status dokumentu to miejsce pliku i jedno pole `status`; bez indeksu wiedzy i metadanych przeglądu
 
 ## Kontekst
-Lekcja 25 kursu odrzuca dwa sposoby pilnowania aktualności wiedzy: osobny indeks plików z właścicielem i datą ważności oraz pola przeglądu w nagłówku każdej specyfikacji, skilla i lekcji. Wybiera strukturę katalogów (aktywne, `implemented/`, `archive/`) i cotygodniowy przegląd. Przy przenoszeniu na Wine Match trzeba było rozstrzygnąć, co z polem `status`.
+Odrzucamy dwa sposoby pilnowania aktualności wiedzy: osobny indeks plików z właścicielem i datą ważności oraz pola przeglądu w nagłówku każdej specyfikacji, skilla i lekcji. Wybieramy strukturę katalogów (aktywne, `implemented/`, `archive/`) i cotygodniowy przegląd. Trzeba było rozstrzygnąć, co z polem `status`.
 
 ## Przyczyna
 Każdy dodatkowy plik lub pole trzeba utrzymywać przy każdej zmianie i rozjeżdża się z kodem tak samo jak dokumentacja; autora i daty zmian zna git. U nas jedno pole jest jednak potrzebne: hook `.claude/hooks/spec-status-guard.mjs` czyta `status` z nagłówka, żeby agent nie ustawił `approved`.

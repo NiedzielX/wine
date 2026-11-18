@@ -1,4 +1,4 @@
-# Tokeny (lekcja 06, ćwiczenie 2)
+# Tokeny
 
 Źródło wartości: `packages/app/src/app/(guest)/guest.css` (gość) i `packages/ui/src/styles.css` (panel). Kontrast liczy `scripts/check-design.mjs`.
 
@@ -48,7 +48,7 @@ Warstwa 3 — komponenty biorą kolor z roli, nigdy z surowej wartości (`text-i
 Zmiana w tej iteracji: `ink-3` z `#857a80` (3,73:1, poniżej AA) na `#6f646a`. Skrypt sprawdza kontrast wszystkich tokenów tekstowych na tle `paper` i `surface`.
 
 
-## Tokeny dodane przy audycie (lekcja 06)
+## Tokeny dodane przy audycie
 
 | Token | Hex | Rola | Kontrast |
 |---|---|---|---|

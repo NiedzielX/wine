@@ -10,7 +10,7 @@ promoted:
 # Plik wczytywany w każdej sesji ma budżet; szczegóły idą do plików czytanych na żądanie
 
 ## Kontekst
-Lekcja 10 (context engineering). `AGENTS.md` miał 29 120 B i `CLAUDE.md` 3 212 B (część powtórzona), a pakietowy `packages/app/AGENTS.md` 10 075 B. Codex wczytuje root i `AGENTS.md` pakietu na ścieżce i **odrzuca to, co ponad 32 KiB**: w pakiecie `app` suma wynosiła ok. 39 KB, więc część reguł nie dochodziła do agenta, a nic tego nie zgłaszało.
+Context engineering. `AGENTS.md` miał 29 120 B i `CLAUDE.md` 3 212 B (część powtórzona), a pakietowy `packages/app/AGENTS.md` 10 075 B. Codex wczytuje root i `AGENTS.md` pakietu na ścieżce i **odrzuca to, co ponad 32 KiB**: w pakiecie `app` suma wynosiła ok. 39 KB, więc część reguł nie dochodziła do agenta, a nic tego nie zgłaszało.
 
 ## Przyczyna
 Pliki agentowe rosną z każdym przebiegiem (lekcje, reguły, wyjątki), a nic nie mierzy ich rozmiaru. Szacunek „root mieści się w 12 KB” z planu okazał się nieosiągalny: same reguły procesu (§2–§9) to ok. 14 KB. Przegląd specyfikacji przez niezależnego agenta wyłapał to przed wdrożeniem.
