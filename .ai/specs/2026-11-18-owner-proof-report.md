@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-18
 owner: Filip Niedziela
 related: [.ai/specs/research/benchmarks/2026-11-16-product-strategy-vs-sommelierbot.md (P3, na gałęzi docs/product-strategy-vs-competitors), .ai/specs/research/benchmarks/2026-11-16-competitive-advantages.md (S1), .ai/specs/product-brief.md (D04, D16, D18, D20, D23, A05, K03, Q02, Q11), docs/PRODUCT_CONCEPT.md (§6), .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-11-04-sales-demo-and-roi-calculator.md, .ai/specs/2026-11-04-subscriptions-and-billing.md, docs/SCREEN_SPECIFICATION.md, docs/SCREEN_MAP.md, docs/USER_ROLES.md, docs/security/threat-model.md, .ai/runs/2026-11-18-owner-proof-report-spec.md]
@@ -219,12 +219,13 @@ Poniższe to **hipoteza** z P3 strategii; nic w tej specyfikacji jej nie wdraża
 13. Nowe klasy błędów zbędne: `ValidationError`, `VersionConflictError` (`errors.ts:19,59`) są już na liście. 14. Serwis potrzebuje `clock` w deps (`now`). 15. Wzór Newcombe'a zapisany jawnie. 16. Kroki 3 i 6 przekraczają ok. 150 linii: dzielić (migracja osobno od portów; A33 / QA+e2e / docs). 17. Append-only tylko konwencją: dodać test, że port nie ma `update`/`delete`; wiersz T-39 w threat-model. 18. `hasCode` dla linii zwrotu (−1 z kodem): zdefiniować przy implementacji (rekomendacja: tylko `quantity > 0`). 19. Zmiana czasu: testować 2026-10-25 i 2027-03-28; fraza „28 dni w oknie 29-dniowym” w przykładach jest myląca, czytać: okno ma zawsze 28 dat.
 
 ### Gotowość
-Po poprawkach blokujących spec jest gotowa do akceptacji przez człowieka, z decyzjami: Q1 (próg przy mocy ok. 27 pp), Q4 (rola sommeliera wobec importu), Q9 (nazwa), wariant zwrotu (nie A bez zmiany).
+Zatwierdzona przez właściciela 2026-11-18. Decyzje: Q1 progi bez zmian, raport pokazuje „najmniejszą zmianę możliwą do wykazania” (moc ok. 27 pp); Q4 sommelier bez dostępu; Q9 nazwa PL „Raport wyników”, EN „Results report”; zwrot abonamentu: bez wariantu A.
 
 ## Changelog
 - 2026-11-18 — Autor/recenzent: not recorded / not recorded (szkic).
 - 2026-11-18 — Przegląd niezależny (świeży kontekst, model nie zapisany): sekcja wyżej, poprawki oznaczone [przegląd]; ID ekranów A33/A34.
 - 2026-11-18 — Właściciel przyjął rekomendacje do pytań otwartych 1–10 (z zastrzeżeniami z przeglądu: moc, rola sommeliera, nazwa PL, wariant zwrotu); `status` bez zmian (draft).
+- 2026-11-18 — Zatwierdzona (status approved) z decyzjami Q1, Q4, Q9 i wariantu zwrotu jak w „Gotowość”.
 
 ## Realizacja
 (Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
