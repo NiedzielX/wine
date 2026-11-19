@@ -61,6 +61,8 @@ export * from './services/catalog/translation-service';
 export * from './services/catalog/profile-rules';
 export * from './services/catalog/profile-service';
 export * from './services/catalog/profile-preview-service';
+export * from './services/catalog/catalog-edit-rules';
+export * from './services/catalog/catalog-edit-service';
 export * from './services/dashboard/admin-service';
 export * from './services/analytics/analytics-service';
 export { MIN_RATE_SAMPLE, type Metric } from './services/analytics/compare-metric';

@@ -29,6 +29,8 @@ const query = (p: Profile) => new URLSearchParams(fields(p)).toString();
 const text = async (r: Response) => (await r.text()).replace(/<!-- -->/g, '');
 const guestScores = async (dishId: string) => ((await (await fetch(`${base()}/api/v1/dishes/${dishId}/recommendations?restaurant=${HALKA}&limit=8`)).json()) as { recommendations?: Array<{ wine: { id: string }; matchScore: number }>; items?: Array<{ wine: { id: string }; matchScore: number }> });
 const scoresOf = async (dishId: string) => { const b = await guestScores(dishId); return JSON.stringify((b.recommendations ?? b.items ?? []).map((i) => [i.wine.id, i.matchScore])); };
+/** The `version` field of the taste-profile editor (A3 and A5 also carry the fingerprint of the catalog form and of the translations). */
+const profileVersionIn = (page: string) => /name="version" value="([0-9a-f]{8}-\d+)"/.exec(page.slice(Math.max(0, page.indexOf('id="profile-editor"'))));
 const pending = async (s: Session) => Number(/(\d+) unpublished change/.exec(await text(await get(s, `/admin/${HALKA}/publish`)))?.[1] ?? '0');
 
 beforeAll(async () => {
@@ -49,7 +51,7 @@ describe('editing a taste profile (A3, A5)', () => {
     const plain = await text(await get(marta, `/admin/${HALKA}/menu/${duckId}`));
     expect(plain).toContain('Edit taste profile');
     expect(plain).toContain('Save and confirm');
-    const version = /name="version" value="([0-9a-f]{8}-\d+)"/.exec(plain)?.[1] ?? '';
+    const version = profileVersionIn(plain)?.[1] ?? '';
     expect(version).toMatch(/^[0-9a-f]{8}-\d+$/);
     const previewHtml = await text(await get(marta, `/admin/${HALKA}/menu/${duckId}?${query(next)}`));
     expect(previewHtml).toContain('How the match changes');
@@ -81,7 +83,7 @@ describe('editing a taste profile (A3, A5)', () => {
 
   it('a stale form is refused with a conflict message and changes nothing; Save as draft and Confirm without changes change only the state', async () => {
     const plain = await text(await get(marta, `/admin/${HALKA}/menu/${duckId}`));
-    const stale = /name="version" value="([0-9a-f]{8}-\d+)"/.exec(plain)![1];
+    const stale = profileVersionIn(plain)![1];
     const current = await profileOf('dish', duckId);
     // another editor saves first
     const first = { ...current, umami: current.umami === 5 ? 0 : current.umami + 1 };
@@ -93,14 +95,14 @@ describe('editing a taste profile (A3, A5)', () => {
     expect(await state('dish', duckId)).toEqual(before);
     expect((await edits()).length).toBe(rows);
     // a draft: the scales as sent, the state back to draft, nobody confirmed
-    const fresh = /name="version" value="([0-9a-f]{8}-\d+)"/.exec(await text(await get(marta, `/admin/${HALKA}/menu/${duckId}`)))![1];
+    const fresh = profileVersionIn(await text(await get(marta, `/admin/${HALKA}/menu/${duckId}`)))![1];
     expect((await runAction(marta, 'saveDishProfile', HALKA, { dishId: duckId, version: fresh, confirm: 'false', ...fields(first) }, [`/menu/${duckId}`])).location).toContain('saved=profile_draft');
     expect((await queryDatabase<{ s: string; by: string | null }>(db(), 'select profile_source as s, profile_confirmed_by as by from dish where id = $1', [duckId]))[0]).toEqual({ s: 'draft', by: null });
     const draftHtml = await text(await get(marta, `/admin/${HALKA}/menu/${duckId}`));
     expect(draftHtml).toContain('Not confirmed yet');
     expect(draftHtml).toContain('Confirm without changes');
     // saving the same draft again changes nothing and says so
-    const again = /name="version" value="([0-9a-f]{8}-\d+)"/.exec(draftHtml)![1];
+    const again = profileVersionIn(draftHtml)![1];
     expect((await runAction(marta, 'saveDishProfile', HALKA, { dishId: duckId, version: again, confirm: 'false', ...fields(first) }, [`/menu/${duckId}`])).location).toContain('saved=profile_unchanged');
     // confirm without changes: the scales stay, the state becomes confirmed
     const scales = await profileOf('dish', duckId);
@@ -111,12 +113,12 @@ describe('editing a taste profile (A3, A5)', () => {
 
   it('an invalid value is refused and nothing is saved: scales from 0 to 5, alcohol from 0 to 25', async () => {
     const current = await profileOf('dish', duckId);
-    const version = /name="version" value="([0-9a-f]{8}-\d+)"/.exec(await text(await get(marta, `/admin/${HALKA}/menu/${duckId}`)))![1];
+    const version = profileVersionIn(await text(await get(marta, `/admin/${HALKA}/menu/${duckId}`)))![1];
     const before = await state('dish', duckId);
     const res = await runAction(marta, 'saveDishProfile', HALKA, { dishId: duckId, version, confirm: 'true', ...fields({ ...current, intensity: 9 }) }, [`/menu/${duckId}`]);
     expect(res.location).toContain('error=profile_invalid');
     expect(await state('dish', duckId)).toEqual(before);
-    const wineVersion = /name="version" value="([0-9a-f]{8}-\d+)"/.exec(await text(await get(marta, `/admin/${HALKA}/wines/${wineId}`)))![1];
+    const wineVersion = profileVersionIn(await text(await get(marta, `/admin/${HALKA}/wines/${wineId}`)))![1];
     const wine = await profileOf('wine', wineId);
     const wineBefore = await state('wine', wineId);
     expect((await runAction(marta, 'saveWineProfile', HALKA, { wineId, version: wineVersion, confirm: 'true', ...fields({ ...wine, alcohol: 30 }) }, [`/wines/${wineId}`])).location).toContain('error=profile_invalid');
@@ -135,11 +137,11 @@ describe('editing a taste profile (A3, A5)', () => {
     const api = (await (await get(marta, `/api/v1/wines/${wineId}/profile/preview?restaurant=${HALKA}&${query(next)}`)).json()) as { rows: Array<{ before: number; after: number; delta: number }> };
     expect(api.rows.length).toBeGreaterThan(3);
     for (const r of api.rows) expect(html).toContain(`${r.before} → ${r.after}, ${r.delta > 0 ? `+${r.delta}` : r.delta < 0 ? `−${Math.abs(r.delta)}` : 'no change'}`);
-    const version = /name="version" value="([0-9a-f]{8}-\d+)"/.exec(await text(await get(marta, `/admin/${HALKA}/wines/${wineId}`)))![1];
+    const version = profileVersionIn(await text(await get(marta, `/admin/${HALKA}/wines/${wineId}`)))![1];
     expect((await runAction(marta, 'saveWineProfile', HALKA, { wineId, version, confirm: 'false', ...fields(next) }, [`/wines/${wineId}`])).location).toContain('saved=profile_draft');
     expect((await queryDatabase<{ s: string; a: string }>(db(), 'select profile_source as s, profile_alcohol::text as a from wine where id = $1', [wineId]))[0]).toEqual({ s: 'grape_defaults', a: '14.5' });
     expect(await text(await get(marta, `/admin/${HALKA}/publish`))).toContain('still a draft');
-    const v2 = /name="version" value="([0-9a-f]{8}-\d+)"/.exec(await text(await get(marta, `/admin/${HALKA}/wines/${wineId}`)))![1];
+    const v2 = profileVersionIn(await text(await get(marta, `/admin/${HALKA}/wines/${wineId}`)))![1];
     expect((await runAction(marta, 'confirmWineProfile', HALKA, { wineId, version: v2 }, [`/wines/${wineId}`])).location).toContain('saved=profile_confirmed');
     expect((await queryDatabase<{ s: string; by: string }>(db(), 'select profile_source as s, profile_confirmed_by as by from wine where id = $1', [wineId]))[0]).toEqual({ s: 'confirmed', by: 'Marta Wierzbicka' });
   });

@@ -30,7 +30,7 @@ export default async function ReviewPage({ params, searchParams }: Props) {
   const m = t.admin.review;
   const q = await (await getRequestScope()).cradle.adminService.reviewQueue(slug, locale);
   if (!q) notFound();
-  const { progress, groups } = q;
+  const { progress, groups, renamed } = q;
   const common = { slug, back: `/admin/${slug}/review` };
   const pct = progress.dishesWithPairings ? Math.round((progress.reviewedDishes / progress.dishesWithPairings) * 100) : 100;
 
@@ -53,6 +53,23 @@ export default async function ReviewPage({ params, searchParams }: Props) {
           <PanelExplain id="review" summary={t.admin.explain.review.summary} points={t.admin.explain.review.points(ENGINE_FACTS)} />
         </CardContent>
       </Card>
+
+      {renamed.length > 0 && (
+        <Card className="mb-6" data-renamed-pairs>
+          <CardHeader><CardTitle className="text-base">{m.renamedTitle}</CardTitle><p className="text-sm text-muted-foreground">{m.renamedText}</p></CardHeader>
+          <CardContent className="divide-y px-0">
+            {renamed.map((r) => (
+              <div key={`${r.kind}:${r.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-6 py-3 text-sm">
+                <div className="min-w-0">
+                  <Link href={r.kind === 'dish' ? `/admin/${slug}/pairings/${r.id}` : `/admin/${slug}/wines/${r.id}`} className="font-medium underline-offset-4 hover:underline">{r.name}</Link>
+                  <p className="text-xs text-muted-foreground">{m.renamedItem(r.pairs)}</p>
+                </div>
+                <Badge variant="outline">{t.admin.catalog.checkAfterRename}</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {groups.length === 0 ? (
         <Alert><AlertTitle>{m.doneTitle}</AlertTitle><AlertDescription>{m.doneText}</AlertDescription></Alert>

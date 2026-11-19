@@ -3,7 +3,7 @@ import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
   AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, DEFAULT_RATE_LIMIT_MAX_CLIENTS, DEFAULT_RATE_LIMIT_RULES, ImportService, MemoryAuthRepository, MemorySystemHealth, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
-  InvitationService, LogThrottle, MemoryRateLimiter, RateLimitGuard, SommelierService, TeamService, TranslationService, ProfileService, ProfilePreviewService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
+  InvitationService, LogThrottle, MemoryRateLimiter, RateLimitGuard, SommelierService, TeamService, TranslationService, ProfileService, ProfilePreviewService, CatalogEditService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
   type PasswordHasher, type RateLimiter, type RateLimitRules, type Repositories, type SessionTokens, type SystemHealth
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
@@ -40,6 +40,7 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   translationService: TranslationService;
   profileService: ProfileService;
   profilePreviewService: ProfilePreviewService;
+  catalogEditService: CatalogEditService;
   usageEventService: UsageEventService;
   recommendationCodeService: RecommendationCodeService;
   salesKpiService: SalesKpiService;
@@ -84,6 +85,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     translationService: asClass(TranslationService).scoped(),
     profileService: asClass(ProfileService).scoped(),
     profilePreviewService: asClass(ProfilePreviewService).scoped(),
+    catalogEditService: asClass(CatalogEditService).scoped(),
     usageEventService: asClass(UsageEventService).scoped(),
     recommendationCodeService: asClass(RecommendationCodeService).scoped(),
     salesKpiService: asClass(SalesKpiService).scoped(),
@@ -123,6 +125,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       publishRepository: asClass(db.PgPublishRepository).scoped(),
       contentWriteRepository: asClass(db.PgContentWriteRepository).scoped(),
       profileWriteRepository: asClass(db.PgProfileWriteRepository).scoped(),
+      catalogWriteRepository: asClass(db.PgCatalogWriteRepository).scoped(),
+      catalogEditRepository: asClass(db.PgCatalogEditRepository).scoped(),
       authRepository: asClass(db.PgAuthRepository).scoped(),
       importRepository: asClass(db.PgImportRepository).scoped(),
       opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped(),
@@ -151,6 +155,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       publishRepository: asValue(repos.publishRepository),
       contentWriteRepository: asValue(repos.contentWriteRepository),
       profileWriteRepository: asValue(repos.profileWriteRepository),
+      catalogWriteRepository: asValue(repos.catalogWriteRepository),
+      catalogEditRepository: asValue(repos.catalogEditRepository),
       authRepository: asValue<AuthRepository>(new MemoryAuthRepository(store)),
       importRepository: asValue(repos.importRepository),
       opportunityDismissalRepository: asValue(repos.opportunityDismissalRepository),
