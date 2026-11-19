@@ -240,6 +240,13 @@ const PROFILES: Profile[] = [
     junk: { profile: [...TYPE_JUNK, { ...DISH_PROFILE, intensity: 6 }, { ...DISH_PROFILE, protein: 'x' }, { ...DISH_PROFILE, extra: 1 }], confirm: BOOL_JUNK } },
   { key: 'GET /api/v1/dishes/{dishId}/profile/preview', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: `${q()}&${new URLSearchParams(Object.fromEntries(Object.entries(DISH_PROFILE).map(([k, v]) => [k, String(v)]))).toString()}` }),
     queryJunk: { intensity: [404, 422], fat: [404, 422], protein: [422], cooking: [422] } },
+  // catalog field editing (spec 2026-11-16-catalog-field-editing): the fields of a dish and of a wine. The If-Match fingerprint has the profile's format.
+  { key: 'GET /api/v1/dishes/{dishId}/details', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q() }) },
+  { key: 'PATCH /api/v1/dishes/{dishId}/details', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { price: 99 } }),
+    junk: { price: [[], {}, 'text', null, true], name: STRING_FIELD_JUNK, description: STRING_FIELD_JUNK, category: ENUM_JUNK, profile: [{}, 1, 'x'], status: ['hidden'] } },
+  { key: 'GET /api/v1/wines/{id}/details', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { id: FAKE }, query: q() }) },
+  { key: 'PATCH /api/v1/wines/{id}/details', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { id: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { region: 'Mosel' } }),
+    junk: { region: STRING_FIELD_JUNK, producer: STRING_FIELD_JUNK, bottlePrice: [[], {}, 'text', null, true], glassPrice: [[], {}, 'text', null, true], vintage: ['nv', 2020.5, [], {}, null, true, 'text'], listNumber: ['x', 1.5, [], {}, true], pouredByGlass: BOOL_JUNK, grapes: [['x']] } },
   { key: 'GET /api/v1/wines/{id}/profile', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { id: FAKE }, query: q() }) },
   { key: 'PUT /api/v1/wines/{id}/profile', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { id: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { profile: WINE_PROFILE, confirm: true } }),
     junk: { profile: [...TYPE_JUNK, { ...WINE_PROFILE, alcohol: 40 }, { ...WINE_PROFILE, style: 'x' }, { ...WINE_PROFILE, extra: 1 }], confirm: BOOL_JUNK } },

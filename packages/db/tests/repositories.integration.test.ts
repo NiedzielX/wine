@@ -29,7 +29,7 @@ import { NodeSessionTokens, ScryptPasswordHasher, hashPassword, verifyPassword }
 import { RestaurantEntity } from '../src/entities';
 import { readFileSync } from 'node:fs';
 import {
-  PgContentWriteRepository, PgProfileWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
+  PgContentWriteRepository, PgProfileWriteRepository, PgCatalogWriteRepository, PgCatalogEditRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
   PgRestaurantWriteRepository, PgSalesRepository, PgWineRepository, PgWineWriteRepository
 } from '../src/repositories';
 import { DemoSeeder } from '../src/seeders/DemoSeeder';
@@ -87,6 +87,8 @@ function pgRepos(orm: MikroORM): Repositories {
     publishRepository: new PgPublishRepository({ em }),
     contentWriteRepository: new PgContentWriteRepository({ em }),
     profileWriteRepository: new PgProfileWriteRepository({ em }),
+    catalogWriteRepository: new PgCatalogWriteRepository({ em }),
+    catalogEditRepository: new PgCatalogEditRepository({ em }),
     importRepository: new PgImportRepository({ em }),
     opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em }),
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),

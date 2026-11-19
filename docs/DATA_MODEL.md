@@ -168,6 +168,25 @@ Dziennik zmian profili smaku, tylko do dopisywania (jak `sommelier_decision`). W
 
 Odcisk profilu (`profileVersion`, `core/src/services/catalog/profile-rules.ts`) to `expectedVersion` formularzy i `If-Match` API: dania i wina nie mają kolumny wersji, więc odcisk obejmuje skale i stan.
 
+### CatalogEdit (E13 C1, tabela `catalog_edit`)
+
+Dziennik zmian pól dania i wina (nazwa, opis, kategoria, cena; producent, nazwa, rocznik, region, kraj, nota, numer na karcie, ceny), tylko do dopisywania. Wiersz powstaje w tej samej transakcji co zapis i tylko przy faktycznej zmianie po normalizacji.
+
+| Pole | Typ | Uwagi |
+|---|---|---|
+| id | uuid PK | |
+| restaurant_id | uuid FK | każde zapytanie z `restaurantId` |
+| kind | enum | `dish`, `wine` |
+| subject_id | uuid | **bez klucza obcego**: historia przeżywa usunięcie dania lub wina |
+| action | enum | `create`, `update`, `hidden`, `shown` (C1 zapisuje tylko `update`) |
+| actor, actor_id | text, uuid null | wyświetlana nazwa i konto (zwykłe kolumny) |
+| before, after | jsonb | **tylko zmienione pola** (`null` w `before` przy `create`) |
+| identity | boolean | zmiana nazwy dania albo producenta, nazwy lub rocznika wina: pary sommeliera wymagają drugiego spojrzenia („Check after rename”, wiersz w „Do przeglądu”) |
+| created_at | timestamptz | czas z `Clock` aplikacji; indeks `(restaurant_id, kind, subject_id, created_at)` |
+
+Odcisk pól (`dishFieldsVersion`, `wineFieldsVersion`, `core/src/services/catalog/catalog-edit-rules.ts`) to `expectedVersion` formularzy i `If-Match` API; obejmuje tylko edytowalne pola, więc zmiana profilu, tłumaczeń albo dostępności nie daje konfliktu. Unikalność: nazwa dania po `normKey` (także szkice i ukryte), klucz `producent|nazwa|rocznik` wina i numer na karcie (tylko gdy się zmienia), sprawdzane w transakcji pod blokadą doradczą `hashtext('catalog:' || restaurant_id)`, którą bierze też zatwierdzenie importu katalogu.
+
+
 ### Wine
 
 Pozycja na karcie konkretnej restauracji (cena i dostępność są lokalne).

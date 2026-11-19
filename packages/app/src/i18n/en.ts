@@ -729,6 +729,8 @@ export const en = {
         profile_confirmed: () => 'Profile saved and confirmed. Guests see it after you publish.',
         profile_draft: () => 'Profile saved as a draft. Guests see it after you publish.',
         profile_unchanged: () => 'Nothing to change: the profile is already like this.',
+        catalog_saved: (languages: string) => `Saved. Guests see the change now. Translations stay as published: check them.${languages ? ` Translations (${languages.toUpperCase().split(',').join(', ')}) may be outdated.` : ''}`,
+        catalog_unchanged: () => 'Nothing to change: the details are already like this.',
         translations: () => 'Translations saved. Guests see them after you publish.',
         content: () => 'Content language and translations saved. Guests see them after you publish.',
         suggestion_added: () => 'Added to suggestions — approve it in “Engine suggestions”. Guests see the change only after you approve it and publish.',
@@ -788,6 +790,7 @@ export const en = {
         member_deactivated: 'This person’s access is removed. Restore it before changing the role.',
         already_member: 'This person is already in the team of this restaurant. If their access was removed, restore it in the list.',
         invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
+        catalog_conflict: 'Someone changed the menu or the wine list while this import was open, and one of the new items now exists. Nothing was imported: start the import again.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -928,6 +931,7 @@ export const en = {
       toReview: (n: number) => `${n} to review`
     },
     dish: {
+      moreDetails: 'Other details',
       back: 'Menu',
       managePairings: 'Manage pairings',
       details: 'Details',
@@ -976,6 +980,8 @@ export const en = {
       show: 'Show'
     },
     wine: {
+      moreDetails: 'Style and serving',
+      bottleSize: 'Bottle size',
       back: 'Wine list',
       listing: 'Listing and prices',
       style: 'Style',
@@ -1013,6 +1019,9 @@ export const en = {
       doneText: 'Guests see your approved pairings first, with the engine filling any remaining places.',
       noPrimary: 'No primary pick yet',
       approveDish: 'Approve all for this dish',
+      renamedTitle: 'Renamed: check the pairs',
+      renamedText: 'The name changed after these pairings were decided. Check that they still fit, then decide again or leave them.',
+      renamedItem: (pairs: number) => `Name changed, check ${pairs} pairings`,
       openPairings: 'Open pairings',
       approve: 'Approve',
       reject: 'Reject'
@@ -1398,6 +1407,49 @@ export const en = {
       guestWineTitle: 'Where the wine enters or leaves the top picks',
       guestWineNone: 'The wine keeps its place in every dish\'s top picks.',
       error: 'The preview needs valid values.'
+    },
+    catalog: {
+      dish: {
+        title: 'Details',
+        text: 'The name, description, category and price guests read on the menu. A change is live for guests at once.',
+        name: 'Name', description: 'Description', category: 'Category', price: 'Price (zł)',
+        baseHint: 'This is the base text. Translations are below.',
+        renameHint: 'Renaming changes what the file import matches: a later import of the old name creates a new dish.'
+      },
+      wine: {
+        title: 'Listing',
+        text: 'Producer, name, vintage, region, prices and the list number. A change is live for guests at once.',
+        producer: 'Producer', name: 'Wine', vintage: 'Vintage (a year or NV)', region: 'Region', country: 'Country', tastingNote: 'Tasting note',
+        listNumber: 'List no.', listNumberHint: 'Leave empty if the wine is not on the printed list.', bottlePrice: 'Bottle price (zł)',
+        pouredByGlass: 'Poured by the glass', glassPrice: 'Glass price (zł)', glassHint: 'Used only when the wine is poured by the glass; leave it as it is otherwise.',
+        baseHint: 'This is the base text. Translations are below.'
+      },
+      save: 'Save changes',
+      readOnly: 'Your role cannot change these details.',
+      identity: {
+        dish: 'This dish has {n} sommelier pairings. Rename it only to correct the name, not to replace the dish.',
+        wine: 'This wine has {n} sommelier pairings. Change the producer, name or vintage only to correct them, not to replace the wine.',
+        confirm: 'I am correcting it, not replacing it'
+      },
+      lastEditBy: 'Last edited by {name}, {date}',
+      lastEdit: 'Last edited {date}',
+      stale: 'Translations ({languages}) may be outdated.',
+      staleLink: 'Check the translations',
+      checkAfterRename: 'Check after rename',
+      pairsToCheck: '{n} pairings to check after the rename',
+      errors: {
+        required: 'Fill this in.', too_long: 'Too long.', not_positive: 'Must be more than zero.', too_many_decimals: 'At most two decimal places.',
+        glass_not_below_bottle: 'The glass must cost less than the bottle.', duplicate: 'Another item already has this name.', transition: 'This change is not allowed.',
+        not_a_number: 'Enter a number such as 58 or 58,50.', not_allowed: 'Switch on “Poured by the glass” to set a glass price.', out_of_range: 'Outside the allowed range.',
+        invalid: 'Not a valid value.', invalid_chars: 'Remove the control or invisible characters.', identity_unconfirmed: 'Confirm that you are correcting the name.',
+        unknown_field: 'Unknown field.'
+      } as Record<string, string>,
+      formErrors: {
+        version_conflict_dish: 'Someone has changed this dish in the meantime. Reload the page.',
+        version_conflict_wine: 'Someone has changed this wine in the meantime. Reload the page.',
+        forbidden: 'You don’t have permission to do that.', not_found: 'That item no longer exists.', validation_failed: 'Check the fields marked below. Nothing was saved.',
+        unexpected: 'The change could not be saved. Nothing was changed; try again.'
+      } as Record<string, string>
     },
     translations: {
       title: 'Translations',

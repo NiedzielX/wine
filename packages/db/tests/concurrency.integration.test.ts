@@ -1,6 +1,6 @@
 import type { MikroORM } from '@mikro-orm/postgresql';
 import {
-  ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
+  CatalogEditService, wineFieldsOf, wineFieldsVersion, ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -251,6 +251,56 @@ describe('concurrency on PostgreSQL', () => {
       for (const r of rejected(results)) expect(['VersionConflictError', 'ValidationError'], `round ${round}`).toContain((r.reason as Error).name);
       const numbers = (await sql<{ number: number }>('select number from published_version where restaurant_id = ? order by number', [ds.restaurant.id])).map((r) => r.number);
       expect(numbers, `round ${round}`).toEqual([1, 2]);
+    }
+  });
+
+  const catalogOf = () => new CatalogEditService({ ...pgRepos(orm), clock: { now: () => new Date('2026-11-17T09:00:00.000Z') }, idGenerator: { uuid: () => randomUUID() } });
+
+  it('two editors save the same wine from the same screen (expectedVersion): one wins, the other gets a version conflict, one audit row, the stored fields are the winner\'s (spec 2026-11-16-catalog-field-editing, AC4)', async () => {
+    const wine = ds.wines.find((w) => w.listNumber !== undefined)!;
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const expectedVersion = wineFieldsVersion(wineFieldsOf((await pgRepos(orm).wineRepository.findById(ds.restaurant.id, wine.id))!));
+      const results = await race(
+        () => catalogOf().updateWine('halka', wine.id, { bottlePrice: 501 }, MARTA, expectedVersion),
+        () => catalogOf().updateWine('halka', wine.id, { bottlePrice: 502 }, TOMASZ, expectedVersion)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as Error).name, `round ${round}`).toBe('VersionConflictError');
+      const edits = await sql<{ actor: string; after: { bottlePrice: number } }>('select actor, after from catalog_edit where restaurant_id = ?', [ds.restaurant.id]);
+      expect(edits, `round ${round}: one audit row`).toHaveLength(1);
+      const stored = (await sql<{ bottle_price: string }>('select bottle_price from wine where id = ?', [wine.id]))[0];
+      expect(Number(stored.bottle_price), `round ${round}: the stored price is the winner's`).toBe(edits[0].after.bottlePrice);
+    }
+  });
+
+  it('two different dishes renamed to one name at once: one rename wins, the other is a duplicate, never two dishes with one name', async () => {
+    const [a, b] = ds.dishes.filter((d) => d.status === 'published');
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(
+        () => catalogOf().updateDish('halka', a.id, { name: 'Brand new name' }, MARTA),
+        () => catalogOf().updateDish('halka', b.id, { name: 'BRAND NEW NAME!' }, TOMASZ)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason).toMatchObject({ fields: { name: 'duplicate' } });
+      expect(await sql("select 1 from dish where lower(regexp_replace(name, '[^A-Za-z]', '', 'g')) = 'brandnewname'"), `round ${round}`).toHaveLength(1);
+      expect(await sql('select 1 from catalog_edit where restaurant_id = ?', [ds.restaurant.id])).toHaveLength(1);
+    }
+  });
+
+  it('a rename racing an import that creates a dish of that name: never two dishes with one key, whichever takes the lock first', async () => {
+    const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const job = await importOf().upload('halka', 'menu', fixture('menu-bom.csv'), MARTA);
+      const results = await race(
+        async (): Promise<unknown> => catalogOf().updateDish('halka', duck.id, { name: 'Tartare, hand-cut' }, MARTA),
+        () => importOf().confirm('halka', job.id, TOMASZ)
+      );
+      expect(results.filter((r) => r.status === 'fulfilled').length, `round ${round}`).toBeGreaterThanOrEqual(1);
+      expect(await sql("select 1 from dish where name = 'Tartare, hand-cut'"), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as { code?: string }).code, `round ${round}`).toMatch(/duplicate|validation_failed|catalog_conflict/);
     }
   });
 

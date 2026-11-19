@@ -4,7 +4,8 @@ import type { Level, Pairing } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import { countContentChanges } from '../i18n/content';
 import { pairingScore } from '../engine/scoring';
-import type { DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
+import type { CatalogEditRecord, DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
+import { dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
 import { SommelierService } from '../services/pairings/sommelier-service';
 import { loadPublishedView } from '../services/publishing/published-view';
 import { dishScales, wineScales } from '../services/publishing/snapshot';
@@ -267,6 +268,62 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect(view.dish(duck.id)!.profile.intensity).toBe(duck.profile.intensity);
       await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-11-17T10:00:00.000Z', id: '10000000-0000-4000-8000-0000000000aa' });
       t.expect((await loadPublishedView(repos, ds.restaurant)).dish(duck.id)!.profile.intensity).toBe(confirmed.intensity);
+    });
+
+    t.it('writes dish and wine fields with their audit row against the fingerprint the caller saw, scoped by restaurant, and re-checks uniqueness (spec 2026-11-16-catalog-field-editing, R1 to R4, R10, AC3 to AC5)', async () => {
+      const edit = (kind: 'dish' | 'wine', subjectId: string, n: number, over: Partial<CatalogEditRecord> = {}): CatalogEditRecord => ({
+        id: `20000000-0000-4000-8000-${String(n).padStart(12, '0')}`, kind, subjectId, action: 'update', actor: 'Marta', actorId: '10000000-0000-4000-8000-000000000001',
+        before: { price: 1 }, after: { price: 2 }, identity: false, at: `2026-11-17T10:0${n}:00.000Z`, ...over
+      });
+      const duck = duck0();
+      const fields = dishFieldsOf(duck);
+      const next = { ...fields, price: 99.5, description: 'Rewritten' };
+      await repos.catalogWriteRepository.updateDish(rid(), duck.id, next, dishFieldsVersion(fields), edit('dish', duck.id, 1));
+      t.expect(await repos.dishRepository.findById(rid(), duck.id)).toMatchObject({ price: 99.5, description: 'Rewritten', name: duck.name, status: duck.status, profile: duck.profile, translations: duck.translations });
+      // stale fingerprint: a conflict, nothing changes, no audit row
+      await t.expect(repos.catalogWriteRepository.updateDish(rid(), duck.id, { ...fields, price: 1 }, dishFieldsVersion(fields), edit('dish', duck.id, 2))).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.price).toBe(99.5);
+      // a change of the profile or the translations is no conflict (R4: the fingerprint covers the editable fields only)
+      await repos.profileWriteRepository.setDishProfile(rid(), duck.id, { ...dishScales(duck.profile), source: 'draft', fat: ((duck.profile.fat + 1) % 6) as Level, confirmedAt: null, confirmedBy: null },
+        { id: '20000000-0000-4000-8000-0000000000a1', kind: 'dish', subjectId: duck.id, actor: 'Marta', actorId: null, before: {}, after: {}, at: '2026-11-17T10:00:30.000Z' });
+      await repos.contentWriteRepository.setDishTranslations(rid(), duck.id, { pl: { name: 'Kaczka' } });
+      await repos.catalogWriteRepository.updateDish(rid(), duck.id, { ...next, price: 100 }, dishFieldsVersion(next), edit('dish', duck.id, 3, { before: { price: 99.5 }, after: { price: 100 } }));
+      // without a fingerprint the write is unconditional (internal callers)
+      // uniqueness on the locked state: another dish's name (also a draft one) in any case, punctuation or spacing
+      const cheese = ds.dishes.find((d) => d.status === 'draft')!;
+      const taken = async (name: string) => repos.catalogWriteRepository.updateDish(rid(), duck.id, { ...dishFieldsOf((await repos.dishRepository.findById(rid(), duck.id))!), name }, undefined, edit('dish', duck.id, 4));
+      await t.expect(taken(` ${cheese.name.toUpperCase()}! `)).rejects.toMatchObject({ code: 'validation_failed', fields: { name: 'duplicate' } });
+      await t.expect(taken(ds.dishes.find((d) => d.id !== duck.id && d.status === 'published')!.name)).rejects.toMatchObject({ fields: { name: 'duplicate' } });
+      // unknown ids and another restaurant's: not found
+      await t.expect(repos.catalogWriteRepository.updateDish(OTHER, duck.id, next, undefined, edit('dish', duck.id, 5))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.catalogWriteRepository.updateDish(rid(), OTHER, next, undefined, edit('dish', OTHER, 5))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.catalogWriteRepository.updateDish(rid(), 'abc', next, undefined, edit('dish', OTHER, 5))).rejects.toBeInstanceOf(NotFoundError);
+      // the audit trail: the three successful edits, newest first, and nothing from the failed ones
+      t.expect((await repos.catalogEditRepository.list(rid())).map((e) => e.id)).toEqual(['20000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001']);
+      t.expect(await repos.catalogEditRepository.latest(rid(), 'dish', duck.id)).toMatchObject({ id: '20000000-0000-4000-8000-000000000003', actor: 'Marta', identity: false, before: { price: 99.5 }, after: { price: 100 } });
+      t.expect(await repos.catalogEditRepository.latest(rid(), 'wine', duck.id)).toBeNull();
+      t.expect(await repos.catalogEditRepository.list(OTHER)).toEqual([]);
+
+      // wines: fields, glass switched off, list number moved, key and number uniqueness
+      const [w1, w2] = ds.wines.filter((w) => w.listNumber !== undefined && w.glassPrice !== null);
+      const wf = wineFieldsOf(w1);
+      const wnext = { ...wf, region: 'Somewhere', bottlePrice: wf.bottlePrice + 10, glassPrice: null, listNumber: 900 };
+      await repos.catalogWriteRepository.updateWine(rid(), w1.id, wnext, wineFieldsVersion(wf), edit('wine', w1.id, 6, { identity: true }));
+      t.expect(await repos.wineRepository.findById(rid(), w1.id)).toMatchObject({ region: 'Somewhere', glassPrice: null, listNumber: 900, bottlePrice: wf.bottlePrice + 10, active: w1.active, grapes: w1.grapes });
+      await t.expect(repos.catalogWriteRepository.updateWine(rid(), w1.id, { ...wnext, region: 'Late' }, wineFieldsVersion(wf), edit('wine', w1.id, 7))).rejects.toBeInstanceOf(VersionConflictError);
+      const wcur = wineFieldsOf((await repos.wineRepository.findById(rid(), w1.id))!);
+      await t.expect(repos.catalogWriteRepository.updateWine(rid(), w1.id, { ...wcur, listNumber: w2.listNumber! }, undefined, edit('wine', w1.id, 7))).rejects.toMatchObject({ fields: { listNumber: 'duplicate' } });
+      await t.expect(repos.catalogWriteRepository.updateWine(rid(), w1.id, { ...wcur, producer: w2.producer.toUpperCase(), name: ` ${w2.name}! `, vintage: w2.vintage }, undefined, edit('wine', w1.id, 7))).rejects.toMatchObject({ fields: { name: 'duplicate' } });
+      // an unchanged taken number is no error: it is not rechecked
+      await repos.catalogWriteRepository.updateWine(rid(), w2.id, { ...wineFieldsOf(w2), tastingNote: 'New note' }, undefined, edit('wine', w2.id, 8));
+      await repos.catalogWriteRepository.updateWine(rid(), w1.id, { ...wcur, vintage: 'NV', listNumber: null }, undefined, edit('wine', w1.id, 9));
+      t.expect(await repos.wineRepository.findById(rid(), w1.id)).toMatchObject({ vintage: 'NV' });
+      t.expect((await repos.wineRepository.findById(rid(), w1.id))!.listNumber ?? null).toBeNull();
+      await t.expect(repos.catalogWriteRepository.updateWine(OTHER, w1.id, wnext, undefined, edit('wine', w1.id, 10))).rejects.toBeInstanceOf(NotFoundError);
+      t.expect((await repos.catalogEditRepository.list(rid(), { kind: 'wine', identityOnly: true })).map((e) => e.id)).toEqual(['20000000-0000-4000-8000-000000000006']);
+      t.expect((await repos.catalogEditRepository.list(rid(), { subjectId: w1.id })).length).toBe(2);
+      // the fields are live: the published snapshot keeps the old ones until the next publish only for what it stores (profiles, translations)
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.price).toBe(100);
     });
 
     t.it('guests see translations of the published version only; publish takes the current ones', async () => {
