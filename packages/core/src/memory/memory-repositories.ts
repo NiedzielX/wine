@@ -9,6 +9,7 @@ import type { AcceptInvitation, AcceptedInvitation, CreateInvitation, Invitation
 import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
 import { currentContent, readContentSnapshot, sameTranslations, type DishTranslations, type WineTranslations } from '../i18n/content';
 import { profileVersion } from '../services/catalog/profile-rules';
+import { assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
 import { buildSnapshot, readSnapshot, type PublishedVersionRecord } from '../services/publishing/snapshot';
 import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
@@ -17,6 +18,7 @@ import type { SalesRepository } from '../ports/sales';
 import { aggregateChecks } from '../services/sales/sales-kpis';
 import type { CheckKey, SalesPeriod, SalesRecord } from '../services/sales/types';
 import type {
+  CatalogEditRecord, CatalogEditRepository, CatalogWriteRepository, DishFields, WineFields,
   ContentWriteRepository, DecisionRecord, ProfileEditRecord, ProfileWriteRepository, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo, PublishInput,
   PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, UsageTotals, PairingStat, PairingStatSource, WineRepository, WineWriteRepository
 } from '../ports/repositories';
@@ -76,6 +78,8 @@ export class MemoryStore {
   readonly decisions: Array<DecisionRecord & { restaurantId: string }> = [];
   /** the profile audit trail, oldest first (spec 2026-11-04-panel-completion, R5) */
   readonly profileEdits: Array<ProfileEditRecord & { restaurantId: string }> = [];
+  /** the catalog audit trail, oldest first (spec 2026-11-16-catalog-field-editing, R10) */
+  readonly catalogEdits: Array<CatalogEditRecord & { restaurantId: string }> = [];
   readonly users: AuthUser[] = [];
   readonly memberships: StoredMembership[] = [];
   /** the authentication trail, oldest first */
@@ -367,6 +371,51 @@ export class MemoryProfileWriteRepository implements ProfileWriteRepository {
       .filter((e) => e.restaurantId === restaurantId && (!filter.kind || e.kind === filter.kind) && (!filter.subjectId || e.subjectId === filter.subjectId))
       .map(({ restaurantId: _r, ...e }) => copy(e))
       .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? -1 : 1));
+  }
+}
+
+/** Writes of dish and wine fields (spec 2026-11-16-catalog-field-editing): the same checks, in the same order, as the PostgreSQL repository. */
+export class MemoryCatalogWriteRepository implements CatalogWriteRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async updateDish(restaurantId: string, dishId: string, next: DishFields, expectedVersion: string | undefined, edit: CatalogEditRecord) {
+    const list = this.store.dishes.get(restaurantId) ?? [];
+    const d = list.find((x) => x.id === dishId);
+    if (!d) throw new NotFoundError('Dish');
+    const current = dishFieldsOf(d);
+    checkFieldsVersion(dishFieldsVersion(current), expectedVersion);
+    assertDishUnique(current, next, d.id, list);
+    Object.assign(d, copy(next));
+    this.store.catalogEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  async updateWine(restaurantId: string, wineId: string, next: WineFields, expectedVersion: string | undefined, edit: CatalogEditRecord) {
+    const list = this.store.wines.get(restaurantId) ?? [];
+    const w = list.find((x) => x.id === wineId);
+    if (!w) throw new NotFoundError('Wine');
+    const current = wineFieldsOf(w);
+    checkFieldsVersion(wineFieldsVersion(current), expectedVersion);
+    assertWineUnique(current, next, w.id, list);
+    const { listNumber, ...rest } = copy(next);
+    Object.assign(w, rest);
+    if (listNumber === null) delete w.listNumber;
+    else w.listNumber = listNumber;
+    this.store.catalogEdits.push({ ...copy(edit), restaurantId });
+  }
+}
+
+export class MemoryCatalogEditRepository implements CatalogEditRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async list(restaurantId: string, filter: { kind?: 'dish' | 'wine'; subjectId?: string; identityOnly?: boolean } = {}) {
+    return this.store.catalogEdits
+      .filter((e) => e.restaurantId === restaurantId && (!filter.kind || e.kind === filter.kind) && (!filter.subjectId || e.subjectId === filter.subjectId) && (!filter.identityOnly || e.identity))
+      .map(({ restaurantId: _r, ...e }) => copy(e))
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? -1 : 1));
+  }
+
+  async latest(restaurantId: string, kind: 'dish' | 'wine', subjectId: string) {
+    return (await this.list(restaurantId, { kind, subjectId }))[0] ?? null;
   }
 }
 
@@ -984,6 +1033,8 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     publishRepository: new MemoryPublishRepository(store),
     contentWriteRepository: new MemoryContentWriteRepository(store),
     profileWriteRepository: new MemoryProfileWriteRepository(store),
+    catalogWriteRepository: new MemoryCatalogWriteRepository(store),
+    catalogEditRepository: new MemoryCatalogEditRepository(store),
     importRepository: new MemoryImportRepository(store),
     opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
     guestInteractionRepository: new MemoryGuestInteractionRepository(store),

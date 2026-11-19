@@ -4,6 +4,13 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+### Edycja pól dania i wina (E13, spec `2026-11-16-catalog-field-editing`, faza C1)
+- A3 i A5 mają formularze „Details / Dane dania” i „Listing / Pozycja na karcie”: nazwa, opis, kategoria i cena dania; producent, nazwa, rocznik, region, kraj, nota, numer na karcie, ceny i „Na kieliszki” wina. Działają bez JavaScriptu (`useActionState`), zachowują wpisane wartości i pokazują komunikat przy każdym polu; ceny czyta ścisły `parseFormPrice` („58,500” to błąd, nie 58 500).
+- Zmiany są od razu widoczne dla gości i nie zmieniają Match Score; tłumaczenia z publikacji zostają, a formularz wskazuje nieaktualne. Zapis chroni odcisk pól (`expectedVersion` / `If-Match`), nazwy dań, klucze win i numery na karcie są unikalne (także szkice i ukryte pozycje), sprawdzane pod blokadą doradczą restauracji, którą bierze też zatwierdzenie importu.
+- Nowe uprawnienie `catalog.edit` (owner, manager, sommelier), tabela audytu `catalog_edit` (migracja `Migration20261117132943_catalog_edit`), trasy `GET`/`PATCH /dishes/{dishId}/details` i `/wines/{id}/details`.
+- Zmiana nazwy dania (lub producenta, nazwy, rocznika wina) z parami sommeliera: ostrzeżenie z liczbą par, potwierdzenie, wpis „Zmieniono nazwę, sprawdź pary” w „Do przeglądu” i znacznik „Sprawdź po zmianie nazwy”.
+- Zatwierdzenie importu katalogu odrzuca (409 `catalog_conflict`) nowe danie lub wino, którego klucz zajęto w międzyczasie.
+
 ### Poprawki
 - Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
 

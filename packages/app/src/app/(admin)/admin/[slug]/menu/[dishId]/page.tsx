@@ -9,6 +9,9 @@ import { first, formatDateTime, zl } from '../../../_components/format';
 import { Flash } from '../../../_components/flash';
 import { TranslationsCard } from '../../../_components/translations-form';
 import { ProfileEditor } from '../../../_components/profile-editor';
+import { DishDetailsForm } from '../../../_components/catalog-forms';
+import { catalogFormLabels, priceText } from '../../../_components/catalog-page';
+import { saveDishDetails } from '../../catalog-actions';
 import { dishProfileState } from '../../../_components/profile-page';
 import { confirmDishProfile, saveDishProfile, saveDishTranslations } from '../../actions';
 import { ENGINE_FACTS, TEXT_LIMITS, profileVersion, translationsVersion } from '@wine-match/core';
@@ -32,6 +35,7 @@ export default async function DishPage({ params, searchParams }: Props) {
   const access = await requireAccess(slug);
   const canTranslate = access.can('import.manage');
   const canEditProfile = access.can('profiles.edit');
+  const canEditCatalog = access.can('catalog.edit');
   const { locale, t } = await getI18n();
   const m = t.admin.dish;
   const cradle = (await getRequestScope()).cradle;
@@ -39,6 +43,8 @@ export default async function DishPage({ params, searchParams }: Props) {
   if (!d) notFound();
   const { dish, source, topMatches, pairings } = d;
   const editor = await dishProfileState(cradle, slug, source, sp, canEditProfile);
+  const cm = t.admin.catalog;
+  const labels = catalogFormLabels(t, locale, 'dish', { lastEdit: d.lastEdit, staleLocales: d.staleLocales, pairs: d.pairings.approved }, access.can('audit.view'));
   const tm = t.admin.translations.fields;
   const p = dish.profile;
 
@@ -55,20 +61,37 @@ export default async function DishPage({ params, searchParams }: Props) {
       />
       <Flash saved={first(sp.saved)} error={first(sp.error)} n={first(sp.n)} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        {canEditCatalog && (
+          <Card className="lg:col-span-2">
+            <CardHeader><CardTitle>{cm.dish.title}</CardTitle><CardDescription>{cm.dish.text}</CardDescription></CardHeader>
+            <CardContent>
+              <DishDetailsForm
+                action={saveDishDetails} slug={slug} back={`/admin/${slug}/menu/${dish.id}`} dishId={dish.id} version={d.fieldsVersion}
+                initial={{ name: source.name, description: source.description, category: source.category, price: priceText(source.price, locale) }}
+                categories={(['Starters', 'Mains', 'Desserts'] as const).map((c) => [c, t.admin.categories[c] ?? c])}
+                text={{ name: cm.dish.name, description: cm.dish.description, category: cm.dish.category, price: cm.dish.price, renameHint: cm.dish.renameHint }}
+                labels={labels}
+              />
+            </CardContent>
+          </Card>
+        )}
         <Card>
-          <CardHeader><CardTitle>{m.details}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{canEditCatalog ? m.moreDetails : m.details}</CardTitle></CardHeader>
           <CardContent>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
-              <div><dt className="text-muted-foreground">{m.category}</dt><dd className="mt-0.5 font-medium">{t.admin.categories[dish.category] ?? dish.category}</dd></div>
-              <div><dt className="text-muted-foreground">{m.price}</dt><dd className="mt-0.5 font-medium tabular-nums">{zl(dish.price, locale)}</dd></div>
+              {!canEditCatalog && <div><dt className="text-muted-foreground">{m.category}</dt><dd className="mt-0.5 font-medium">{t.admin.categories[dish.category] ?? dish.category}</dd></div>}
+              {!canEditCatalog && <div><dt className="text-muted-foreground">{m.price}</dt><dd className="mt-0.5 font-medium tabular-nums">{zl(dish.price, locale)}</dd></div>}
               <div><dt className="text-muted-foreground">{m.status}</dt><dd className="mt-0.5"><DishStatusBadge status={dish.status} t={t} /></dd></div>
               <div><dt className="text-muted-foreground">{m.protein}</dt><dd className="mt-0.5 font-medium first-letter:uppercase">{t.admin.proteins[p.protein] ?? p.protein}</dd></div>
               <div><dt className="text-muted-foreground">{m.cooking}</dt><dd className="mt-0.5 font-medium first-letter:uppercase">{t.admin.cooking[p.cooking] ?? p.cooking}</dd></div>
               <div>
                 <dt className="text-muted-foreground">{m.pairings}</dt>
-                <dd className="mt-0.5 font-medium">{m.pairingsSummary(pairings.approved, pairings.hasPrimary)}<span className="block text-xs font-normal text-muted-foreground">{m.pairingsDetail(pairings.suggested, pairings.rejected)}</span></dd>
+                <dd className="mt-0.5 font-medium">{m.pairingsSummary(pairings.approved, pairings.hasPrimary)}<span className="block text-xs font-normal text-muted-foreground">{m.pairingsDetail(pairings.suggested, pairings.rejected)}</span>
+                  {d.pairsToCheck > 0 && <span className="block text-xs font-normal text-amber-700 dark:text-amber-400" data-check-after-rename>{cm.checkAfterRename}: {cm.pairsToCheck.replace('{n}', String(d.pairsToCheck))} <Link href={`/admin/${slug}/pairings/${dish.id}`} className="underline underline-offset-4">{m.managePairings}</Link></span>}
+                </dd>
               </div>
             </dl>
+            {!canEditCatalog && d.lastEdit && <p className="mt-4 text-xs text-muted-foreground" data-last-edit>{(access.can('audit.view') ? cm.lastEditBy.replace('{name}', d.lastEdit.actor) : cm.lastEdit).replace('{date}', formatDateTime(d.lastEdit.at, locale))}</p>}
           </CardContent>
         </Card>
 
