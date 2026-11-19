@@ -4,6 +4,9 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+### Wybór restauracji (faza 1, `2026-11-18-restaurant-picks`)
+- PR1b: serwis `PicksService` (zbiór roboczy, `set` z `expectedVersion`, audyt `pick_edit`), uprawnienie `picks.edit` (Owner i GM; Sommelier tylko odczyt), trasy `GET /restaurants/{slug}/picks`, `PUT /wines/{id}/pick`, `GET /restaurants/{slug}/picks/simulation` i symulator „przed / po” liczony tą samą funkcją co ścieżka gościa (`rankForGuest`), tylko do odczytu. Gość jeszcze nie czyta wyborów (PR2), ekran A27 w PR3.
+
 ### Poprawki
 - Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
 

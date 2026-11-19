@@ -16,6 +16,8 @@
 | Role, kolejność i notatki pairingów | – | – | ✓ | – | ✓ |
 | Import danych | – | – | ✓ | ✓ | ✓ |
 | Publikacja | – | – | ✓ | ✓ | ✓ |
+| „Wybór restauracji”: podgląd zbioru i symulatora | – | – | ✓ | ✓ | ✓ |
+| „Wybór restauracji”: zmiana zbioru (`picks.edit`) | – | – | – | ✓ | ✓ |
 | Ustawienia restauracji, QR, link | – | – | – | ✓ | ✓ |
 | Zarządzanie użytkownikami lokalu | – | – | – | ✓ | ✓ |
 | Tworzenie restauracji, plany, wsparcie | – | – | – | – | ✓ |
@@ -25,6 +27,8 @@
 **Zespół (E12 F1, 2026-11-05):** nowe uprawnienia w tej samej tabeli: `team.manage` i `audit.view` (owner i manager), `staff.lookup` (wszystkie cztery role; wstęp do widoku kelnera w trybie PIN, F5). Ekran **A15 Zespół** (`/admin/{slug}/team`): lista osób z rolą i statusem, zmiana roli, odebranie i przywrócenie dostępu (dezaktywacja zamiast usuwania, osoba i jej ślad zostają). Hierarchia (serwis, nie macierz): nikt nie zmienia własnej roli ani nie dezaktywuje siebie; tylko owner zmienia właściciela i innego managera (zmiana roli, dezaktywacja, reaktywacja) i nadaje `owner` / `manager`; manager zarządza tylko rolami `sommelier` i `waiter` (rozstrzygnięte 2026-11-05: najmniejsze uprawnienia, odzyskiwanie przez właściciela); lokal zawsze ma co najmniej jednego aktywnego właściciela. Zaproszenia, PIN kelnera, konto i dziennik zdarzeń: kolejne fazy E12.
 
 **Edycja profili (E13 F2, 2026-11-17):** uprawnienie `profiles.edit` mają Owner, General Manager i Sommelier (Waiter nie loguje się do panelu). Profil zapisany jako szkic albo potwierdzony; każda zmiana trafia do dziennika `profile_edit` z autorem. Goście widzą zmianę po publikacji (`publish`).
+
+**Wybór restauracji (spec `2026-11-18-restaurant-picks`, PR1b):** nowe uprawnienie `picks.edit` mają tylko Owner i General Manager; Sommelier widzi zbiór i symulator przez `panel.view`, ale nie zmienia zbioru (odmowa 403 na `PUT /wines/{id}/pick` i na akcji formularza), a Waiter nie loguje się do panelu. Każda zmiana zbioru trafia do dziennika `pick_edit` z autorem; goście widzą ją po publikacji, którą może wykonać także Sommelier. Nie ma ścieżki od dostawcy: wybór ustawia wyłącznie uwierzytelniony członek tej restauracji z `picks.edit`.
 
 **Stan implementacji (Faza 4):** uprawnienia z tej macierzy są w kodzie (`core/src/auth/permissions.ts`) i egzekwowane przez layout panelu, akcje serwerowe i API. Dochodzą uprawnienia `import.manage` (Sommelier, GM, Owner) i `restaurant.edit` (tylko GM i Owner: dane restauracji i slug). Owner i General Manager mają te same uprawnienia; „Zatwierdzanie / odrzucanie pairingów” i „Role, kolejność i notatki” ma tylko Sommelier. Rola System Administrator, zarządzanie użytkownikami w UI i ustawienia restauracji / QR (Faza 5) nie są jeszcze zaimplementowane; konta tworzy polecenie `npm run user:create`, a pierwszą restaurację z jej właścicielem (rola `owner`, tylko ta restauracja) polecenie operatora `npm run restaurant:create` (spec E05-S01; tworzenie restauracji w UI przez System Administratora jest odłożone). Właściciel założony tym poleceniem ma dostęp wyłącznie do własnej restauracji: panel i API innej zwracają 403.
 
