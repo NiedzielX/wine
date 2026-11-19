@@ -371,6 +371,10 @@ await check('GM cannot change a pairing through the API', pUrl, { method: 'PATCH
 await check('GM cannot bulk-approve', `/api/v1/restaurants/${slug}/pairings/bulk-decision`, { method: 'POST', body: { action: 'approve_all' }, headers: gmw, status: 403 });
 await check('GM can read pairings', `/api/v1/restaurants/${slug}/pairings`, { cookie: GM, has: ['"data"'] });
 await check('GM can hide and show wines', wineUrl, { method: 'PATCH', body: { active: true }, headers: gmw, has: ['"active":true'] });
+// catalog field editing (spec 2026-11-16-catalog-field-editing, C1): A3 and A5 carry the plain forms, the details route needs If-Match
+await check('A3 has the Details form with the base-text hint and the version field', `/admin/${slug}/menu/${duck}`, { cookie: GM, has: ['id="dish-name"', 'id="dish-price"', 'This is the base text. Translations are below.', 'name="version"', 'Save changes'] });
+await check('A5 has the Listing form with the glass switch and the glass price', `/admin/${slug}/wines/${wine}`, { cookie: GM, has: ['id="wine-producer"', 'name="pouredByGlass"', 'id="wine-glassPrice"', 'Save changes'] });
+await check('the details route needs If-Match (428)', `/api/v1/dishes/${duck}/details?restaurant=${slug}`, { method: 'PATCH', headers: gmw, body: { price: 112 }, status: 428 });
 await check('GM sees the publish screen with a working button', `/admin/${slug}/publish`, { cookie: GM, has: ['Publish changes'], hasNot: ['Your role cannot publish'] });
 await check('a session of one user does not open another restaurant', `/admin/nope`, { cookie: GM, status: 403 });
 
@@ -511,7 +515,7 @@ await check('A4 wine list: no results', `${A}/wines?q=zzzz`, { has: ['No wines f
 const list = await (await fetch(`${base}${A}/wines`, { headers: { cookie: SESSION } })).text();
 const hidden = /href="[^"]*\/wines\/([0-9a-f-]{36})"[^>]*>Château Musar/.exec(list)?.[1];
 if (hidden) await check('A5 wine details of a hidden wine', `${A}/wines/${hidden}`, { has: ['Hidden from guests', 'Château Musar'] });
-await check('A5 wine details', `${A}/wines/${wine}`, { has: ['Listing and prices', 'Best dishes for this wine', 'Wine profile', 'Approved pairings', 'Duck breast', 'Translations', 'name="tastingNote_pl"', 'name="country_en"', 'data-explain="score"'] });
+await check('A5 wine details', `${A}/wines/${wine}`, { has: ['Listing', 'Best dishes for this wine', 'Wine profile', 'Approved pairings', 'Duck breast', 'Translations', 'name="tastingNote_pl"', 'name="country_en"', 'data-explain="score"'] });
 await check('A5 unknown wine', `${A}/wines/00000000-0000-4000-8000-000000000000`, { status: 404 });
 await check('A6 pairings index redirects to a dish', `${A}/pairings`, { has: ['What guests see now', 'Approved for guests'] });
 await check('A6 pairings of a dish', `${A}/pairings/${duck}`, { has: ['Pairings: Duck breast', 'Sommelier approved', 'Primary', 'What guests see now', 'Sommelier’s pairing', '<span class="sr-only"> Engine match score</span>', 'data-explain="pairings"', 'How do guests see your pairings?', 'data-explain="suggestions"', '<span class="sr-only">How do guests see engine suggestions?</span>'], hasNot: [...OLD_LABELS, 'title="Engine match score"'] });

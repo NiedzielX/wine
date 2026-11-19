@@ -1,11 +1,12 @@
 import { LockMode, type EntityManager } from '@mikro-orm/postgresql';
 import {
-  ENGINE_VERSION, InvariantError, NotFoundError, type CatalogImportPlan, type ImportJob, type ImportPlan, type ImportRepository, type ImportRow, type SalesImportPlan
+  ENGINE_VERSION, InvariantError, NotFoundError, nameKey, wineKey, type CatalogImportPlan, type ImportJob, type ImportPlan, type ImportRepository, type ImportRow, type SalesImportPlan
 } from '@wine-match/core';
 import { DishEntity, ImportJobEntity, PairingEntity, RestaurantEntity, SalesRecordEntity, WineEntity } from '../entities';
-import { toImportJob } from '../mappers';
+import { toImportJob, toWine } from '../mappers';
 import { translate } from './errors';
 import { isUuid } from './ids';
+import { lockCatalog } from './locks';
 
 interface Deps { em: EntityManager }
 
@@ -54,6 +55,8 @@ export class PgImportRepository implements ImportRepository {
         const job = await em.findOne(ImportJobEntity, { id: jobId, restaurant: restaurantId }, { lockMode: LockMode.PESSIMISTIC_WRITE });
         if (!job) throw new NotFoundError('Import');
         if (job.status !== 'preview_ready') throw new InvariantError('job_closed', 'This import is already finished.');
+        // a catalog import takes the same advisory lock as an edit of dish or wine fields: after the job row, before the dish rows (spec 2026-11-16-catalog-field-editing, N1)
+        if (plan.kind === 'catalog') await lockCatalog(em, restaurantId);
         const replacedChecks = plan.kind === 'sales' ? await this.applySales(em, restaurantId, jobId, plan, at) : await this.applyCatalog(em, restaurantId, plan);
         job.status = 'confirmed';
         job.confirmedAt = new Date(at);
@@ -114,6 +117,28 @@ export class PgImportRepository implements ImportRepository {
       if (u.translations) w.translations = { ...u.translations };
     }
 
+    // The catalog lock is held, so what the preview saw can be stale: an edit may have taken a name, a wine key or a list number
+    // since (spec 2026-11-16-catalog-field-editing, W3). A new dish or wine whose key exists now is refused as a whole (nothing is
+    // imported); a taken list number moves to the next free one, as the import numbers wines anyway.
+    if (plan.newDishes.length) {
+      const taken = new Set((await em.find(DishEntity, { restaurant: restaurantId, deletedAt: null })).map((d) => nameKey(d.name)));
+      for (const d of plan.newDishes) {
+        const key = nameKey(d.name);
+        if (taken.has(key)) throw new InvariantError('catalog_conflict', 'A dish with this name exists now: someone changed the menu while this import was open. Check the preview again.');
+        taken.add(key);
+      }
+    }
+    const usedNumbers = new Set<number>();
+    if (plan.newWines.length) {
+      const existing = (await em.find(WineEntity, { restaurant: restaurantId, deletedAt: null })).map(toWine);
+      const taken = new Set(existing.map((w) => wineKey(w)));
+      existing.forEach((w) => usedNumbers.add(w.listNumber ?? 0));
+      for (const w of plan.newWines) {
+        const key = wineKey({ producer: w.producer, name: w.name, vintage: w.vintage });
+        if (taken.has(key)) throw new InvariantError('catalog_conflict', 'A wine with this producer, name and vintage exists now: someone changed the wine list while this import was open. Check the preview again.');
+        taken.add(key);
+      }
+    }
     const last = await em.find(DishEntity, { restaurant: restaurantId }, { orderBy: { sortOrder: 'desc' }, limit: 1 });
     let order = (last[0]?.sortOrder ?? -1) + 1;
     for (const d of plan.newDishes) {
@@ -123,9 +148,12 @@ export class PgImportRepository implements ImportRepository {
       });
     }
     for (const w of plan.newWines) {
+      let listNumber = w.listNumber ?? 0;
+      if (usedNumbers.has(listNumber)) listNumber = Math.max(100, ...usedNumbers) + 1;
+      usedNumbers.add(listNumber);
       em.create(WineEntity, {
         id: w.id, restaurant, producer: w.producer, name: w.name, vintage: w.vintage === 'NV' ? null : w.vintage, region: w.region, country: w.country,
-        grapes: w.grapes, listNumber: w.listNumber ?? 0, glassPrice: w.glassPrice, glassPourMl: w.glassPour, bottlePrice: w.bottlePrice,
+        grapes: w.grapes, listNumber, glassPrice: w.glassPrice, glassPourMl: w.glassPour, bottlePrice: w.bottlePrice,
         bottleSizeMl: w.bottleSize, active: w.active, colourHex: w.colour, tastingNote: w.tastingNote, translations: w.translations ?? {}, profile: { ...w.profile, source: 'grape_defaults' }
       });
     }
