@@ -234,6 +234,12 @@ const PROFILES: Profile[] = [
   { key: 'DELETE /api/v1/pairings/{id}', auth: 'session', user: 'marta', deny: 'tomasz', write: true, repeatable: false, ifMatch: true, idStatus: [404],
     build: () => ({ params: { id: FAKE }, query: q() }) },
 
+  // restaurant picks (spec 2026-11-18-restaurant-picks): the set and its simulation are read by the Wine Director, the write is for the manager and the owner
+  { key: 'GET /api/v1/restaurants/{slug}/picks', auth: 'session', user: 'marta', write: false, repeatable: true, slugParam: 'slug', build: () => ({ params: { slug: SLUG }, query: '' }) },
+  { key: 'GET /api/v1/restaurants/{slug}/picks/simulation', auth: 'session', user: 'marta', write: false, repeatable: true, slugParam: 'slug', build: () => ({ params: { slug: SLUG }, query: '' }),
+    queryJunk: { picks: [200, 422], dish: [200, 404, 422] } },
+  { key: 'PUT /api/v1/wines/{id}/pick', auth: 'session', user: 'tomasz', deny: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404],
+    build: () => ({ params: { id: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { on: true } }), junk: { on: BOOL_JUNK, expectedVersion: STRING_FIELD_JUNK } },
   // E13 F2: the profile routes. The If-Match fingerprint has its own format (`<8 hex>-<length>`), so the valid request carries one.
   { key: 'GET /api/v1/dishes/{dishId}/profile', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q() }) },
   { key: 'PUT /api/v1/dishes/{dishId}/profile', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { profile: DISH_PROFILE, confirm: true } }),
