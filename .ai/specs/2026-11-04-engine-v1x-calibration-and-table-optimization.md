@@ -39,7 +39,7 @@ Właściciel przejrzy poniższe odpowiedzi; zostały wybrane tak, żeby praca ni
 ## Cel i zakres
 Silnik z lepiej skalibrowanymi regułami i jawną, testowalną optymalizacją stolika, której każde zdanie dla gościa jest prawdziwe.
 
-**Poza zakresem:** model uczony i dostrajanie wag z decyzji sommeliera (E17; roadmapa §12 v1.x wiersz 1 zostaje tam); priorytety i „wina do sprzedania” ustawiane przez restaurację (E19; funkcja celu nie ma składnika ceny ani marży, N01); nowe pola profilu, flagi diety i filtr diety dla gościa (E18, Q3); edycja profili w panelu (E13); OCR i polskie słowa kluczowe importera (E20); regionalność dania („lokalne z lokalnym”); więcej niż 2 butelki w planie (Q13); zmiana kształtu `POST /api/v1/recommendations/table` (BC §2); jakiekolwiek wywołanie LLM (N03); słowo „AI” w interfejsie gościa (N02).
+**Poza zakresem:** model uczony i dostrajanie wag z decyzji sommeliera (E17; roadmapa §12 v1.x wiersz 1 zostaje tam); priorytety i wybory restauracji (E19; F2 zastąpione przez `2026-11-18-restaurant-picks`; funkcja celu nie ma składnika ceny ani marży, N01); nowe pola profilu, flagi diety i filtr diety dla gościa (E18, Q3); edycja profili w panelu (E13); OCR i polskie słowa kluczowe importera (E20); regionalność dania („lokalne z lokalnym”); więcej niż 2 butelki w planie (Q13); zmiana kształtu `POST /api/v1/recommendations/table` (BC §2); jakiekolwiek wywołanie LLM (N03); słowo „AI” w interfejsie gościa (N02).
 
 ## Wymagania
 - **R1 (reguły, nazwy)** Nowe reguły emitują `Factor` z nazwą `rule` (poniżej), `delta ≠ 0`, a dodatnie z parą `why`/`whyPl` zapisaną przy samej regule. Każda ma test w `engine.test.ts` i wiersz w `docs/RECOMMENDATION_ENGINE.md` §4. Warunki to wyłącznie pola profilu (Q2); początkowe delty to propozycje (Q11).
