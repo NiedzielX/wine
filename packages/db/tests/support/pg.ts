@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { MembershipEntity, RestaurantEntity, UserEntity } from '../../src/entities';
 import { ormConfig } from '../../src/config';
 import {
-  PgContentWriteRepository, PgProfileWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository,
+  PgContentWriteRepository, PgProfileWriteRepository, PgPicksRepository, PgDishRepository, PgGuestInteractionRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository,
   PgRecommendationCodeRepository, PgRestaurantRepository, PgRestaurantWriteRepository, PgSalesRepository, PgWineRepository, PgWineWriteRepository
 } from '../../src/repositories';
 import { PgImportRepository } from '../../src/repositories/import';
@@ -30,7 +30,7 @@ export async function freshDatabase(baseUrl: string, name: string): Promise<Mikr
 
 /** Empties every table and loads the demo data again. */
 export async function resetData(orm: MikroORM): Promise<void> {
-  await orm.em.getConnection().execute('truncate table auth_event, auth_token, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, profile_edit, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await orm.em.getConnection().execute('truncate table auth_event, auth_token, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, profile_edit, restaurant_pick, pick_edit, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
   await new DemoSeeder().run(orm.em.fork());
 }
 
@@ -62,6 +62,7 @@ export function pgRepos(orm: MikroORM): Repositories {
     publishRepository: new PgPublishRepository({ em }),
     contentWriteRepository: new PgContentWriteRepository({ em }),
     profileWriteRepository: new PgProfileWriteRepository({ em }),
+    picksRepository: new PgPicksRepository({ em }),
     importRepository: new PgImportRepository({ em }),
     opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em }),
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),

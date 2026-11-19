@@ -13,7 +13,8 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | Wine + WineProfile | tak | profil jako embeddable: kolumny `profile_*` w tabeli `wine` |
 | Pairing | tak | unikalność (dish, wine), częściowy indeks unikalny „jeden Primary na danie”, `version` do blokady optymistycznej |
 | SommelierDecision | tak | audyt, `actor` jako tekst do czasu wprowadzenia User; **bez klucza obcego** do pairingu (kolumna `pairing_id`), żeby historia przeżyła usunięcie pairingu; ma `restaurant_id`, `dish_id`, `wine_id` |
-| PublishedVersion | tak | migawka w `snapshot` (jsonb, od 2026-11-16 `schema: 2`): pary (approved / modified / rejected), tłumaczenia, profile smaku dań i win, skład karty (`menu.dishIds`); `number` unikalny w restauracji; goście czytają najnowszą przez `PublishedView` |
+| PublishedVersion | tak | migawka w `snapshot` (jsonb, od 2026-11-16 `schema: 2`, od 2026-11-19 `schema: 3`): pary (approved / modified / rejected), tłumaczenia, profile smaku dań i win, skład karty (`menu.dishIds`); `number` unikalny w restauracji; goście czytają najnowszą przez `PublishedView` |
+| RestaurantPick (`restaurant_pick`), PickEdit (`pick_edit`), od 2026-11-19 | tak | wybory restauracji (spec `2026-11-18-restaurant-picks`, PR1a): zbiór roboczy (jeden wiersz na restauracja + wino, maks. 5) i dziennik zmian; do gości dociera dopiero z publikacją (`snapshot.picks`); serwis, API i ekrany w kolejnych PR |
 | GuestInteraction | tak | zapisywana od E02 F1 (spec `2026-10-15-guest-usage-events`) przez `GuestInteractionRepository` (`record`, `listBySession`, `countGuestSessions`, od E04 F1 `usageTotals` — agregaty okna KPI; od E04 F3 `pairingStats` — pokazania i wybory per (danie, wino, źródło z `props.items[].tier`) w oknie, dla A1 i E10 S4; pamięć: do 10 000 zdarzeń). `session_id` = parametr URL `sid` (bez tabeli GuestSession); `source`, `context`, `menuVersion` (= `restaurant.published_at`) w `props`; kolumna `version_id` nie istnieje. Sesja gościa = `session_id` ze zdarzeniem `guest_session_started` |
 | ImportJob | tak | wiersze podglądu w kolumnie `rows` (jsonb) zamiast tabeli ImportRow |
 | User (`app_user`), Membership, Session | tak | hasło jako skrót scrypt; w `session` tylko SHA-256 tokenu; licznik prób i blokada w `app_user`; `membership.role`: owner, manager, sommelier, waiter. `sommelier_decision.actor_id` wskazuje konto (zwykła kolumna). Od 2026-11-05 (E12 F1): `membership.status` (`active` / `deactivated`), `version`, `deactivated_at`, `deactivated_by`; `AuthRepository.membershipsOf` zwraca tylko aktywne, więc dezaktywowana osoba traci dostęp przy następnym żądaniu |
@@ -75,6 +76,9 @@ erDiagram
   Restaurant ||--o{ ImportJob : ""
   ImportJob ||--o{ ImportRow : ""
   Restaurant ||--o{ SalesRecord : "optional CSV"
+  Restaurant ||--o{ RestaurantPick : "restaurant picks"
+  Wine ||--o{ RestaurantPick : "marked wine"
+  Restaurant ||--o{ PickEdit : "picks history"
   Restaurant ||--o{ OpportunityDismissal : "ignored opportunities"
   Restaurant ||--o{ RecommendationCode : "recommendation codes"
   Wine ||--o{ RecommendationCode : "chosen wine"
@@ -168,6 +172,16 @@ Dziennik zmian profili smaku, tylko do dopisywania (jak `sommelier_decision`). W
 
 Odcisk profilu (`profileVersion`, `core/src/services/catalog/profile-rules.ts`) to `expectedVersion` formularzy i `If-Match` API: dania i wina nie mają kolumny wersji, więc odcisk obejmuje skale i stan.
 
+### RestaurantPick (`restaurant_pick`) i PickEdit (`pick_edit`), od 2026-11-19
+
+Wybory restauracji (spec `2026-11-18-restaurant-picks`, R1, R3). Do 5 win restauracji, które ma oznaczone jako „Wybór restauracji”. Zbiór roboczy zmienia się od razu, a goście widzą go dopiero z publikacją (migawka, `snapshot.picks`). Warstwa kolejności, serwis i trasy powstają w kolejnych PR; sam wpis do migawki i tabele są już w modelu.
+
+`restaurant_pick`: `id` uuid PK, `restaurant_id` FK, `wine_id` FK (`on delete cascade`, w praktyce nieużywane: wina usuwa się miękko), `set_at`, `set_by`, `set_by_id` (konto, zwykła kolumna), unikat `(restaurant_id, wine_id)`, indeks `wine_id`. Zapytania łączą wino i pomijają wina z `deleted_at`. Limit 5 liczy także wybory win nieaktywnych (reaktywacja wina nie może dać więcej niż 5 aktywnych) i jest sprawdzany pod blokadą wiersza restauracji (`for update`, ta sama, którą bierze publikacja), więc równoległe zapisy nie przekroczą limitu, a publikacja widzi zbiór w całości sprzed albo po zmianie. Do migawki trafiają tylko wybory win aktywnych w chwili publikacji.
+
+`pick_edit`: dziennik tylko do dopisywania (jak `profile_edit`): `id`, `restaurant_id` FK, `wine_id` (**bez klucza obcego**), `enabled` (true = oznaczone; nie `on`, to słowo zastrzeżone SQL), `actor`, `actor_id`, `before` i `after` (jsonb, posortowane id win zbioru przed i po), `at` (czas z `Clock`), indeks `(restaurant_id, at)`. Wiersz powstaje w tej samej transakcji co zmiana i tylko przy faktycznej zmianie.
+
+Odcisk zbioru (`picksVersion`, `core/src/services/picks/picks-rules.ts`) to przyszłe `expectedVersion` formularzy: posortowana lista id, bez `node:crypto`.
+
 ### Wine
 
 Pozycja na karcie konkretnej restauracji (cena i dostępność są lokalne).
@@ -253,7 +267,7 @@ Status pary jest pochodną ostatnich decyzji; tabela umożliwia raport „co zmi
 | id | uuid PK | |
 | restaurant_id | uuid FK | |
 | number | int | kolejny numer |
-| snapshot | jsonb | menu, wina, pary, ustawienia (to, co serwuje publiczne API). W implementacji: `pairings` (z `commentTranslations`) i `content` — tłumaczenia restauracji, dań i win, które widzą goście (zmiana tłumaczenia to zmiana do publikacji). **Od 2026-11-16 (E13 F1, `schema: 2`)** także `profiles.dishes[]` / `profiles.wines[]` (`{id, profile}`: same skale silnika każdego nieusuniętego dania i wina, także ukrytych i nieaktywnych; bez `source` i danych o potwierdzeniu) oraz `menu.dishIds` (dania, które wersja zna: opublikowane, ukryte i zwolnione ze szkicu tą publikacją). Typ `PublishedSnapshot` i `buildSnapshot` / `readSnapshot` są w `core/src/services/publishing/snapshot.ts`. Wersja bez `schema` jest czytana jak dawniej (profile i widoczność z danych bieżących); migracja `Migration20261116160715_published_snapshot_v2` dopisała te pola tylko do najnowszej wersji każdej restauracji |
+| snapshot | jsonb | menu, wina, pary, ustawienia (to, co serwuje publiczne API). W implementacji: `pairings` (z `commentTranslations`) i `content` — tłumaczenia restauracji, dań i win, które widzą goście (zmiana tłumaczenia to zmiana do publikacji). **Od 2026-11-16 (E13 F1, `schema: 2`)** także `profiles.dishes[]` / `profiles.wines[]` (`{id, profile}`: same skale silnika każdego nieusuniętego dania i wina, także ukrytych i nieaktywnych; bez `source` i danych o potwierdzeniu) oraz `menu.dishIds` (dania, które wersja zna: opublikowane, ukryte i zwolnione ze szkicu tą publikacją). **Od 2026-11-19 (wybory restauracji, `schema: 3`)** także `picks: { wineIds, rankingVersion }`: posortowane id aktywnych win z zestawu w chwili publikacji i `RANKING_LAYER_VERSION` kodu, który publikował (obok wersji silnika, żeby dało się odtworzyć, co gość widział); wersja `schema: 2` nie ma `picks` i jest czytana z pustym zbiorem (`readSnapshot` akceptuje `schema >= 2`), a nowszy odczyt starej wersji nic w niej nie zmienia. Typ `PublishedSnapshot` i `buildSnapshot` / `readSnapshot` są w `core/src/services/publishing/snapshot.ts`. Wersja bez `schema` jest czytana jak dawniej (profile i widoczność z danych bieżących); migracja `Migration20261116160715_published_snapshot_v2` dopisała te pola tylko do najnowszej wersji każdej restauracji |
 | changes_count | int | |
 | published_by, published_at | | |
 

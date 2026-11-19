@@ -9,6 +9,7 @@ import type { AcceptInvitation, AcceptedInvitation, CreateInvitation, Invitation
 import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
 import { currentContent, readContentSnapshot, sameTranslations, type DishTranslations, type WineTranslations } from '../i18n/content';
 import { profileVersion } from '../services/catalog/profile-rules';
+import { picksVersion } from '../services/picks/picks-rules';
 import { buildSnapshot, readSnapshot, type PublishedVersionRecord } from '../services/publishing/snapshot';
 import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
@@ -17,7 +18,7 @@ import type { SalesRepository } from '../ports/sales';
 import { aggregateChecks } from '../services/sales/sales-kpis';
 import type { CheckKey, SalesPeriod, SalesRecord } from '../services/sales/types';
 import type {
-  ContentWriteRepository, DecisionRecord, ProfileEditRecord, ProfileWriteRepository, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo, PublishInput,
+  ContentWriteRepository, DecisionRecord, PickEditRecord, PickRecord, PicksRepository, SetPickInput, ProfileEditRecord, ProfileWriteRepository, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo, PublishInput,
   PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, UsageTotals, PairingStat, PairingStatSource, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
@@ -76,6 +77,10 @@ export class MemoryStore {
   readonly decisions: Array<DecisionRecord & { restaurantId: string }> = [];
   /** the profile audit trail, oldest first (spec 2026-11-04-panel-completion, R5) */
   readonly profileEdits: Array<ProfileEditRecord & { restaurantId: string }> = [];
+  /** the restaurants' picks (the working set); the demo data has none */
+  readonly picks: Array<PickRecord & { restaurantId: string }> = [];
+  /** the picks history, oldest first */
+  readonly pickEdits: Array<PickEditRecord & { restaurantId: string }> = [];
   readonly users: AuthUser[] = [];
   readonly memberships: StoredMembership[] = [];
   /** the authentication trail, oldest first */
@@ -112,7 +117,7 @@ export class MemoryStore {
       // version 1 is the state the demo restaurant was published in (schema 2, like the demo seeder)
       s.versions.set(id, [{
         info: { id: `${id}:v1`, number: 1, changesCount: 0, publishedBy: d.restaurant.wineDirector, publishedAt: d.restaurant.publishedAt ?? '1970-01-01T00:00:00.000Z' },
-        snapshot: buildSnapshot({ restaurant: d.restaurant, dishes: d.dishes, wines: d.wines, pairings })
+        snapshot: buildSnapshot({ restaurant: d.restaurant, dishes: d.dishes, wines: d.wines, pairings, picks: [] })
       }]);
     }
     return s;
@@ -308,7 +313,8 @@ export class MemoryPublishRepository implements PublishRepository {
     const list = this.store.versions.get(restaurantId) ?? [];
     // the snapshot holds the menu as it is after this publish: the released drafts are part of it
     const released = dishes.map((d) => (d.status === 'draft' ? { ...d, status: 'published' as const } : d));
-    list.push({ info, snapshot: copy(buildSnapshot({ restaurant, dishes: released, wines: this.store.wines.get(restaurantId) ?? [], pairings })) });
+    const picks = this.store.picks.filter((x) => x.restaurantId === restaurantId).map((x) => x.wineId);
+    list.push({ info, snapshot: copy(buildSnapshot({ restaurant, dishes: released, wines: this.store.wines.get(restaurantId) ?? [], pairings, picks })) });
     this.store.versions.set(restaurantId, list);
     pairings.forEach((p) => { p.dirty = false; });
     drafts.forEach((d) => { d.status = 'published'; });
@@ -365,6 +371,49 @@ export class MemoryProfileWriteRepository implements ProfileWriteRepository {
   async listProfileEdits(restaurantId: string, filter: { kind?: 'dish' | 'wine'; subjectId?: string } = {}) {
     return this.store.profileEdits
       .filter((e) => e.restaurantId === restaurantId && (!filter.kind || e.kind === filter.kind) && (!filter.subjectId || e.subjectId === filter.subjectId))
+      .map(({ restaurantId: _r, ...e }) => copy(e))
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? -1 : 1));
+  }
+}
+
+export class MemoryPicksRepository implements PicksRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  private mine(restaurantId: string) {
+    return this.store.picks.filter((x) => x.restaurantId === restaurantId);
+  }
+
+  async list(restaurantId: string): Promise<PickRecord[]> {
+    const wines = new Map((this.store.wines.get(restaurantId) ?? []).map((w) => [w.id, w]));
+    return this.mine(restaurantId)
+      .filter((x) => wines.has(x.wineId))
+      .map(({ restaurantId: _r, ...x }) => ({ ...x, active: wines.get(x.wineId)!.active }))
+      .sort((a, b) => (a.wineId < b.wineId ? -1 : a.wineId > b.wineId ? 1 : 0));
+  }
+
+  async set(restaurantId: string, input: SetPickInput) {
+    const wine = (this.store.wines.get(restaurantId) ?? []).find((w) => w.id === input.wineId);
+    if (!wine) throw new NotFoundError('Wine');
+    const before = (await this.list(restaurantId)).map((x) => x.wineId);
+    if (input.expectedVersion !== undefined && input.expectedVersion !== picksVersion(before)) throw new VersionConflictError();
+    const present = before.includes(input.wineId);
+    if (input.enabled === present) return { changed: false };
+    if (input.enabled) {
+      if (!wine.active) throw new ValidationError('wine_inactive', 'Only an active wine can be marked as a pick.');
+      if (before.length >= input.max) throw new ValidationError('too_many_picks', `A restaurant can mark at most ${input.max} wines.`);
+      this.store.picks.push({ restaurantId, wineId: input.wineId, active: true, setAt: input.at, setBy: input.actor, setById: input.actorId });
+    } else {
+      const i = this.store.picks.findIndex((x) => x.restaurantId === restaurantId && x.wineId === input.wineId);
+      this.store.picks.splice(i, 1);
+    }
+    const after = (await this.list(restaurantId)).map((x) => x.wineId);
+    this.store.pickEdits.push({ restaurantId, id: input.editId, wineId: input.wineId, enabled: input.enabled, actor: input.actor, actorId: input.actorId, before, after, at: input.at });
+    return { changed: true };
+  }
+
+  async listEdits(restaurantId: string): Promise<PickEditRecord[]> {
+    return this.store.pickEdits
+      .filter((e) => e.restaurantId === restaurantId)
       .map(({ restaurantId: _r, ...e }) => copy(e))
       .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? -1 : 1));
   }
@@ -984,6 +1033,7 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     publishRepository: new MemoryPublishRepository(store),
     contentWriteRepository: new MemoryContentWriteRepository(store),
     profileWriteRepository: new MemoryProfileWriteRepository(store),
+    picksRepository: new MemoryPicksRepository(store),
     importRepository: new MemoryImportRepository(store),
     opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
     guestInteractionRepository: new MemoryGuestInteractionRepository(store),

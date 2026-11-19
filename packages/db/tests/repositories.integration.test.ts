@@ -2,7 +2,7 @@ import { Migrator } from '@mikro-orm/migrations';
 import { MikroORM } from '@mikro-orm/postgresql';
 import {
   AdminService, AuthService, RecommendationCodeService, DEFAULT_AUTH_CONFIG, DEMO_PASSWORD, DEFAULT_PREFS, ImportService, OpportunityService, ProfilePreviewService, ProfileService, RestaurantService, TranslationService, authContract, translationsVersion, importContract, RecommendationService, PublishService, SommelierService, VersionConflictError, buildDemoDataset, teamContract, invitationContract, InvitationService, SECOND_RESTAURANT, TeamService, type SecondRestaurant, type AuthEvent,
-  createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, dishScales, wineScales, type PublishedSnapshot, type Repositories
+  createMemoryRepositories, MemoryStore, recommendForDish, repositoryContract, writeContract, dishScales, wineScales, PICKS_MAX, RANKING_LAYER_VERSION, loadPublishedView, readSnapshot, type PublishedSnapshot, type Repositories
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
 import { createDatabase } from '@wine-match/testkit';
@@ -20,6 +20,7 @@ import { MembershipEntity, PairingEntity, UserEntity } from '../src/entities';
 import { PgAuthAuditRepository, PgTeamRepository } from '../src/repositories/team';
 import { PgInvitationRepository } from '../src/repositories/invitations';
 import { Migration20261106114659_auth_token } from '../src/migrations/Migration20261106114659_auth_token';
+import { Migration20261119092849_restaurant_picks } from '../src/migrations/Migration20261119092849_restaurant_picks';
 import { Migration20261117105101_profile_editing } from '../src/migrations/Migration20261117105101_profile_editing';
 import { Migration20261116160715_published_snapshot_v2 } from '../src/migrations/Migration20261116160715_published_snapshot_v2';
 import { PgAuthRepository } from '../src/repositories/auth';
@@ -29,7 +30,7 @@ import { NodeSessionTokens, ScryptPasswordHasher, hashPassword, verifyPassword }
 import { RestaurantEntity } from '../src/entities';
 import { readFileSync } from 'node:fs';
 import {
-  PgContentWriteRepository, PgProfileWriteRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
+  PgContentWriteRepository, PgProfileWriteRepository, PgPicksRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
   PgRestaurantWriteRepository, PgSalesRepository, PgWineRepository, PgWineWriteRepository
 } from '../src/repositories';
 import { DemoSeeder } from '../src/seeders/DemoSeeder';
@@ -87,6 +88,7 @@ function pgRepos(orm: MikroORM): Repositories {
     publishRepository: new PgPublishRepository({ em }),
     contentWriteRepository: new PgContentWriteRepository({ em }),
     profileWriteRepository: new PgProfileWriteRepository({ em }),
+    picksRepository: new PgPicksRepository({ em }),
     importRepository: new PgImportRepository({ em }),
     opportunityDismissalRepository: new PgOpportunityDismissalRepository({ em }),
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),
@@ -1193,6 +1195,78 @@ run('PostgreSQL', () => {
       expect([await columns(), await table()]).toEqual(['0', '0']);
       await run('up');
       expect([await columns(), await table()]).toEqual(['3', '1']);
+    });
+  });
+
+  describe('restaurant picks on PostgreSQL (spec 2026-11-18-restaurant-picks, PR1a: snapshot schema 3, tables, migration)', () => {
+    beforeEach(async () => { await resetData(orm); });
+    const sql = <T>(query: string, params: unknown[] = []) => orm.em.getConnection().execute<T[]>(query, params);
+    const wines = () => ds.wines.filter((w) => w.active).map((w) => w.id).sort();
+    const mark = (wineId: string, n: number) => pgRepos(orm).picksRepository.set(ds.restaurant.id, { wineId, enabled: true, editId: randomUUID(), actor: 'Marta', actorId: MARTA.id, at: `2026-11-19T09:0${n}:00.000Z`, max: PICKS_MAX });
+
+    it('the preview counts the picks as unpublished changes, the publish writes schema 3 with them and counts them in changesCount', async () => {
+      const [a, b] = wines();
+      const s = services(pgRepos(orm));
+      const base = await s.publish.preview('halka');
+      expect(base.pendingPicks).toBe(0);
+      await mark(a, 1);
+      await mark(b, 2);
+      const preview = await services(pgRepos(orm)).publish.preview('halka');
+      expect(preview.pendingPicks).toBe(2);
+      expect(preview.pendingChanges).toBe(base.pendingChanges + 2);
+      const info = await services(pgRepos(orm)).publish.publish('halka', MARTA, { expectedLatest: 1 });
+      expect(info.changesCount).toBe(base.pendingChanges + 2);
+      const [v] = await sql<{ snapshot: { schema: number; picks: { wineIds: string[]; rankingVersion: string } } }>('select snapshot from published_version where restaurant_id = ? and number = 2', [ds.restaurant.id]);
+      expect(v.snapshot.schema).toBe(3);
+      expect(v.snapshot.picks).toEqual({ wineIds: [a, b], rankingVersion: RANKING_LAYER_VERSION });
+      expect((await services(pgRepos(orm)).publish.preview('halka')).pendingPicks).toBe(0);
+      const view = await loadPublishedView(pgRepos(orm), (await pgRepos(orm).restaurantRepository.findBySlug('halka'))!);
+      expect(view.picks).toEqual(new Set([a, b]));
+    });
+
+    it('a version of schema 2 still reads after a publish of schema 3 (B1): empty picks, the profiles and the menu of its own', async () => {
+      const [a] = wines();
+      // version 2 is a copy of version 1 as schema 2 wrote it: no picks entry
+      await sql(`insert into published_version (id, restaurant_id, number, snapshot, changes_count, published_by, published_at)
+        select ?, restaurant_id, 2, (snapshot - 'picks') || '{"schema": 2}'::jsonb, 0, 'Test', now() from published_version where restaurant_id = ? and number = 1`, [randomUUID(), ds.restaurant.id]);
+      const restaurant = (await pgRepos(orm).restaurantRepository.findBySlug('halka'))!;
+      const schema2 = await loadPublishedView(pgRepos(orm), restaurant);
+      expect(schema2.version!.number).toBe(2);
+      expect(schema2.picks.size).toBe(0);
+      expect(schema2.dishes.length).toBeGreaterThan(0);
+      await mark(a, 1);
+      await services(pgRepos(orm)).publish.publish('halka', MARTA, { expectedLatest: 2 });
+      expect((await loadPublishedView(pgRepos(orm), restaurant)).picks).toEqual(new Set([a]));
+      // the old version is unchanged and reads as before, whoever reads it
+      const [old] = await sql<{ snapshot: { schema: number; picks?: unknown } }>('select snapshot from published_version where restaurant_id = ? and number = 2', [ds.restaurant.id]);
+      expect(old.snapshot.schema).toBe(2);
+      expect(old.snapshot.picks).toBeUndefined();
+      const read = readSnapshot(old.snapshot as never);
+      expect(read.schema).toBe(2);
+      expect(read.picks.size).toBe(0);
+      expect(read.dishProfiles?.size).toBe(ds.dishes.length);
+    });
+
+    it('the migration goes up, down and up again: the tables come and go, the unique pair and the limit-free history column names hold', async () => {
+      const run = async (fn: 'up' | 'down') => {
+        const migration = new Migration20261119092849_restaurant_picks(orm.em.getDriver(), orm.config);
+        migration.reset();
+        await migration[fn]();
+        for (const q of migration.getQueries()) await migration.execute(q);
+      };
+      const tables = async () => (await sql<{ table_name: string }>("select table_name from information_schema.tables where table_name in ('restaurant_pick', 'pick_edit') order by 1")).map((r) => r.table_name);
+      expect(await tables()).toEqual(['pick_edit', 'restaurant_pick']);
+      await run('down');
+      expect(await tables()).toEqual([]);
+      await run('up');
+      expect(await tables()).toEqual(['pick_edit', 'restaurant_pick']);
+      const cols = (await sql<{ column_name: string }>("select column_name from information_schema.columns where table_name = 'pick_edit'")).map((r) => r.column_name);
+      expect(cols).toContain('enabled');
+      expect(cols).not.toContain('on');
+      // one row per (restaurant, wine)
+      const [a] = wines();
+      await mark(a, 1);
+      await expect(sql('insert into restaurant_pick (id, restaurant_id, wine_id, set_at, set_by) values (?, ?, ?, now(), ?)', [randomUUID(), ds.restaurant.id, a, 'x'])).rejects.toThrow();
     });
   });
 });

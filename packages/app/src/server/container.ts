@@ -123,6 +123,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       publishRepository: asClass(db.PgPublishRepository).scoped(),
       contentWriteRepository: asClass(db.PgContentWriteRepository).scoped(),
       profileWriteRepository: asClass(db.PgProfileWriteRepository).scoped(),
+      picksRepository: asClass(db.PgPicksRepository).scoped(),
       authRepository: asClass(db.PgAuthRepository).scoped(),
       importRepository: asClass(db.PgImportRepository).scoped(),
       opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped(),
@@ -162,6 +163,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       rateLimiter: asValue<RateLimiter>(new MemoryRateLimiter(undefined, env().rateLimitMaxClients ?? DEFAULT_RATE_LIMIT_MAX_CLIENTS)),
       teamRepository: asValue(repos.teamRepository),
       authAuditRepository: asValue(repos.authAuditRepository),
+      picksRepository: asValue(repos.picksRepository),
       invitationRepository: asValue(repos.invitationRepository)
     });
   }
