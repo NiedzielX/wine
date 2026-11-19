@@ -106,7 +106,10 @@ describe('schemas (R16)', () => {
   });
 
   it('the simulation query reads only picks and dish, counts a repeated id once and allows at most PICKS_MAX', () => {
-    const q = (s: string) => { const u = new URLSearchParams(s); return simulationQueryFromSearch((k) => u.getAll(k)); };
+    const q = (s: string) => {
+      const pairs = s.split('&').filter((x) => x !== '').map((x) => x.split('=') as [string, string]);
+      return simulationQueryFromSearch((k) => pairs.filter(([name]) => name === k).map(([, v]) => v));
+    };
     expect(q('')).toEqual({});
     expect(q('picks=')).toEqual({ picks: [] });
     expect(q('picks=a,b&picks=b,c&dish=d&__proto__=x&constructor=y')).toEqual({ picks: ['a', 'b', 'c'], dish: 'd' });
