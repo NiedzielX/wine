@@ -5,6 +5,7 @@ import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import { countContentChanges } from '../i18n/content';
 import { pairingScore } from '../engine/scoring';
 import type { CatalogEditRecord, DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
+import { RANKING_LAYER_VERSION } from '../ranking/restaurant-picks';
 import { dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
 import { SommelierService } from '../services/pairings/sommelier-service';
 import { loadPublishedView } from '../services/publishing/published-view';
@@ -125,12 +126,13 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
 
     t.it('publishes snapshot v2: every profile, hidden dishes and inactive wines included, and the menu (spec 2026-11-04-panel-completion, AC1)', async () => {
       const before = (await repos.publishRepository.effective(rid()))!;
-      t.expect(before.snapshot.schema).toBe(2);
+      t.expect(before.snapshot.schema).toBe(3);
       t.expect(before.info).toEqual(await repos.publishRepository.latest(rid()));
       const v = await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '56565656-5656-4565-8565-565656565656', expectedLatest: before.info.number });
       const after = (await repos.publishRepository.effective(rid()))!;
       t.expect(after.info).toEqual(v);
-      t.expect(after.snapshot.schema).toBe(2);
+      t.expect(after.snapshot.schema).toBe(3);
+      t.expect(after.snapshot.picks).toEqual({ wineIds: [], rankingVersion: RANKING_LAYER_VERSION });
       const ids = (xs: Array<{ id: string }>) => xs.map((x) => x.id).sort();
       t.expect(ids(after.snapshot.profiles!.dishes)).toEqual(ids(ds.dishes));
       t.expect(ids(after.snapshot.profiles!.wines)).toEqual(ids(ds.wines));
