@@ -4,6 +4,9 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+### Wybór restauracji (faza 1, `2026-11-18-restaurant-picks`)
+- PR1b: serwis `PicksService` (zbiór roboczy, `set` z `expectedVersion`, audyt `pick_edit`), uprawnienie `picks.edit` (Owner i GM; Sommelier tylko odczyt), trasy `GET /restaurants/{slug}/picks`, `PUT /wines/{id}/pick`, `GET /restaurants/{slug}/picks/simulation` i symulator „przed / po” liczony tą samą funkcją co ścieżka gościa (`rankForGuest`), tylko do odczytu. Gość jeszcze nie czyta wyborów (PR2), ekran A27 w PR3.
+
 ### Edycja pól dania i wina (E13, spec `2026-11-16-catalog-field-editing`, faza C1)
 - A3 i A5 mają formularze „Details / Dane dania” i „Listing / Pozycja na karcie”: nazwa, opis, kategoria i cena dania; producent, nazwa, rocznik, region, kraj, nota, numer na karcie, ceny i „Na kieliszki” wina. Działają bez JavaScriptu (`useActionState`), zachowują wpisane wartości i pokazują komunikat przy każdym polu; ceny czyta ścisły `parseFormPrice` („58,500” to błąd, nie 58 500).
 - Zmiany są od razu widoczne dla gości i nie zmieniają Match Score; tłumaczenia z publikacji zostają, a formularz wskazuje nieaktualne. Zapis chroni odcisk pól (`expectedVersion` / `If-Match`), nazwy dań, klucze win i numery na karcie są unikalne (także szkice i ukryte pozycje), sprawdzane pod blokadą doradczą restauracji, którą bierze też zatwierdzenie importu.
