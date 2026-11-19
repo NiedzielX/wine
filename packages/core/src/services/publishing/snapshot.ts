@@ -32,6 +32,8 @@ export interface PublishedSnapshot {
   profiles?: { dishes: Array<{ id: string; profile: DishScales }>; wines: Array<{ id: string; profile: WineScales }> };
   /** schema 2: the dishes this version knows (published, hidden, and drafts released by this publish) */
   menu?: { dishIds: string[] };
+  /** schema 3 (restaurant picks): the sorted ids of the active wines marked at the publish; absent before schema 3 (read as empty) */
+  picks?: { wineIds: string[] };
 }
 
 /** A version as the ports return it: what it is and what it holds. */
@@ -84,23 +86,29 @@ export function buildSnapshot(input: { restaurant: Restaurant; dishes: Dish[]; w
 
 /** A stored snapshot read back. `profiles` and `menu` are null for a version published before schema 2. */
 export interface ReadSnapshot {
-  schema: 1 | 2;
+  /** 1 before schema 2; 2 or 3 otherwise (any higher stored schema reads as 3) */
+  schema: 1 | 2 | 3;
   pairings: Pairing[];
   content: PublishedContent;
   dishProfiles: Map<string, DishScales> | null;
   wineProfiles: Map<string, WineScales> | null;
   menuDishIds: Set<string> | null;
+  /** schema 3: the wines the restaurant marked as its picks at the publish; empty for every older version */
+  picks: Set<string>;
 }
 
 export function readSnapshot(s: PublishedSnapshot | null | undefined): ReadSnapshot {
-  const v2 = s?.schema === SNAPSHOT_SCHEMA && !!s.profiles && !!s.menu;
+  // `>= 2`, not `=== SNAPSHOT_SCHEMA`: a version of schema 2 must keep reading as schema 2 once the writer stores 3
+  const v2 = (s?.schema ?? 0) >= 2 && !!s?.profiles && !!s.menu;
+  const schema = v2 ? ((s!.schema as number) >= 3 ? 3 : 2) : 1;
   return {
-    schema: v2 ? 2 : 1,
+    schema,
     pairings: (s?.pairings ?? []).map((p) => ({ ...p, commentTranslations: cleanCommentTranslations(p.commentTranslations), dirty: false })),
     content: readContentSnapshot(s?.content),
     dishProfiles: v2 ? new Map(s!.profiles!.dishes.map((d) => [d.id, dishScales(d.profile)])) : null,
     wineProfiles: v2 ? new Map(s!.profiles!.wines.map((w) => [w.id, wineScales(w.profile)])) : null,
-    menuDishIds: v2 ? new Set(s!.menu!.dishIds) : null
+    menuDishIds: v2 ? new Set(s!.menu!.dishIds) : null,
+    picks: new Set(schema === 3 ? s!.picks?.wineIds ?? [] : [])
   };
 }
 

@@ -1,6 +1,7 @@
 import type { Dish, GuestPreferences, Restaurant, Wine } from '../../domain/types';
 import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS } from '../../domain/types';
-import { recommendForDish, type RecommendationItem, type RecommendationResult } from '../../engine/recommend';
+import type { RecommendationItem, RecommendationResult } from '../../engine/recommend';
+import { rankForGuest } from '../../ranking/rank-for-guest';
 import { recommendForTable, tablePeople, tableQuantity, type TableOptions, type TableQuantity, type TableResult } from '../../engine/table';
 import { MAX_TABLE_DISHES } from '../../guest/prefs';
 import type { Repositories } from '../../ports/repositories';
@@ -76,9 +77,11 @@ export class RecommendationService {
     const c = this.content(view, locale);
     const dish = c.dish(raw);
     const pairings = view.pairings.filter((p) => p.dishId === raw.id);
-    const result = recommendForDish(dish, view.wines.map(c.wine), pairings.map(c.pairing), { ...DEFAULT_PREFS, ...prefs }, limit, locale ?? 'en');
     const settings = view.restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS;
-    if (!settings.showUnreviewed) result.items = result.items.filter((i) => i.tier < 2);
+    const result = rankForGuest({
+      dish, wines: view.wines.map(c.wine), pairings: pairings.map(c.pairing), prefs: { ...DEFAULT_PREFS, ...prefs }, limit,
+      locale: locale ?? 'en', showUnreviewed: settings.showUnreviewed
+    });
     return { restaurant: c.restaurant, dish, result };
   }
 
@@ -94,7 +97,11 @@ export class RecommendationService {
     let match: RecommendationItem | null = null;
     if (dish && wine.active) {
       const pairings = view.pairings.filter((p) => p.dishId === dish.id);
-      match = recommendForDish(dish, view.wines.map(c.wine), pairings.map(c.pairing), DEFAULT_PREFS, view.wines.length, locale ?? 'en').items.find((i) => i.wine.id === wine.id) ?? null;
+      // as before, the wine page does not apply the "unreviewed" setting
+      match = rankForGuest({
+        dish, wines: view.wines.map(c.wine), pairings: pairings.map(c.pairing), prefs: DEFAULT_PREFS, limit: view.wines.length,
+        locale: locale ?? 'en', showUnreviewed: true
+      }).items.find((i) => i.wine.id === wine.id) ?? null;
     }
     return { restaurant: c.restaurant, wine, dish, match };
   }

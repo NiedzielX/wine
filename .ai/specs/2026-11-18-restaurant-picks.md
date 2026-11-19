@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-progress
 created: 2026-11-18
 owner: Filip Niedziela
 related: [.ai/specs/product-brief.md (D22, D24, D25, R02, R06, N02), .ai/specs/2026-11-04-restaurant-operations.md (E19, F2 zastępowane), .ai/specs/2026-11-04-panel-completion.md (E13 F1, F2 na main), .ai/specs/2026-11-04-learning-layer-shadow-model.md (E17), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12, tabela uprawnień), .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, docs/RECOMMENDATION_ENGINE.md, docs/security/threat-model.md, .ai/runs/2026-11-18-restaurant-picks-spec.md, "strategia produktu: .ai/specs/research/benchmarks/2026-11-16-product-strategy-vs-sommelierbot.md (na gałęzi docs/product-strategy-vs-competitors, jeszcze nie na main; P12, część 1)"]
@@ -208,4 +208,4 @@ Przegląd w świeżym kontekście; twierdzenia o kodzie sprawdzone w `engine/rec
 - 2026-11-18 — Zatwierdzona (approved); rekomendacje O1–O12 przyjęte, O12: okno 10 pkt.
 
 ## Realizacja
-(Uzupełnia agent po implementacji: commity, log przebiegu, odstępstwa od projektu.)
+PR0: `.ai/runs/2026-11-18-picks-pr0.md`; dalej uzupełnia agent po implementacji.

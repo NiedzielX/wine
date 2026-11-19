@@ -25,6 +25,8 @@ export * from './validators/invitations/invitation.schema';
 export * from './ports/team';
 export * from './engine/scoring';
 export * from './engine/recommend';
+export * from './ranking/restaurant-picks';
+export * from './ranking/rank-for-guest';
 export * from './engine/table';
 export * from './engine/suggest';
 export * from './engine/drafts';
