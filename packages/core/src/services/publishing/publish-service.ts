@@ -6,9 +6,9 @@ import type { PublishedVersionInfo, Repositories } from '../../ports/repositorie
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import { isReviewed } from '../pairings/pairing-rules';
 import { countContentChanges } from '../../i18n/content';
-import { countProfileChanges } from './snapshot';
+import { countPickChanges, countProfileChanges } from './snapshot';
 
-export type PublishServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'restaurantWriteRepository' | 'publishRepository'> & {
+export type PublishServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'restaurantWriteRepository' | 'publishRepository' | 'picksRepository'> & {
   clock: Clock;
   idGenerator: IdGenerator;
 };
@@ -17,7 +17,7 @@ export interface PublishPreview {
   restaurant: Restaurant;
   settings: RestaurantSettings;
   lastVersion: PublishedVersionInfo | null;
-  /** pairings with a decision since the last publish + draft dishes that would go live + content and profile changes */
+  /** pairings with a decision since the last publish + draft dishes that would go live + content, profile and pick changes */
   pendingChanges: number;
   pendingPairings: number;
   /** dishes, wines and the restaurant whose translations differ from the published version (spec 2026-10-15-bilingual-content, R4) */
@@ -27,6 +27,8 @@ export interface PublishPreview {
    * (spec 2026-11-04-panel-completion, R1, R4)
    */
   pendingProfiles: number;
+  /** picks that differ from the published set, active wines only (spec 2026-11-18-restaurant-picks, R7) */
+  pendingPicks: number;
   draftDishes: Dish[];
   /** the checklist of the publish screen (advice, never a blocker) */
   withoutPrimary: Dish[];
@@ -46,25 +48,27 @@ export class PublishService {
   async preview(slug: string): Promise<PublishPreview> {
     const restaurant = await this.d.restaurantRepository.findBySlug(slug);
     if (!restaurant) throw new NotFoundError('Restaurant');
-    const [dishes, wines, pairings, effective, pendingPairings, published] = await Promise.all([
+    const [dishes, wines, pairings, effective, pendingPairings, published, picks] = await Promise.all([
       this.d.dishRepository.listByRestaurant(restaurant.id),
       this.d.wineRepository.listByRestaurant(restaurant.id),
       this.d.pairingRepository.listByRestaurant(restaurant.id),
       this.d.publishRepository.effective(restaurant.id),
       this.d.publishRepository.pendingPairingChanges(restaurant.id),
-      this.d.publishRepository.publishedContent(restaurant.id)
+      this.d.publishRepository.publishedContent(restaurant.id),
+      this.d.picksRepository.list(restaurant.id)
     ]);
     const lastVersion = effective?.info ?? null;
     const pendingContent = countContentChanges({ restaurant, dishes, wines }, published);
     const pendingProfiles = countProfileChanges({ dishes, wines }, effective);
+    const pendingPicks = countPickChanges(wines, picks.map((x) => x.wineId), effective);
     const live = dishes.filter((x) => x.status !== 'hidden');
     const primary = new Set(pairings.filter((p) => isReviewed(p) && p.role === 'primary').map((p) => p.dishId));
     const draftDishes = dishes.filter((x) => x.status === 'draft');
     return {
       restaurant,
       settings: { ...DEFAULT_RESTAURANT_SETTINGS, ...restaurant.settings },
-      lastVersion, pendingPairings, pendingContent, pendingProfiles, draftDishes,
-      pendingChanges: pendingPairings + draftDishes.length + pendingContent + pendingProfiles,
+      lastVersion, pendingPairings, pendingContent, pendingProfiles, pendingPicks, draftDishes,
+      pendingChanges: pendingPairings + draftDishes.length + pendingContent + pendingProfiles + pendingPicks,
       withoutPrimary: live.filter((x) => !primary.has(x.id)),
       unreviewedSuggestions: pairings.filter((p) => p.status === 'suggested').length,
       draftProfiles: live.filter((x) => x.profile.source === 'draft'),
@@ -82,7 +86,7 @@ export class PublishService {
     if (p.pendingChanges === 0) throw new ValidationError('nothing_to_publish', 'There are no unpublished changes.');
     return this.d.publishRepository.publish(p.restaurant.id, {
       actor: actor.name, at: this.d.clock.now().toISOString(), id: this.d.idGenerator.uuid(),
-      contentChanges: p.pendingContent + p.pendingProfiles, expectedLatest: opts.expectedLatest
+      contentChanges: p.pendingContent + p.pendingProfiles + p.pendingPicks, expectedLatest: opts.expectedLatest
     });
   }
 

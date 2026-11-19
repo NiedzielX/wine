@@ -64,6 +64,8 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 
 **Ścieżka:** expand → migrate → contract w osobnych PR-ach: najpierw dodaj nową kolumnę lub tabelę i pisz do obu, potem przenieś dane migracją, dopiero w kolejnym PR-ze usuń stare. PR z migracją zawiera test `up` i `down` (`npm run test:db`) i plan wycofania w opisie. `npm run schema:check -w @wine-match/db` musi pokazywać zgodność. Zmiana modelu aktualizuje [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
 
+**Tabele addytywne i migawka z 2026-11-19** (spec `2026-11-18-restaurant-picks`, PR1a, migracja `Migration20261119092849_restaurant_picks`): tabele `restaurant_pick` (wybory restauracji, unikat `(restaurant_id, wine_id)`) i `pick_edit` (dziennik, `wine_id` bez klucza obcego, kolumna `enabled`), istniejące tabele bez zmian, bez backfillu; `down` usuwa tabele (tylko dev i test; w produkcji wycofanie to poprzedni obraz, a tabele zostają). Migawka publikacji ma `schema: 3` z `picks: { wineIds, rankingVersion }`. Kontraktem jest to, że czytnik przyjmuje `schema >= 2`: wersja `schema: 2` czyta się jak dotąd (profile i skład karty z wersji), z pustym zbiorem wyborów, a wersje są niezmienne i nie są migrowane. **Plan wycofania:** obraz sprzed tej zmiany czyta wersję `schema: 3` jak `schema: 2` tylko wtedy, gdy ma czytnik z PR0 (`schema >= 2`); starszy obraz odczytałby ją jak `schema: 1` (profile i widoczność z danych bieżących), dlatego pierwszy zapis `schema: 3` idzie dopiero po wdrożeniu PR0.
+
 ## 4. Konfiguracja i zmienne środowiskowe
 
 Źródła: [.env.example](.env.example), [packages/core/src/config/env.ts](packages/core/src/config/env.ts).

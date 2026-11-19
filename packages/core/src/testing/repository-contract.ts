@@ -331,6 +331,10 @@ export function repositoryContract(
         t.expect(await repos.salesRepository.countChecks(bad, [{ businessDate: '2033-04-01', checkId: 'T1' }])).toBe(0);
         t.expect(await repos.pairingRepository.listDecisions(ds.restaurant.id, { pairingId: bad })).toEqual([]);
         t.expect(await repos.pairingRepository.listDecisions(ds.restaurant.id, { dishId: bad })).toEqual([]);
+        t.expect(await repos.picksRepository.list(bad)).toEqual([]);
+        t.expect(await repos.picksRepository.listEdits(bad)).toEqual([]);
+        await t.expect(repos.picksRepository.set(bad, { wineId: ds.wines[0].id, enabled: true, editId: bad, actor: 'x', actorId: null, at: '2026-11-19T09:00:00.000Z', max: 5 })).rejects.toMatchObject({ name: 'NotFoundError' });
+        await t.expect(repos.picksRepository.set(ds.restaurant.id, { wineId: bad, enabled: true, editId: bad, actor: 'x', actorId: null, at: '2026-11-19T09:00:00.000Z', max: 5 })).rejects.toMatchObject({ name: 'NotFoundError' });
         await t.expect(repos.contentWriteRepository.setDishTranslations(ds.restaurant.id, bad, {}, undefined)).rejects.toMatchObject({ name: 'NotFoundError' });
         await t.expect(repos.contentWriteRepository.setWineTranslations(ds.restaurant.id, bad, {}, undefined)).rejects.toMatchObject({ name: 'NotFoundError' });
       }

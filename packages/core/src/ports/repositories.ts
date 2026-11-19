@@ -233,6 +233,61 @@ export interface CatalogEditRepository {
   list(restaurantId: string, filter?: { kind?: 'dish' | 'wine'; subjectId?: string; identityOnly?: boolean }): Promise<CatalogEditRecord[]>;
 }
 
+/** A wine the restaurant marked as its pick (spec 2026-11-18-restaurant-picks, R1). `active` is the wine's current state. */
+export interface PickRecord {
+  wineId: string;
+  active: boolean;
+  setAt: string;
+  setBy: string;
+  setById: string | null;
+}
+
+/** One row of the picks history (R3): append-only, outlives the wine. `before` and `after` are the sorted ids of the working set. */
+export interface PickEditRecord {
+  id: string;
+  wineId: string;
+  enabled: boolean;
+  actor: string;
+  actorId: string | null;
+  before: string[];
+  after: string[];
+  at: string;
+}
+
+export interface SetPickInput {
+  wineId: string;
+  enabled: boolean;
+  /** id of the history row, from the `IdGenerator` */
+  editId: string;
+  actor: string;
+  actorId: string | null;
+  at: string;
+  /** the most picks the restaurant may have (`PICKS_MAX`) */
+  max: number;
+  /** `picksVersion` of the working set the caller saw; a different one is VersionConflictError */
+  expectedVersion?: string;
+}
+
+/**
+ * The restaurant's picks: the working set (R1, R3). Reaches guests only through a publish. Wines are deleted softly, so
+ * every method skips the picks of deleted wines; the picks of inactive wines stay in the set and count towards the limit.
+ */
+export interface PicksRepository {
+  /** the working set, sorted by wine id: the picks of every wine that is not deleted, active or not */
+  list(restaurantId: string): Promise<PickRecord[]>;
+  /**
+   * Marks or unmarks a wine, atomically, under the lock of the restaurant row (the one a publish takes, so a publish
+   * sees the set wholly before or wholly after the change): in this order, unknown wine (or another restaurant's, or a
+   * deleted one) → NotFoundError; a stale `expectedVersion` → VersionConflictError; already as asked → `{ changed: false }`
+   * and no history row; marking a wine that is not active → ValidationError `wine_inactive`; marking when the set (inactive
+   * wines included) already has `max` → ValidationError `too_many_picks`. Otherwise the change and its history row are
+   * written together.
+   */
+  set(restaurantId: string, input: SetPickInput): Promise<{ changed: boolean }>;
+  /** the history of the restaurant, newest first (ties: id) */
+  listEdits(restaurantId: string): Promise<PickEditRecord[]>;
+}
+
 /**
  * Writes of translated content. Each write is atomic: when `expected` is given and the stored translations differ
  * from it, nothing changes and VersionConflictError is thrown. Unknown ids (or another restaurant's) → NotFoundError.
@@ -385,6 +440,7 @@ export interface Repositories {
   profileWriteRepository: ProfileWriteRepository;
   catalogWriteRepository: CatalogWriteRepository;
   catalogEditRepository: CatalogEditRepository;
+  picksRepository: PicksRepository;
   importRepository: ImportRepository;
   opportunityDismissalRepository: OpportunityDismissalRepository;
   guestInteractionRepository: GuestInteractionRepository;

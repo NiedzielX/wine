@@ -1,6 +1,6 @@
 import type { MikroORM } from '@mikro-orm/postgresql';
 import {
-  CatalogEditService, wineFieldsOf, wineFieldsVersion, ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
+  CatalogEditService, wineFieldsOf, wineFieldsVersion, ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, PICKS_MAX, picksVersion, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -322,6 +322,82 @@ describe('concurrency on PostgreSQL', () => {
       const stored = (await sql<{ profile_intensity: number; profile_confirmed_by: string }>('select profile_intensity, profile_confirmed_by from dish where id = ?', [duck.id]))[0];
       expect(stored.profile_intensity, `round ${round}: the stored profile is the winner's`).toBe(edits[0].after.intensity);
       expect(stored.profile_confirmed_by).toBe(edits[0].actor);
+    }
+  });
+
+  /* ---------- the restaurant's picks (spec 2026-11-18-restaurant-picks, AC5) ---------- */
+  const rid = () => ds.restaurant.id;
+  const activeWineIds = () => ds.wines.filter((w) => w.active).map((w) => w.id).sort();
+  const markInput = (wineId: string, enabled = true, over: object = {}) =>
+    ({ wineId, enabled, editId: randomUUID(), actor: 'Marta', actorId: MARTA.id, at: new Date().toISOString(), max: PICKS_MAX, ...over });
+
+  it('parallel picks of different wines never leave more than the limit: the free places are taken, the rest get too_many_picks, one history row per accepted pick', async () => {
+    const ids = activeWineIds();
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const first = ids.slice(0, 3);
+      for (const id of first) await pgRepos(orm).picksRepository.set(rid(), markInput(id));
+      const results = await race(...ids.slice(3, 11).map((id) => () => pgRepos(orm).picksRepository.set(rid(), markInput(id))));
+      expect(fulfilled(results), `round ${round}: exactly the two free places`).toHaveLength(PICKS_MAX - first.length);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ code: 'too_many_picks' });
+      const rows = await sql<{ n: string }>('select count(*)::text as n from restaurant_pick where restaurant_id = ?', [rid()]);
+      expect(Number(rows[0].n), `round ${round}: exactly the limit`).toBe(PICKS_MAX);
+      const edits = await sql<{ n: string }>('select count(*)::text as n from pick_edit where restaurant_id = ?', [rid()]);
+      expect(Number(edits[0].n), `round ${round}: one history row per pick`).toBe(PICKS_MAX);
+    }
+  });
+
+  it('a pick of a wine that is being reactivated counts all the time: the limit holds whether the wine is on or off (B3)', async () => {
+    const ids = activeWineIds();
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      for (const id of ids.slice(0, PICKS_MAX)) await pgRepos(orm).picksRepository.set(rid(), markInput(id));
+      await pgRepos(orm).wineWriteRepository.setActive(rid(), ids[0], false);
+      const results = await race<unknown>(
+        () => pgRepos(orm).wineWriteRepository.setActive(rid(), ids[0], true),
+        ...ids.slice(PICKS_MAX, PICKS_MAX + 4).map((id) => () => pgRepos(orm).picksRepository.set(rid(), markInput(id)))
+      );
+      expect(results.filter((r) => r.status === 'rejected' && (r.reason as { code?: string }).code !== 'too_many_picks'), `round ${round}: only the limit refuses`).toHaveLength(0);
+      const active = await sql<{ n: string }>('select count(*)::text as n from restaurant_pick p join wine w on w.id = p.wine_id where p.restaurant_id = ? and w.active', [rid()]);
+      const all = await sql<{ n: string }>('select count(*)::text as n from restaurant_pick where restaurant_id = ?', [rid()]);
+      expect(Number(all[0].n), `round ${round}: the set stays at the limit`).toBe(PICKS_MAX);
+      expect(Number(active[0].n), `round ${round}: never more than the limit active`).toBeLessThanOrEqual(PICKS_MAX);
+    }
+  });
+
+  it('two writes of the same wine from the same screen (expectedVersion): one wins, the other a version conflict; one row, one history row', async () => {
+    const [wine] = activeWineIds();
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const expectedVersion = picksVersion([]);
+      const results = await race(
+        () => pgRepos(orm).picksRepository.set(rid(), markInput(wine, true, { expectedVersion })),
+        () => pgRepos(orm).picksRepository.set(rid(), markInput(wine, true, { expectedVersion }))
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as Error).name, `round ${round}`).toBe('VersionConflictError');
+      expect(await sql('select 1 from restaurant_pick where restaurant_id = ?', [rid()]), `round ${round}`).toHaveLength(1);
+      expect(await sql('select 1 from pick_edit where restaurant_id = ?', [rid()]), `round ${round}`).toHaveLength(1);
+    }
+  });
+
+  it('a publish and a pick at the same time: the version holds the set wholly before or wholly after the change, never half of it', async () => {
+    const ids = activeWineIds();
+    const publishOf = () => new PublishService({ ...pgRepos(orm), clock: { now: () => new Date() }, idGenerator: { uuid: () => randomUUID() } });
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      // the first pick is unpublished: the publish has something to do, whatever the second pick does
+      await pgRepos(orm).picksRepository.set(rid(), markInput(ids[0]));
+      const results = await race<unknown>(
+        () => publishOf().publish('halka', MARTA),
+        () => pgRepos(orm).picksRepository.set(rid(), markInput(ids[1]))
+      );
+      expect(fulfilled(results), `round ${round}: both succeed`).toHaveLength(2);
+      const versions = await sql<{ number: number; snapshot: { picks: { wineIds: string[] } }; changes_count: number }>('select number, snapshot, changes_count from published_version where restaurant_id = ? order by number', [rid()]);
+      const published = versions[versions.length - 1].snapshot.picks.wineIds;
+      expect([[ids[0]], [ids[0], ids[1]].sort()], `round ${round}`).toContainEqual(published);
+      const working = await sql<{ wine_id: string }>('select wine_id from restaurant_pick where restaurant_id = ?', [rid()]);
+      expect(working.map((r) => r.wine_id).sort(), `round ${round}`).toEqual([ids[0], ids[1]].sort());
     }
   });
 });
