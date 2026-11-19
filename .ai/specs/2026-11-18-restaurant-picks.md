@@ -208,4 +208,4 @@ Przegląd w świeżym kontekście; twierdzenia o kodzie sprawdzone w `engine/rec
 - 2026-11-18 — Zatwierdzona (approved); rekomendacje O1–O12 przyjęte, O12: okno 10 pkt.
 
 ## Realizacja
-PR0: `.ai/runs/2026-11-18-picks-pr0.md`; dalej uzupełnia agent po implementacji.
+PR0: `.ai/runs/2026-11-18-picks-pr0.md`; PR1a: `.ai/runs/2026-11-19-picks-pr1a.md`; PR1b: `.ai/runs/2026-11-19-picks-pr1b.md`; dalej uzupełnia agent po implementacji.
