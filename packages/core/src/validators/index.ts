@@ -13,3 +13,5 @@ export * from './sales/sales-period.schema';
 export * from './team/team-change.schema';
 export * from './publishing/publish.schema';
 export * from './catalog/profile.schema';
+export * from './picks/pick.schema';
+export * from './picks/simulation.schema';

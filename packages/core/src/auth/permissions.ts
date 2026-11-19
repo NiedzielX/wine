@@ -12,9 +12,11 @@ export type Permission =
   // E12 owns this table; other epics append their entries after these (spec 2026-11-04-staff-accounts-and-roles, R1)
   | 'team.manage' | 'audit.view' | 'staff.lookup'
   // E13 (spec 2026-11-04-panel-completion, R8): editing taste profiles of dishes and wines
-  | 'profiles.edit';
+  | 'profiles.edit'
+  // restaurant picks (spec 2026-11-18-restaurant-picks, R4): the owner and the general manager change the set; the Wine Director only sees it (`panel.view`)
+  | 'picks.edit';
 
-const BUSINESS: Permission[] = ['panel.view', 'wines.toggle', 'publish', 'settings.change', 'import.manage', 'restaurant.edit', 'team.manage', 'audit.view', 'staff.lookup', 'profiles.edit'];
+const BUSINESS: Permission[] = ['panel.view', 'wines.toggle', 'publish', 'settings.change', 'import.manage', 'restaurant.edit', 'team.manage', 'audit.view', 'staff.lookup', 'profiles.edit', 'picks.edit'];
 
 const MATRIX: Record<Role, readonly Permission[]> = {
   owner: BUSINESS,
