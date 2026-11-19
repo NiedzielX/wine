@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildDemoDataset } from '../src/demo/dataset';
+import { RANKING_LAYER_VERSION } from '../src/ranking/restaurant-picks';
 import { resolveView } from '../src/services/publishing/published-view';
-import { buildSnapshot, readSnapshot, SNAPSHOT_SCHEMA, type PublishedSnapshot } from '../src/services/publishing/snapshot';
+import { buildSnapshot, countPickChanges, readSnapshot, SNAPSHOT_SCHEMA, type PublishedSnapshot } from '../src/services/publishing/snapshot';
 
 /**
  * Spec 2026-11-18-restaurant-picks, PR0 (R5, B1): the reader accepts every schema from 2 up, so raising the stored
@@ -14,13 +15,17 @@ const base = buildSnapshot({ restaurant: ds.restaurant, dishes: ds.dishes, wines
 const info = { id: 'v', number: 1, changesCount: 0, publishedBy: 'x', publishedAt: '2026-11-16T00:00:00.000Z' };
 const winesA = ds.wines.filter((w) => w.active).slice(0, 2).map((w) => w.id).sort();
 
-const withSchema = (schema: number, extra: Partial<PublishedSnapshot> = {}): PublishedSnapshot => ({ ...base, schema, ...extra });
+// a hand-built version: `picks` only when asked for (a schema 2 version never had it)
+const withSchema = (schema: number, extra: Partial<PublishedSnapshot> = {}): PublishedSnapshot => {
+  const { picks: _picks, ...rest } = base;
+  return { ...rest, schema, ...extra };
+};
 
 describe('readSnapshot: schema 2 and up (B1)', () => {
-  it('the writer still stores schema 2 in this step', () => {
-    expect(SNAPSHOT_SCHEMA).toBe(2);
-    expect(base.schema).toBe(2);
-    expect(base.picks).toBeUndefined();
+  it('the writer stores schema 3 with an empty set of picks when none is given', () => {
+    expect(SNAPSHOT_SCHEMA).toBe(3);
+    expect(base.schema).toBe(3);
+    expect(base.picks).toEqual({ wineIds: [], rankingVersion: RANKING_LAYER_VERSION });
   });
 
   it('a hand-built schema 2 snapshot reads as before: profiles and menu from the version, no picks', () => {
@@ -81,5 +86,61 @@ describe('readSnapshot: schema 2 and up (B1)', () => {
     });
     expect(later.dishes.map((d) => [d.id, d.profile])).toEqual(view.dishes.map((d) => [d.id, d.profile]));
     expect(later.wines.map((w) => [w.id, w.profile])).toEqual(view.wines.map((w) => [w.id, w.profile]));
+  });
+});
+
+describe('buildSnapshot and the view: picks (R5, R6, R7)', () => {
+  const inactive = ds.wines.find((w) => !w.active)!;
+  const [w1, w2, w3] = ds.wines.filter((w) => w.active).map((w) => w.id).sort();
+  const build = (picks?: string[], wines = ds.wines) => buildSnapshot({ restaurant: ds.restaurant, dishes: ds.dishes, wines, pairings: ds.pairings, picks });
+  const view = (snapshot: PublishedSnapshot, wines = ds.wines) => resolveView({ restaurant: ds.restaurant, dishes: ds.dishes, wines, currentPairings: [], version: { info, snapshot } });
+
+  it('writes the sorted ids of the active wines, once each, and the version of the ranking layer', () => {
+    const snap = build([w3, w1, w1, inactive.id, 'not-a-wine-of-this-restaurant']);
+    expect(snap.picks).toEqual({ wineIds: [w1, w3].sort(), rankingVersion: RANKING_LAYER_VERSION });
+    expect(readSnapshot(snap).picks).toEqual(new Set([w1, w3]));
+  });
+
+  it('round-trips through JSON and a snapshot of schema 3 keeps its schema 2 parts readable (B1)', () => {
+    const stored = JSON.parse(JSON.stringify(build([w2]))) as PublishedSnapshot;
+    const read = readSnapshot(stored);
+    expect(read.schema).toBe(3);
+    expect(read.picks).toEqual(new Set([w2]));
+    // an older reader (schema 2) ignores `picks` and still finds profiles, menu and pairings where it did
+    expect(stored.profiles!.dishes.length).toBe(ds.dishes.length);
+    expect(stored.menu!.dishIds.length).toBe(ds.dishes.length);
+    expect(stored.pairings.length).toBeGreaterThan(0);
+  });
+
+  it('the view holds the picks of the version, narrowed to the wines that are active now', () => {
+    const snap = build([w1, w2]);
+    expect(view(snap).picks).toEqual(new Set([w1, w2]));
+    const switchedOff = ds.wines.map((w) => (w.id === w2 ? { ...w, active: false } : w));
+    expect(view(snap, switchedOff).picks).toEqual(new Set([w1]));
+  });
+
+  it('the view has no picks for a version before schema 3, for schema 2 and for a restaurant never published', () => {
+    expect(view(withSchema(2)).picks.size).toBe(0);
+    expect(view({ pairings: base.pairings, content: base.content }).picks.size).toBe(0);
+    const never = resolveView({ restaurant: ds.restaurant, dishes: ds.dishes, wines: ds.wines, currentPairings: [], version: null });
+    expect(never.picks.size).toBe(0);
+  });
+
+  it('countPickChanges is the symmetric difference of the working set and the published one, for active wines', () => {
+    const v = { info, snapshot: build([w1, w2]) };
+    expect(countPickChanges(ds.wines, [w1, w2], v)).toBe(0);
+    expect(countPickChanges(ds.wines, [w1, w3], v)).toBe(2);
+    expect(countPickChanges(ds.wines, [], v)).toBe(2);
+    expect(countPickChanges(ds.wines, [w1, w2, w3], v)).toBe(1);
+    // a wine switched off is a live change: it is neither working nor published, whatever the set says
+    const off = ds.wines.map((w) => (w.id === w2 ? { ...w, active: false } : w));
+    expect(countPickChanges(off, [w1, w2], v)).toBe(0);
+  });
+
+  it('countPickChanges: an empty working set is 0 before schema 3 and when never published; a marked one counts', () => {
+    expect(countPickChanges(ds.wines, [], null)).toBe(0);
+    expect(countPickChanges(ds.wines, [w1], null)).toBe(1);
+    expect(countPickChanges(ds.wines, [], { info, snapshot: withSchema(2) })).toBe(0);
+    expect(countPickChanges(ds.wines, [w1, w2], { info, snapshot: withSchema(2) })).toBe(2);
   });
 });

@@ -13,7 +13,8 @@ import { readSnapshot, type PublishedVersionRecord } from './snapshot';
  * - a version from before schema 2: pairings and translations from it, profiles and visibility from the current data;
  * - schema 2: a dish is visible when the version knows it (`menu.dishIds`), it still exists and its current status is
  *   `published`; a wine when it still exists and the version has its profile (a wine added after the publish is not
- *   shown); both carry the published profile and translations.
+ *   shown); both carry the published profile and translations;
+ * - schema 3 adds the picks of the restaurant (`picks`); older versions have none.
  */
 export interface PublishedView {
   /** the restaurant with the published translations (base fields as stored) */
@@ -36,6 +37,12 @@ export interface PublishedView {
    */
   allDishes: Dish[];
   allWines: Wine[];
+  /**
+   * The wines the restaurant marked as its picks in the version guests see (spec 2026-11-18-restaurant-picks, R6),
+   * narrowed to `wines` (visible and active). Empty for a restaurant never published and for a version before schema 3.
+   * Nothing reads it yet: the guest paths use it from the next step of the picks work.
+   */
+  picks: ReadonlySet<string>;
 }
 
 export interface ResolveViewInput {
@@ -75,16 +82,20 @@ export function resolveView(input: ResolveViewInput): PublishedView {
   const dishById = new Map(visibleDishes.map((d) => [d.id, d]));
   const wineById = new Map(knownWines.map((w) => [w.id, w]));
 
+  const activeWines = knownWines.filter((w) => w.active);
+  const activeIds = new Set(activeWines.map((w) => w.id));
+
   return {
     restaurant: content.restaurant(restaurant),
     version: version?.info ?? null,
     dishes: visibleDishes,
-    wines: knownWines.filter((w) => w.active),
+    wines: activeWines,
     pairings: snap ? snap.pairings : input.currentPairings.filter(decided),
     dish: (id) => dishById.get(id) ?? null,
     wine: (id) => wineById.get(id) ?? null,
     allDishes,
-    allWines
+    allWines,
+    picks: new Set([...(snap?.picks ?? [])].filter((id) => activeIds.has(id)))
   };
 }
 
