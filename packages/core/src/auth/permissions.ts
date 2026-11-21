@@ -14,9 +14,11 @@ export type Permission =
   // E13 (spec 2026-11-04-panel-completion, R8): editing taste profiles of dishes and wines
   | 'profiles.edit'
   // catalog field editing (spec 2026-11-16-catalog-field-editing, R9): name, description, category, price of dishes; producer, prices, listing of wines
-  | 'catalog.edit';
+  | 'catalog.edit'
+  // restaurant picks (spec 2026-11-18-restaurant-picks, R4): the owner and the general manager change the set; the Wine Director only sees it (`panel.view`)
+  | 'picks.edit';
 
-const BUSINESS: Permission[] = ['panel.view', 'wines.toggle', 'publish', 'settings.change', 'import.manage', 'restaurant.edit', 'team.manage', 'audit.view', 'staff.lookup', 'profiles.edit', 'catalog.edit'];
+const BUSINESS: Permission[] = ['panel.view', 'wines.toggle', 'publish', 'settings.change', 'import.manage', 'restaurant.edit', 'team.manage', 'audit.view', 'staff.lookup', 'profiles.edit', 'catalog.edit', 'picks.edit'];
 
 const MATRIX: Record<Role, readonly Permission[]> = {
   owner: BUSINESS,

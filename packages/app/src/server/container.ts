@@ -3,7 +3,7 @@ import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
   AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, DEFAULT_RATE_LIMIT_MAX_CLIENTS, DEFAULT_RATE_LIMIT_RULES, ImportService, MemoryAuthRepository, MemorySystemHealth, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
-  InvitationService, LogThrottle, MemoryRateLimiter, RateLimitGuard, SommelierService, TeamService, TranslationService, ProfileService, ProfilePreviewService, CatalogEditService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
+  InvitationService, LogThrottle, MemoryRateLimiter, RateLimitGuard, SommelierService, TeamService, TranslationService, ProfileService, ProfilePreviewService, CatalogEditService, PicksService, PicksSimulationService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
   type PasswordHasher, type RateLimiter, type RateLimitRules, type Repositories, type SessionTokens, type SystemHealth
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
@@ -41,6 +41,8 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   profileService: ProfileService;
   profilePreviewService: ProfilePreviewService;
   catalogEditService: CatalogEditService;
+  picksService: PicksService;
+  picksSimulationService: PicksSimulationService;
   usageEventService: UsageEventService;
   recommendationCodeService: RecommendationCodeService;
   salesKpiService: SalesKpiService;
@@ -86,6 +88,8 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     profileService: asClass(ProfileService).scoped(),
     profilePreviewService: asClass(ProfilePreviewService).scoped(),
     catalogEditService: asClass(CatalogEditService).scoped(),
+    picksService: asClass(PicksService).scoped(),
+    picksSimulationService: asClass(PicksSimulationService).scoped(),
     usageEventService: asClass(UsageEventService).scoped(),
     recommendationCodeService: asClass(RecommendationCodeService).scoped(),
     salesKpiService: asClass(SalesKpiService).scoped(),
