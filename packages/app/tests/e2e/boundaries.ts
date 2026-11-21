@@ -48,7 +48,7 @@ export async function payload(s: Session, path: string): Promise<string> {
  * last-seen column, so reads do not change it; `guest_interaction` (usage events) changes on guest page views by design (tests
  * override it per case). Tables left out entirely: `NOT_DIGESTED` below.
  */
-export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'session', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal', 'guest_interaction', 'profile_edit', 'catalog_edit'];
+export const TABLES = ['restaurant', 'dish', 'wine', 'pairing', 'sommelier_decision', 'membership', 'app_user', 'session', 'auth_token', 'auth_event', 'published_version', 'import_job', 'recommendation_code', 'sales_record', 'opportunity_dismissal', 'guest_interaction', 'profile_edit', 'catalog_edit', 'restaurant_pick', 'pick_edit'];
 /**
  * The ONLY tables deliberately left out of the digest, each with its reason. Nothing else may be left out: `assertTablesCovered()`
  * accepts a table outside TABLES only when it is named here.
