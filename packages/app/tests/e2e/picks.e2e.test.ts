@@ -68,6 +68,9 @@ describe('the picks API (R16)', () => {
   });
 
   it('the simulation shows what a publish would change and is no more than that: after the publish the lists are the same and nothing was written', async () => {
+    // the simulation promises equality with the guest only when the picks are the one unpublished change: other test files share this
+    // database and may leave a decision unpublished, so start from a published baseline
+    expect((await send(marta, 'POST', `/api/v1/restaurants/${HALKA}/publish`, {})).status).toBe(201);
     for (const w of wines.slice(0, 5)) expect((await put(tomasz, w.id, { on: true })).status).toBe(200);
     const tables = async () => queryDatabase<{ t: string; d: string }>(db(), `select 'picks' as t, coalesce(md5(string_agg(x::text, '|' order by x::text)), 'empty') as d from restaurant_pick x union all select 'edits', coalesce(md5(string_agg(x::text, '|' order by x::text)), 'empty') from pick_edit x union all select 'versions', coalesce(md5(string_agg(x::text, '|' order by x::text)), 'empty') from published_version x`, []);
     const before = await tables();
