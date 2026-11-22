@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from '../src/errors';
 import {
-  assertDishUnique, checkFieldsVersion, dishFieldsVersion, nameKey, planDishEdit, planWineEdit, pruneUnchanged, staleTranslationLocales, wineFieldsVersion, wineKey
+  assertDishUnique, checkFieldsVersion, dishFieldsVersion, dishVisibilityVersion, nameKey, planDishEdit, planDishVisibility, planWineEdit, pruneUnchanged, staleTranslationLocales, wineFieldsVersion, wineKey
 } from '../src/services/catalog/catalog-edit-rules';
 import type { DishFields, WineFields } from '../src/ports/repositories';
 import { catalogText, cleanCatalogText } from '../src/validators/catalog/catalog-text';
@@ -203,5 +203,27 @@ describe('staleTranslationLocales (R11, N2)', () => {
     expect(staleTranslationLocales('dish', ['name'], undefined)).toEqual([]);
     expect(staleTranslationLocales('wine', ['name', 'bottlePrice'], { en: { tastingNote: 'x' } })).toEqual([]);
     expect(staleTranslationLocales('wine', ['region'], { en: { region: 'Mosel' } })).toEqual(['en']);
+  });
+});
+
+describe('planDishVisibility (R7, AC14)', () => {
+  it('allows published to hidden and hidden to published only', () => {
+    expect(planDishVisibility('published', true)).toEqual({ from: 'published', to: 'hidden' });
+    expect(planDishVisibility('hidden', false)).toEqual({ from: 'hidden', to: 'published' });
+  });
+
+  it('refuses a draft in both directions and a dish already in the wanted state', () => {
+    for (const [status, hidden] of [['draft', true], ['draft', false], ['hidden', true], ['published', false]] as const) {
+      expect(fieldsOf(() => planDishVisibility(status, hidden))).toEqual({ status: 'transition' });
+    }
+  });
+
+  it('has a fingerprint of the fields and the status, apart from the one of the details form', () => {
+    const published = { ...dish, status: 'published' as const };
+    const hidden = { ...published, status: 'hidden' as const };
+    expect(dishVisibilityVersion(published)).not.toBe(dishVisibilityVersion(hidden));
+    expect(dishVisibilityVersion(published)).not.toBe(dishVisibilityVersion({ ...published, price: 97 }));
+    expect(dishVisibilityVersion(published)).toBe(dishVisibilityVersion({ ...published }));
+    expect(dishFieldsVersion(dish)).toBe(dishFieldsVersion({ ...dish }));
   });
 });
