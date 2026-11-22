@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeProofReport, minimumDetectableChange, newcombeDifference, PROOF_MIN_FOOD_CHECKS, PROOF_MIN_TRADING_DAYS, proofWindows, wilsonInterval,
-  type MarkedCheckTotals, type ProofReportInput
+  type ProofReportInput
 } from '../src/services/proof/proof-report';
+import type { MarkedCheckTotals } from '../src/ports/sales';
 import { MIN_RATE_SAMPLE } from '../src/services/analytics/compare-metric';
 import { shiftServiceDay } from '../src/recommendation-code/service-day';
 

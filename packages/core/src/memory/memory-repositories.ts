@@ -15,7 +15,7 @@ import { buildSnapshot, readSnapshot, type PublishedVersionRecord } from '../ser
 import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
 import type { CatalogImportPlan, ImportPlan, ImportRepository, SalesImportPlan } from '../ports/import';
-import type { SalesRepository } from '../ports/sales';
+import type { MarkedCheckTotals, SalesRepository } from '../ports/sales';
 import { aggregateChecks } from '../services/sales/sales-kpis';
 import type { CheckKey, SalesPeriod, SalesRecord } from '../services/sales/types';
 import type {
@@ -804,6 +804,13 @@ export class MemorySalesRepository implements SalesRepository {
     // byte order, as PostgreSQL's `collate "C"`
     const cmp = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
     return aggregateChecks(lines).sort((a, b) => cmp(a.businessDate, b.businessDate) || cmp(a.checkId, b.checkId));
+  }
+
+  async checkTotalsMarked(restaurantId: string, period: SalesPeriod): Promise<MarkedCheckTotals[]> {
+    const coded = new Set(this.active(restaurantId)
+      .filter((l) => l.recommendationCode && l.quantity > 0 && l.businessDate >= period.from && l.businessDate <= period.to)
+      .map((l) => `${l.businessDate}|${l.checkId}`));
+    return (await this.checkTotals(restaurantId, period)).map((c) => ({ ...c, hasCode: coded.has(`${c.businessDate}|${c.checkId}`) }));
   }
 
   async dataRange(restaurantId: string): Promise<SalesPeriod | null> {
