@@ -3337,6 +3337,211 @@
       "comment": null
     },
     {
+      "name": "proof_launch_day",
+      "schema": "public",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "launch_day": {
+          "name": "launch_day",
+          "type": "date",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "date"
+        },
+        "reason": {
+          "name": "reason",
+          "type": "varchar(200)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 200,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
+        "restaurant_id": {
+          "name": "restaurant_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "seq": {
+          "name": "seq",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "set_at": {
+          "name": "set_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "set_by_membership_id": {
+          "name": "set_by_membership_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "set_by_role": {
+          "name": "set_by_role",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 255,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "proof_launch_day_pkey",
+          "primary": true,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "restaurant_id",
+            "seq"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "proof_launch_day_restaurant_id_seq_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "restaurant_id",
+            "set_at"
+          ],
+          "composite": true,
+          "constraint": false,
+          "keyName": "proof_launch_day_restaurant_id_set_at_index",
+          "primary": false,
+          "unique": false
+        }
+      ],
+      "checks": [
+        {
+          "name": "proof_launch_day_reason_check",
+          "expression": "(seq = 1) OR ((reason IS NOT NULL) AND (char_length(reason) > 0))",
+          "definition": "CHECK (((seq = 1) OR ((reason IS NOT NULL) AND (char_length((reason)::text) > 0))))",
+          "columnName": "reason"
+        },
+        {
+          "name": "proof_launch_day_seq_check",
+          "expression": "seq >= 1",
+          "definition": "CHECK ((seq >= 1))",
+          "columnName": "seq"
+        }
+      ],
+      "triggers": [],
+      "foreignKeys": {
+        "proof_launch_day_restaurant_id_foreign": {
+          "columnNames": [
+            "restaurant_id"
+          ],
+          "constraintName": "proof_launch_day_restaurant_id_foreign",
+          "localTableName": "public.proof_launch_day",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.restaurant"
+        }
+      },
+      "comment": null
+    },
+    {
       "name": "published_version",
       "schema": "public",
       "columns": {

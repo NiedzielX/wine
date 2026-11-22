@@ -400,4 +400,32 @@ describe('concurrency on PostgreSQL', () => {
       expect(working.map((r) => r.wine_id).sort(), `round ${round}`).toEqual([ids[0], ids[1]].sort());
     }
   });
+
+  /* ---------- the launch day log of the results report (spec 2026-11-18-owner-proof-report, R5, AC19) ---------- */
+  const launchInput = (launchDay: string, expectedCurrent: string | null, reason: string | null) =>
+    ({ id: randomUUID(), launchDay, reason, setByRole: 'owner', setByMembershipId: null, at: new Date().toISOString(), expectedCurrent });
+  const launchRows = () => sql<{ seq: number; reason: string | null }>('select seq, reason from proof_launch_day where restaurant_id = ? order by seq', [rid()]);
+
+  it('two parallel first launch days: one becomes entry 1, the other a version conflict; no second row, so none without a reason', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(...[0, 1, 2, 3].map((i) => () => pgRepos(orm).proofLaunchRepository.append(rid(), launchInput(`2033-01-1${i}`, null, null))));
+      expect(fulfilled(results), `round ${round}: one winner`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ name: 'VersionConflictError' });
+      expect((await launchRows()).map((r) => r.seq), `round ${round}: one row`).toEqual([1]);
+    }
+  });
+
+  it('two parallel changes of the launch day from the same screen: one wins as entry 2 with its reason, the other a version conflict', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const first = await pgRepos(orm).proofLaunchRepository.append(rid(), launchInput('2033-01-10', null, null));
+      const results = await race(...[0, 1, 2].map((i) => () => pgRepos(orm).proofLaunchRepository.append(rid(), launchInput(`2033-01-2${i}`, first.id, `reason ${i}`))));
+      expect(fulfilled(results), `round ${round}: one winner`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ name: 'VersionConflictError' });
+      const rows = await launchRows();
+      expect(rows.map((r) => r.seq), `round ${round}`).toEqual([1, 2]);
+      expect(rows.filter((r) => r.seq > 1).every((r) => r.reason), `round ${round}: every later row has a reason`).toBe(true);
+    }
+  });
 });

@@ -33,6 +33,7 @@ import {
   PgContentWriteRepository, PgProfileWriteRepository, PgCatalogWriteRepository, PgCatalogEditRepository, PgPicksRepository, PgDishRepository, PgGuestInteractionRepository, PgRecommendationCodeRepository, PgOpportunityDismissalRepository, PgPairingRepository, PgPairingWriteRepository, PgPublishRepository, PgRestaurantRepository,
   PgRestaurantWriteRepository, PgSalesRepository, PgWineRepository, PgWineWriteRepository
 } from '../src/repositories';
+import { PgProofLaunchRepository } from '../src/repositories/proof-launch';
 import { DemoSeeder } from '../src/seeders/DemoSeeder';
 
 const baseUrl = inject('databaseUrl');
@@ -96,6 +97,7 @@ function pgRepos(orm: MikroORM): Repositories {
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),
     recommendationCodeRepository: new PgRecommendationCodeRepository({ em }),
     salesRepository: new PgSalesRepository({ em }),
+    proofLaunchRepository: new PgProofLaunchRepository({ em }),
     teamRepository: new PgTeamRepository({ em }),
     authAuditRepository: new PgAuthAuditRepository({ em }),
     invitationRepository: new PgInvitationRepository({ em })
