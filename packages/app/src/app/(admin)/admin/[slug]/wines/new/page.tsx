@@ -1,5 +1,5 @@
 import { WINE_STYLES, styleLabel } from '@wine-match/core';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@wine-match/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@wine-match/ui';
 import type { Metadata } from 'next';
 import { forbidden } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
@@ -31,7 +31,7 @@ export default async function NewWinePage({ params, searchParams }: Props) {
       <PageHeader back={{ href: path, label: t.admin.wine.back }} title={cm.create.wineTitle} description={cm.create.wineText} />
       <Flash saved={first(sp.saved)} error={first(sp.error)} />
       <Card>
-        <CardHeader><CardTitle>{cm.wine.title}</CardTitle><CardDescription>{cm.wine.text}</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{cm.wine.title}</CardTitle></CardHeader>
         <CardContent>
           <CreateWineForm
             action={createWine} slug={slug} back={`${path}/new`} styles={WINE_STYLES.map((s) => [s, styleLabel(s, locale)])}
