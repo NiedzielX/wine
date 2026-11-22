@@ -209,3 +209,5 @@ Przegląd w świeżym kontekście; twierdzenia o kodzie sprawdzone w `engine/rec
 
 ## Realizacja
 Logi: `.ai/runs/*-picks-pr*.md`.
+
+- PR2 (kroki 7–8, 2026-11-22, `.ai/runs/2026-11-22-picks-pr2.md`): `RecommendationService` przez `rankForGuest` na `PublishedView.picks` (R11, AC1, AC7), pole `restaurantPick` w publicznej trasie (AC15), klucz `pick` w zdarzeniach (U7, AC14), etykieta na G3, G7, G9 i sekcja G12 (AC12, AC13, U3, U6). Testy: `core/tests/picks-guest.test.ts`, `app/tests/unit/picks-guest-pages.test.ts`, `app/tests/e2e/picks-guest.e2e.test.ts`; scenariusze `guest-018…021`, `usage-010`. Odstępstwa: limit słów G12 w `how-it-works.test.ts` 350 → 380 (zdanie U6 dodaje sekcję); `restaurantPick` w pozycji domenowej jest opcjonalne i tylko `true` (w API zawsze boolean); G12 ma sekcję także u restauracji bez wyborów (AC13). Zostaje: panel A27, A4/A5/A6/A11, nawigacja, smoke nowych stron (PR3); `RANKING_LAYER_VERSION` jeszcze nie zapisywany w zdarzeniach (W7).
