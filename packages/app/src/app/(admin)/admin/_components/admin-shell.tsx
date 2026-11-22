@@ -34,7 +34,7 @@ export function AdminShell({ restaurant, reviewCount, publishCount, user, locale
           <LanguageSwitch locale={locale} back={back} label={t.admin.language.label} titles={languageTitles(t)} className="lg:hidden" />
         </div>
         {demoStart && <a data-demo-start-narrow href={`/start?lang=${locale}`} className="px-1 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground lg:hidden">{t.admin.common.demoStart}</a>}
-        <AdminNav slug={restaurant.slug} reviewCount={reviewCount} publishCount={publishCount} labels={{ label: nav.label, dashboard: nav.dashboard, menu: nav.menu, wines: nav.wines, pairings: nav.pairings, review: nav.review, opportunities: nav.opportunities, publish: nav.publish, restaurant: nav.restaurant, importMenu: nav.importMenu, importWines: nav.importWines, importSales: nav.importSales, setup: nav.setup, qr: nav.qr, team: nav.team }} canManageTeam={canManageTeam} />
+        <AdminNav slug={restaurant.slug} reviewCount={reviewCount} publishCount={publishCount} labels={{ label: nav.label, dashboard: nav.dashboard, menu: nav.menu, wines: nav.wines, pairings: nav.pairings, review: nav.review, opportunities: nav.opportunities, picks: nav.picks, publish: nav.publish, restaurant: nav.restaurant, importMenu: nav.importMenu, importWines: nav.importWines, importSales: nav.importSales, setup: nav.setup, qr: nav.qr, team: nav.team }} canManageTeam={canManageTeam} />
         <div className="hidden px-3 text-sm lg:mt-auto lg:block">
           <Link href={`/r/${restaurant.slug}`} className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{t.admin.common.openGuestApp}</Link>
         </div>
