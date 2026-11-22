@@ -3,6 +3,7 @@ import type { DemoDataset } from '../demo/dataset';
 import type { ImportJob } from '../import/types';
 import type { Repositories } from '../ports/repositories';
 import type { SalesImportPlan } from '../ports/import';
+import { computeSalesKpis } from '../services/sales/sales-kpis';
 import { SalesKpiService } from '../services/sales/sales-kpi-service';
 import type { CheckKey, SalesItemType, SalesRecord } from '../services/sales/types';
 
@@ -16,8 +17,8 @@ export function salesContract(t: Omit<OnceRunner, 'beforeAll' | 'afterAll'>, get
   const OTHER = '00000000-0000-4000-8000-000000000000';
   let n = 0;
   const uuid = (prefix: string) => `${prefix}-0000-4000-8000-${String(++n).padStart(12, '0')}`;
-  const line = (businessDate: string, checkId: string, itemType: SalesItemType, quantity: number, netAmount: number, covers: number | null = null): SalesRecord =>
-    ({ id: uuid('5a1e5000'), businessDate, checkId, covers, itemType, quantity, netAmount, recommendationCode: null });
+  const line = (businessDate: string, checkId: string, itemType: SalesItemType, quantity: number, netAmount: number, covers: number | null = null, recommendationCode: string | null = null): SalesRecord =>
+    ({ id: uuid('5a1e5000'), businessDate, checkId, covers, itemType, quantity, netAmount, recommendationCode });
 
   /** An import job of the restaurant, confirmed with these lines. Returns how many checks it replaced. */
   async function importLines(records: SalesRecord[]): Promise<number> {
@@ -102,6 +103,36 @@ export function salesContract(t: Omit<OnceRunner, 'beforeAll' | 'afterAll'>, get
     });
     // a period with no lines: no source, no rate
     t.expect(await service.getSalesKpis(ds.restaurant.slug, { from: '2033-06-03', to: '2033-06-30' })).toMatchObject({ source: null, checks: 0, attachRate: null });
+  });
+
+  t.it('checkTotalsMarked: the same sums as checkTotals plus hasCode, for one restaurant; the rate equals A1 (spec 2026-11-18, AC3)', async () => {
+    const { repos, ds } = get();
+    const period = { from: '2033-07-01', to: '2033-07-03' };
+    await importLines([
+      line('2033-07-01', 'C1', 'food', 2, 100, 2), line('2033-07-01', 'C1', 'wine_bottle', 1, 180, null, 'W7K'),
+      line('2033-07-01', 'C2', 'food', 1, 50, 1), line('2033-07-01', 'C2', 'wine_glass', 1, 30),
+      // a code on a food line marks the check; a code without wine is still a mark
+      line('2033-07-02', 'C3', 'food', 1, 50, 1, 'K4P'),
+      // a returned line carries the code but does not mark: the sale it cancels is not a code in the till
+      line('2033-07-02', 'C4', 'food', 1, 50, 1), line('2033-07-02', 'C4', 'wine_bottle', 1, 160), line('2033-07-02', 'C4', 'wine_bottle', -1, -160, null, 'R2D'),
+      line('2033-07-03', 'BAR', 'wine_glass', 1, 30, null, 'B4R')
+    ]);
+    const marked = await repos.salesRepository.checkTotalsMarked(ds.restaurant.id, period);
+    t.expect(marked.map((c) => [c.businessDate, c.checkId, c.hasCode])).toEqual([
+      ['2033-07-01', 'C1', true], ['2033-07-01', 'C2', false], ['2033-07-02', 'C3', true], ['2033-07-02', 'C4', false], ['2033-07-03', 'BAR', true]
+    ]);
+    // the totals are exactly those of checkTotals
+    const plain = await repos.salesRepository.checkTotals(ds.restaurant.id, period);
+    t.expect(marked.map(({ hasCode: _hasCode, ...totals }) => totals)).toEqual(plain);
+    t.expect((await repos.salesRepository.checkTotalsMarked(ds.restaurant.id, { from: '2033-07-02', to: '2033-07-02' })).length).toBe(2);
+    // AC3: the report reads the rate with the same function as A1, so the counts and the rate are equal
+    const a1 = await new SalesKpiService(repos).getSalesKpis(ds.restaurant.slug, period);
+    const k = computeSalesKpis(period, marked);
+    t.expect([k.foodChecks, k.foodChecksWithWine, k.attachRate]).toEqual([a1.foodChecks, a1.foodChecksWithWine, a1.attachRate]);
+    t.expect([k.foodChecks, k.foodChecksWithWine]).toEqual([4, 2]);
+    // another restaurant (and an id that is no uuid) reads nothing
+    t.expect(await repos.salesRepository.checkTotalsMarked(OTHER, period)).toEqual([]);
+    t.expect(await repos.salesRepository.checkTotalsMarked('not-a-uuid', period)).toEqual([]);
   });
 
   t.it('the data range spans the first and the last business day with active lines', async () => {

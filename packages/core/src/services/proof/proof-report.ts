@@ -2,6 +2,7 @@ import type { CodeSummary } from '../../domain/types';
 import { ValidationError } from '../../errors';
 import { serviceDay, shiftServiceDay } from '../../recommendation-code/service-day';
 import { MIN_RATE_SAMPLE } from '../analytics/compare-metric';
+import type { MarkedCheckTotals } from '../../ports/sales';
 import { computeSalesKpis, type CheckTotals } from '../sales/sales-kpis';
 import type { SalesPeriod } from '../sales/types';
 
@@ -47,11 +48,6 @@ export const PROOF_CAVEATS = ['not_causal', 'no_control_group', 'season_menu_pri
 export type ProofCaveat = (typeof PROOF_CAVEATS)[number];
 
 export type ProofVerdict = 'increase' | 'decrease' | 'inconclusive' | 'insufficient';
-
-/** A check of the report: `CheckTotals` plus whether one of its active lines carries a recommendation code (R6). */
-export interface MarkedCheckTotals extends CheckTotals {
-  hasCode: boolean;
-}
 
 /** A confidence interval of a proportion (0..1) or of a difference (percentage points, see the field). */
 export interface Interval { low: number; high: number }
