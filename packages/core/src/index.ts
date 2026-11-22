@@ -75,6 +75,8 @@ export * from './services/opportunities/opportunity-rules';
 export * from './services/opportunities/opportunity-service';
 export * from './services/publishing/publish-service';
 export * from './services/picks/picks-rules';
+export * from './services/picks/picks-service';
+export * from './services/picks/picks-simulation-service';
 export * from './services/publishing/snapshot';
 export * from './services/publishing/published-view';
 export * from './services/restaurants/restaurant-service';
