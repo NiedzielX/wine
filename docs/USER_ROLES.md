@@ -18,6 +18,7 @@
 | Publikacja | – | – | ✓ | ✓ | ✓ |
 | „Wybór restauracji”: podgląd zbioru i symulatora | – | – | ✓ | ✓ | ✓ |
 | „Wybór restauracji”: zmiana zbioru (`picks.edit`) | – | – | – | ✓ | ✓ |
+| „Raport wyników”: odczyt (`proof.view`) i ustawienie dnia uruchomienia (`proof.manage`) | – | – | – | ✓ | ✓ |
 | Ustawienia restauracji, QR, link | – | – | – | ✓ | ✓ |
 | Zarządzanie użytkownikami lokalu | – | – | – | ✓ | ✓ |
 | Tworzenie restauracji, plany, wsparcie | – | – | – | – | ✓ |
@@ -29,6 +30,8 @@
 **Edycja profili (E13 F2, 2026-11-17):** uprawnienie `profiles.edit` mają Owner, General Manager i Sommelier (Waiter nie loguje się do panelu). Profil zapisany jako szkic albo potwierdzony; każda zmiana trafia do dziennika `profile_edit` z autorem. Goście widzą zmianę po publikacji (`publish`).
 
 **Edycja pól dania i wina (E13 C1, 2026-11-17):** uprawnienie `catalog.edit` (nazwa, opis, kategoria i cena dania; producent, nazwa, rocznik, region, kraj, nota, numer na karcie, ceny i „Na kieliszki” wina) mają Owner, General Manager i Sommelier; Waiter nie loguje się do panelu. Zmiana nazwy dania albo producenta, nazwy lub rocznika wina, które mają pary sommeliera, wymaga potwierdzenia w formularzu i zostaje w „Do przeglądu” (decyzja właściciela 2026-11-17: ta sama zasada dla wszystkich z `catalog.edit`). Linia „Ostatnia zmiana” pokazuje nazwisko autora tylko rolom z `audit.view` (Owner, General Manager), pozostałym samą datę. Dostępność wina zostaje przy `wines.toggle`.
+
+**Raport wyników (spec `2026-11-18-owner-proof-report`, R10):** uprawnienia `proof.view` (odczyt raportu) i `proof.manage` (dopisanie dnia uruchomienia) mają tylko Owner i General Manager. Sommelier nie ma dostępu (ma interes w wyniku i nie ustawia bazy; decyzja właściciela 2026-11-18); zwróć uwagę, że Sommelier ma `import.manage` i może zastąpić rachunki, z których raport liczy bazę, dlatego raport pokazuje „Dane POS do dnia … i ostatni import”. Waiter nie loguje się do panelu. Serwis `ProofReportService` sprawdza rolę przy zapisie jeszcze raz; strona, akcja i trasa (kolejne kroki) sprawdzają same.
 
 **Wybór restauracji (spec `2026-11-18-restaurant-picks`, PR1b i PR3):** nowe uprawnienie `picks.edit` mają tylko Owner i General Manager; Sommelier widzi zbiór i symulator przez `panel.view`, ale nie zmienia zbioru (odmowa 403 na `PUT /wines/{id}/pick`, a na ekranie A27 kontrolki są wyłączone z komunikatem „View only”, a sfałszowany POST akcji `setRestaurantPick` dostaje `forbidden`), a Waiter nie loguje się do panelu. Każda zmiana zbioru trafia do dziennika `pick_edit` z autorem; goście widzą ją po publikacji, którą może wykonać także Sommelier. Nie ma ścieżki od dostawcy: wybór ustawia wyłącznie uwierzytelniony członek tej restauracji z `picks.edit`.
 
