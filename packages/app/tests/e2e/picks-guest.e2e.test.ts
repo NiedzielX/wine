@@ -28,6 +28,20 @@ const page = async (path: string, lang = 'en') => {
   const res = await fetch(`${base()}${path}`, { headers: { 'user-agent': SAFARI, 'accept-language': lang }, redirect: 'manual' });
   return { status: res.status, html: normalise(await res.text()) };
 };
+/**
+ * A dish whose list as the guest pages show it (the default limit of 4, the same list G3 and G9 render) has a labelled wine,
+ * and that wine. The comparison lists above ask for 6 items; a pick in places 5 and 6 is not on the page, so the page tests
+ * choose their dish and wine from what the page shows, never from the longer list.
+ */
+const shownHit = async (): Promise<{ dishId: string; pick: string; other: string | undefined }> => {
+  for (const d of dishes) {
+    const res = await fetch(`${base()}/api/v1/dishes/${d.id}/recommendations?restaurant=${HALKA}`);
+    const items = ((await res.json()) as Reco).items;
+    const pick = items.find((i) => i.restaurantPick);
+    if (pick) return { dishId: d.id, pick: pick.wine.id, other: items.find((i) => !i.restaurantPick)?.wine.id };
+  }
+  throw new Error('no dish shows a restaurant pick on its first four places');
+};
 const lists = async () => Promise.all(dishes.map(async (d) => ({ dish: d, ...(await apiList(d.id)) })));
 const version = async () => ((await (await get(tomasz, `/api/v1/restaurants/${HALKA}/picks`)).json()) as { version: string }).version;
 const mark = async (wineId: string, on: boolean) => send(tomasz, 'PUT', `/api/v1/wines/${wineId}/pick?restaurant=${HALKA}`, { on }, { 'if-match': `"${await version()}"` });
@@ -110,9 +124,9 @@ describe('picks reach guests only with a publish, and move nothing but the order
 
 describe('the label on the pages, without a script (AC12, AC13)', () => {
   it('G3, G7 and G9 show the restaurant\'s pick in English and Polish, never with the seal wording; G12 says what it is', async () => {
-    const lists1 = await lists();
-    const hit = lists1.find((l) => l.body.items.some((i) => i.restaurantPick))!;
-    const wine = hit.body.items.find((i) => i.restaurantPick)!.wine.id;
+    const shown = await shownHit();
+    const hit = { dish: { id: shown.dishId } };
+    const wine = shown.pick;
     const g3 = await page(`/r/${HALKA}/dish/${hit.dish.id}/wines?sid=${SID}`);
     expect(g3.status).toBe(200);
     expect(marks(g3.html)).toContain('Restaurant’s pick');
@@ -135,9 +149,10 @@ describe('the label on the pages, without a script (AC12, AC13)', () => {
 describe('the events carry the flag only for a labelled wine (AC14)', () => {
   it('recommendations_viewed items, wine_viewed and wine_selected have `pick: true` for the pick and nothing else has it', async () => {
     const sid = '1c2d3e4f-5a6b-4c7d-9e8f-01a2b3c4d5e6';
-    const hit = (await lists()).find((l) => l.body.items.some((i) => i.restaurantPick))!;
-    const pick = hit.body.items.find((i) => i.restaurantPick)!.wine.id;
-    const other = hit.body.items.find((i) => !i.restaurantPick)?.wine.id;
+    const shown = await shownHit();
+    const hit = { dish: { id: shown.dishId } };
+    const pick = shown.pick;
+    const other = shown.other;
     await page(`/r/${HALKA}/dish/${hit.dish.id}/wines?sid=${sid}`);
     await page(`/r/${HALKA}/wine/${pick}?dish=${hit.dish.id}&sid=${sid}`);
     await page(`/r/${HALKA}/selected/${pick}?dish=${hit.dish.id}&serving=bottle&sid=${sid}`);
@@ -151,7 +166,7 @@ describe('the events carry the flag only for a labelled wine (AC14)', () => {
     } while (Date.now() < until);
     const viewed = rows.find((r) => r.name === 'recommendations_viewed')!;
     expect(viewed.props.items!.find((i) => i.wineId === pick)?.pick).toBe(true);
-    for (const i of viewed.props.items!) if (i.wineId !== pick && !hit.body.items.find((x) => x.wine.id === i.wineId)?.restaurantPick) expect('pick' in i).toBe(false);
+    for (const i of viewed.props.items!) if (i.wineId === other) expect('pick' in i).toBe(false);
     const flagged = (name: string, wineId: string) => rows.filter((r) => r.name === name && r.wine_id === wineId);
     expect(flagged('wine_viewed', pick)[0].props.pick).toBe(true);
     expect(flagged('wine_selected', pick)[0].props.pick).toBe(true);
