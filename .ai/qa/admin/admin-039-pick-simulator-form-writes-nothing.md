@@ -1,5 +1,5 @@
 ---
-id: admin-032-pick-simulator-form-writes-nothing
+id: admin-039-pick-simulator-form-writes-nothing
 area: admin
 title: "Pick simulator form: before and after in the URL, open to the Wine Director, writes nothing"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "shows before and after for the tried wines, is open to the Wine Director, and writes nothing"
 ---
 
-# admin-032-pick-simulator-form-writes-nothing: Pick simulator form: before and after in the URL, open to the Wine Director, writes nothing
+# admin-039-pick-simulator-form-writes-nothing: Pick simulator form: before and after in the URL, open to the Wine Director, writes nothing
 
 ## Goal
 

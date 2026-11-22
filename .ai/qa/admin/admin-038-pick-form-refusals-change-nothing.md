@@ -1,5 +1,5 @@
 ---
-id: admin-031-pick-form-refusals-change-nothing
+id: admin-038-pick-form-refusals-change-nothing
 area: admin
 title: "Pick form refusals change nothing"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "the Wine Director’s forged post, a stale version, a sixth pick, an unknown wine and a hidden wine are refused and leave the tables as they were"
 ---
 
-# admin-031-pick-form-refusals-change-nothing: Pick form refusals change nothing
+# admin-038-pick-form-refusals-change-nothing: Pick form refusals change nothing
 
 ## Goal
 

@@ -1,5 +1,5 @@
 ---
-id: admin-029-pick-switch-without-javascript
+id: admin-036-pick-switch-without-javascript
 area: admin
 title: "Marking a pick works without JavaScript and waits for the publish"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "marks a wine: the redirect says so, the page shows it waiting for publish, A11 counts +1 / −0, the history row names who"
 ---
 
-# admin-029-pick-switch-without-javascript: Marking a pick works without JavaScript and waits for the publish
+# admin-036-pick-switch-without-javascript: Marking a pick works without JavaScript and waits for the publish
 
 ## Goal
 

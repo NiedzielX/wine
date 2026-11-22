@@ -1,5 +1,5 @@
 ---
-id: admin-028-picks-screen-for-the-two-roles
+id: admin-035-picks-screen-for-the-two-roles
 area: admin
 title: "Restaurant’s picks screen: the manager changes, the Wine Director only looks"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "the General Manager gets the screen with working switches and the navigation entry; the Wine Director gets it with every switch disabled and a notice; no session and another restaurant’s owner get no data"
 ---
 
-# admin-028-picks-screen-for-the-two-roles: Restaurant’s picks screen: the manager changes, the Wine Director only looks
+# admin-035-picks-screen-for-the-two-roles: Restaurant’s picks screen: the manager changes, the Wine Director only looks
 
 ## Goal
 

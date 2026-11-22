@@ -1,5 +1,5 @@
 ---
-id: admin-030-pick-marks-in-wine-list-wine-and-pairings
+id: admin-037-pick-marks-in-wine-list-wine-and-pairings
 area: admin
 title: "Pick marks in the wine list, wine details and pairings, live only after the publish"
 status: automated
@@ -11,7 +11,7 @@ test:
   it: "A4, A5 and A6 carry the mark; after the publish it is live, and an unmarked live pick waits for the next publish"
 ---
 
-# admin-030-pick-marks-in-wine-list-wine-and-pairings: Pick marks in the wine list, wine details and pairings, live only after the publish
+# admin-037-pick-marks-in-wine-list-wine-and-pairings: Pick marks in the wine list, wine details and pairings, live only after the publish
 
 ## Goal
 
