@@ -160,12 +160,18 @@ export function countProfileChanges(current: { dishes: Dish[]; wines: Wine[] }, 
  * off or on is a live change, not an unpublished one). A version before schema 3 and a restaurant never published have
  * an empty published set, so a working set of n picks is n changes and an empty one is 0.
  */
-export function countPickChanges(wines: Wine[], workingPickIds: Iterable<string>, version: PublishedVersionRecord | null): number {
+export function diffPicks(wines: Wine[], workingPickIds: Iterable<string>, version: PublishedVersionRecord | null): { added: number; removed: number } {
   const active = new Set(wines.filter((w) => w.active).map((w) => w.id));
   const working = new Set([...workingPickIds].filter((id) => active.has(id)));
   const published = new Set([...(version ? readSnapshot(version.snapshot).picks : [])].filter((id) => active.has(id)));
-  let n = 0;
-  for (const id of working) if (!published.has(id)) n++;
-  for (const id of published) if (!working.has(id)) n++;
-  return n;
+  let added = 0;
+  let removed = 0;
+  for (const id of working) if (!published.has(id)) added++;
+  for (const id of published) if (!working.has(id)) removed++;
+  return { added, removed };
+}
+
+export function countPickChanges(wines: Wine[], workingPickIds: Iterable<string>, version: PublishedVersionRecord | null): number {
+  const d = diffPicks(wines, workingPickIds, version);
+  return d.added + d.removed;
 }
