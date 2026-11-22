@@ -12,6 +12,7 @@ export { PgSystemHealth, HEALTH_TIMEOUT_MS } from './repositories/system-health'
 export { PgRateLimiter, CLEANUP_EVERY_MS, CLEANUP_RETRY_MS } from './repositories/rate-limiter';
 export { PgAuthRepository } from './repositories/auth';
 export { PgImportRepository } from './repositories/import';
+export { PgProofLaunchRepository } from './repositories/proof-launch';
 export { PgAuthAuditRepository, PgTeamRepository } from './repositories/team';
 export { PgInvitationRepository } from './repositories/invitations';
 export { SeedRefusedError, assertInviteCommandAllowed } from './seeders/seed-guard';

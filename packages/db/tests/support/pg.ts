@@ -10,6 +10,7 @@ import {
   PgRecommendationCodeRepository, PgRestaurantRepository, PgRestaurantWriteRepository, PgSalesRepository, PgWineRepository, PgWineWriteRepository
 } from '../../src/repositories';
 import { PgImportRepository } from '../../src/repositories/import';
+import { PgProofLaunchRepository } from '../../src/repositories/proof-launch';
 import { PgInvitationRepository } from '../../src/repositories/invitations';
 import { PgAuthAuditRepository, PgTeamRepository } from '../../src/repositories/team';
 import { DemoSeeder } from '../../src/seeders/DemoSeeder';
@@ -30,7 +31,7 @@ export async function freshDatabase(baseUrl: string, name: string): Promise<Mikr
 
 /** Empties every table and loads the demo data again. */
 export async function resetData(orm: MikroORM): Promise<void> {
-  await orm.em.getConnection().execute('truncate table auth_event, auth_token, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, profile_edit, restaurant_pick, pick_edit, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
+  await orm.em.getConnection().execute('truncate table auth_event, auth_token, sales_record, session, membership, app_user, opportunity_dismissal, recommendation_code, sommelier_decision, profile_edit, restaurant_pick, pick_edit, proof_launch_day, published_version, pairing, wine, dish, guest_interaction, import_job, restaurant restart identity cascade');
   await new DemoSeeder().run(orm.em.fork());
 }
 
@@ -70,6 +71,7 @@ export function pgRepos(orm: MikroORM): Repositories {
     guestInteractionRepository: new PgGuestInteractionRepository({ em }),
     recommendationCodeRepository: new PgRecommendationCodeRepository({ em }),
     salesRepository: new PgSalesRepository({ em }),
+    proofLaunchRepository: new PgProofLaunchRepository({ em }),
     teamRepository: new PgTeamRepository({ em }),
     authAuditRepository: new PgAuthAuditRepository({ em }),
     invitationRepository: new PgInvitationRepository({ em })
