@@ -224,6 +224,13 @@ export interface CatalogEditRecord {
 export interface CatalogWriteRepository {
   updateDish(restaurantId: string, dishId: string, next: DishFields, expectedVersion: string | undefined, edit: CatalogEditRecord): Promise<void>;
   updateWine(restaurantId: string, wineId: string, next: WineFields, expectedVersion: string | undefined, edit: CatalogEditRecord): Promise<void>;
+  /**
+   * `published → hidden` or `hidden → published` of one dish (R7), with the audit row and the engine suggestions the dish
+   * is missing (given only when it is shown again), in one transaction under the catalog lock. A dish that is not in
+   * `from` any more, or whose fingerprint differs from `expectedVersion` (`dishVisibilityVersion`), is VersionConflictError.
+   * Returns the number of suggestions added.
+   */
+  setDishStatus(restaurantId: string, dishId: string, change: { from: 'published' | 'hidden'; to: 'published' | 'hidden' }, expectedVersion: string | undefined, edit: CatalogEditRecord, suggestions: readonly Pairing[]): Promise<number>;
 }
 
 export interface CatalogEditRepository {
