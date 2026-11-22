@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@wine-match/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@wine-match/ui';
 import type { Metadata } from 'next';
 import { forbidden } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
@@ -33,7 +33,7 @@ export default async function NewDishPage({ params, searchParams }: Props) {
       <PageHeader back={{ href: path, label: t.admin.dish.back }} title={cm.create.dishTitle} description={cm.create.dishText} />
       <Flash saved={first(sp.saved)} error={first(sp.error)} />
       <Card>
-        <CardHeader><CardTitle>{cm.dish.title}</CardTitle><CardDescription>{cm.dish.text}</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{cm.dish.title}</CardTitle></CardHeader>
         <CardContent>
           <CreateDishForm
             action={createDish} slug={slug} back={`${path}/new`}
