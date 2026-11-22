@@ -18,6 +18,7 @@ Identyfikatory ekranów według [SCREEN_MAP.md](SCREEN_MAP.md). Endpointy wedłu
 - Eventy analityczne i import sprzedaży nadal Faza 6.
 - Stan loading (skeleton) mają ekrany list; strony szczegółów nie, żeby zwracały poprawne kody HTTP. Ekrany list wymagają JavaScriptu.
 - **Okazje (spec `2026-10-16-sommelier-opportunities`, E10 F2):** **A14 Opportunities** (`/admin/{slug}/opportunities`, poza `(lists)`, działa bez JS), karta „Opportunities for this dish” na **A6** i linia „Opportunities: n” na **A1**. Sygnały S1–S3 oraz S4 i S5 (tylko A14; F3, F4); „Add to suggestions”, „Ignore”, „Restore” to formularze z akcjami serwerowymi (`pairings.decide`). W UI „Okazja” / „Opportunity”, bez słowa „AI”.
+- **Wybór restauracji (spec `2026-11-18-restaurant-picks`, PR3):** **A27 Restaurant’s picks** (`/admin/{slug}/picks`, poza `(lists)`, działa bez JS: zwykłe formularze i akcja serwerowa `setRestaurantPick`, symulator jako formularz `GET`), pozycja „Restaurant’s picks / Wybory restauracji” w nawigacji, odznaka „Restaurant’s pick” z oznaczeniem „czeka na publikację” w **A4**, **A5**, **A6** oraz linia „Restaurant’s picks: +n / −n” w **A11**. Zbiór zmienia Owner i GM (`picks.edit`); Sommelier widzi ekran i symulator z wyłączonymi kontrolkami. Etykieta jest neutralna (bez pieczęci sommeliera), bez słowa „AI”.
 
 Wspólne zasady:
 - **Loading** w aplikacji gościa: skeleton w kształcie docelowej treści (bez spinnerów). W mockupie wymuszany parametrem `?demo=loading`.
@@ -377,7 +378,8 @@ Spec `2026-10-16-how-it-works-explanations` (faza 2, R9). Dłuższa, spokojna we
 | Cel | Przegląd karty win i szybka zmiana dostępności |
 | Użytkownik | Sommelier |
 | Funkcje | wyszukiwanie (producent, wino, region, szczep); filtr stylu; przełącznik Active w wierszu; wiersz → A5; „Import wine list” → A9 |
-| Komponenty UI | tabela: producent + wino, rocznik, region + kraj, szczep, styl, serwowanie (Glass and bottle / Bottle only), cena kieliszka, cena butelki, Active |
+| Wybór restauracji (PR3) | kolumna „Pick / Wybór”: odznaka „Restaurant’s pick” (przerywana ramka i „waiting for publish”, gdy zmiany goście jeszcze nie widzą; „Pick removed, waiting for publish”, gdy wybór zdjęto, a goście nadal go widzą) i przełącznik „Mark pick / Remove pick” (formularz bez JS, akcja `setRestaurantPick`, `picks.edit`: bez prawa przełącznika nie ma w wierszu; serwer odmawia i tak) |
+| Komponenty UI | tabela: producent + wino, rocznik, region + kraj, szczep, styl, serwowanie (Glass and bottle / Bottle only), cena kieliszka, cena butelki, Active, Pick |
 | Wyjaśnienie | „What does hiding a wine do?” / „Co znaczy ukrycie wina?” (`data-explain="wines"`) pod nagłówkiem strony, nad filtrami: ukryte wino od razu znika z rekomendacji (także z par sommeliera), bez publikacji; „Show” przywraca je od razu |
 | Dane wejściowe | wines |
 | Dane wyjściowe | `active` |
@@ -399,6 +401,7 @@ Spec `2026-10-16-how-it-works-explanations` (faza 2, R9). Dłuższa, spokojna we
 | Funkcje | producent, nazwa, ceny, „Poured by the glass”, „Available tonight”, nota; suwaki profilu; podgląd „Best dishes for this wine” na żywo; Save wine |
 | **Edit taste profile (A19, E13 F2)** | jak A3: osiem skal 0–5, „Alcohol (% abv)” (0–25 co 0,1), styl, „Character” (klasyczne / nieoczywiste); tabela „How the match changes” zawiera dania z karty, a zamiast listy najlepszych propozycji — dania, w których wino wchodzi do najlepszych propozycji lub z nich wypada. „Save as draft” ustawia źródło `grape_defaults` (istniejące `catalog` zostaje) |
 | **Listing / Pozycja na karcie (E13 C1)** | formularz: producent, wino, rocznik (rok albo NV), region, kraj, nota, numer na karcie (puste = poza drukowaną kartą), cena butelki, „Na kieliszki” (pole zawsze wysyła stan; odznaczone zapisuje brak ceny kieliszka) i cena kieliszka (zawsze widoczna, bez JavaScriptu). Reszta jak w A3: wartości i błędy przy polach, ostrzeżenie o parach i potwierdzenie przy zmianie producenta, nazwy lub rocznika, „Check after rename” przy daniach z parą, linia „Last edited”. Dostępność wina (przełącznik Active) bez zmian |
+| **Restaurant’s pick / Wybór restauracji (PR3)** | karta z odznaką i jednym zdaniem o stanie wina („marked”, „marked, waiting for publish”, „no longer marked, guests still see it until publish”, „not marked”), przełącznik (`picks.edit`) i link „All picks and the simulator” → A27 |
 | Komponenty UI | jak A3 |
 | Wyjaśnienie | jak A3 (`data-explain="score"`) w nagłówku karty „Best dishes” |
 | Dane wejściowe | Wine, WineProfile |
@@ -419,6 +422,7 @@ Spec `2026-10-16-how-it-works-explanations` (faza 2, R9). Dłuższa, spokojna we
 | Cel | Pełna kontrola sommeliera nad parami danego dania |
 | Użytkownik | Sommelier |
 | Funkcje | lista dań z licznikami; **Approved for guests**: rola (Primary / Alternative / Best value), góra / dół, notatka dla gości (pole bazowe w języku treści oraz pola „Note in Polski” / „Note in English” — `comment_pl`, `comment_en`, każde ≤ 140 znaków; wiersz pokazuje notatkę w języku panelu), Reject, Delete (dla par ręcznych); **Engine suggestions**: Approve / Reject / Approve all; **Add your own pairing**: wino (z wynikiem silnika), rola, notatka; **Rejected**: Restore; **What guests see now** |
+| Wybory restauracji (PR3) | odznaka „Restaurant’s pick” przy winie w „Approved for guests” i w propozycjach silnika oraz karta „Restaurant’s picks on this dish” **nad** „Approved for guests”, gdy istnieje wybór i danie jest widoczne dla gości: dla każdego wyboru jedno zdanie, co robi w tym daniu po publikacji („moves up”, „labelled here, order unchanged” albo „No effect” z powodem), liczone przez symulator (`PicksSimulationService.simulate` z `dishId`, ta sama ścieżka co gość). Zbiorem zarządza A27 |
 | Komponenty UI | układ 2-kolumnowy: lista dań (sticky) + panele; wiersz pary: pozycja (serif), wino, ceny, odznaki statusu i roli, wynik silnika, „Unpublished change”, notatka (italic) |
 | Wyjaśnienie | dwa, po jednym na kartę: „How do guests see your pairings?” / „Jak gość widzi Twoje pary?” (`data-explain="pairings"`) w nagłówku „Approved for guests” — kolejność u gościa, najwyżej `dishLimit` win, procent = ocena silnika, notatka zastępuje uzasadnienie, odrzucona para nie pojawia się przy daniu (przy „Whole table” tylko obniża wynik dania do `tableRejectedCap` w rankingu butelek), filtry gościa mogą ukryć parę podstawową, „Best value” (`bestValueWindow`); kompaktowe „i” (`data-explain="suggestions"`, nazwa `sr-only`) przy tytule „Engine suggestions” — jak gość widzi nieprzejrzane propozycje i co robi Approve / Reject |
 | Dane wejściowe | Dish, pairings, wines |
@@ -527,6 +531,7 @@ Spec `2026-10-15-pos-sales-import-attach-rate` (E03), fazy 1 i 2. Nawigacja: „
 | Cel | Świadomie opublikować zmiany dla gości |
 | Użytkownik | Sommelier, GM |
 | Funkcje | checklista „Before you publish” z przyciskami Fix / Review / Check (od E13 F2 także „N wine profiles are still drafts”); ustawienia gościa (Fill empty places with engine picks, Show match percentages); Preview guest app; Publish changes |
+| Wybory restauracji (PR3) | w pasku publikacji, pod liczbą zmian: „Restaurant’s picks: +n / −n” (dodane i zdjęte względem opublikowanego zbioru; `PublishPreview.pendingPicksAdded` / `pendingPicksRemoved`; wliczone w licznik niepublikowanych zmian) z linkiem „Open picks” → A27; linia znika po publikacji |
 | Komponenty UI | checklista z ikonami ok / uwaga; przełączniki; pasek publikacji z liczbą zmian |
 | Wyjaśnienie | „What do these settings change?” / „Co zmieniają te ustawienia?” (`data-explain="publish"`) w nagłówku karty „Guest settings”: „Fill empty places…” (od `minModelScore`%; wyłączone — przy winach do dania tylko pary sommeliera), butelka dla „Whole table” zawsze z całej aktywnej karty, „Show match percentages” (kieliszek bez liczby; na „Whole table” paski bez liczb — od E08 F3; ekran kelnera zawsze z procentem), działają od razu. Opis przełącznika „Fill empty places…” mówi, że stół nadal bierze całą kartę (Q4) |
 | Dane wejściowe | liczniki zmian, stan danych |
@@ -601,6 +606,28 @@ Spec `2026-11-04-staff-accounts-and-roles` (E12), faza 1. Identyfikatory ekranó
 | Układ | 390 i 1440 px bez poziomego przewijania (wiersze to karty, `min-w-0`, `break-words`) |
 | Zaproszenia (F2) | karta „Invite someone” (adres e-mail, rola dozwolona przez hierarchię; manager widzi tylko Wine Director) i lista „Pending invitations” (adres, rola, kto zaprosił, ważność, „Cancel invitation”; manager nie cofa zaproszeń właściciela ani managera). Formularz to `useActionState`: odpowiedź na POST (także bez JavaScriptu) zawiera link zaproszenia **raz** (pole tylko do odczytu); nie trafia do adresu, ciasteczka ani dziennika, a odświeżenie strony go nie pokazuje. Akcje `inviteMember`, `revokeInvitation`. Błędy: `already_member`, `team_hierarchy`, `validation_failed`, `forbidden`, `invitation_conflict` |
 | Później | odblokowanie PIN-u i kelner z PIN-em (F5), dziennik A18 (F6) |
+
+## A27 Restaurant’s picks — `/admin/{slug}/picks`
+
+Spec `2026-11-18-restaurant-picks` (R17), PR3. Stałe warstwy: [RECOMMENDATION_ENGINE.md](RECOMMENDATION_ENGINE.md) (sekcja „Warstwa wyborów restauracji”).
+
+| Pole | Opis |
+|---|---|
+| Cel | Restauracja oznacza do 5 własnych win jako „Wybór restauracji” i widzi, co to zmieni, zanim opublikuje |
+| Użytkownik | Owner, GM (zmiana, `picks.edit`); Sommelier (widzi zbiór i symulator, nie zmienia) |
+| Funkcje | „x of 5 wines are marked”; ostrzeżenie „Not visible to guests yet: n to add and m to remove. Publish to apply.” z linkiem do A11, gdy zbiór roboczy różni się od opublikowanego; ostrzeżenie, gdy „Fill empty places with engine picks” jest wyłączone (wybory są takimi propozycjami, więc gość ich nie zobaczy); jedno „i” „How picks work” (`data-explain="picks"`: wybór nie zmienia wyniku, para sommeliera zostaje na górze i nie dostaje pieczęci, próg `PICK_MIN_SCORE`, okno `PICK_WINDOW`, najwyżej `PICKS_PROMOTED_MAX` awansów, zmiana dociera do gości z publikacją); wyszukiwanie win (`?q=`); lista wszystkich win nieusuniętych (także ukrytych, które zajmują miejsce): wino, stan (odznaka wyboru, „waiting for publish”, „No longer a pick, guests still see it until you publish”, „Hidden from guests, still takes one of the places”), skutek po publikacji, przełącznik „Mark as pick” / „Remove pick”; symulator „Before and after” |
+| Symulator | formularz `GET` (`?picks=…&picks=…&dish=…&q=`): pole ukryte `picks` zawsze wysyłane (pusta wartość = zero wyborów, więc odznaczenie wszystkiego nie wraca do zbioru roboczego), pola wyboru win (do 5), lista dań. Bez parametrów próbuje zbiór roboczy. Wynik z `PicksSimulationService.simulate` (ta sama funkcja `rankForGuest` co gość, zmieniają się tylko wybory; inne niepublikowane zmiany poza symulacją, ekran to mówi): podsumowanie „n of m dishes change order. k picks have no effect.”, „What each pick does” (przesuwa wyżej w n daniach / etykieta bez zmiany kolejności / „No effect” z powodem słowami: `inactive`, `not_in_list`, `sommelier_pair`, `unreviewed_hidden`, `below_min_score`, `outside_window`, `over_cap`), karta każdego dania ze zmianą (listy „Before: guests now” i „After: once published”, wpis „up n / down n / enters the list / leaves the list”, para sommeliera i propozycja silnika bez etykiety wyboru). Restauracja nigdy nie publikowana: uwaga, że goście nie widzą wyborów |
+| Komponenty UI | `Card`, `Table`, `Alert`, `PanelExplain`, `NativeSelect`, `Badge` (neutralna, bez koloru sommeliera), `ActionButton`; `EmptyState`, `ErrorMessage` |
+| Dane wejściowe | `PicksService.list(slug)` (zbiór roboczy z `version`, `published`, `removed`), `PublishService.preview(slug)` (liczniki i ustawienia), `AdminService.wines`, `PicksSimulationService.simulate` |
+| Dane wyjściowe | akcja serwerowa `setRestaurantPick` (`[slug]/picks-actions.ts`: `wineId`, `on`, `expectedVersion`, `back`) → `PicksService.set`; wiersz `restaurant_pick` i wpis `pick_edit` w jednej transakcji; zmiana dociera do gości z publikacją |
+| Loading | brak (strona poza `(lists)`, bez `loading.tsx`, działa bez JavaScriptu) |
+| Empty | `EmptyState` „No wines found” („This restaurant has no wines yet…” + „Import your wine list”; po wyszukiwaniu „Try another search.”); „No picks to try.” w symulatorze |
+| Error | flash po kodzie: `version_conflict`, `too_many_picks`, `wine_inactive`, `not_found`, `forbidden`; błędne parametry symulatora (więcej niż 5 win, nieznane danie): `ErrorMessage` „Check the simulation: choose at most 5 wines and a dish from the list.”, bez wyniku |
+| Success | flash: „Marked as the restaurant’s pick. Guests see it after you publish.”, „Pick removed. Guests stop seeing it after you publish.”, „Nothing to change: the wine is already in that state.” |
+| Walidacje | serwis: do 5 wyborów (liczone także z nieaktywnymi), tylko wino aktywne, `expectedVersion` to odcisk listy z chwili narysowania formularza; id wina nie-UUID i obce to „nie znaleziono” |
+| Permissions | strona: `requireAccess` (`panel.view`); akcja: `authorizeAction(slug, 'picks.edit')` (kontrolki dla roli bez prawa są wyłączone, z komunikatem „View only”, a sfałszowany POST dostaje `forbidden`) |
+| API | `GET /restaurants/{slug}/picks`, `PUT /wines/{id}/pick?restaurant={slug}`, `GET /restaurants/{slug}/picks/simulation` ([API_SPECIFICATION.md](API_SPECIFICATION.md)) |
+| Układ | 390 i 1440 px bez poziomego przewijania (tabela w przewijanym kontenerze, lista win symulatora w przewijanym polu) |
 
 ## A17 Przyjęcie zaproszenia — `/admin/accept?token=`
 
