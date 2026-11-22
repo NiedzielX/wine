@@ -145,3 +145,57 @@ export async function setDishHidden(form: FormData) {
     }
   });
 }
+
+/**
+ * A32 "Add dish" / "Add wine" (R8, R11): the same form state as the edit forms (a mistake comes back with what was typed and a
+ * message at each field), a success goes to the new item's page (A3 / A5) with `?saved=catalog_created`. The new dish is a
+ * draft and the new wine is invisible to guests until a publish; the taste profile is a draft to check and confirm.
+ */
+const CREATE_DISH = ['name', 'description', 'category', 'price'] as const;
+const CREATE_WINE = [...WINE_TEXT, 'style', 'grape'] as const;
+
+/** The creation itself, run inside `perform` (which checked the session and `catalog.edit`): a refused value comes back as `invalid`, not thrown. */
+async function createAttempt(kind: Kind, { c, slug, actor, form: f }: Ctx, formErrors: Map<string, string>): Promise<Record<string, string>> {
+  try {
+    if (kind === 'dish') {
+      const done = await c.catalogEditService.createDish(slug, dishInput(f, formErrors), actor);
+      return { saved: 'catalog_created', to: `/admin/${slug}/menu/${done.id}` };
+    }
+    const done = await c.catalogEditService.createWine(slug, { ...wineInput(f, formErrors), style: str(f, 'style'), grape: str(f, 'grape') }, actor);
+    return { saved: 'catalog_created', to: `/admin/${slug}/wines/${done.id}` };
+  } catch (e) {
+    const d = domainError(e);
+    if (d?.code === 'validation_failed') return { invalid: JSON.stringify(d.fields ?? {}) };
+    throw e;
+  }
+}
+
+/** The answer to the post: the form's state for a mistake, a redirect to the new item for a success. */
+function concludeCreate(kind: Kind, form: FormData, result: Performed, formErrors: Map<string, string>): DetailsState {
+  const slug = str(form, 'slug');
+  const names = kind === 'dish' ? CREATE_DISH : CREATE_WINE;
+  const shown = values(form, names, kind === 'wine' ? { pouredByGlass: String(form.getAll('pouredByGlass').map(String).includes('true')) } : {});
+  if (result === 'signed-out') redirect(`/admin/login?next=${encodeURIComponent(safeBack(slug, str(form, 'back')))}`);
+  const { flash } = result;
+  if (flash.invalid !== undefined) {
+    return { status: 'error', fields: formFields(JSON.parse(flash.invalid) as Record<string, string>, formErrors, ['price', 'bottlePrice', 'glassPrice', 'vintage', 'listNumber']), values: shown };
+  }
+  if (flash.error) return { status: 'error', error: flash.error, fields: {}, values: shown };
+  revalidatePath(`/admin/${slug}`, 'layout');
+  const to = flash.to ?? '';
+  redirect(withFlash(to.startsWith(`/admin/${slug}/`) ? to : `/admin/${slug}`, { saved: flash.saved ?? '' }));
+}
+
+export async function createDish(previous: DetailsState | FormData, posted?: FormData): Promise<DetailsState> {
+  const form = formOf(previous, posted);
+  const formErrors = new Map<string, string>();
+  const result = await perform(form, 'catalog.edit', (ctx) => createAttempt('dish', ctx, formErrors));
+  return concludeCreate('dish', form, result, formErrors);
+}
+
+export async function createWine(previous: DetailsState | FormData, posted?: FormData): Promise<DetailsState> {
+  const form = formOf(previous, posted);
+  const formErrors = new Map<string, string>();
+  const result = await perform(form, 'catalog.edit', (ctx) => createAttempt('wine', ctx, formErrors));
+  return concludeCreate('wine', form, result, formErrors);
+}

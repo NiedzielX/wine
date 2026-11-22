@@ -609,6 +609,7 @@ export const pl = {
         profile_unchanged: () => 'Nic do zmiany: profil jest już taki.',
         catalog_saved: (languages: string) => `Zapisano. Goście widzą zmianę od razu. Tłumaczenia zostają jak w publikacji: sprawdź je.${languages ? ` Tłumaczenia (${languages.toUpperCase().split(',').join(', ')}) mogą być nieaktualne.` : ''}`,
         catalog_unchanged: () => 'Nic do zmiany: dane są już takie.',
+        catalog_created: () => 'Dodano. Profil smaku to szkic: sprawdź go i potwierdź.',
         dish_hidden: () => 'Danie jest ukryte przed gośćmi. Nie widzą go już.',
         dish_shown: (suggestions: number) => `Danie wróciło do menu. Goście już je widzą.${suggestions > 0 ? ` Dodano propozycje silnika do przeglądu: ${suggestions}.` : ''}`,
         translations: () => 'Tłumaczenia zapisane. Goście zobaczą je po publikacji.',
@@ -1291,6 +1292,14 @@ export const pl = {
         baseHint: 'To tekst bazowy. Tłumaczenia są niżej.'
       },
       save: 'Zapisz zmiany',
+      create: {
+        addDish: 'Dodaj danie', addWine: 'Dodaj wino',
+        dishTitle: 'Nowe danie', dishText: 'Nowe danie zaczyna jako szkic: goście zobaczą je po publikacji. Jego profil smaku to też szkic; sprawdź go i potwierdź na stronie dania.',
+        wineTitle: 'Nowe wino', wineText: 'Nowe wino trafia do karty win ze szkicem profilu smaku; goście zobaczą je po publikacji. Sprawdź profil i potwierdź go na stronie wina.',
+        submitDish: 'Dodaj danie', submitWine: 'Dodaj wino', cancel: 'Anuluj',
+        style: 'Styl', grape: 'Szczep (opcjonalnie)', grapeHint: 'Służy tylko do przygotowania szkicu profilu smaku; kilka szczepów oddziel przecinkiem.',
+        listNumberHint: 'Zostaw puste, żeby wziąć następny wolny numer.'
+      },
       visibility: {
         hide: 'Ukryj przed gośćmi', show: 'Pokaż gościom',
         hideHint: 'Goście przestają widzieć danie od razu; jego parowania i propozycje zostają.',

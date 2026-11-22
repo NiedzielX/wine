@@ -174,6 +174,7 @@ A2, A4 (przyciski, C3), A3, A5 (formularz, ukryj/pokaż, audyt), A32 (nowy). Kod
 - 2026-11-17 — Przegląd niezależny: 0 nowych blokujących, 5 ważnych, 5 drobnych (R1–R11, AC3, AC14, AC21, `db`). Właściciel: (g)=b, (h) odłożone.
 - 2026-11-17 — Implementacja fazy C1 (C1a, C1b); status `in-progress`, C2 i C3 do zrobienia.
 - 2026-11-22 — Implementacja fazy C2 (ukrycie i przywrócenie dania); status `in-progress`, C3 do zrobienia.
+- 2026-11-22 — Implementacja fazy C3 (ręczne dodanie dania i wina, A32); status `in-progress`: AC14b i `edited_manually` (decyzja (f)) zostają.
 
 ## Realizacja
 **Faza C1 (2026-11-17), log: `.ai/runs/2026-11-17-catalog-field-editing-c1.md`.** Status zostaje `in-progress`: C2 (widoczność dania, R7) i C3 (nowa pozycja, A32, R8) nie są zrealizowane.
@@ -190,7 +191,7 @@ A2, A4 (przyciski, C3), A3, A5 (formularz, ukryj/pokaż, audyt), A32 (nowy). Kod
   7. Znacznik „Check after rename” liczy zmianę nazwy dania i wina (para ma znacznik, gdy którakolwiek strona zmieniła nazwę po decyzji o parze); „Do przeglądu” pokazuje pozycje według własnej zmiany nazwy.
 - Niezweryfikowane: widok formularza dla roli bez `catalog.edit` (`<dl>`; kelner nie ma sesji, a role z panelem mają uprawnienie), e2e z `agent-browser` (narzędzia brak w środowisku, 12 plików pada tak samo przed zmianą), tryb `DATA_SOURCE=postgres` na `next start` z przeglądarką (pokryty e2e HTTP na PostgreSQL).
 
-**Faza C2 (2026-11-22), log: `.ai/runs/2026-11-22-catalog-c2-c3.md`.** Status zostaje `in-progress`: C3 (nowa pozycja, A32, R8) nie jest zrealizowana.
+**Faza C2 (2026-11-22), log: `.ai/runs/2026-11-22-catalog-c2-c3.md`.** Status zostaje `in-progress`: C3 (nowa pozycja, A32, R8) jest w osobnym PR (poniżej).
 
 - Zrealizowane: R7 (dla `published ↔ hidden`), R9, R10 (`hidden` / `shown`), R12 (`GET`/`POST …/visibility`), R13 (komunikaty), R14 (bez `scripts/smoke.mjs`, to plik pod CODEOWNERS); AC14, AC15. Bez migracji: typ i encja audytu mają `hidden` / `shown` od C1a.
 - Odstępstwa od projektu:
@@ -200,3 +201,15 @@ A2, A4 (przyciski, C3), A3, A5 (formularz, ukryj/pokaż, audyt), A32 (nowy). Kod
   4. Zapis w repozytorium (`setDishStatus`) przyjmuje przejście `{from, to}` i sprawdza je pod blokadą wiersza: danie, które w międzyczasie zmieniło status, to `VersionConflictError`, także bez `expectedVersion`.
 - Poza C2 (zgodnie ze specyfikacją): **AC14b** (`draft → hidden`) to osobny PR. E13 F1 jest na `main` i publikacja wpisuje ukryte dania do `menu.dishIds`, więc `draft → hidden` nie wymaga zmiany migawki; trzeba rozstrzygnąć przypadek `draft → hidden → published` przed pierwszą publikacją: danie nie ma wtedy wpisu w `menu.dishIds`, więc gość go nie zobaczy do publikacji, a licznik niepublikowanych zmian go nie wykaże (`hidden → published` takiego szkicu powinno zostać odrzucone albo liczone jako zmiana do publikacji).
 - Niezweryfikowane: wpis do `scripts/smoke.mjs` dla przycisku (plik pod CODEOWNERS, do dopisania w osobnym PR właściciela), widok A3 dla roli bez `catalog.edit` (jak w C1).
+
+**Faza C3 (2026-11-22), log: `.ai/runs/2026-11-22-catalog-c2-c3.md`.** Status zostaje `in-progress`: AC14b i `edited_manually` w podglądzie importu (decyzja (f)) nie są zrobione.
+
+- Zrealizowane: R8, R9, R10 (`create`), R11 (formularze A32), R12 (`POST /dishes`, `POST /wines`), R13, R14 (bez `scripts/smoke.mjs`); AC16, AC17, AC18, AC19. Bez migracji: `create` jest w typie i w encji audytu od C1a. E13 F1 jest na `main`, więc nowe wino bez profilu w migawce jest niewidoczne dla gości do publikacji (`resolveView`), a nowe danie jest `draft`.
+- Odstępstwa od projektu:
+  1. Schematy tworzenia (`dishCreateSchema`, `wineCreateSchema`) to jeden `strictObject` z regułami treści (bez rozdziału na typy i treść z lekcji `2026-11-17-catalog-edit-type-schema-then-content-rules`): przy tworzeniu nie ma zapisanych wartości, które mogłyby łamić nowe reguły, a trasa nie ma id do sprawdzenia przed 404. Brak wymaganego pola daje `required` także dla `category` i `style` (własny komunikat błędu enuma).
+  2. Numer na karcie „następny wolny” liczy repozytorium pod blokadą katalogu (`nextListNumber`, jak import: `max(100, …) + 1`), a serwis liczy go tylko wstępnie; faktyczny numer wraca z `createWine` i trafia do `after` wiersza audytu (N10). Jawnie podany numer, który jest zajęty, to `listNumber: duplicate` także pod blokadą. `listNumber: null` w ciele oznacza „następny wolny”.
+  3. `createDish` i `createWine` w repozytorium sprawdzają istnienie restauracji (`NotFoundError`), bo PostgreSQL inaczej odpowiedziałby naruszeniem klucza.
+  4. Profil nowego wina w PostgreSQL ma `source: grape_defaults` (jak z importu), a nowego dania `draftedBy: rules-1.0` (jak z importu); w pamięci profil jest taki, jaki zwraca `draftDishProfile` / `draftWineProfile`, jak w imporcie.
+  5. Przycisk „Add dish” / „Add wine” na A2 i A4 jest dla roli z `catalog.edit`, a strony A32 same zwracają 403 bez uprawnienia (`forbidden()` po `requireAccess`).
+- Poza C3: `edited_manually` w podglądzie importu (decyzja (f) przypisana w specyfikacji do C1b, nie zrobiona w C1; to zmiana podglądu importu i `validate.ts`, osobny PR) oraz AC14b. Ponowny import tej samej nazwy aktualizuje ręcznie dodaną pozycję (opis, kategoria, cena dania; ceny wina), jak każdą istniejącą.
+- Niezweryfikowane: wpis A32 w `scripts/smoke.mjs` (plik pod CODEOWNERS, do dopisania w osobnym PR właściciela), widok A2 / A4 dla roli bez `catalog.edit` (kelner nie ma sesji; tabela uprawnień w teście jednostkowym).

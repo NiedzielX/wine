@@ -121,7 +121,7 @@ GET /v1/public/restaurants/halka/menu
 
 | Metoda | Ścieżka | Rola | Opis |
 |---|---|---|---|
-| POST | `/dishes` | S M | `{restaurantId, name, description, category, price}`; profil szkicowany automatycznie |
+| POST | `/dishes?restaurant={slug}` | S M | `{name, category, price, description?}` (`strictObject`; `name` 1–120, `description` 0–1000, `category` `Starters` \| `Mains` \| `Desserts`, `price` > 0, ≤ 10 000, dwa miejsca po przecinku; `status`, `profile` i inne pola → 422 `unknown_field`, brakujące wymagane → `required` dla każdego). Danie powstaje jako `draft` ze szkicem profilu i propozycjami silnika (w tej samej transakcji), goście widzą je po publikacji. Nazwa już istniejąca (po `normKey`, każdy status) → 422 `fields: {name: "duplicate"}`. `201` z `Location` (`…/dishes/{id}/details?restaurant={slug}`) i `ETag` odcisku pól; odpowiedź `{id, status, suggestions}`; uprawnienie `catalog.edit`; wiersz `catalog_edit` `create` (E13 C3) |
 | GET | `/dishes/{id}` | S M | danie z profilem |
 | PATCH | `/dishes/{id}` | S M | pola dania |
 | GET | `/dishes/{dishId}/details?restaurant={slug}` | S M | edytowalne pola `{name, description, category, price}`; odcisk pól w nagłówku `ETag` (uprawnienie `catalog.edit`; E13 C1) |
@@ -190,7 +190,7 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
 
 | Metoda | Ścieżka | Rola | Opis |
 |---|---|---|---|
-| POST | `/wines` | S M | nowa pozycja karty; profil z domyślnych szczepu i stylu |
+| POST | `/wines?restaurant={slug}` | S M | `{producer, name, vintage, bottlePrice, style, region?, country?, tastingNote?, listNumber?, pouredByGlass?, glassPrice?, grape?}` (`strictObject`; reguły pól jak w `PATCH …/details`, `style` ∈ `sparkling` \| `white` \| `rose` \| `orange` \| `red` \| `sweet`, `grape` ≤ 120). `style` i `grape` tylko przygotowują szkic profilu (potem nieedytowalne). Wino jest aktywne, ma szkic profilu, `colour` ze stylu, `listNumber` podany albo następny wolny (liczony pod blokadą restauracji) i propozycje silnika; goście widzą je po publikacji. Klucz `producent\|nazwa\|rocznik` zajęty → 422 `name: duplicate`, numer zajęty → `listNumber: duplicate`. `201` z `Location` i `ETag`; odpowiedź `{id, listNumber, suggestions}`; uprawnienie `catalog.edit`; wiersz `catalog_edit` `create` (E13 C3) |
 | GET | `/wines/{id}` | S M | wino z profilem |
 | PATCH | `/wines/{id}` | S M | ceny, `active`, nota, serwowanie; walidacja: `glassPrice < bottlePrice` |
 | GET | `/wines/{id}/details?restaurant={slug}` | S M | edytowalne pola `{producer, name, vintage, region, country, tastingNote, listNumber, bottlePrice, glassPrice, pouredByGlass}`; `ETag` jak dla dania (`catalog.edit`) |

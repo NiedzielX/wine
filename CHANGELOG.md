@@ -18,6 +18,10 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 - A3 ma przycisk „Hide from guests / Ukryj przed gośćmi” i „Show to guests / Pokaż gościom”: opublikowane danie znika z menu, strony dania i API gościa od razu, ukryte wraca od razu, bez publikacji i bez wpływu na licznik niepublikowanych zmian. Działa bez JavaScriptu; danie `draft` nie ma przełącznika.
 - Trasy `GET`/`POST /dishes/{dishId}/visibility` (`If-Match` z odciskiem pól i statusu; 422 `transition`), `CatalogEditService.setDishHidden`, `CatalogWriteRepository.setDishStatus`; wpisy audytu `catalog_edit` z `hidden` / `shown` (bez migracji). Po przywróceniu silnik dopisuje brakujące propozycje (wspólna funkcja `suggestionsFor` z importu).
 
+### Ręczne dodanie dania i wina (E13, spec `2026-11-16-catalog-field-editing`, faza C3)
+- Ekran A32 „New dish / Nowe danie” i „New wine / Nowe wino” (przyciski „Add dish” na A2 i „Add wine” na A4, `catalog.edit`): działa bez JavaScriptu, błąd zostawia wpisane wartości. Danie powstaje jako szkic, wino jako aktywne; obie pozycje mają szkic profilu i propozycje silnika, a goście widzą je po publikacji.
+- Trasy `POST /dishes?restaurant=` i `POST /wines?restaurant=` (201, `Location`, `ETag`), `CatalogEditService.createDish` / `createWine`, `CatalogWriteRepository.createDish` / `createWine` (nazwa, klucz wina i numer na karcie sprawdzane pod blokadą restauracji, następny wolny numer liczony pod blokadą); wpisy audytu `catalog_edit` `create` (bez migracji).
+
 ### Poprawki
 - Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
 

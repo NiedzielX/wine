@@ -192,3 +192,10 @@ Link do instancji demo → `/demo` (przewodnik) → krok 1 (gość wybiera danie
 4. Zmiana nazwy dania (albo producenta, nazwy, rocznika wina), które ma pary sommeliera, wymaga potwierdzenia „poprawiam, nie zastępuję”; pary dostają znacznik „Sprawdź po zmianie nazwy”, a pozycja trafia do „Do przeglądu”, dopóki pary nie mają nowszej decyzji.
 5. Uwaga: ponowny import menu nadpisuje opis, kategorię i cenę dopasowanych dań, a import win ceny; nazwa jest kluczem dopasowania importu, więc po zmianie nazwy import starej nazwy utworzy nową pozycję.
 6. Danie, którego nie ma dziś w kuchni, Sommelier, GM lub Owner ukrywa przyciskiem „Hide from guests” na A3: goście przestają je widzieć od razu (menu, strona dania, API), pary i propozycje zostają. „Show to guests” przywraca je od razu, bez publikacji, i dopisuje propozycje silnika, których danie nie dostało w czasie ukrycia. Danie, które jest jeszcze szkicem, nie ma przycisku: wychodzi przy publikacji.
+
+## Dodanie jednego dania albo wina (E13 C3)
+
+1. Sommelier, General Manager lub Owner naciska „Add dish” na A2 albo „Add wine” na A4 i wypełnia A32 (cena „58,50”, rocznik rok albo NV, styl, opcjonalnie szczep; numer na karcie puste = następny wolny).
+2. Formularz działa bez JavaScriptu; błąd zostawia wpisane wartości i pokazuje komunikat przy każdym złym polu (nazwa lub klucz wina już istnieje, cena kieliszka nie niższa niż butelki).
+3. Nowa pozycja ma szkic profilu smaku i propozycje silnika; ekran A3 / A5 prosi o sprawdzenie profilu i potwierdzenie. Goście zobaczą ją dopiero po publikacji (A11), jak pozycję z importu.
+4. Ponowny import pliku z tą samą nazwą dania (albo tym samym producentem, nazwą i rocznikiem) zaktualizuje ręcznie dodaną pozycję, a nie założy drugiej.

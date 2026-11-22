@@ -250,6 +250,11 @@ const PROFILES: Profile[] = [
   { key: 'GET /api/v1/dishes/{dishId}/details', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q() }) },
   { key: 'PATCH /api/v1/dishes/{dishId}/details', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { price: 99 } }),
     junk: { price: [[], {}, 'text', null, true], name: STRING_FIELD_JUNK, description: STRING_FIELD_JUNK, category: ENUM_JUNK, profile: [{}, 1, 'x'], status: ['hidden'] } },
+  // adding a dish or a wine by hand (spec 2026-11-16-catalog-field-editing, C3)
+  { key: 'POST /api/v1/dishes', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', build: () => ({ params: {}, query: q(), body: { name: 'Fuzz tartlet', category: 'Starters', price: 33 } }),
+    junk: { name: STRING_FIELD_JUNK, description: STRING_FIELD_JUNK, category: ENUM_JUNK, price: [[], {}, 'text', null, true], status: ['published'], profile: [{}, 1, 'x'] } },
+  { key: 'POST /api/v1/wines', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', build: () => ({ params: {}, query: q(), body: { producer: 'Fuzz Estate', name: 'Cuvee', vintage: 2021, bottlePrice: 180, style: 'red' } }),
+    junk: { producer: STRING_FIELD_JUNK, name: STRING_FIELD_JUNK, vintage: ['nv', 2020.5, [], {}, null, true, 'text'], bottlePrice: [[], {}, 'text', null, true], style: ENUM_JUNK, grape: STRING_FIELD_JUNK, listNumber: ['x', 1.5, [], {}, true], pouredByGlass: BOOL_JUNK, glassPrice: [[], {}, 'text', null, true], active: [false] } },
   { key: 'GET /api/v1/dishes/{dishId}/visibility', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q() }) },
   { key: 'POST /api/v1/dishes/{dishId}/visibility', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { hidden: true } }),
     junk: { hidden: BOOL_JUNK, status: ['hidden'] } },

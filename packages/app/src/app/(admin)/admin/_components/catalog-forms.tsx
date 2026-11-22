@@ -28,12 +28,12 @@ export interface CatalogFormLabels {
   identityChecked: boolean;
 }
 
-const GRID = 'grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]';
+export const GRID = 'grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]';
 
-type FormState = DetailsState;
+export type FormState = DetailsState;
 const IDLE: FormState = { status: 'idle' };
 
-function useForm(action: (previous: DetailsState, form: FormData) => Promise<DetailsState>, initial: Record<string, string>) {
+export function useForm(action: (previous: DetailsState, form: FormData) => Promise<DetailsState>, initial: Record<string, string>) {
   const [state, formAction, pending] = useActionState(action, IDLE);
   const failed = state.status === 'error';
   const values = failed ? { ...initial, ...state.values } : initial;
@@ -41,7 +41,7 @@ function useForm(action: (previous: DetailsState, form: FormData) => Promise<Det
   return { state, formAction, pending, values, fields };
 }
 
-function Field({ id, label, error, hint, children, className }: { id: string; label: string; error?: string; hint?: string; children: ReactNode; className?: string }) {
+export function Field({ id, label, error, hint, children, className }: { id: string; label: string; error?: string; hint?: string; children: ReactNode; className?: string }) {
   return (
     <div className={`grid min-w-0 content-start gap-1.5 ${className ?? ''}`}>
       <Label htmlFor={id}>{label}</Label>
@@ -52,9 +52,9 @@ function Field({ id, label, error, hint, children, className }: { id: string; la
   );
 }
 
-const describedBy = (id: string, error: string | undefined, hint: string | undefined) => [hint ? `${id}-hint` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined;
+export const describedBy = (id: string, error: string | undefined, hint: string | undefined) => [hint ? `${id}-hint` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined;
 
-function Top({ state, labels, kind, fields }: { state: FormState; labels: CatalogFormLabels; kind: 'dish' | 'wine'; fields: Record<string, string> }) {
+export function Top({ state, labels, kind, fields }: { state: FormState; labels: CatalogFormLabels; kind: 'dish' | 'wine'; fields: Record<string, string> }) {
   const code = state.status === 'error' ? (state.error ?? (Object.keys(fields).length ? 'validation_failed' : 'unexpected')) : null;
   const text = code === null ? null : code === 'version_conflict' ? labels.formErrors[`version_conflict_${kind}`] : (labels.formErrors[code] ?? labels.formErrors.unexpected);
   return (

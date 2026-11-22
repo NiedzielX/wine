@@ -21,7 +21,7 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<s
 export default async function MenuPage({ params, searchParams }: Props) {
   const { slug } = await params;
   // the layout's check runs in parallel with the page: without this call the list is read, and streamed into the 403 or the sign-in redirect, for any caller
-  await requireAccess(slug);
+  const canAdd = (await requireAccess(slug)).can('catalog.edit');
   const sp = await searchParams;
   const q = first(sp.q);
   const category = first(sp.category);
@@ -34,7 +34,7 @@ export default async function MenuPage({ params, searchParams }: Props) {
 
   return (
     <Page>
-      <PageHeader title={m.title} description={m.description(menu.total)} />
+      <PageHeader title={m.title} description={m.description(menu.total)} actions={canAdd && <Button asChild><Link href={`${path}/new`}>{t.admin.catalog.create.addDish}</Link></Button>} />
       <PanelExplain id="menu" className="-mt-3 mb-4" summary={t.admin.explain.menu.summary} points={t.admin.explain.menu.points} />
       <form action={path} method="get" className="mb-4 flex flex-wrap items-center gap-2">
         <Input name="q" type="search" defaultValue={q} placeholder={m.search} aria-label={m.search} className="max-w-xs" />
