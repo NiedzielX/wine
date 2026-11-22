@@ -4,9 +4,10 @@ import type { SalesRepository } from './sales';
 import type { AuthAuditRepository, TeamRepository } from './team';
 import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
 import type { Locale } from '../i18n/locale';
+import type { PublishedVersionRecord } from '../services/publishing/snapshot';
 import type {
-  CodeSummary, Dish, EntityStatus, GuestEventName, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, PairingRole, PairingStatus, RecommendationCodeRecord,
-  Restaurant, RestaurantSettings, Wine
+  CodeSummary, Dish, DishCategory, DishProfile, EntityStatus, GuestEventName, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, PairingRole, PairingStatus, RecommendationCodeRecord,
+  Restaurant, RestaurantSettings, Wine, WineProfile
 } from '../domain/types';
 
 /**
@@ -124,15 +125,34 @@ export interface PublishedVersionInfo {
   publishedAt: string;
 }
 
+export interface PublishInput {
+  actor: string;
+  at: string;
+  id: string;
+  contentChanges?: number;
+  /**
+   * The number of the latest version the caller saw (0 = never published). When given and the latest version is
+   * another one, nothing is written and VersionConflictError is thrown (spec 2026-11-04-panel-completion, R12).
+   */
+  expectedLatest?: number;
+}
+
 export interface PublishRepository {
   latest(restaurantId: string): Promise<PublishedVersionInfo | null>;
+  /**
+   * The version guests see now, with its snapshot (spec 2026-11-04-panel-completion, R2); null when the restaurant was
+   * never published. Until scheduled publishing (F5) this is the latest version. Read through `loadPublishedView`.
+   */
+  effective(restaurantId: string): Promise<PublishedVersionRecord | null>;
   /** Pairings with a decision since the last publish (deletions included) — the "unpublished changes" counter. */
   pendingPairingChanges(restaurantId: string): Promise<number>;
   /**
-   * Atomically: snapshot of reviewed and rejected pairings as the new version, clear the
-   * changed flags, release draft dishes, stamp the restaurant. Returns the new version.
+   * Atomically: snapshot (schema 2: decided pairings, translations, profiles of every non-deleted dish and wine, the
+   * menu composition) as the new version, clear the changed flags, release draft dishes, stamp the restaurant. Returns
+   * the new version. Two publishes of one restaurant never get the same number: a stale `expectedLatest` or a lost race
+   * on the number is VersionConflictError.
    */
-  publish(restaurantId: string, input: { actor: string; at: string; id: string; contentChanges?: number }): Promise<PublishedVersionInfo>;
+  publish(restaurantId: string, input: PublishInput): Promise<PublishedVersionInfo>;
   /**
    * The translations guests see (spec 2026-10-15-bilingual-content, R4): those of the latest published version.
    * A restaurant that was never published shows its current translations; a version published before translations
@@ -142,6 +162,131 @@ export interface PublishRepository {
 }
 
 export interface RestaurantContent { contentLocale: Locale; translations: RestaurantTranslations }
+
+/** One row of the profile audit trail (spec 2026-11-04-panel-completion, R5): append-only, outlives the dish or wine. */
+export interface ProfileEditRecord {
+  id: string;
+  kind: 'dish' | 'wine';
+  subjectId: string;
+  actor: string;
+  actorId: string | null;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  at: string;
+}
+
+/**
+ * Writes of taste profiles (R3, R5). Atomically, under a lock on the row: when `expected` is given and the stored
+ * profile's fingerprint (`profileVersion`) differs, nothing changes and VersionConflictError is thrown; otherwise the
+ * profile and its audit row are written together. Unknown ids (or another restaurant's) → NotFoundError. The change
+ * reaches guests on the next publish.
+ */
+export interface ProfileWriteRepository {
+  setDishProfile(restaurantId: string, dishId: string, next: DishProfile, edit: ProfileEditRecord, expected?: DishProfile): Promise<void>;
+  setWineProfile(restaurantId: string, wineId: string, next: WineProfile, edit: ProfileEditRecord, expected?: WineProfile): Promise<void>;
+  /** the audit rows of the restaurant, newest first (ties: id), optionally of one dish or wine */
+  listProfileEdits(restaurantId: string, filter?: { kind?: 'dish' | 'wine'; subjectId?: string }): Promise<ProfileEditRecord[]>;
+}
+
+/** The editable fields of a dish (spec 2026-11-16-catalog-field-editing, R1). */
+export interface DishFields { name: string; description: string; category: DishCategory; price: number }
+
+/** The editable fields of a wine (R2). `glassPrice !== null` means poured by the glass; `listNumber: null` = not on the printed list. */
+export interface WineFields {
+  producer: string; name: string; vintage: number | 'NV'; region: string; country: string; tastingNote: string;
+  listNumber: number | null; bottlePrice: number; glassPrice: number | null;
+}
+
+export type CatalogEditAction = 'create' | 'update' | 'hidden' | 'shown';
+
+/** One row of the catalog audit trail (R10): append-only, only the changed fields in `before` and `after`, outlives the dish or wine. */
+export interface CatalogEditRecord {
+  id: string;
+  kind: 'dish' | 'wine';
+  subjectId: string;
+  action: CatalogEditAction;
+  actor: string;
+  actorId: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown>;
+  /** the name or key of the dish or wine changed (R15): the pairings need a second look */
+  identity: boolean;
+  at: string;
+}
+
+/**
+ * Writes of dish and wine fields (R3, R4). One transaction: the advisory lock of the restaurant (`catalog:` + id), then
+ * the row `FOR UPDATE`, the caller's fingerprint (`expectedVersion`, when given) against the stored fields
+ * (VersionConflictError), uniqueness of the name / wine key / list number re-checked on the locked state
+ * (ValidationError `duplicate`, only for what changes), the fields and the audit row written together. Unknown ids and
+ * another restaurant's → NotFoundError. The fields are live for guests (R5).
+ */
+export interface CatalogWriteRepository {
+  updateDish(restaurantId: string, dishId: string, next: DishFields, expectedVersion: string | undefined, edit: CatalogEditRecord): Promise<void>;
+  updateWine(restaurantId: string, wineId: string, next: WineFields, expectedVersion: string | undefined, edit: CatalogEditRecord): Promise<void>;
+}
+
+export interface CatalogEditRepository {
+  /** the newest row of one dish or wine, or null */
+  latest(restaurantId: string, kind: 'dish' | 'wine', subjectId: string): Promise<CatalogEditRecord | null>;
+  /** the rows of the restaurant, newest first (ties: id), optionally of one kind, one subject or only the identity changes */
+  list(restaurantId: string, filter?: { kind?: 'dish' | 'wine'; subjectId?: string; identityOnly?: boolean }): Promise<CatalogEditRecord[]>;
+}
+
+/** A wine the restaurant marked as its pick (spec 2026-11-18-restaurant-picks, R1). `active` is the wine's current state. */
+export interface PickRecord {
+  wineId: string;
+  active: boolean;
+  setAt: string;
+  setBy: string;
+  setById: string | null;
+}
+
+/** One row of the picks history (R3): append-only, outlives the wine. `before` and `after` are the sorted ids of the working set. */
+export interface PickEditRecord {
+  id: string;
+  wineId: string;
+  enabled: boolean;
+  actor: string;
+  actorId: string | null;
+  before: string[];
+  after: string[];
+  at: string;
+}
+
+export interface SetPickInput {
+  wineId: string;
+  enabled: boolean;
+  /** id of the history row, from the `IdGenerator` */
+  editId: string;
+  actor: string;
+  actorId: string | null;
+  at: string;
+  /** the most picks the restaurant may have (`PICKS_MAX`) */
+  max: number;
+  /** `picksVersion` of the working set the caller saw; a different one is VersionConflictError */
+  expectedVersion?: string;
+}
+
+/**
+ * The restaurant's picks: the working set (R1, R3). Reaches guests only through a publish. Wines are deleted softly, so
+ * every method skips the picks of deleted wines; the picks of inactive wines stay in the set and count towards the limit.
+ */
+export interface PicksRepository {
+  /** the working set, sorted by wine id: the picks of every wine that is not deleted, active or not */
+  list(restaurantId: string): Promise<PickRecord[]>;
+  /**
+   * Marks or unmarks a wine, atomically, under the lock of the restaurant row (the one a publish takes, so a publish
+   * sees the set wholly before or wholly after the change): in this order, unknown wine (or another restaurant's, or a
+   * deleted one) → NotFoundError; a stale `expectedVersion` → VersionConflictError; already as asked → `{ changed: false }`
+   * and no history row; marking a wine that is not active → ValidationError `wine_inactive`; marking when the set (inactive
+   * wines included) already has `max` → ValidationError `too_many_picks`. Otherwise the change and its history row are
+   * written together.
+   */
+  set(restaurantId: string, input: SetPickInput): Promise<{ changed: boolean }>;
+  /** the history of the restaurant, newest first (ties: id) */
+  listEdits(restaurantId: string): Promise<PickEditRecord[]>;
+}
 
 /**
  * Writes of translated content. Each write is atomic: when `expected` is given and the stored translations differ
@@ -292,6 +437,10 @@ export interface Repositories {
   restaurantWriteRepository: RestaurantWriteRepository;
   publishRepository: PublishRepository;
   contentWriteRepository: ContentWriteRepository;
+  profileWriteRepository: ProfileWriteRepository;
+  catalogWriteRepository: CatalogWriteRepository;
+  catalogEditRepository: CatalogEditRepository;
+  picksRepository: PicksRepository;
   importRepository: ImportRepository;
   opportunityDismissalRepository: OpportunityDismissalRepository;
   guestInteractionRepository: GuestInteractionRepository;

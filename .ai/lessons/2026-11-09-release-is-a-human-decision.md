@@ -3,20 +3,20 @@ date: 2026-11-09
 updated:
 area: process
 status: active
-source: .ai/runs/2026-11-09-lesson-22-release-management.md
+source: .ai/runs/2026-11-09-release-management.md
 promoted:
 ---
 
 # Wydanie jest decyzją człowieka; weryfikuj zbudowany artefakt, a poprawki stabilizujące kwestionuj
 
 ## Kontekst
-Lekcja 22 kursu (zarządzanie wydaniem w Open Mercato: 130+ kontrybutorów, 160 otwartych PR-ów, gałęzie `develop` i `main`, zbiorczy PR „release X.Y.Z”, publikacja pakietów i testy integracyjne na opublikowanych paczkach). Przeniesienie na projekt jednego właściciela: `docs/RELEASING.md`, `UPGRADE_NOTES.md`, §9 w `BACKWARD_COMPATIBILITY.md`, skrypty `release:version` / `release:notes`, szkic `.github/workflows/release.yml`.
+Zarządzanie wydaniem w dużych projektach open source (setki kontrybutorów i otwartych PR-ów, gałęzie `develop` i `main`, zbiorczy PR „release X.Y.Z”, publikacja pakietów i testy integracyjne na opublikowanych paczkach). Przeniesienie na projekt jednego właściciela: `docs/RELEASING.md`, `UPGRADE_NOTES.md`, §9 w `BACKWARD_COMPATIBILITY.md`, skrypty `release:version` / `release:notes`, szkic `.github/workflows/release.yml`.
 
 ## Przyczyna
-Trzy rzeczy z lekcji nie wynikają z kodu, a łatwo je zgubić przy automatyzacji:
+Trzy rzeczy nie wynikają z kodu, a łatwo je zgubić przy automatyzacji:
 1. Automat, który „sam wydaje”, przenosi decyzję o zakresie i ryzyku z człowieka na skrypt. U nas merge PR-a już jest decyzją właściciela (`review-protocol.md` §1); wydanie i ogłoszenie są kolejnymi.
-2. Zielone testy monorepo nie dowodzą, że działa to, co dostaje odbiorca. Open Mercato testuje opublikowane paczki; naszym odpowiednikiem jest job CI `image` (obraz `runtime` i `migrator`, odmowy startu, migracje, `smoke --production`), który nie jest jeszcze wymaganym checkiem.
-3. Pętla „agent naprawia, aż CI będzie zielone” chętnie przechodzi przez obejście (przykład z lekcji: wyczyszczony adres bazy w `.env.example`). Zielone CI po obejściu to fałszywy dowód.
+2. Zielone testy monorepo nie dowodzą, że działa to, co dostaje odbiorca. Duże projekty open source testują opublikowane paczki; naszym odpowiednikiem jest job CI `image` (obraz `runtime` i `migrator`, odmowy startu, migracje, `smoke --production`), który nie jest jeszcze wymaganym checkiem.
+3. Pętla „agent naprawia, aż CI będzie zielone” chętnie przechodzi przez obejście (przykład: wyczyszczony adres bazy w `.env.example`). Zielone CI po obejściu to fałszywy dowód.
 
 Przy okazji: `@wine-match/testkit` jest w `packages/app` i `packages/db` przypięty dokładnie (`0.2.0`). Po podniesieniu wersji pakietów npm nie powiązałby go z workspace'em i szukałby tej nazwy w rejestrze (ryzyko *dependency confusion*); `release:version` to wykrywa i odmawia `--set`. Naprawione 2026-11-09: zakresy `"*"`, `--check` odrzuca każdy inny zakres wewnętrzny.
 

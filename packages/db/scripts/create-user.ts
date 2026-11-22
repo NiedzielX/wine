@@ -19,7 +19,7 @@ import { closeOrm, getOrm } from '../src/orm';
 
 const rootEnv = fileURLToPath(new URL('../../../.env', import.meta.url));
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
-announceDbTarget({ command: 'user:create' }); // stderr, before anything is validated or written (lesson 18)
+announceDbTarget({ command: 'user:create' }); // stderr, before anything is validated or written
 
 const ROLES = ['owner', 'manager', 'sommelier', 'waiter'] as const;
 

@@ -1,11 +1,16 @@
 import type { ContractRunner } from './contract-types';
 import type { DemoDataset } from '../demo/dataset';
-import type { Pairing } from '../domain/types';
+import type { Level, Pairing } from '../domain/types';
 import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import { countContentChanges } from '../i18n/content';
 import { pairingScore } from '../engine/scoring';
-import type { DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
+import type { CatalogEditRecord, DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
+import { dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
+import { PICKS_MAX, RANKING_LAYER_VERSION } from '../ranking/restaurant-picks';
+import { picksVersion } from '../services/picks/picks-rules';
 import { SommelierService } from '../services/pairings/sommelier-service';
+import { loadPublishedView } from '../services/publishing/published-view';
+import { dishScales, wineScales } from '../services/publishing/snapshot';
 
 /**
  * Behaviour every write implementation must have. Used by the memory tests in core and by the
@@ -120,6 +125,33 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect((await repos.restaurantRepository.findBySlug(ds.restaurant.slug))!.publishedAt).toBe('2026-10-14T13:00:00.000Z');
     });
 
+    t.it('publishes snapshot v2: every profile, hidden dishes and inactive wines included, and the menu (spec 2026-11-04-panel-completion, AC1)', async () => {
+      const before = (await repos.publishRepository.effective(rid()))!;
+      t.expect(before.snapshot.schema).toBe(3);
+      t.expect(before.info).toEqual(await repos.publishRepository.latest(rid()));
+      const v = await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '56565656-5656-4565-8565-565656565656', expectedLatest: before.info.number });
+      const after = (await repos.publishRepository.effective(rid()))!;
+      t.expect(after.info).toEqual(v);
+      t.expect(after.snapshot.schema).toBe(3);
+      t.expect(after.snapshot.picks).toEqual({ wineIds: [], rankingVersion: RANKING_LAYER_VERSION });
+      const ids = (xs: Array<{ id: string }>) => xs.map((x) => x.id).sort();
+      t.expect(ids(after.snapshot.profiles!.dishes)).toEqual(ids(ds.dishes));
+      t.expect(ids(after.snapshot.profiles!.wines)).toEqual(ids(ds.wines));
+      t.expect([...after.snapshot.menu!.dishIds].sort()).toEqual(ids(ds.dishes));
+      const inactive = ds.wines.find((w) => !w.active)!;
+      t.expect(after.snapshot.profiles!.wines.find((w) => w.id === inactive.id)!.profile).toEqual({ ...inactive.profile });
+      t.expect(after.snapshot.profiles!.dishes.find((d) => d.id === duck().id)!.profile).toEqual(Object.fromEntries(Object.entries(duck().profile).filter(([k]) => k !== 'source')));
+      t.expect(after.snapshot.pairings.length).toBe(ds.pairings.filter((p) => p.status !== 'suggested').length);
+      t.expect(await repos.publishRepository.effective(OTHER)).toBeNull();
+    });
+
+    t.it('a stale expectedLatest is a version conflict and writes nothing (AC5)', async () => {
+      const draft = ds.dishes.find((d) => d.status === 'draft')!;
+      await t.expect(repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '57575757-5757-4575-8575-575757575757', expectedLatest: 0 })).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.publishRepository.latest(rid()))!.number).toBe(1);
+      t.expect((await repos.dishRepository.findById(rid(), draft.id))!.status).toBe('draft');
+    });
+
     t.it('releases draft dishes on publish', async () => {
       const draft = ds.dishes.find((d) => d.status === 'draft')!;
       await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '55555555-5555-4555-8555-555555555555' });
@@ -207,6 +239,96 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       await t.expect(repos.contentWriteRepository.setRestaurantContent(rid(), { contentLocale: 'en', translations: {} }, { contentLocale: r.contentLocale, translations: r.translations })).rejects.toBeInstanceOf(VersionConflictError);
     });
 
+    t.it('writes a profile and its audit row together against the fingerprint the caller saw, scoped by restaurant (R3, R5, AC8, AC10)', async () => {
+      const duck = duck0();
+      const edit = (kind: 'dish' | 'wine', subjectId: string, id: string, at: string) =>
+        ({ id, kind, subjectId, actor: 'Marta', actorId: null, before: { a: 1 }, after: { a: 2 }, at });
+      const confirmed = { ...dishScales(duck.profile), intensity: ((duck.profile.intensity + 1) % 6) as Level, source: 'confirmed' as const, confirmedAt: '2026-11-17T09:00:00.000Z', confirmedBy: 'Marta' };
+      await repos.profileWriteRepository.setDishProfile(rid(), duck.id, confirmed, edit('dish', duck.id, '10000000-0000-4000-8000-000000000001', '2026-11-17T09:00:00.000Z'), duck.profile);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.profile).toMatchObject({ intensity: confirmed.intensity, source: 'confirmed', confirmedAt: '2026-11-17T09:00:00.000Z', confirmedBy: 'Marta' });
+      // stale: the caller saw the profile from before; nothing changes and no audit row is added
+      await t.expect(repos.profileWriteRepository.setDishProfile(rid(), duck.id, { ...confirmed, fat: 5 }, edit('dish', duck.id, '10000000-0000-4000-8000-000000000002', '2026-11-17T09:01:00.000Z'), duck.profile)).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.profile.fat).toBe(duck.profile.fat);
+      t.expect((await repos.profileWriteRepository.listProfileEdits(rid())).map((e) => e.id)).toEqual(['10000000-0000-4000-8000-000000000001']);
+      // another restaurant's id (or an unknown one) is not found, and writes no audit row either
+      await t.expect(repos.profileWriteRepository.setDishProfile(OTHER, duck.id, confirmed, edit('dish', duck.id, '10000000-0000-4000-8000-000000000003', '2026-11-17T09:02:00.000Z'))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.profileWriteRepository.setDishProfile(rid(), OTHER, confirmed, edit('dish', OTHER, '10000000-0000-4000-8000-000000000004', '2026-11-17T09:02:00.000Z'))).rejects.toBeInstanceOf(NotFoundError);
+      const wine = ds.wines[0];
+      const next = { ...wineScales(wine.profile), alcohol: 14.5, source: 'grape_defaults' as const, confirmedAt: null, confirmedBy: null };
+      await repos.profileWriteRepository.setWineProfile(rid(), wine.id, next, edit('wine', wine.id, '10000000-0000-4000-8000-000000000005', '2026-11-17T09:03:00.000Z'), wine.profile);
+      const stored = (await repos.wineRepository.findById(rid(), wine.id))!.profile;
+      t.expect(stored).toMatchObject({ alcohol: 14.5, source: 'grape_defaults' });
+      t.expect([stored.confirmedAt ?? null, stored.confirmedBy ?? null]).toEqual([null, null]);
+      await t.expect(repos.profileWriteRepository.setWineProfile(rid(), wine.id, next, edit('wine', wine.id, '10000000-0000-4000-8000-000000000006', '2026-11-17T09:04:00.000Z'), wine.profile)).rejects.toBeInstanceOf(VersionConflictError);
+      await t.expect(repos.profileWriteRepository.setWineProfile(OTHER, wine.id, next, edit('wine', wine.id, '10000000-0000-4000-8000-000000000007', '2026-11-17T09:04:00.000Z'))).rejects.toBeInstanceOf(NotFoundError);
+      // newest first, filtered by kind and by object, never another restaurant's
+      t.expect((await repos.profileWriteRepository.listProfileEdits(rid())).map((e) => e.id)).toEqual(['10000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001']);
+      t.expect((await repos.profileWriteRepository.listProfileEdits(rid(), { kind: 'wine' })).map((e) => e.subjectId)).toEqual([wine.id]);
+      t.expect((await repos.profileWriteRepository.listProfileEdits(rid(), { subjectId: duck.id })).length).toBe(1);
+      t.expect(await repos.profileWriteRepository.listProfileEdits(OTHER)).toEqual([]);
+      // the edit is an unpublished change: guests keep the published profile until the next publish
+      const view = await loadPublishedView(repos, ds.restaurant);
+      t.expect(view.dish(duck.id)!.profile.intensity).toBe(duck.profile.intensity);
+      await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-11-17T10:00:00.000Z', id: '10000000-0000-4000-8000-0000000000aa' });
+      t.expect((await loadPublishedView(repos, ds.restaurant)).dish(duck.id)!.profile.intensity).toBe(confirmed.intensity);
+    });
+
+    t.it('writes dish and wine fields with their audit row against the fingerprint the caller saw, scoped by restaurant, and re-checks uniqueness (spec 2026-11-16-catalog-field-editing, R1 to R4, R10, AC3 to AC5)', async () => {
+      const edit = (kind: 'dish' | 'wine', subjectId: string, n: number, over: Partial<CatalogEditRecord> = {}): CatalogEditRecord => ({
+        id: `20000000-0000-4000-8000-${String(n).padStart(12, '0')}`, kind, subjectId, action: 'update', actor: 'Marta', actorId: '10000000-0000-4000-8000-000000000001',
+        before: { price: 1 }, after: { price: 2 }, identity: false, at: `2026-11-17T10:0${n}:00.000Z`, ...over
+      });
+      const duck = duck0();
+      const fields = dishFieldsOf(duck);
+      const next = { ...fields, price: 99.5, description: 'Rewritten' };
+      await repos.catalogWriteRepository.updateDish(rid(), duck.id, next, dishFieldsVersion(fields), edit('dish', duck.id, 1));
+      t.expect(await repos.dishRepository.findById(rid(), duck.id)).toMatchObject({ price: 99.5, description: 'Rewritten', name: duck.name, status: duck.status, profile: duck.profile, translations: duck.translations });
+      // stale fingerprint: a conflict, nothing changes, no audit row
+      await t.expect(repos.catalogWriteRepository.updateDish(rid(), duck.id, { ...fields, price: 1 }, dishFieldsVersion(fields), edit('dish', duck.id, 2))).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.price).toBe(99.5);
+      // a change of the profile or the translations is no conflict (R4: the fingerprint covers the editable fields only)
+      await repos.profileWriteRepository.setDishProfile(rid(), duck.id, { ...dishScales(duck.profile), source: 'draft', fat: ((duck.profile.fat + 1) % 6) as Level, confirmedAt: null, confirmedBy: null },
+        { id: '20000000-0000-4000-8000-0000000000a1', kind: 'dish', subjectId: duck.id, actor: 'Marta', actorId: null, before: {}, after: {}, at: '2026-11-17T10:00:30.000Z' });
+      await repos.contentWriteRepository.setDishTranslations(rid(), duck.id, { pl: { name: 'Kaczka' } });
+      await repos.catalogWriteRepository.updateDish(rid(), duck.id, { ...next, price: 100 }, dishFieldsVersion(next), edit('dish', duck.id, 3, { before: { price: 99.5 }, after: { price: 100 } }));
+      // without a fingerprint the write is unconditional (internal callers)
+      // uniqueness on the locked state: another dish's name (also a draft one) in any case, punctuation or spacing
+      const cheese = ds.dishes.find((d) => d.status === 'draft')!;
+      const taken = async (name: string) => repos.catalogWriteRepository.updateDish(rid(), duck.id, { ...dishFieldsOf((await repos.dishRepository.findById(rid(), duck.id))!), name }, undefined, edit('dish', duck.id, 4));
+      await t.expect(taken(` ${cheese.name.toUpperCase()}! `)).rejects.toMatchObject({ code: 'validation_failed', fields: { name: 'duplicate' } });
+      await t.expect(taken(ds.dishes.find((d) => d.id !== duck.id && d.status === 'published')!.name)).rejects.toMatchObject({ fields: { name: 'duplicate' } });
+      // unknown ids and another restaurant's: not found
+      await t.expect(repos.catalogWriteRepository.updateDish(OTHER, duck.id, next, undefined, edit('dish', duck.id, 5))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.catalogWriteRepository.updateDish(rid(), OTHER, next, undefined, edit('dish', OTHER, 5))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.catalogWriteRepository.updateDish(rid(), 'abc', next, undefined, edit('dish', OTHER, 5))).rejects.toBeInstanceOf(NotFoundError);
+      // the audit trail: the three successful edits, newest first, and nothing from the failed ones
+      t.expect((await repos.catalogEditRepository.list(rid())).map((e) => e.id)).toEqual(['20000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001']);
+      t.expect(await repos.catalogEditRepository.latest(rid(), 'dish', duck.id)).toMatchObject({ id: '20000000-0000-4000-8000-000000000003', actor: 'Marta', identity: false, before: { price: 99.5 }, after: { price: 100 } });
+      t.expect(await repos.catalogEditRepository.latest(rid(), 'wine', duck.id)).toBeNull();
+      t.expect(await repos.catalogEditRepository.list(OTHER)).toEqual([]);
+
+      // wines: fields, glass switched off, list number moved, key and number uniqueness
+      const [w1, w2] = ds.wines.filter((w) => w.listNumber !== undefined && w.glassPrice !== null);
+      const wf = wineFieldsOf(w1);
+      const wnext = { ...wf, region: 'Somewhere', bottlePrice: wf.bottlePrice + 10, glassPrice: null, listNumber: 900 };
+      await repos.catalogWriteRepository.updateWine(rid(), w1.id, wnext, wineFieldsVersion(wf), edit('wine', w1.id, 6, { identity: true }));
+      t.expect(await repos.wineRepository.findById(rid(), w1.id)).toMatchObject({ region: 'Somewhere', glassPrice: null, listNumber: 900, bottlePrice: wf.bottlePrice + 10, active: w1.active, grapes: w1.grapes });
+      await t.expect(repos.catalogWriteRepository.updateWine(rid(), w1.id, { ...wnext, region: 'Late' }, wineFieldsVersion(wf), edit('wine', w1.id, 7))).rejects.toBeInstanceOf(VersionConflictError);
+      const wcur = wineFieldsOf((await repos.wineRepository.findById(rid(), w1.id))!);
+      await t.expect(repos.catalogWriteRepository.updateWine(rid(), w1.id, { ...wcur, listNumber: w2.listNumber! }, undefined, edit('wine', w1.id, 7))).rejects.toMatchObject({ fields: { listNumber: 'duplicate' } });
+      await t.expect(repos.catalogWriteRepository.updateWine(rid(), w1.id, { ...wcur, producer: w2.producer.toUpperCase(), name: ` ${w2.name}! `, vintage: w2.vintage }, undefined, edit('wine', w1.id, 7))).rejects.toMatchObject({ fields: { name: 'duplicate' } });
+      // an unchanged taken number is no error: it is not rechecked
+      await repos.catalogWriteRepository.updateWine(rid(), w2.id, { ...wineFieldsOf(w2), tastingNote: 'New note' }, undefined, edit('wine', w2.id, 8));
+      await repos.catalogWriteRepository.updateWine(rid(), w1.id, { ...wcur, vintage: 'NV', listNumber: null }, undefined, edit('wine', w1.id, 9));
+      t.expect(await repos.wineRepository.findById(rid(), w1.id)).toMatchObject({ vintage: 'NV' });
+      t.expect((await repos.wineRepository.findById(rid(), w1.id))!.listNumber ?? null).toBeNull();
+      await t.expect(repos.catalogWriteRepository.updateWine(OTHER, w1.id, wnext, undefined, edit('wine', w1.id, 10))).rejects.toBeInstanceOf(NotFoundError);
+      t.expect((await repos.catalogEditRepository.list(rid(), { kind: 'wine', identityOnly: true })).map((e) => e.id)).toEqual(['20000000-0000-4000-8000-000000000006']);
+      t.expect((await repos.catalogEditRepository.list(rid(), { subjectId: w1.id })).length).toBe(2);
+      // the fields are live: the published snapshot keeps the old ones until the next publish only for what it stores (profiles, translations)
+      t.expect((await repos.dishRepository.findById(rid(), duck.id))!.price).toBe(100);
+    });
+
     t.it('guests see translations of the published version only; publish takes the current ones', async () => {
       const duck = duck0();
       const before = await repos.publishRepository.publishedContent(rid());
@@ -246,6 +368,106 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect(await repos.wineWriteRepository.setActive(rid(), 'abc', true)).toBeNull();
       await repos.restaurantWriteRepository.updateSettings(rid(), { showUnreviewed: false, showScores: true });
       t.expect((await repos.restaurantRepository.findBySlug(ds.restaurant.slug))!.settings).toEqual({ showUnreviewed: false, showScores: true });
+    });
+
+    /* ---------- the restaurant's picks (spec 2026-11-18-restaurant-picks, R1, R3, R5, R6) ---------- */
+    const editId = (n: number) => `20000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    const pickInput = (wineId: string, enabled: boolean, n: number, over: object = {}) =>
+      ({ wineId, enabled, editId: editId(n), actor: 'Marta', actorId: null, at: `2026-11-19T09:${String(n).padStart(2, '0')}:00.000Z`, max: PICKS_MAX, ...over });
+    const activeWines = () => ds.wines.filter((w) => w.active).map((w) => w.id).sort();
+
+    t.it('marks and unmarks a wine: the set is sorted, the history keeps before and after, a repeat is a no-op without history (R1, R3)', async () => {
+      const [a, b] = activeWines();
+      t.expect(await repos.picksRepository.list(rid())).toEqual([]);
+      t.expect(await repos.picksRepository.set(rid(), pickInput(b, true, 1))).toEqual({ changed: true });
+      t.expect(await repos.picksRepository.set(rid(), pickInput(a, true, 2))).toEqual({ changed: true });
+      t.expect(await repos.picksRepository.set(rid(), pickInput(a, true, 3))).toEqual({ changed: false });
+      t.expect((await repos.picksRepository.list(rid())).map((x) => x.wineId)).toEqual([a, b]);
+      t.expect((await repos.picksRepository.list(rid()))[0]).toMatchObject({ active: true, setBy: 'Marta', setById: null });
+      t.expect(await repos.picksRepository.set(rid(), pickInput(b, false, 4))).toEqual({ changed: true });
+      t.expect(await repos.picksRepository.set(rid(), pickInput(b, false, 5))).toEqual({ changed: false });
+      t.expect((await repos.picksRepository.list(rid())).map((x) => x.wineId)).toEqual([a]);
+      const edits = await repos.picksRepository.listEdits(rid());
+      t.expect(edits.map((e) => e.id)).toEqual([editId(4), editId(2), editId(1)]);
+      t.expect(edits[0]).toMatchObject({ wineId: b, enabled: false, actor: 'Marta', actorId: null, before: [a, b].sort(), after: [a] });
+      t.expect(edits[2]).toMatchObject({ wineId: b, enabled: true, before: [], after: [b] });
+    });
+
+    t.it('is scoped by restaurant: another restaurant or an unknown wine is not found and leaves no history (R1)', async () => {
+      const [a] = activeWines();
+      await t.expect(repos.picksRepository.set(OTHER, pickInput(a, true, 1))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.picksRepository.set(rid(), pickInput(OTHER, true, 2))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.picksRepository.set(rid(), pickInput('abc', true, 3))).rejects.toBeInstanceOf(NotFoundError);
+      t.expect(await repos.picksRepository.list(rid())).toEqual([]);
+      t.expect(await repos.picksRepository.list(OTHER)).toEqual([]);
+      t.expect(await repos.picksRepository.listEdits(rid())).toEqual([]);
+      await repos.picksRepository.set(rid(), pickInput(a, true, 4));
+      t.expect(await repos.picksRepository.list(OTHER)).toEqual([]);
+      t.expect(await repos.picksRepository.listEdits(OTHER)).toEqual([]);
+    });
+
+    t.it('keeps at most the limit, counting the picks of inactive wines, so a reactivated wine never gives more than the limit (R1, B3)', async () => {
+      const ids = activeWines();
+      for (let i = 0; i < PICKS_MAX; i++) await repos.picksRepository.set(rid(), pickInput(ids[i], true, i + 1));
+      await t.expect(repos.picksRepository.set(rid(), pickInput(ids[PICKS_MAX], true, 20))).rejects.toMatchObject({ code: 'too_many_picks' });
+      // one of the picks goes inactive: it keeps its place, so the sixth is still refused
+      await repos.wineWriteRepository.setActive(rid(), ids[0], false);
+      t.expect((await repos.picksRepository.list(rid())).length).toBe(PICKS_MAX);
+      t.expect((await repos.picksRepository.list(rid())).find((x) => x.wineId === ids[0])!.active).toBe(false);
+      await t.expect(repos.picksRepository.set(rid(), pickInput(ids[PICKS_MAX], true, 21))).rejects.toMatchObject({ code: 'too_many_picks' });
+      await repos.wineWriteRepository.setActive(rid(), ids[0], true);
+      t.expect((await repos.picksRepository.list(rid())).filter((x) => x.active).length).toBe(PICKS_MAX);
+      // an unmarked wine frees a place; a repeat of an existing pick at the limit is a no-op, not an error
+      t.expect(await repos.picksRepository.set(rid(), pickInput(ids[1], true, 22))).toEqual({ changed: false });
+      await repos.picksRepository.set(rid(), pickInput(ids[1], false, 23));
+      t.expect(await repos.picksRepository.set(rid(), pickInput(ids[PICKS_MAX], true, 24))).toEqual({ changed: true });
+      t.expect((await repos.picksRepository.listEdits(rid())).length).toBe(PICKS_MAX + 2);
+    });
+
+    t.it('does not mark a wine that is not active, but unmarks one that became inactive (R1)', async () => {
+      const inactive = ds.wines.find((w) => !w.active)!;
+      const [a] = activeWines();
+      await t.expect(repos.picksRepository.set(rid(), pickInput(inactive.id, true, 1))).rejects.toMatchObject({ code: 'wine_inactive' });
+      t.expect(await repos.picksRepository.list(rid())).toEqual([]);
+      await repos.picksRepository.set(rid(), pickInput(a, true, 2));
+      await repos.wineWriteRepository.setActive(rid(), a, false);
+      t.expect(await repos.picksRepository.set(rid(), pickInput(a, false, 3))).toEqual({ changed: true });
+      t.expect(await repos.picksRepository.list(rid())).toEqual([]);
+    });
+
+    t.it('writes against the fingerprint the caller saw: a stale one changes nothing (R2)', async () => {
+      const [a, b] = activeWines();
+      await repos.picksRepository.set(rid(), pickInput(a, true, 1, { expectedVersion: picksVersion([]) }));
+      await t.expect(repos.picksRepository.set(rid(), pickInput(b, true, 2, { expectedVersion: picksVersion([]) }))).rejects.toBeInstanceOf(VersionConflictError);
+      // checked before "already as asked": a stale form never gets a quiet no-op
+      await t.expect(repos.picksRepository.set(rid(), pickInput(a, true, 3, { expectedVersion: picksVersion([]) }))).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.picksRepository.list(rid())).map((x) => x.wineId)).toEqual([a]);
+      t.expect((await repos.picksRepository.listEdits(rid())).length).toBe(1);
+      t.expect(await repos.picksRepository.set(rid(), pickInput(b, true, 4, { expectedVersion: picksVersion([a]) }))).toEqual({ changed: true });
+    });
+
+    t.it('reaches guests only with a publish: the version holds the sorted ids of the active picks, the view narrows to active wines (R5, R6)', async () => {
+      const [a, b, c] = activeWines();
+      for (const [i, id] of [c, a, b].entries()) await repos.picksRepository.set(rid(), pickInput(id, true, i + 1));
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks.size).toBe(0);
+      const v = await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-11-19T10:00:00.000Z', id: '30000000-0000-4000-8000-000000000001' });
+      const after = (await repos.publishRepository.effective(rid()))!;
+      t.expect(after.info).toEqual(v);
+      t.expect(after.snapshot.picks!.wineIds).toEqual([a, b, c]);
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks).toEqual(new Set([a, b, c]));
+      // a later change stays out of the published version; the version is immutable
+      await repos.picksRepository.set(rid(), pickInput(b, false, 10));
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks).toEqual(new Set([a, b, c]));
+      t.expect((await repos.publishRepository.effective(rid()))!.snapshot.picks!.wineIds).toEqual([a, b, c]);
+      // a wine switched off is not shown as a pick (live, like its availability); on again, it is back
+      await repos.wineWriteRepository.setActive(rid(), a, false);
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks).toEqual(new Set([b, c]));
+      await repos.wineWriteRepository.setActive(rid(), a, true);
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks).toEqual(new Set([a, b, c]));
+      // the next publish takes the working set as it is, and writes only the active ones
+      await repos.wineWriteRepository.setActive(rid(), c, false);
+      await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-11-19T11:00:00.000Z', id: '30000000-0000-4000-8000-000000000002' });
+      t.expect((await repos.publishRepository.effective(rid()))!.snapshot.picks!.wineIds).toEqual([a]);
     });
   });
 }

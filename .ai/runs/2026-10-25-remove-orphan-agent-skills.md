@@ -10,10 +10,10 @@ related: [.ai/runs/2026-10-25-context-engineering.md, .ai/runs/2026-10-25-contex
 # Usunąć osieroconą kopię skilli `agent/skills`
 
 ## Zadanie
-Właściciel: „zrób resztę z lekcji, żeby nic nie zostało”. Katalog `agent/skills` (347 plików, 42 skille) jest śledzony w git, różni się od `.agents/skills` (opisy zawinięte do wielu linii) i nie jest ładowany przez żadne narzędzie z repozytorium: Claude Code czyta `.claude/skills`, czyli dowiązania do `.agents/skills`. Dodany razem z `.agents/skills` w #87.
+Właściciel: „zrób resztę, żeby nic nie zostało”. Katalog `agent/skills` (347 plików, 42 skille) jest śledzony w git, różni się od `.agents/skills` (opisy zawinięte do wielu linii) i nie jest ładowany przez żadne narzędzie z repozytorium: Claude Code czyta `.claude/skills`, czyli dowiązania do `.agents/skills`. Dodany razem z `.agents/skills` w #87.
 
 ## Przebieg
-- Sprawdziłem odwołania (`grep` po `agent/skills` w całym repo, `skills-lock.json`, CI, CODEOWNERS, `.claude/settings.json`): żadnych poza notatkami z lekcji 10. `skills-lock.json` zawiera tylko ścieżki źródłowe z `open-mercato/skills`.
+- Sprawdziłem odwołania (`grep` po `agent/skills` w całym repo, `skills-lock.json`, CI, CODEOWNERS, `.claude/settings.json`): żadnych poza notatkami z wcześniejszych prac nad kontekstem. `skills-lock.json` zawiera tylko ścieżki źródłowe z `open-mercato/skills`.
 - `git rm -r agent`. Zawartość pozostaje w historii git, więc usunięcie jest odwracalne.
 
 ## Weryfikacja

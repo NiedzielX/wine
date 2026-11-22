@@ -2,12 +2,12 @@
 started: 2026-11-08 18:40
 ended: 2026-11-08 19:30
 agent: Claude Code / claude-sonnet-5-5 (pod-agent)
-spec: brak (zadanie narzędziowe lekcji 18, bez zmiany zachowania aplikacji)
+spec: brak (zadanie narzędziowe, bez zmiany zachowania aplikacji)
 outcome: success (zmiany zacommitowane lokalnie na gałęzi, bez pusha i bez PR; CI przy PR zweryfikuje to, czego nie dało się uruchomić lokalnie)
 related: [.ai/lessons/2026-11-08-ci-supply-chain-pins.md, .ai/specs/implemented/2026-10-25-agent-security-hardening.md]
 ---
 
-# Lekcja 18: łańcuch dostaw CI i uprawnienia agenta
+# Łańcuch dostaw CI i uprawnienia agenta
 
 ## Zadanie
 Przypiąć akcje SHA, ograniczyć uprawnienia jobów, wypisać narzędzia spoza lockfile'a, ocenić `ignore-scripts`, dodać artefakt pokrycia, utwardzić konfigurację i hook agenta, dodać skan historii sekretów.

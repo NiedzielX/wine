@@ -116,6 +116,8 @@ export const pl = {
       alsoGood: 'Też pasuje do tego dania',
       recommended: 'Polecane do Twojego dania',
       sommelierPairing: 'Para sommeliera',
+      restaurantPick: 'Wybór restauracji',
+      pickNote: 'Wybór restauracji to oznaczenie samej restauracji; nie zmienia wyniku dopasowania.',
       bestValue: 'Najlepsza cena',
       match: 'dopasowanie',
       matchLabel: (n: number) => `Dopasowanie ${n} procent`,
@@ -402,6 +404,11 @@ export const pl = {
           title: 'Sommelier ma ostatnie słowo',
           text: [`Wino z pieczęcią to para sommeliera: do tego dania poleca je ${directorPl(c.director)} i zawsze stoi pierwsze na liście dania. Wino odrzucone przez sommeliera nie pojawi się przy tym daniu; przy doborze dla całego stołu odrzucenie tylko mocno obniża wynik butelki.`]
         },
+        {
+          id: 'picks',
+          title: 'Wybór restauracji',
+          text: ['Restauracja może oznaczyć część win jako swój wybór i pokazać je wyżej wśród propozycji. Oznaczenie nie zmienia wyniku dopasowania, a para sommeliera zawsze zostaje na górze.']
+        },
         ...(c.showUnreviewed
           ? [{
               id: 'rules' as const,
@@ -604,6 +611,11 @@ export const pl = {
         details: () => 'Dane zapisane.',
         details_slug: () => 'Dane zapisane. Adres aplikacji gościa się zmienił: wydrukuj nowe kody QR, stare już nie działają.',
         suggestions: (n: number) => `Dodano propozycje silnika: ${n}.`,
+        profile_confirmed: () => 'Profil zapisany i potwierdzony. Goście zobaczą go po publikacji.',
+        profile_draft: () => 'Profil zapisany jako szkic. Goście zobaczą go po publikacji.',
+        profile_unchanged: () => 'Nic do zmiany: profil jest już taki.',
+        catalog_saved: (languages: string) => `Zapisano. Goście widzą zmianę od razu. Tłumaczenia zostają jak w publikacji: sprawdź je.${languages ? ` Tłumaczenia (${languages.toUpperCase().split(',').join(', ')}) mogą być nieaktualne.` : ''}`,
+        catalog_unchanged: () => 'Nic do zmiany: dane są już takie.',
         translations: () => 'Tłumaczenia zapisane. Goście zobaczą je po publikacji.',
         content: () => 'Język treści i tłumaczenia zapisane. Goście zobaczą je po publikacji.',
         suggestion_added: () => 'Dodano do propozycji — zatwierdź je w „Propozycjach silnika”. Goście zobaczą zmianę dopiero po zatwierdzeniu i publikacji.',
@@ -649,6 +661,7 @@ export const pl = {
         no_complete_checks: 'Żadnego rachunku nie da się zapisać: każda zaznaczona pozycja należy do rachunku z odznaczoną pozycją albo błędem.',
         slug_taken: 'Inna restauracja używa już tej nazwy w adresie. Wybierz inną.',
         validation_failed: 'Sprawdź dane. Nazwa w adresie może zawierać tylko małe litery, cyfry i myślniki (od 2 do 40 znaków) i nie może być słowem zastrzeżonym.',
+        profile_invalid: 'Sprawdź profil: skale to liczby całkowite od 0 do 5, alkohol od 0 do 25. Nic nie zapisano.',
         translation_invalid: 'Sprawdź tłumaczenia: któreś jest za długie.',
         already_suggested: 'To wino jest już w propozycjach tego dania.',
         already_rejected: 'To parowanie zostało odrzucone — przywróć je w sekcji „Odrzucone”.',
@@ -662,6 +675,7 @@ export const pl = {
         member_deactivated: 'Dostęp tej osoby jest odebrany. Przywróć go przed zmianą roli.',
         already_member: 'Ta osoba jest już w zespole tej restauracji. Jeśli odebrano jej dostęp, przywróć go na liście.',
         invitation_conflict: 'Inne zaproszenie na ten adres powstało w tej samej chwili. Spróbuj ponownie.',
+        catalog_conflict: 'Ktoś zmienił menu lub kartę win, gdy ten import był otwarty, i jedna z nowych pozycji już istnieje. Nic nie zaimportowano: zacznij import od nowa.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
     },
@@ -798,6 +812,7 @@ export const pl = {
       toReview: (n: number) => `do przeglądu: ${n}`
     },
     dish: {
+      moreDetails: 'Pozostałe dane',
       back: 'Menu',
       managePairings: 'Zarządzaj parowaniami',
       details: 'Szczegóły',
@@ -846,6 +861,8 @@ export const pl = {
       show: 'Pokaż'
     },
     wine: {
+      moreDetails: 'Styl i podawanie',
+      bottleSize: 'Pojemność butelki',
       back: 'Karta win',
       listing: 'Karta i ceny',
       style: 'Styl',
@@ -883,6 +900,9 @@ export const pl = {
       doneText: 'Goście widzą najpierw Twoje zatwierdzone parowania, a pozostałe miejsca uzupełnia silnik.',
       noPrimary: 'Brak podstawowego wyboru',
       approveDish: 'Zatwierdź wszystkie dla dania',
+      renamedTitle: 'Zmieniono nazwę: sprawdź pary',
+      renamedText: 'Nazwa zmieniła się po decyzjach o tych parowaniach. Sprawdź, czy nadal pasują, potem zdecyduj ponownie albo zostaw je.',
+      renamedItem: (pairs: number) => `Zmieniono nazwę, sprawdź pary: ${pairs}`,
       openPairings: 'Otwórz parowania',
       approve: 'Zatwierdź',
       reject: 'Odrzuć'
@@ -1006,6 +1026,9 @@ export const pl = {
       draftProfiles: (n: number) => `Profile smaku wciąż w szkicu: ${n}`,
       allConfirmed: 'Wszystkie profile smaku potwierdzone',
       allConfirmedText: 'Wyniki opierają się na sprawdzonych profilach.',
+      draftWineProfiles: (n: number) => `Profile win, które są jeszcze szkicami: ${n}`,
+      allWineProfilesConfirmed: 'Wszystkie profile win potwierdzone',
+      allWineProfilesConfirmedText: 'Wyniki win opierają się na profilach, które sprawdzono.',
       check: 'Sprawdź',
       newDishes: (n: number) => `Nowe dania, które trafią do gości: ${n}`,
       noNewDishes: 'Brak nowych dań',
@@ -1020,7 +1043,7 @@ export const pl = {
       saveSettings: 'Zapisz ustawienia',
       pending: (n: number) => `Nieopublikowane zmiany: ${n}`,
       latest: 'Goście widzą najnowszą wersję',
-      pendingText: (pairings: number, dishes: number) => `Parowania: ${pairings}, nowe dania: ${dishes}. Publikacja od razu aktualizuje aplikację gościa; kod QR się nie zmienia.`,
+      pendingText: (pairings: number, dishes: number, profiles: number) => `Parowania: ${pairings}, nowe dania: ${dishes}, profile smaku (zmienione lub pozycji dodanych po ostatniej publikacji): ${profiles}. Publikacja od razu aktualizuje aplikację gościa; kod QR się nie zmienia.`,
       nothing: 'Nie ma nic do opublikowania.',
       preview: 'Podgląd aplikacji gościa',
       submit: 'Opublikuj zmiany',
@@ -1209,6 +1232,95 @@ export const pl = {
       link: 'Link',
       linkText: 'Ten sam adres do menu, na stronę internetową albo do wiadomości.'
     },
+    profileEditor: {
+      title: 'Edytuj profil smaku',
+      textDish: 'Skale, które silnik czyta przy każdym Match Score tego dania. Zmień je, zobacz, co stanie się z wynikami, i zapisz.',
+      textWine: 'Skale, które silnik czyta przy każdym Match Score tego wina. Zmień je, zobacz, co stanie się z wynikami, i zapisz.',
+      afterPublish: 'Goście zobaczą zmieniony profil dopiero po publikacji.',
+      readOnly: 'Twoja rola nie może zmieniać profili smaku.',
+      scale: (label: string) => `${label} (0 do 5)`,
+      alcohol: 'Alkohol (% obj.)',
+      style: 'Styl',
+      adventurous: 'Charakter',
+      yes: 'Nieoczywiste',
+      no: 'Klasyczne',
+      protein: 'Główny składnik',
+      cooking: 'Obróbka',
+      showPreview: 'Pokaż, jak zmieni się dopasowanie',
+      reset: 'Wróć do zapisanych wartości',
+      stateDraft: 'Szkic',
+      stateDraftText: (source: string) => `Jeszcze niepotwierdzony (${source}). Sprawdź skale, zanim zaczniesz polegać na wynikach.`,
+      sources: { draft: 'szkic z importu', grape_defaults: 'wartości domyślne dla szczepu', catalog: 'z katalogu' } as Record<string, string>,
+      stateConfirmed: 'Potwierdzony',
+      stateConfirmedText: (by: string | null, at: string | null) => (by && at ? `Potwierdził(a) ${by}, ${at}.` : by ? `Potwierdził(a) ${by}.` : 'Potwierdzony przez zespół restauracji.'),
+      saveConfirm: 'Zapisz i potwierdź',
+      saveDraft: 'Zapisz jako szkic',
+      confirmOnly: 'Potwierdź bez zmian',
+      saveText: 'Zapisuje wartości pokazane powyżej (te z podglądu).',
+      invalid: 'Część wartości jest niepoprawna: skale to liczby całkowite od 0 do 5, alkohol od 0 do 25 z krokiem 0,1. Nic nie zapisano.',
+      previewTitle: 'Jak zmieni się dopasowanie',
+      previewTextDish: 'Match Score tego dania z każdym aktywnym winem, przed zmianą i po niej, na Twoich bieżących parowaniach. Nic jeszcze nie jest zapisane.',
+      previewTextWine: 'Match Score tego wina z każdym daniem z karty, przed zmianą i po niej, na Twoich bieżących parowaniach. Nic jeszcze nie jest zapisane.',
+      unpublished: (n: number) => `Niepublikowane decyzje o parowaniach: ${n}. Podgląd pokazuje stan po następnej publikacji.`,
+      noChange: 'Te wartości są równe zapisanemu profilowi: żaden wynik się nie zmienia.',
+      summary: (pairs: number, crossing: number) => `Zatwierdzone parowania ze zmienionym wynikiem: ${pairs}; z nich ${crossing} przekracza próg, poniżej którego silnik nie proponuje wina.`,
+      noPairsChange: 'Żadne zatwierdzone parowanie nie zmienia wyniku.',
+      colWine: 'Wino',
+      colDish: 'Danie',
+      colScore: 'Match Score',
+      colDecision: 'Twoja decyzja',
+      change: (before: number, after: number, delta: number) => `${before} → ${after}, ${delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : 'bez zmiany'}`,
+      noDecision: 'Brak decyzji',
+      guestBefore: 'Goście widzą teraz (najlepsze propozycje)',
+      guestAfter: 'Goście zobaczą po publikacji',
+      guestRank: (before: number | null, after: number | null) => `${before === null ? 'poza najlepszymi propozycjami' : `miejsce ${before}`} → ${after === null ? 'poza najlepszymi propozycjami' : `miejsce ${after}`}`,
+      guestWineTitle: 'Gdzie wino wchodzi do najlepszych propozycji lub z nich wypada',
+      guestWineNone: 'Wino zachowuje miejsce w najlepszych propozycjach każdego dania.',
+      error: 'Podgląd wymaga poprawnych wartości.'
+    },
+    catalog: {
+      dish: {
+        title: 'Dane dania',
+        text: 'Nazwa, opis, kategoria i cena, które goście czytają w menu. Zmiana jest od razu widoczna dla gości.',
+        name: 'Nazwa', description: 'Opis', category: 'Kategoria', price: 'Cena (zł)',
+        baseHint: 'To tekst bazowy. Tłumaczenia są niżej.',
+        renameHint: 'Zmiana nazwy zmienia dopasowanie importu z pliku: późniejszy import starej nazwy utworzy nowe danie.'
+      },
+      wine: {
+        title: 'Pozycja na karcie',
+        text: 'Producent, nazwa, rocznik, region, ceny i numer na karcie. Zmiana jest od razu widoczna dla gości.',
+        producer: 'Producent', name: 'Wino', vintage: 'Rocznik (rok albo NV)', region: 'Region', country: 'Kraj', tastingNote: 'Nota degustacyjna',
+        listNumber: 'Nr na karcie', listNumberHint: 'Zostaw puste, jeśli wina nie ma na drukowanej karcie.', bottlePrice: 'Cena butelki (zł)',
+        pouredByGlass: 'Na kieliszki', glassPrice: 'Cena kieliszka (zł)', glassHint: 'Liczy się tylko, gdy wino jest na kieliszki; w przeciwnym razie zostaw bez zmian.',
+        baseHint: 'To tekst bazowy. Tłumaczenia są niżej.'
+      },
+      save: 'Zapisz zmiany',
+      readOnly: 'Twoja rola nie może zmieniać tych danych.',
+      identity: {
+        dish: 'To danie ma {n} parowań sommeliera. Zmień nazwę tylko po to, by ją poprawić, nie by zastąpić danie.',
+        wine: 'To wino ma {n} parowań sommeliera. Zmień producenta, nazwę lub rocznik tylko po to, by je poprawić, nie by zastąpić wino.',
+        confirm: 'Poprawiam, nie zastępuję'
+      },
+      lastEditBy: 'Ostatnia zmiana: {name}, {date}',
+      lastEdit: 'Ostatnia zmiana: {date}',
+      stale: 'Tłumaczenia ({languages}) mogą być nieaktualne.',
+      staleLink: 'Sprawdź tłumaczenia',
+      checkAfterRename: 'Sprawdź po zmianie nazwy',
+      pairsToCheck: 'Parowania do sprawdzenia po zmianie nazwy: {n}',
+      errors: {
+        required: 'Uzupełnij to pole.', too_long: 'Za długie.', not_positive: 'Musi być większe od zera.', too_many_decimals: 'Najwyżej dwa miejsca po przecinku.',
+        glass_not_below_bottle: 'Kieliszek musi kosztować mniej niż butelka.', duplicate: 'Inna pozycja ma już tę nazwę.', transition: 'Ta zmiana nie jest dozwolona.',
+        not_a_number: 'Wpisz liczbę, np. 58 albo 58,50.', not_allowed: 'Włącz „Na kieliszki”, aby ustawić cenę kieliszka.', out_of_range: 'Poza dozwolonym zakresem.',
+        invalid: 'Niepoprawna wartość.', invalid_chars: 'Usuń znaki sterujące lub niewidoczne.', identity_unconfirmed: 'Potwierdź, że poprawiasz nazwę.',
+        unknown_field: 'Nieznane pole.'
+      } as Record<string, string>,
+      formErrors: {
+        version_conflict_dish: 'Ktoś w międzyczasie zmienił to danie. Odśwież stronę.',
+        version_conflict_wine: 'Ktoś w międzyczasie zmienił to wino. Odśwież stronę.',
+        forbidden: 'Nie masz uprawnień do tej zmiany.', not_found: 'Ta pozycja już nie istnieje.', validation_failed: 'Sprawdź zaznaczone niżej pola. Nic nie zapisano.',
+        unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione; spróbuj ponownie.'
+      } as Record<string, string>
+    },
     translations: {
       title: 'Tłumaczenia',
       text: 'Goście i panel widzą wersję w swoim języku. Puste pole pokazuje tekst bazowy.',
@@ -1276,7 +1388,7 @@ export const pl = {
       readOnly: 'Twoja rola nie pozwala importować plików.',
       kinds: {
         menu: { noun: (n: number) => plural(n, 'danie', 'dania', 'dań'), columns: 'Kategoria, Nazwa, Opis, Cena', hint: 'Nowe dania trafiają jako szkice ze szkicem profilu smaku. Goście zobaczą je po publikacji.', updates: 'opis, kategoria i cena' },
-        wines: { noun: (n: number) => plural(n, 'wino', 'wina', 'win'), columns: 'Producent, Wino, Rocznik, Region, Szczep, Styl, Cena kieliszka, Cena butelki', hint: 'Nowe wina od razu trafiają do karty i dostają propozycje parowań do Twojego przeglądu.', updates: 'ceny' },
+        wines: { noun: (n: number) => plural(n, 'wino', 'wina', 'win'), columns: 'Producent, Wino, Rocznik, Region, Szczep, Styl, Cena kieliszka, Cena butelki', hint: 'Nowe wina od razu trafiają do karty i dostają propozycje parowań do Twojego przeglądu. Goście zobaczą je po następnej publikacji.', updates: 'ceny' },
         sales: {
           noun: (n: number) => plural(n, 'pozycję', 'pozycje', 'pozycji'), columns: 'Data (dzień biznesowy), Nr rachunku, Goście (opcjonalnie), Kategoria, Pozycja (opcjonalnie), Ilość, Kwota netto',
           hint: 'Wyeksportuj z kasy pozycje rachunków jako CSV albo Excel. Użyj kolumny dnia biznesowego, nie znacznika czasu. Duże pliki dziel po całych dniach. Nazwiska gości i dane kart nie są potrzebne — takie kolumny są pomijane.',

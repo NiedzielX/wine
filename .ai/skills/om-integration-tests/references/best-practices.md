@@ -1,6 +1,6 @@
 # Dobre praktyki testów integracyjnych (end to end) w Wine Match
 
-Źródło: lekcja 12 kursu (lista „Dobre praktyki testów integracyjnych”) z dopiskami z tego projektu. Stosuje je lokalne rozszerzenie skilla `om-integration-tests` (`../SKILL.md`). Test, który łamie regułę, jest błędem, nawet jeśli przechodzi.
+Dobre praktyki testów integracyjnych z dopiskami z tego projektu. Stosuje je lokalne rozszerzenie skilla `om-integration-tests` (`../SKILL.md`). Test, który łamie regułę, jest błędem, nawet jeśli przechodzi.
 
 Testy integracyjne chronią przed regresją widoczną dla użytkownika. Powinny dawać ten sam wynik przy każdym uruchomieniu, lokalnie i w CI. Niestabilny test (flaky) jest gorszy niż brak testu, bo nikt mu nie ufa.
 

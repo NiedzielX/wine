@@ -18,7 +18,10 @@ export const WineProfileEmbeddable = defineEntity({
     freshness: p.integer().columnType('smallint'),
     style: p.enum(['sparkling', 'white', 'rose', 'orange', 'red', 'sweet'] as const),
     adventurous: p.boolean().default(false),
-    source: p.enum(['grape_defaults', 'catalog', 'confirmed'] as const).default('confirmed')
+    source: p.enum(['grape_defaults', 'catalog', 'confirmed'] as const).default('confirmed'),
+    /** when and by whom the profile was confirmed (spec 2026-11-04-panel-completion, R4) */
+    confirmedAt: p.datetime().nullable(),
+    confirmedBy: p.string().nullable()
   }
 });
 

@@ -47,7 +47,7 @@ Pakiety wewnętrzne eksportują źródła TypeScript (bez kroku build); Next.js 
 
 ### 1.6 Standardy inżynieryjne
 
-Pełny dokument, z mapowaniem każdej reguły z oryginału (który opisuje inny produkt, DevMentor): **`.ai/docs/engineering-standards.md`**. Najważniejsze, co musisz wiedzieć pisząc kod:
+Pełny dokument, z regułami i miejscami ich egzekwowania: **`.ai/docs/engineering-standards.md`**. Najważniejsze, co musisz wiedzieć pisząc kod:
 
 - **Konwencja pojęć domenowych.** Kod nie jest dzielony na `modules/`. Każde pojęcie (`auth`, `catalog`, `pairings`, `publishing`, `restaurants`, `imports`, `guests`) to podkatalog o tej samej nazwie w warstwach, które go potrzebują: `core/src/services/<pojęcie>/`, `core/src/validators/<pojęcie>/`, `db/src/entities/<pojęcie>/`. Tworzysz go dopiero z pierwszym plikiem, nigdy pustego. To konwencja katalogów, nie system modułów: brak `setup.ts`, ACL-i i automatycznego wykrywania.
 - **Warstwa API w `app/src/server/`.** Każda trasa to `handle()` (z sesją) lub `handlePublic()` (bez), a ciało żądania wchodzi **wyłącznie** przez `parseBody(req, schemat)` ze schematem Zod z `core/validators/` (obiekty `strictObject`: nieznane pole = 422). Trasa nie ma własnego `try/catch`: błędy mapuje jedno `guarded()`. Błędy domenowe rozpoznajemy przez `domainError()`, nigdy `instanceof`.

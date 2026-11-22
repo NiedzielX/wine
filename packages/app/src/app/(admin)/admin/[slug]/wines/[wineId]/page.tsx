@@ -1,16 +1,21 @@
 import { styleLabel } from '@wine-match/core';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, LevelMeter } from '@wine-match/ui';
+import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, LevelMeter } from '@wine-match/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
-import { ActiveBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
+import { ActiveBadge, ProfileBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
 import { PanelExplain } from '../../../_components/explain';
-import { first, vintageLabel, zl } from '../../../_components/format';
+import { first, formatDateTime, vintageLabel, zl } from '../../../_components/format';
 import { Flash } from '../../../_components/flash';
 import { TranslationsCard } from '../../../_components/translations-form';
-import { saveWineTranslations } from '../../actions';
-import { ENGINE_FACTS, TEXT_LIMITS, translationsVersion } from '@wine-match/core';
+import { ProfileEditor } from '../../../_components/profile-editor';
+import { WineListingForm } from '../../../_components/catalog-forms';
+import { catalogFormLabels, priceText } from '../../../_components/catalog-page';
+import { saveWineDetails } from '../../catalog-actions';
+import { wineProfileState } from '../../../_components/profile-page';
+import { confirmWineProfile, saveWineProfile, saveWineTranslations } from '../../actions';
+import { ENGINE_FACTS, TEXT_LIMITS, profileVersion, translationsVersion } from '@wine-match/core';
 import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
 import { getRequestScope } from '@/server/request-scope';
@@ -28,12 +33,20 @@ const SCALES = ['body', 'acidity', 'tannin', 'sweetness', 'fruitiness', 'oak', '
 export default async function WinePage({ params, searchParams }: Props) {
   const { slug, wineId } = await params;
   const sp = await searchParams;
-  const canTranslate = (await requireAccess(slug)).can('import.manage');
+  const access = await requireAccess(slug);
+  const canTranslate = access.can('import.manage');
+  const canEditProfile = access.can('profiles.edit');
+  const canEditCatalog = access.can('catalog.edit');
   const { locale, t } = await getI18n();
   const m = t.admin.wine;
-  const d = await (await getRequestScope()).cradle.adminService.wineDetail(slug, wineId, locale);
+  const cradle = (await getRequestScope()).cradle;
+  const d = await cradle.adminService.wineDetail(slug, wineId, locale);
   if (!d) notFound();
   const { wine: w, source, bestDishes, approvedFor } = d;
+  const editor = await wineProfileState(cradle, slug, source, sp, canEditProfile);
+  const cm = t.admin.catalog;
+  const labels = catalogFormLabels(t, locale, 'wine', { lastEdit: d.lastEdit, staleLocales: d.staleLocales, pairs: approvedFor.length }, access.can('audit.view'));
+  const profileSource = source.profile.source ?? 'confirmed';
   const tm = t.admin.translations.fields;
   const p = w.profile;
 
@@ -46,20 +59,45 @@ export default async function WinePage({ params, searchParams }: Props) {
       />
       <Flash saved={first(sp.saved)} error={first(sp.error)} n={first(sp.n)} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        {canEditCatalog && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3"><CardTitle>{cm.wine.title}</CardTitle><ActiveBadge active={w.active} t={t} /></div>
+              <CardDescription>{cm.wine.text}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WineListingForm
+                action={saveWineDetails} slug={slug} back={`/admin/${slug}/wines/${w.id}`} wineId={w.id} version={d.fieldsVersion}
+                initial={{
+                  producer: source.producer, name: source.name, vintage: String(source.vintage), region: source.region, country: source.country, tastingNote: source.tastingNote,
+                  listNumber: source.listNumber === undefined ? '' : String(source.listNumber), bottlePrice: priceText(source.bottlePrice, locale), glassPrice: priceText(source.glassPrice, locale),
+                  pouredByGlass: String(source.glassPrice !== null)
+                }}
+                text={{
+                  producer: cm.wine.producer, name: cm.wine.name, vintage: cm.wine.vintage, region: cm.wine.region, country: cm.wine.country, tastingNote: cm.wine.tastingNote,
+                  listNumber: cm.wine.listNumber, listNumberHint: cm.wine.listNumberHint, bottlePrice: cm.wine.bottlePrice, pouredByGlass: cm.wine.pouredByGlass, glassPrice: cm.wine.glassPrice, glassHint: cm.wine.glassHint
+                }}
+                labels={labels}
+              />
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between gap-3"><CardTitle>{m.listing}</CardTitle><ActiveBadge active={w.active} t={t} /></div>
-            <CardDescription>{w.tastingNote}</CardDescription>
+            <div className="flex items-center justify-between gap-3"><CardTitle>{canEditCatalog ? m.moreDetails : m.listing}</CardTitle>{!canEditCatalog && <ActiveBadge active={w.active} t={t} />}</div>
+            {!canEditCatalog && <CardDescription>{w.tastingNote}</CardDescription>}
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
               <div><dt className="text-muted-foreground">{m.style}</dt><dd className="mt-0.5 font-medium">{m.abv(styleLabel(p.style, locale), p.alcohol)}</dd></div>
-              <div><dt className="text-muted-foreground">{m.listNo}</dt><dd className="mt-0.5 font-medium tabular-nums">{w.listNumber ?? '—'}</dd></div>
+              {!canEditCatalog && <div><dt className="text-muted-foreground">{m.listNo}</dt><dd className="mt-0.5 font-medium tabular-nums">{w.listNumber ?? '—'}</dd></div>}
               <div><dt className="text-muted-foreground">{m.serving}</dt><dd className="mt-0.5 font-medium">{w.glassPrice !== null ? m.glassAndBottle(w.glassPour) : m.bottleOnly}</dd></div>
-              <div><dt className="text-muted-foreground">{m.glassPrice}</dt><dd className="mt-0.5 font-medium tabular-nums">{w.glassPrice !== null ? zl(w.glassPrice, locale) : '—'}</dd></div>
-              <div><dt className="text-muted-foreground">{m.bottlePrice}</dt><dd className="mt-0.5 font-medium tabular-nums">{zl(w.bottlePrice, locale)} ({w.bottleSize} ml)</dd></div>
+              {!canEditCatalog && <div><dt className="text-muted-foreground">{m.glassPrice}</dt><dd className="mt-0.5 font-medium tabular-nums">{w.glassPrice !== null ? zl(w.glassPrice, locale) : '—'}</dd></div>}
+              {!canEditCatalog && <div><dt className="text-muted-foreground">{m.bottlePrice}</dt><dd className="mt-0.5 font-medium tabular-nums">{zl(w.bottlePrice, locale)} ({w.bottleSize} ml)</dd></div>}
+              {canEditCatalog && <div><dt className="text-muted-foreground">{m.bottleSize}</dt><dd className="mt-0.5 font-medium tabular-nums">{w.bottleSize} ml</dd></div>}
               <div><dt className="text-muted-foreground">{m.character}</dt><dd className="mt-0.5 font-medium">{p.adventurous ? m.adventurous : m.classic}</dd></div>
             </dl>
+            {!canEditCatalog && d.lastEdit && <p className="mt-4 text-xs text-muted-foreground" data-last-edit>{(access.can('audit.view') ? cm.lastEditBy.replace('{name}', d.lastEdit.actor) : cm.lastEdit).replace('{date}', formatDateTime(d.lastEdit.at, locale))}</p>}
           </CardContent>
         </Card>
 
@@ -83,7 +121,7 @@ export default async function WinePage({ params, searchParams }: Props) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>{m.profile}</CardTitle><CardDescription>{m.profileText}</CardDescription></CardHeader>
+          <CardHeader><div className="flex items-center justify-between gap-3"><CardTitle>{m.profile}</CardTitle><ProfileBadge source={profileSource === 'confirmed' ? 'confirmed' : 'draft'} t={t} /></div><CardDescription>{m.profileText}</CardDescription></CardHeader>
           <CardContent>
             <dl className="grid gap-3">
               {SCALES.map((key) => (
@@ -102,11 +140,21 @@ export default async function WinePage({ params, searchParams }: Props) {
             {approvedFor.length === 0 ? <p className="text-sm text-muted-foreground">{m.noApproved}</p> : approvedFor.map((x) => (
               <div key={x.dish.id} className="flex items-center justify-between gap-3 text-sm">
                 <Link href={`/admin/${slug}/pairings/${x.dish.id}`} className="font-medium underline-offset-4 hover:underline">{x.dish.name}</Link>
-                <RoleBadge role={x.role} t={t} />
+                <span className="flex flex-wrap items-center justify-end gap-2">
+                  {x.checkAfterRename && <Badge variant="outline" data-check-after-rename>{cm.checkAfterRename}</Badge>}
+                  <RoleBadge role={x.role} t={t} />
+                </span>
               </div>
             ))}
           </CardContent>
         </Card>
+
+        <ProfileEditor
+          kind="wine" t={t} locale={locale} slug={slug} subjectId={w.id} path={`/admin/${slug}/wines/${w.id}`} canEdit={canEditProfile}
+          values={editor.values} version={profileVersion(source.profile)} preview={editor.preview} previewInvalid={editor.previewInvalid}
+          state={{ confirmed: profileSource === 'confirmed', source: profileSource, by: source.profile.confirmedBy ?? null, at: source.profile.confirmedAt ? formatDateTime(source.profile.confirmedAt, locale) : null }}
+          actions={{ save: saveWineProfile, confirm: confirmWineProfile }}
+        />
 
         <TranslationsCard
           action={saveWineTranslations} hidden={{ slug, back: `/admin/${slug}/wines/${w.id}`, wineId: w.id }} t={t} canEdit={canTranslate}

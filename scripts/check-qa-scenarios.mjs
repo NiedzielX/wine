@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * QA scenario guard (lesson 12): every `it` of an `*.e2e.test.ts` has a Markdown scenario in `.ai/qa/`, linked both ways.
+ * QA scenario guard: every `it` of an `*.e2e.test.ts` has a Markdown scenario in `.ai/qa/`, linked both ways.
  * No dependencies. Usage:
  *   node scripts/check-qa-scenarios.mjs                run on this repository
  *   node scripts/check-qa-scenarios.mjs --root <dir>   run on another tree (tests)

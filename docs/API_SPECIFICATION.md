@@ -76,7 +76,7 @@ Dezaktywacja działa od następnego żądania osoby (sesja zostaje, ale `GET /au
 | GET | `/restaurants/{id}/dishes` | S M | `?q=&category=&status=` |
 | GET | `/restaurants/{id}/wines` | S M W | `?q=&style=&active=` |
 | GET | `/restaurants/{id}/publish/preview` | S M | checklista i liczba zmian |
-| POST | `/restaurants/{id}/publish` | S M | tworzy PublishedVersion |
+| POST | `/restaurants/{id}/publish` | S M | tworzy PublishedVersion (migawka v2: pary, tłumaczenia, profile, skład karty). Opcjonalne ciało `{expectedLatest}` (numer najnowszej wersji widziany przez klienta, `0` = brak publikacji): inny numer → 409 `version_conflict`, nic nie jest zapisane; nieznane pole → 422. Puste ciało publikuje jak dotąd |
 | GET | `/restaurants/{id}/versions` | S M | historia publikacji |
 | POST | `/restaurants/{id}/versions/{versionId}/restore` | M | rollback |
 | GET | `/restaurants/{id}/qr` | S M | `?format=svg|png&size=1024` |
@@ -124,7 +124,11 @@ GET /v1/public/restaurants/halka/menu
 | POST | `/dishes` | S M | `{restaurantId, name, description, category, price}`; profil szkicowany automatycznie |
 | GET | `/dishes/{id}` | S M | danie z profilem |
 | PATCH | `/dishes/{id}` | S M | pola dania |
-| PUT | `/dishes/{id}/profile` | S | profil; ustawia `source=confirmed`, przelicza `modelScore` i propozycje |
+| GET | `/dishes/{dishId}/details?restaurant={slug}` | S M | edytowalne pola `{name, description, category, price}`; odcisk pól w nagłówku `ETag` (uprawnienie `catalog.edit`; E13 C1) |
+| PATCH | `/dishes/{dishId}/details?restaurant={slug}` | S M | dowolne z `name` (1–120), `description` (0–1000), `category` (`Starters` \| `Mains` \| `Desserts`), `price` (> 0, ≤ 10 000, najwyżej dwa miejsca po przecinku; liczba), co najmniej jedno pole (`strictObject`: `status`, `profile` i inne pola → 422 `unknown_field`); teksty: NFC, przycięcie, znaki sterujące i niewidoczne → `invalid_chars`. **`If-Match: "<odcisk>"` wymagany** (428 bez, 400 niepoprawny, 409 `version_conflict`); kolizja nazwy (po `normKey`, także ze szkicami i ukrytymi) → 422 `fields: {name: "duplicate"}`; błędy pól wracają wszystkie naraz. Odpowiedź: `{changed, name, description, category, price}` + `ETag`; brak zmiany po normalizacji → `changed: false`, bez wpisu audytu. Zmiana jest **od razu** widoczna dla gości i nie liczy się do niepublikowanych zmian; tłumaczenia i profil zostają, żadne pole nie zmienia Match Score. Każda zmiana zapisuje wiersz `catalog_edit` |
+| GET | `/dishes/{dishId}/profile?restaurant={slug}` | S M | `{profile, version}`; odcisk profilu także w nagłówku `ETag` (uprawnienie `profiles.edit`; E13 F2) |
+| PUT | `/dishes/{dishId}/profile?restaurant={slug}` | S M | ciało `{profile, confirm}` (`strictObject`: skale 0–5 całkowite, `protein`, `cooking`; `confirm: true` = potwierdzony, `false` = szkic); **`If-Match: "<odcisk>"` wymagany** (428 bez, 400 niepoprawny, 409 `version_conflict` gdy profil zmieniono od odczytu); odpowiedź `{changed, profile, version}` + `ETag`; brak zmiany → `changed: false`, bez wpisu audytu. **Nie przelicza `modelScore` ani propozycji** (robi to publikacja i regeneracja par); goście widzą zmianę po następnej publikacji. Każda zmiana zapisuje wiersz `profile_edit` |
+| GET | `/dishes/{dishId}/profile/preview?restaurant={slug}&intensity=…&protein=…` | S M | podgląd „Jak zmieni się dopasowanie” (te same parametry co formularz GET w panelu, ten sam schemat Zod): wiersze `{otherId, otherName, before, after, delta, pairing}` dla aktywnych win, top propozycji gościa przed i po, podsumowanie (zatwierdzone pary ze zmianą wyniku, przekroczenia progu `minModelScore`). Tylko odczyt: wyniki z `pairingScore`, bez zapisu, sieci i LLM |
 | DELETE | `/dishes/{id}` | S M | soft delete |
 | GET | `/dishes/{id}/pairings` | S M | pary dania (wszystkie statusy) |
 | PUT | `/dishes/{id}/pairings/order` | S | `{pairingIds: [...]}` → rank 1..n |
@@ -162,6 +166,7 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
       "tier": "sommelier_primary",
       "sommelier": {"role": "primary", "name": "Marta Wierzbicka"},
       "bestValue": false,
+      "restaurantPick": false,
       "why": "Pinot and sour cherry jus — our signature match."
     },
     {
@@ -170,6 +175,7 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
       "tier": "sommelier",
       "sommelier": {"role": "best_value", "name": "Marta Wierzbicka"},
       "bestValue": true,
+      "restaurantPick": false,
       "why": "Fresh acidity cuts through the richness, and bright Gamay fruit lifts the dish."
     }
   ]
@@ -177,6 +183,8 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
 ```
 
 `tier`: `sommelier_primary` | `sommelier` | `engine`. Klient pokazuje etykietę „Sommelier’s pairing” / „Para sommeliera” wyłącznie dla dwóch pierwszych; najlepszą propozycję `engine` aplikacja gościa nazywa „Recommended for your dish” / „Polecane do Twojego dania”. Pola i wartości `tier` bez zmian — etykiety to tekst klienta.
+
+`restaurantPick` (boolean, pole addytywne; spec `2026-11-18-restaurant-picks`, R9, R16): `true` tylko przy wybranym przez restaurację winie, które w **opublikowanej** wersji jest w zbiorze „Wybór restauracji” i się kwalifikuje (`tier = engine`, `matchScore` co najmniej 75 i w oknie 10 punktów od najlepszego wina grupy `engine`; przy łagodzeniu budżetu, czyli `notice` różnym od `null`, zawsze `false`). Nigdy `true` przy `sommelier_primary` ani `sommelier`. `matchScore` i `why` to wynik silnika, bez zmiany. Klient pokazuje wtedy etykietę „Restaurant’s pick” / „Wybór restauracji” (znak restauracji, bez pieczęci sommeliera). **Zmiana zgodna wstecz (BC §2):** pole jest nowe, ale kolejność pozycji `engine` może się zmienić (najwyżej dwa wybory przechodzą na początek tej grupy, para sommeliera zawsze stoi pierwsza), a przy niepustym zbiorze lista może zawierać wina, które bez wyborów byłyby poza `limit`. Zbiór zmienia się dla gości dopiero po publikacji (`POST /restaurants/{slug}/publish`), nigdy od razu po `PUT /wines/{id}/pick`.
 
 ---
 
@@ -187,7 +195,14 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
 | POST | `/wines` | S M | nowa pozycja karty; profil z domyślnych szczepu i stylu |
 | GET | `/wines/{id}` | S M | wino z profilem |
 | PATCH | `/wines/{id}` | S M | ceny, `active`, nota, serwowanie; walidacja: `glassPrice < bottlePrice` |
-| PUT | `/wines/{id}/profile` | S | profil wina |
+| GET | `/wines/{id}/details?restaurant={slug}` | S M | edytowalne pola `{producer, name, vintage, region, country, tastingNote, listNumber, bottlePrice, glassPrice, pouredByGlass}`; `ETag` jak dla dania (`catalog.edit`) |
+| PATCH | `/wines/{id}/details?restaurant={slug}` | S M | dowolne z `producer` (1–120), `name` (1–160), `vintage` (liczba całkowita od 1900 do roku bieżącego + 1 albo dokładnie `"NV"`), `region` (0–120), `country` (0–80), `tastingNote` (0–1000), `listNumber` (1–9999 albo `null`; unikalny wśród win restauracji, sprawdzany tylko przy zmianie), `bottlePrice` (> 0, ≤ 100 000), `pouredByGlass` (boolean), `glassPrice` (> 0 i poniżej ceny butelki; tylko z `pouredByGlass`, przy `false` zapisywana jako `null`, przy `glassPrice` bez włączonego przełącznika → `not_allowed`). Reguły sprawdzane na stanie po scaleniu z zapisanym (brak `pouredByGlass` = obecny stan). `If-Match`, `ETag`, kody błędów, klucz `producent|nazwa|rocznik` unikalny (`duplicate`), widoczność dla gości i audyt jak dla dania. **Dostępność** (`active`) zostaje w `PATCH /wines/{id}` `{active}` (uprawnienie `wines.toggle`) |
+| GET | `/wines/{id}/profile?restaurant={slug}` | S M | jak dla dania: `{profile, version}` + `ETag` |
+| PUT | `/wines/{id}/profile?restaurant={slug}` | S M | `{profile, confirm}` (skale 0–5, `alcohol` 0–25 co 0,1, `style`, `adventurous`), `If-Match` jak dla dania; `confirm: false` ustawia `grape_defaults` (zachowuje `catalog`), `true` — `confirmed` z autorem i czasem |
+| GET | `/wines/{id}/profile/preview?restaurant={slug}&body=…&style=…` | S M | jak dla dania: wiersze dla dań z karty i lista dań, w których wino wchodzi do najlepszych propozycji lub z nich wypada |
+| GET | `/restaurants/{slug}/picks` | S M | „Wybór restauracji” (spec `2026-11-18-restaurant-picks`, R16): zbiór roboczy `{version, max, picks: [{wineId, producer, name, vintage, active, published, setAt, setBy}]}`, także to, co jeszcze nie jest opublikowane; `max` = 5; pozycje posortowane po `wineId`; wino nieaktywne zostaje w zbiorze i zajmuje miejsce (`active: false`); `published` = wino jest w zbiorze, który goście widzą teraz. Odcisk zbioru także w nagłówku `ETag`. Uprawnienie `panel.view` (Sommelier widzi, Owner / GM zmienia) |
+| PUT | `/wines/{id}/pick?restaurant={slug}` | M | ciało `{on: boolean, expectedVersion?: string}` (`strictObject`; slug tylko z `?restaurant=`); wersja zbioru **wymagana**: nagłówek `If-Match: "<odcisk>"` albo `expectedVersion` w ciele (428 bez obu, 400 niepoprawny `If-Match`, 409 `version_conflict` gdy zbiór zmieniono od odczytu); uprawnienie `picks.edit` (Owner i GM; Sommelier 403). Odpowiedź `{changed, version, max, count}` + `ETag`; stan już taki, o jaki prosi wywołanie → `changed: false`, bez wpisu w `pick_edit`. 422 `too_many_picks` (szósty wybór; limit liczy także wina nieaktywne), 422 `wine_inactive` (oznaczenie wina wyłączonego). Cudze wino, nieznane wino i id niebędące UUID dają **tę samą** odpowiedź 404. Goście widzą zmianę dopiero po publikacji |
+| GET | `/restaurants/{slug}/picks/simulation?picks=id,id&dish={dishId}` | S M | symulator „przed / po” (tylko odczyt, bez zapisu, sieci i LLM): dla każdego widocznego dania (albo jednego) listy `before` (zbiór opublikowany, to, co gość widzi teraz) i `after` (zbiór roboczy albo zbiór z `picks`, najwyżej 5 id; `picks=` puste = brak wyborów), liczone tą samą funkcją co ścieżka gościa; pozycje z surowym `matchScore`, `tier`, `sommelierPair`, `restaurantPick`; `moves` (`from`/`to`, 1-based, `null` = poza listą), `reordered`; per wybór `effect` (`moved`, `label_only`, `none`) i powód braku wpływu `reason`: `inactive`, `not_in_list`, `sommelier_pair`, `unreviewed_hidden`, `below_min_score` (surowy wynik < 75), `outside_window` (więcej niż 10 pkt pod najlepszym winem grupy), `over_cap` (już 2 inne wybory idą przed). `summary`: dania, dania ze zmianą kolejności, wybory bez wpływu. Zmieniają się tylko wybory; inne niepublikowane zmiany (pary, profile, tłumaczenia) są poza symulacją, więc równość „after” z listą gościa po publikacji dotyczy sytuacji, gdy wybory są jedyną zmianą. Obce lub nieznane id w `picks` ma tę samą odpowiedź (`name: null`, `not_in_list`); nieznane `dish` → 404; więcej niż 5 id → 422 `too_many` |
 | DELETE | `/wines/{id}` | S M | soft delete |
 | GET | `/wines/{id}/best-dishes` | S M | odwrotny ranking: dania najlepiej pasujące do wina |
 

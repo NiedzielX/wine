@@ -4,7 +4,7 @@ ended: 2026-11-08 19:30
 agent: Claude Code / claude-sonnet-5-5 (pod-agent, worktree)
 spec: brak (testy granic dostępu i jedna poprawka; bez nowej funkcji)
 outcome: success (macierz granic część 1, jedna luka znaleziona i naprawiona od czerwonego testu, strażnik isUuid; bramka zielona poza testami przeglądarkowymi; bez push i PR)
-related: [.ai/runs/2026-11-07-lesson-16-security.md, docs/security/threat-model.md]
+related: [.ai/runs/2026-11-07-security-review.md, docs/security/threat-model.md]
 ---
 
 # Macierz granic dostępu, część 1 z 3

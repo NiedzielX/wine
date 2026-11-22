@@ -1,6 +1,6 @@
 # Naprawa błędu: zgłoszenie, dowód, review, bramki
 
-Źródło: lekcja 14 kursu („Nie ufaj pierwszemu fixowi”). Zielone CI mówi, że kod robi to, co jego autor miał na myśli; nie mówi, że autor miał rację. „Naprawione” w terminalu agenta to deklaracja, a nie dowód. Badania z lekcji (SWE-bench): około 8% „poprawnych” poprawek psuło inne testy, około 30% zachowywało się inaczej niż poprawka człowieka, około 11% było błędnych.
+Zasada: „nie ufaj pierwszemu fixowi”. Zielone CI mówi, że kod robi to, co jego autor miał na myśli; nie mówi, że autor miał rację. „Naprawione” w terminalu agenta to deklaracja, a nie dowód. Badania (SWE-bench): około 8% „poprawnych” poprawek psuło inne testy, około 30% zachowywało się inaczej niż poprawka człowieka, około 11% było błędnych.
 
 ## 1. Gdzie szukać błędów (testy od strony użytkownika)
 Nie sprawdzaj „czy działa”, tylko „gdzie się wysypie”. Najpierw tam, gdzie agenci mylą się najczęściej: puste stany, granice (dokładnie na limicie, o jeden za dużo), pieniądze i ilości, czas (granica dnia serwisowego 04:00 Europe/Warsaw, wygasanie), uprawnienia i izolacja `restaurantId`, ponowne wysłanie tego samego, identyfikatory spoza UUID-a. Środowisko: `npm run test-env:up`; przy braku przeglądarki wystarczy `curl` (strony gościa działają bez JavaScriptu). Takie szukanie warto zlecić pod-agentowi w świeżej sesji, a jego zgłoszenie odtworzyć samodzielnie, zanim cokolwiek się poprawi.

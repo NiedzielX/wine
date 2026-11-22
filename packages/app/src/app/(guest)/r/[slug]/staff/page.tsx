@@ -3,7 +3,7 @@ import {
 } from '@wine-match/core';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
-import { Button, EmptyState, Explain, LanguageSwitch, ModeSwitch, Price, Seal, TopBar } from '../../../_components/guest-ui';
+import { Button, EmptyState, Explain, LanguageSwitch, ModeSwitch, PickMark, Price, Seal, TopBar } from '../../../_components/guest-ui';
 import { PrefChips } from '../../../_components/pref-chips';
 import { CodeSection, type CodeCard } from './code-section';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
@@ -90,6 +90,7 @@ export default async function StaffPage({ params, searchParams }: Props) {
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {i.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass-ink"><Seal className="size-3.5" />{i.sommelier.role === 'primary' ? l.firstChoice : l.pick}</span>}
+                    {i.restaurantPick && <PickMark t={t} />}
                     {i.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-small leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
                     <span className="rounded-full bg-line px-2.5 text-small leading-5 font-semibold text-ink-2">{l.matchPct(i.matchScore)}</span>
                   </div>

@@ -1,16 +1,17 @@
 import type { AuthEvent, AuthUser, Invitation, Membership, MembershipStatus, Role, SessionRecord, TeamMember } from '../auth/types';
 import { assertMayInvite, assertPlatformMayInvite, invitationStillValid } from '../auth/invitation-rules';
 import type { DemoDataset } from '../demo/dataset';
-import type { Dish, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine } from '../domain/types';
+import type { Dish, DishProfile, EntityStatus, GuestInteraction, OpportunityDismissal, PairCodeStats, Pairing, RecommendationCodeRecord, Restaurant, RestaurantSettings, Wine, WineProfile } from '../domain/types';
 import { assertChangeEvents, assertInvitationEvent, assertValidAuthEvent, authEventLimit } from '../auth/audit-rules';
 import { assertChangeAllowed, assertKeepsAnOwner } from '../auth/team-rules';
 import { AlreadyMemberError, ForbiddenError, InvalidTokenError, InvariantError, NotFoundError, ValidationError, VersionConflictError } from '../errors';
 import type { AcceptInvitation, AcceptedInvitation, CreateInvitation, InvitationPreview, InvitationRepository, RevokeInvitation } from '../ports/invitations';
 import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
-import {
-  contentSnapshot, currentContent, readContentSnapshot, sameTranslations,
-  type ContentSnapshot, type DishTranslations, type WineTranslations
-} from '../i18n/content';
+import { currentContent, readContentSnapshot, sameTranslations, type DishTranslations, type WineTranslations } from '../i18n/content';
+import { profileVersion } from '../services/catalog/profile-rules';
+import { assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
+import { picksVersion } from '../services/picks/picks-rules';
+import { buildSnapshot, readSnapshot, type PublishedVersionRecord } from '../services/publishing/snapshot';
 import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
 import type { CatalogImportPlan, ImportPlan, ImportRepository, SalesImportPlan } from '../ports/import';
@@ -18,12 +19,13 @@ import type { SalesRepository } from '../ports/sales';
 import { aggregateChecks } from '../services/sales/sales-kpis';
 import type { CheckKey, SalesPeriod, SalesRecord } from '../services/sales/types';
 import type {
-  ContentWriteRepository, DecisionRecord, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo,
+  CatalogEditRecord, CatalogEditRepository, CatalogWriteRepository, DishFields, WineFields,
+  ContentWriteRepository, DecisionRecord, PickEditRecord, PickRecord, PicksRepository, SetPickInput, ProfileEditRecord, ProfileWriteRepository, DishRepository, GuestInteractionInput, GuestInteractionRepository, OpportunityDismissalRepository, RecommendationCodeInput, RecommendationCodeRepository, ServiceDayPeriod, PairingChangeSet, PairingRepository, PairingWriteRepository, PublishedVersionInfo, PublishInput,
   PublishRepository, Repositories, RestaurantContent, RestaurantDetails, RestaurantRepository, RestaurantWriteRepository, UsageTotals, PairingStat, PairingStatSource, WineRepository, WineWriteRepository
 } from '../ports/repositories';
 
-/** `content` is null for a version published before translations existed (read as `{}`). */
-interface StoredVersion { info: PublishedVersionInfo; pairings: Pairing[]; content: ContentSnapshot | null }
+/** A published version as stored: immutable, like the `published_version` row. */
+type StoredVersion = PublishedVersionRecord;
 
 const isReviewed = (p: Pairing) => p.status === 'approved' || p.status === 'modified';
 /** What a published version keeps: the decisions guests need (reviewed and rejected pairings). */
@@ -75,6 +77,14 @@ export class MemoryStore {
   readonly pairings = new Map<string, Pairing[]>();
   readonly versions = new Map<string, StoredVersion[]>();
   readonly decisions: Array<DecisionRecord & { restaurantId: string }> = [];
+  /** the profile audit trail, oldest first (spec 2026-11-04-panel-completion, R5) */
+  readonly profileEdits: Array<ProfileEditRecord & { restaurantId: string }> = [];
+  /** the catalog audit trail, oldest first (spec 2026-11-16-catalog-field-editing, R10) */
+  readonly catalogEdits: Array<CatalogEditRecord & { restaurantId: string }> = [];
+  /** the restaurants' picks (the working set); the demo data has none */
+  readonly picks: Array<PickRecord & { restaurantId: string }> = [];
+  /** the picks history, oldest first */
+  readonly pickEdits: Array<PickEditRecord & { restaurantId: string }> = [];
   readonly users: AuthUser[] = [];
   readonly memberships: StoredMembership[] = [];
   /** the authentication trail, oldest first */
@@ -108,11 +118,10 @@ export class MemoryStore {
       }
       const pairings = copy(d.pairings).map((p) => ({ ...p, version: 1 }));
       s.pairings.set(id, pairings);
-      // version 1 is the state the demo restaurant was published in
+      // version 1 is the state the demo restaurant was published in (schema 2, like the demo seeder)
       s.versions.set(id, [{
         info: { id: `${id}:v1`, number: 1, changesCount: 0, publishedBy: d.restaurant.wineDirector, publishedAt: d.restaurant.publishedAt ?? '1970-01-01T00:00:00.000Z' },
-        pairings: pairings.filter(publishable).map((p) => ({ ...p, dirty: false, version: undefined })),
-        content: contentSnapshot(d.restaurant, d.dishes, d.wines)
+        snapshot: buildSnapshot({ restaurant: d.restaurant, dishes: d.dishes, wines: d.wines, pairings, picks: [] })
       }]);
     }
     return s;
@@ -168,7 +177,7 @@ export class MemoryPairingRepository implements PairingRepository {
   }
   async listPublishedByRestaurant(restaurantId: string) {
     const v = this.store.latest(restaurantId);
-    return v ? copy(v.pairings) : copy((this.store.pairings.get(restaurantId) ?? []).filter(publishable));
+    return v ? readSnapshot(v.snapshot).pairings : copy((this.store.pairings.get(restaurantId) ?? []).filter(publishable));
   }
   async listPublishedByDish(restaurantId: string, dishId: string) {
     return (await this.listPublishedByRestaurant(restaurantId)).filter((p) => p.dishId === dishId);
@@ -276,6 +285,11 @@ export class MemoryPublishRepository implements PublishRepository {
     return v ? { ...v.info } : null;
   }
 
+  async effective(restaurantId: string) {
+    const v = this.store.latest(restaurantId);
+    return v ? copy(v) : null;
+  }
+
   async pendingPairingChanges(restaurantId: string) {
     const since = this.store.latest(restaurantId)?.info.publishedAt ?? '';
     return new Set(this.store.decisions.filter((d) => d.restaurantId === restaurantId && d.at > since).map((d) => d.pairingId)).size;
@@ -283,23 +297,28 @@ export class MemoryPublishRepository implements PublishRepository {
 
   async publishedContent(restaurantId: string) {
     const v = this.store.latest(restaurantId);
-    if (v) return readContentSnapshot(v.content);
+    if (v) return readContentSnapshot(v.snapshot.content);
     const r = this.store.restaurants.find((x) => x.id === restaurantId);
     return r ? currentContent(r, this.store.dishes.get(restaurantId) ?? [], this.store.wines.get(restaurantId) ?? []) : readContentSnapshot(null);
   }
 
-  async publish(restaurantId: string, input: { actor: string; at: string; id: string; contentChanges?: number }) {
+  async publish(restaurantId: string, input: PublishInput) {
     const pairings = this.store.pairings.get(restaurantId);
     const restaurant = this.store.restaurants.find((r) => r.id === restaurantId);
     if (!pairings || !restaurant) throw new NotFoundError('Restaurant');
-    const drafts = (this.store.dishes.get(restaurantId) ?? []).filter((d) => d.status === 'draft');
+    const latest = this.store.latest(restaurantId)?.info.number ?? 0;
+    if (input.expectedLatest !== undefined && input.expectedLatest !== latest) throw new VersionConflictError();
+    const dishes = this.store.dishes.get(restaurantId) ?? [];
+    const drafts = dishes.filter((d) => d.status === 'draft');
     const info: PublishedVersionInfo = {
-      id: input.id, number: (this.store.latest(restaurantId)?.info.number ?? 0) + 1,
+      id: input.id, number: latest + 1,
       changesCount: (await this.pendingPairingChanges(restaurantId)) + drafts.length + (input.contentChanges ?? 0), publishedBy: input.actor, publishedAt: input.at
     };
     const list = this.store.versions.get(restaurantId) ?? [];
-    const content = contentSnapshot(restaurant, this.store.dishes.get(restaurantId) ?? [], this.store.wines.get(restaurantId) ?? []);
-    list.push({ info, pairings: copy(pairings.filter(publishable)).map((p) => ({ ...p, dirty: false, version: undefined })), content });
+    // the snapshot holds the menu as it is after this publish: the released drafts are part of it
+    const released = dishes.map((d) => (d.status === 'draft' ? { ...d, status: 'published' as const } : d));
+    const picks = this.store.picks.filter((x) => x.restaurantId === restaurantId).map((x) => x.wineId);
+    list.push({ info, snapshot: copy(buildSnapshot({ restaurant, dishes: released, wines: this.store.wines.get(restaurantId) ?? [], pairings, picks })) });
     this.store.versions.set(restaurantId, list);
     pairings.forEach((p) => { p.dirty = false; });
     drafts.forEach((d) => { d.status = 'published'; });
@@ -331,6 +350,121 @@ export class MemoryContentWriteRepository implements ContentWriteRepository {
     if (expected !== undefined && !sameTranslations({ contentLocale: r.contentLocale, translations: r.translations }, expected)) throw new VersionConflictError();
     r.contentLocale = next.contentLocale;
     r.translations = copy(next.translations);
+  }
+}
+
+export class MemoryProfileWriteRepository implements ProfileWriteRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async setDishProfile(restaurantId: string, dishId: string, next: DishProfile, edit: ProfileEditRecord, expected?: DishProfile) {
+    const d = (this.store.dishes.get(restaurantId) ?? []).find((x) => x.id === dishId);
+    if (!d) throw new NotFoundError('Dish');
+    if (expected !== undefined && profileVersion(d.profile) !== profileVersion(expected)) throw new VersionConflictError();
+    d.profile = copy(next);
+    this.store.profileEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  async setWineProfile(restaurantId: string, wineId: string, next: WineProfile, edit: ProfileEditRecord, expected?: WineProfile) {
+    const w = (this.store.wines.get(restaurantId) ?? []).find((x) => x.id === wineId);
+    if (!w) throw new NotFoundError('Wine');
+    if (expected !== undefined && profileVersion(w.profile) !== profileVersion(expected)) throw new VersionConflictError();
+    w.profile = copy(next);
+    this.store.profileEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  async listProfileEdits(restaurantId: string, filter: { kind?: 'dish' | 'wine'; subjectId?: string } = {}) {
+    return this.store.profileEdits
+      .filter((e) => e.restaurantId === restaurantId && (!filter.kind || e.kind === filter.kind) && (!filter.subjectId || e.subjectId === filter.subjectId))
+      .map(({ restaurantId: _r, ...e }) => copy(e))
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? -1 : 1));
+  }
+}
+
+/** Writes of dish and wine fields (spec 2026-11-16-catalog-field-editing): the same checks, in the same order, as the PostgreSQL repository. */
+export class MemoryCatalogWriteRepository implements CatalogWriteRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async updateDish(restaurantId: string, dishId: string, next: DishFields, expectedVersion: string | undefined, edit: CatalogEditRecord) {
+    const list = this.store.dishes.get(restaurantId) ?? [];
+    const d = list.find((x) => x.id === dishId);
+    if (!d) throw new NotFoundError('Dish');
+    const current = dishFieldsOf(d);
+    checkFieldsVersion(dishFieldsVersion(current), expectedVersion);
+    assertDishUnique(current, next, d.id, list);
+    Object.assign(d, copy(next));
+    this.store.catalogEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  async updateWine(restaurantId: string, wineId: string, next: WineFields, expectedVersion: string | undefined, edit: CatalogEditRecord) {
+    const list = this.store.wines.get(restaurantId) ?? [];
+    const w = list.find((x) => x.id === wineId);
+    if (!w) throw new NotFoundError('Wine');
+    const current = wineFieldsOf(w);
+    checkFieldsVersion(wineFieldsVersion(current), expectedVersion);
+    assertWineUnique(current, next, w.id, list);
+    const { listNumber, ...rest } = copy(next);
+    Object.assign(w, rest);
+    if (listNumber === null) delete w.listNumber;
+    else w.listNumber = listNumber;
+    this.store.catalogEdits.push({ ...copy(edit), restaurantId });
+  }
+}
+
+export class MemoryCatalogEditRepository implements CatalogEditRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  async list(restaurantId: string, filter: { kind?: 'dish' | 'wine'; subjectId?: string; identityOnly?: boolean } = {}) {
+    return this.store.catalogEdits
+      .filter((e) => e.restaurantId === restaurantId && (!filter.kind || e.kind === filter.kind) && (!filter.subjectId || e.subjectId === filter.subjectId) && (!filter.identityOnly || e.identity))
+      .map(({ restaurantId: _r, ...e }) => copy(e))
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? -1 : 1));
+  }
+
+  async latest(restaurantId: string, kind: 'dish' | 'wine', subjectId: string) {
+    return (await this.list(restaurantId, { kind, subjectId }))[0] ?? null;
+  }
+}
+
+export class MemoryPicksRepository implements PicksRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  private mine(restaurantId: string) {
+    return this.store.picks.filter((x) => x.restaurantId === restaurantId);
+  }
+
+  async list(restaurantId: string): Promise<PickRecord[]> {
+    const wines = new Map((this.store.wines.get(restaurantId) ?? []).map((w) => [w.id, w]));
+    return this.mine(restaurantId)
+      .filter((x) => wines.has(x.wineId))
+      .map(({ restaurantId: _r, ...x }) => ({ ...x, active: wines.get(x.wineId)!.active }))
+      .sort((a, b) => (a.wineId < b.wineId ? -1 : a.wineId > b.wineId ? 1 : 0));
+  }
+
+  async set(restaurantId: string, input: SetPickInput) {
+    const wine = (this.store.wines.get(restaurantId) ?? []).find((w) => w.id === input.wineId);
+    if (!wine) throw new NotFoundError('Wine');
+    const before = (await this.list(restaurantId)).map((x) => x.wineId);
+    if (input.expectedVersion !== undefined && input.expectedVersion !== picksVersion(before)) throw new VersionConflictError();
+    const present = before.includes(input.wineId);
+    if (input.enabled === present) return { changed: false };
+    if (input.enabled) {
+      if (!wine.active) throw new ValidationError('wine_inactive', 'Only an active wine can be marked as a pick.');
+      if (before.length >= input.max) throw new ValidationError('too_many_picks', `A restaurant can mark at most ${input.max} wines.`);
+      this.store.picks.push({ restaurantId, wineId: input.wineId, active: true, setAt: input.at, setBy: input.actor, setById: input.actorId });
+    } else {
+      const i = this.store.picks.findIndex((x) => x.restaurantId === restaurantId && x.wineId === input.wineId);
+      this.store.picks.splice(i, 1);
+    }
+    const after = (await this.list(restaurantId)).map((x) => x.wineId);
+    this.store.pickEdits.push({ restaurantId, id: input.editId, wineId: input.wineId, enabled: input.enabled, actor: input.actor, actorId: input.actorId, before, after, at: input.at });
+    return { changed: true };
+  }
+
+  async listEdits(restaurantId: string): Promise<PickEditRecord[]> {
+    return this.store.pickEdits
+      .filter((e) => e.restaurantId === restaurantId)
+      .map(({ restaurantId: _r, ...e }) => copy(e))
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? -1 : 1));
   }
 }
 
@@ -947,6 +1081,10 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     restaurantWriteRepository: new MemoryRestaurantWriteRepository(store),
     publishRepository: new MemoryPublishRepository(store),
     contentWriteRepository: new MemoryContentWriteRepository(store),
+    profileWriteRepository: new MemoryProfileWriteRepository(store),
+    catalogWriteRepository: new MemoryCatalogWriteRepository(store),
+    catalogEditRepository: new MemoryCatalogEditRepository(store),
+    picksRepository: new MemoryPicksRepository(store),
     importRepository: new MemoryImportRepository(store),
     opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
     guestInteractionRepository: new MemoryGuestInteractionRepository(store),

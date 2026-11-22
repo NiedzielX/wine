@@ -1,6 +1,6 @@
 ---
 date: 2026-10-25
-updated: 2026-10-29
+updated: 2026-11-18
 area: build
 status: active
 source: .ai/runs/2026-10-25-audit-gate-next-zod-undici.md
@@ -26,3 +26,6 @@ promoted:
 
 ## Aktualizacja 2026-10-29
 Przed użyciem poprawionej wersji sprawdź jej dokładną godzinę publikacji (`npm view <pkg> time`), nie samą datę: `undici` 7.30.1 miało 13 dni 17 godzin w dniu wygaśnięcia wyjątku. Nowe advisories dla tego samego pakietu, z tą samą poprawką, dopisz do nazwanego wyjątku z tym samym terminem zamiast przedłużać go dla wszystkiego.
+
+## Aktualizacja 2026-11-18
+Gdy poprawionej wersji w ogóle nie ma (najnowsze wydanie jest w podatnym zakresie), bump nie jest możliwy; wyjątek opiera się wtedy na **osiągalności**: opisz w komentarzu, że podatna ścieżka nie jest wywoływana (np. `awilix` nie ładuje modułów przez glob, bo `container.ts` rejestruje zależności ręcznie), podaj identyfikator advisory i termin przeglądu. Przykład: `picomatch` (`GHSA-fc5q-39xc-vjpf`), zależność przejściowa `awilix → fast-glob → micromatch`, wyjątek do 2027-01-15. Nowy advisory czerwieni `lint` na wszystkich otwartych PR-ach naraz, więc poprawkę gate'a otwieraj od razu, także ponad limit trzech PR-ów w review.

@@ -10,7 +10,7 @@ reviewed_by: not recorded (independent agent, model unknown)
 
 # Utrzymanie wiedzy: katalog `.ai/maintenance/`, komenda audytu, relacje między specyfikacjami
 
-**Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).** Źródło: lekcja 25 kursu („Utrzymanie i rozwój systemu”) i pierwszy audyt `.ai/maintenance/2026-11-15-audit.md`.
+**Draft. Nie implementować bez zmiany statusu na `approved` przez właściciela (`AGENTS.md` §3).** Źródło: pierwszy audyt `.ai/maintenance/2026-11-15-audit.md`.
 
 ## Problem
 Dokumentacja i specyfikacje starzeją się razem z kodem. Pierwszy audyt (35 specyfikacji) znalazł: 8 sprzeczności (np. `AGENTS.md:74` mówi o dwóch layoutach, kod ma trzy), 16 martwych odwołań (m.in. linki do przeniesionych specyfikacji, `.md.md` w `.ai/qa/INDEX.md:95-103`), 6 specyfikacji częściowo wdrożonych i 8 zatwierdzonych bez linii kodu. Nic w repozytorium nie pilnuje tego automatycznie: `check:context` mierzy rozmiary i istnienie ścieżek z routingu, nie zgodność treści; zgodność statusu z katalogiem sprawdza już `scripts/process-audit.mjs` (PROC-03). Audyt był ręczny i jednorazowy, a `AGENTS.md` §8 każe zamieniać powtarzalną czynność w komendę. Szablon specyfikacji nie mówi też, jak nowa specyfikacja ma się do starszej o tym samym obszarze, więc agent może zrealizować starszą, już zmienioną (przykład z lekcji: skrypt zaproszeń kontra panel).
@@ -22,7 +22,7 @@ Dokumentacja i specyfikacje starzeją się razem z kodem. Pierwszy audyt (35 spe
 4. Lokalne rozszerzenie skilla `om-spec-writing` w `.ai/skills/`.
 5. Zmiany w `scripts/check-context.mjs` z testami: sprawdzanie nazw w `.ai/maintenance/` oraz objęcie `.ai/skills/` kontrolą skilli.
 
-**Poza zakresem:** poprawianie dokumentów na podstawie audytu (osobna decyzja, patrz spec `2026-11-15-weekly-maintenance-routine.md`); indeks plików wiedzy (`knowledge-map.md`) i daty przeglądu w nagłówkach (**odrzucone**, jak w lekcji 25: kolejne dane do utrzymania, a autora i daty zna git); zmiana `AGENTS.md` (zapas budżetu 1193 B zostaje nietknięty); automatyczne wykrywanie sprzeczności treści; przenoszenie specyfikacji; sprawdzanie martwych odwołań w specyfikacjach (propozycja w „Ryzykach”); **ostrzeżenie o statusie niezgodnym z katalogiem** (wcześniejsze R10: usunięte, bo robi to `process-audit.mjs` PROC-03, patrz Changelog); wpisy `/.ai/maintenance/` i `/.ai/skills/` w `.github/CODEOWNERS` (osobny PR właściciela, propozycja w „Ryzykach”); dopisanie wierszy lekcji 23-25 do `docs/PROCES_I_KURS.md` (osobny PR dokumentacyjny, otwarty jako #150; jego stanu nie ustalono z repozytorium), nie należy do A ani B.
+**Poza zakresem:** poprawianie dokumentów na podstawie audytu (osobna decyzja, patrz spec `2026-11-15-weekly-maintenance-routine.md`); indeks plików wiedzy (`knowledge-map.md`) i daty przeglądu w nagłówkach (**odrzucone**: kolejne dane do utrzymania, a autora i daty zna git); zmiana `AGENTS.md` (zapas budżetu 1193 B zostaje nietknięty); automatyczne wykrywanie sprzeczności treści; przenoszenie specyfikacji; sprawdzanie martwych odwołań w specyfikacjach (propozycja w „Ryzykach”); **ostrzeżenie o statusie niezgodnym z katalogiem** (wcześniejsze R10: usunięte, bo robi to `process-audit.mjs` PROC-03, patrz Changelog); wpisy `/.ai/maintenance/` i `/.ai/skills/` w `.github/CODEOWNERS` (osobny PR właściciela, propozycja w „Ryzykach”); aktualizacja `docs/PROCESS.md` (osobny PR dokumentacyjny, otwarty jako #150; jego stanu nie ustalono z repozytorium), nie należy do A ani B.
 
 ## Wymagania
 - **R1 Katalog.** `.ai/maintenance/` zawiera wyłącznie raporty `YYYY-MM-DD-slug.md` (kolejny tego samego dnia: sufiks `-2`; audyt: slug `audit`). Raport jest dziennikiem: nie edytuje się cudzych raportów, kolejny audyt to nowy plik. Katalog opisuje `.ai/docs/process-templates.md` (drzewo, szablon raportu); **`AGENTS.md` nie zmienia się**, bo jego §2 odsyła do tego drzewa. **Wyjątek od §4 (do akceptacji przez właściciela, Q6):** log przebiegu komendy jest sekcją „Przebieg” raportu (`started`, `ended`, `agent`, `outcome`, uruchomione polecenia), nie osobnym plikiem w `.ai/runs/`; dzięki temu komenda zapisuje dokładnie jeden plik.
@@ -68,7 +68,7 @@ Mapowanie AC → dowód: AC1 `git diff`, `audit:process`; AC2 skrypt/przegląd; 
 - **Q7 Drugi wyjątek dla `implemented/`** (R7): rekomendacja „dozwolony”; alternatywa „zabroniony”, wtedy C-11 i C-12 zostają jako `out-of-scope`.
 - **Ryzyko: konfiguracja agenta w `.claude/`** (`AGENTS.md` §9): zmiana tylko przez PR; komenda może zapisać wyłącznie jeden plik raportu (AC3). Trzy nogi (§9): komenda czyta repozytorium lokalnie, bez sieci i bez `gh`; brak wyjścia na zewnątrz.
 - **Ryzyko: `.ai/maintenance/` i `.ai/skills/` nie ma w `.github/CODEOWNERS`** (obecne wpisy: `.claude/`, `.agents/`, `scripts/`, `.github/`, `.ai/docs/` i inne; zweryfikowane). Propozycja wpisów `/.ai/maintenance/ @NiedzielX` i `/.ai/skills/ @NiedzielX` jako osobny PR właściciela (`.github/` jest jego), poza tym zakresem; do tego czasu PR-y dotykające tych katalogów wymagają ręcznego przeglądu.
-- **Ryzyko: audyt kosztuje** (pierwszy audyt DevMentora: 7 agentów). Pełny audyt jako jednorazowy jest akceptowalny; zakres zawężony (`since=`) dla rutyny, limit ≤ 4 pod-agentów naraz.
+- **Ryzyko: audyt kosztuje** (pierwszy audyt: 7 agentów). Pełny audyt jako jednorazowy jest akceptowalny; zakres zawężony (`since=`) dla rutyny, limit ≤ 4 pod-agentów naraz.
 - **Ryzyko: fałszywe alarmy audytu** (np. „niewdrożona” przy kodzie pod innym symbolem). Mitigacja: zasada dowodu, „nie ustalono”, próbkowanie w AC4.
 - **Nie ustalono:** czy frontmatter `allowed-tools` komendy przyjmuje regułę ścieżkową `Write(...)`; koszt jednego przebiegu pełnego audytu; stan PR #150.
 
@@ -84,7 +84,7 @@ Mapowanie AC → dowód: AC1 `git diff`, `audit:process`; AC2 skrypt/przegląd; 
 - Szablon: Delta powiązana z Wymaganiami i AC; `Frozen by: n/a` / `check:boundaries`; AC9 (hook i `process-audit` bez zmiany wyniku) i niezmienność komentarza w `status: draft  # …`; Supersedes: `git diff --stat` = 1 insertion; wyjątek dla poprawek odwołań w `implemented/` jako drugi dozwolony (rekomendacja, Q7).
 - Pilotaż rozdzielono na AC5a (od ręki) i AC5b (termin 14 dni po `approved`, kandydat z istniejącą specyfikacją w `implemented/`).
 - Raport bazowy znormalizowano (jeden id na wiersz, id w pierwszej kolumnie; ustalenia bez zmian); dopisano gramatykę id i kolumnę Stan w R2.
-- Fazy: A podzielone na dwa PR-y; kolejność A → raport bazowy → próba w chmurze → B F1 → F2 → F3; wiersze lekcji 23-25 w `docs/PROCES_I_KURS.md` dopisuje osobny PR (#150), nie A ani B.
+- Fazy: A podzielone na dwa PR-y; kolejność A → raport bazowy → próba w chmurze → B F1 → F2 → F3; aktualizację `docs/PROCESS.md` robi osobny PR (#150), nie A ani B.
 - Odrzucone lub zmodyfikowane: brak odrzuconych; zmodyfikowano punkt 7 (usunięcie zamiast uzasadnienia różnicy) i punkt 9 (dopisanie do pętli zamiast usunięcia z AC).
 
 ## Realizacja

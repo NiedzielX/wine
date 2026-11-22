@@ -364,3 +364,27 @@ Spec `2026-10-16-sommelier-opportunities` (E10, D17). Okazja to jedno zdanie z l
 **Ekrany (F2–F4):** A14 `/admin/{slug}/opportunities` (wszystkie okazje, `scope: 'all'`, z S4 i S5), karta na A6 (okazje S1–S3 dania, `scope: 'dish'`) i linia „Opportunities: n” na A1 (S1–S3 całej karty); szczegóły w [SCREEN_SPECIFICATION.md](SCREEN_SPECIFICATION.md) (A1, A6, A14). Zdanie każdej okazji buduje aplikacja ze słownika (`admin.opportunities.sentences`) z `evidence`.
 
 **Halka (dane demo, `wm-rules-1.1.0`):** przy pierwszym otwarciu 6 okazji — S1 = 0 (każde danie ma propozycje albo Primary), S2 = 2 (przegrzebki i sandacz → Solaris 85 na kieliszek; remis 85 z Rieslingiem Kabinett i Sancerre rozstrzyga `id`), S3 = 4 (Sancerre 87 i Riesling Kabinett 87 → śledź bałtycki, De Nit Rosé 86 i Bannockburn Pinot Noir 85 → risotto). Deska serów nie daje S2, bo jest szkicem (`draft`). Lista jest zapisana w teście.
+
+## Podgląd zmiany profilu w panelu (E13 F2)
+
+Ekrany A3 i A5 pokazują, jak zmieni się Match Score po edycji profilu („How the match changes”). Podgląd (`core/src/services/catalog/profile-preview-service.ts`) wywołuje wyłącznie `pairingScore` i `recommendForDish` na kandydacie i na zapisanym profilu: **bez nowych reguł, wag i progów**, bez sieci, losowości i czasu. `ENGINE_VERSION` bez zmian. Zapis profilu nie przelicza `modelScore` istniejących par; goście liczą wynik z profilu z opublikowanej migawki.
+
+## Warstwa wyborów restauracji (poza silnikiem)
+
+Spec `2026-11-18-restaurant-picks` (faza 1, R8–R11). Restauracja może oznaczyć do `PICKS_MAX` = 5 własnych win; w trybie ostrożnym zmienia to **wyłącznie kolejność w grupie propozycji silnika (tier 2) i etykietę**. **To nie są reguły silnika:** `engine/` i `ENGINE_VERSION` bez zmian, żaden `matchScore`, `rankScore`, `why`, `tier` ani `sommelier` się nie zmienia (R02). Kod: `packages/core/src/ranking/` (`restaurant-picks.ts` — stałe i czysta `applyRestaurantPicks`, `rank-for-guest.ts` — wspólne `rankForGuest`), testy: `packages/core/tests/restaurant-picks.test.ts`. Wersja warstwy to `RANKING_LAYER_VERSION` (osobna od `ENGINE_VERSION`; zapis do migawki, zdarzeń i kodu polecenia dopiero w kolejnych krokach; zdarzenia niosą dziś tylko `ENGINE_VERSION` i flagę `pick`).
+
+Warstwa działa na wyniku `recommendForDish` policzonym dla całej listy win (tylko przy niepustym zbiorze wyborów; przy pustym ścieżka jest dotychczasowa, bit w bit), potem przycina do `limit` (domyślnie 4), zeruje `bestValue` i liczy go od nowa na wynikowej liście, a dopiero potem działa filtr „niesprawdzone” (`showUnreviewed`). `rankForGuest` to jedyna ścieżka rankingu gościa; wołają ją serwis rekomendacji (`RecommendationService.forDish` i `wineDetails`, na `PublishedView.picks`: zbiór opublikowanej wersji, zawężony do win widocznych i aktywnych) oraz symulator. Strony gościa (G3, G7, G9) i publiczna trasa rekomendacji czytają więc ten sam wynik; wynik z `wineDetails` (G7) jest liczony z domyślnymi preferencjami i bez filtra „niesprawdzone”, tak jak dotąd.
+
+| Reguła | Znaczenie |
+|---|---|
+| `pick.tier2_only` | zmienia się tylko kolejność pozycji `tier === 2`; para sommeliera (tier 0 i 1) zostaje na miejscu dla każdego zbioru |
+| `pick.min_score` | wybór kwalifikuje się od surowego `matchScore >= PICK_MIN_SCORE` (`MIN_MODEL_SCORE + 13` = 75) |
+| `pick.window` | i tylko w oknie `PICK_WINDOW` = 10 pkt od najlepszego `matchScore` w tier 2 (wybór 75 nie staje nad propozycją 95) |
+| `pick.promote_cap` | na początek grupy tier 2 przechodzi najwyżej `PICKS_PROMOTED_MAX` = 2 kwalifikujących się wyborów, w kolejności silnika; kolejne zostają na miejscach, z etykietą |
+| `pick.no_seal` | pozycja z wyboru nie dostaje pieczęci ani roli sommeliera; znak to `restaurantPick: true` (pole tylko przy kwalifikującym się wyborze, brak pola = lista silnika bez zmian) |
+| `pick.budget_untouched` | przy łagodzeniu budżetu (`notice`) nic się nie przestawia ani nie oznacza (lista jest tylko przycinana do `limit`) |
+| `pick.deterministic` | remisy rozstrzyga klucz silnika (`rankScore`, cena, id wina), nigdy kolejność wejścia |
+
+Stałe są propozycją bez danych (O3, O12); zmiana stałej lub reguły podnosi `RANKING_LAYER_VERSION`.
+
+**Zdarzenia użycia (U7).** `recommendations_viewed.props.items[].pick`, `wine_viewed.props.pick` i `wine_selected.props.pick` mają wartość `true` wyłącznie przy winie, które gość widział z etykietą (klucz nie istnieje przy pozostałych, więc zdarzenia bez wyboru są takie jak były). Warstwa uczenia (E17) nie czyta pozycji z flagą jako sygnału „pasuje” (O11), a statystyka par (E04) nadal liczy je jako `engine`; odróżnienie wyboru restauracji od wyboru silnika jest po tej fladze. `forTable` (G6, G11) warstwy nie używa.

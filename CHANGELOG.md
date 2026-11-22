@@ -4,6 +4,17 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+### Wybór restauracji (faza 1, `2026-11-18-restaurant-picks`)
+- PR1b: serwis `PicksService` (zbiór roboczy, `set` z `expectedVersion`, audyt `pick_edit`), uprawnienie `picks.edit` (Owner i GM; Sommelier tylko odczyt), trasy `GET /restaurants/{slug}/picks`, `PUT /wines/{id}/pick`, `GET /restaurants/{slug}/picks/simulation` i symulator „przed / po” liczony tą samą funkcją co ścieżka gościa (`rankForGuest`), tylko do odczytu. Gość jeszcze nie czyta wyborów (PR2), ekran A27 w PR3.
+- PR2 (strona gościa): `RecommendationService` (`forDish`, `wineDetails`) liczy ranking wspólną `rankForGuest` na zbiorze opublikowanej wersji (`PublishedView.picks`); wybór, który się kwalifikuje, ma etykietę „Wybór restauracji” / „Restaurant’s pick” na G3, G7 i G9 (znak restauracji: zwykły tekst, bez pieczęci sommeliera; pierwsza karta będąca wyborem ma nagłówek wyboru zamiast „Polecane do Twojego dania”), G12 ma sekcję i zdanie o wyborze restauracji, stopka G3 dopisuje, czym jest etykieta. Publiczna trasa `GET /dishes/{id}/recommendations` ma nowe pole `restaurantPick` (kolejność grupy `engine` może się zmienić; `matchScore` bez zmian). Zdarzenia `recommendations_viewed.items[].pick`, `wine_viewed.props.pick`, `wine_selected.props.pick` tylko przy pozycji z etykietą. Dane demo Halka bez wyborów, `engine/` bez zmian. Limit słów G12 w teście podniesiony z 350 do 380 (nowa sekcja).
+
+### Edycja pól dania i wina (E13, spec `2026-11-16-catalog-field-editing`, faza C1)
+- A3 i A5 mają formularze „Details / Dane dania” i „Listing / Pozycja na karcie”: nazwa, opis, kategoria i cena dania; producent, nazwa, rocznik, region, kraj, nota, numer na karcie, ceny i „Na kieliszki” wina. Działają bez JavaScriptu (`useActionState`), zachowują wpisane wartości i pokazują komunikat przy każdym polu; ceny czyta ścisły `parseFormPrice` („58,500” to błąd, nie 58 500).
+- Zmiany są od razu widoczne dla gości i nie zmieniają Match Score; tłumaczenia z publikacji zostają, a formularz wskazuje nieaktualne. Zapis chroni odcisk pól (`expectedVersion` / `If-Match`), nazwy dań, klucze win i numery na karcie są unikalne (także szkice i ukryte pozycje), sprawdzane pod blokadą doradczą restauracji, którą bierze też zatwierdzenie importu.
+- Nowe uprawnienie `catalog.edit` (owner, manager, sommelier), tabela audytu `catalog_edit` (migracja `Migration20261117132943_catalog_edit`), trasy `GET`/`PATCH /dishes/{dishId}/details` i `/wines/{id}/details`.
+- Zmiana nazwy dania (lub producenta, nazwy, rocznika wina) z parami sommeliera: ostrzeżenie z liczbą par, potwierdzenie, wpis „Zmieniono nazwę, sprawdź pary” w „Do przeglądu” i znacznik „Sprawdź po zmianie nazwy”.
+- Zatwierdzenie importu katalogu odrzuca (409 `catalog_conflict`) nowe danie lub wino, którego klucz zajęto w międzyczasie.
+
 ### Poprawki
 - Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
 
@@ -45,11 +56,11 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 - Odświeżenie README, backlogu E11–E22, notatek bezpieczeństwa, ról i opisu usuwania danych (#131); krótkie README, `SECURITY.md` (zgłaszanie podatności) i szczegóły w `docs/DEVELOPMENT.md` (#151).
 - Odchudzenie `AGENTS.md` i indeksu lekcji pod budżety kontekstu (#142); ostrzeżenie o rozjeździe tabeli §1.1 z `package.json` i `check:context -- --fix-versions` (#145).
 - `@wine-match/testkit` jako workspace z zakresem `"*"`, wymuszane w `release:version` (#144); proces wydania: `docs/RELEASING.md`, `UPGRADE_NOTES.md`, `release:version`, `release:notes` (#143).
-- Synteza kursu (lekcje 1–22), playbook wykonawcy i `npm run audit:process` (#147); lekcje 24–25 i kierunek hostingu (#150); szkic specyfikacji hostingu na Vercel (#149); audyt wiedzy 2026-11-15 i dwa szkice specyfikacji utrzymania wiedzy (#153).
+- Playbook wykonawcy i `npm run audit:process` (#147); reguły wdrożenia i utrzymania oraz kierunek hostingu (#150); szkic specyfikacji hostingu na Vercel (#149); audyt wiedzy 2026-11-15 i dwa szkice specyfikacji utrzymania wiedzy (#153).
 - Test odporności każdej trasy `api/v1` na złe wejście; klucze wybrane przez klienta są przycinane do 80 znaków w treści odpowiedzi 422 (#152).
 - Zależności i CI: grupy minor-and-patch (#124, #138), `@testcontainers/postgresql` 12.2.1 (#139), akcje `setup-node` (#111), `upload-artifact` (#137) i `checkout` (#141).
 - Poprawki: identyfikator spoza UUID to „nieznany”, nie 500 (#109); flaky test kodu kelnera (#106).
-- Proces wydania (lekcja 22): `docs/RELEASING.md`, `UPGRADE_NOTES.md`, §9 w `BACKWARD_COMPATIBILITY.md`, `npm run release:version` i `npm run release:notes`, szkic workflow `release.yml` (tylko ręcznie, bez publikacji pakietów i wdrożenia).
+- Proces wydania: `docs/RELEASING.md`, `UPGRADE_NOTES.md`, §9 w `BACKWARD_COMPATIBILITY.md`, `npm run release:version` i `npm run release:notes`, szkic workflow `release.yml` (tylko ręcznie, bez publikacji pakietów i wdrożenia).
 
 ### Analityka, sprzedaż, okazje (E02–E04, E10)
 - E02: sesja gościa w URL (`sid`) i zdarzenia odsłon (#61), wybór wina i podgląd kelnera (#63).

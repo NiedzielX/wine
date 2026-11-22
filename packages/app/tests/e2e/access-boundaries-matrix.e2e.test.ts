@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BISTRO, HALKA, snapshotDatabase, base, bistroManager, bistroOwner, bistroSommelier, db, digest, get, halkaManager, halkaSommelier, members, payload, runAction, send, stageImport, type Session } from './boundaries';
 
 /**
- * Lesson 16 (security), docs/security/threat-model.md T-25 .. T-31: the boundaries the first pass (access-boundaries) did not reach,
+ * docs/security/threat-model.md T-25 .. T-31: the boundaries the first pass (access-boundaries) did not reach,
  * part 1 of the matrix: import rows, pairing create and list, the public recommendations route, team read by role, the panel pages
  * (incl. KPI, opportunities and sales import), the server actions of the panel by id and by slug and role, and the slug-level API
  * routes upgraded to the full rule (.ai/docs/engineering-standards.md §10): positive control for BOTH accounts, refused read, refused

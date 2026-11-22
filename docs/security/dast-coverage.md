@@ -1,6 +1,6 @@
 # Poor man's SAST and DAST: what was run and what was not
 
-Date 2026-11-07, base `39d695b` (`main`) plus branch `sec/lesson-16-security-review`. Everything ran on a throwaway local PostgreSQL 16 (port 50301) with synthetic demo data and `next start` on `127.0.0.1:50311`. No third-party scanner was downloaded or installed (supply-chain rule of this review). Threat IDs refer to [`threat-model.md`](threat-model.md).
+Date 2026-11-07, base `39d695b` (`main`) plus the security-review branch. Everything ran on a throwaway local PostgreSQL 16 (port 50301) with synthetic demo data and `next start` on `127.0.0.1:50311`. No third-party scanner was downloaded or installed (supply-chain rule of this review). Threat IDs refer to [`threat-model.md`](threat-model.md).
 
 ## Static (SAST)
 

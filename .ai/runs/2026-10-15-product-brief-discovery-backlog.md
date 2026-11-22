@@ -7,10 +7,10 @@ outcome: success
 related: [.ai/runs/2026-10-15-discovery-pipeline-setup.md]
 ---
 
-# Product brief, research i backlog badań (lekcja 4: om-discover + om-backlog)
+# Product brief, research i backlog badań (om-discover + om-backlog)
 
 ## Zadanie
-Przejść kroki lekcji 4 dla Wine Match: research w `.ai/specs/research/`, product brief (`om-discover`), backlog (`om-backlog`) i Issues w GitHubie. Właściciel poprosił o pracę samodzielną, bez dopytywania.
+Dla Wine Match: research w `.ai/specs/research/`, product brief (`om-discover`), backlog (`om-backlog`) i Issues w GitHubie. Właściciel poprosił o pracę samodzielną, bez dopytywania.
 
 ## Przebieg
 - Oba skille są interaktywne; właściciel wybrał tryb bez rozmowy. Decyzje z zatwierdzonych specyfikacji (owner Filip) mają status `active`, nowe propozycje agenta (D08) i ceny (D07) — `proposal`.

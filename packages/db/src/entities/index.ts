@@ -10,11 +10,19 @@ import { RestaurantEntity } from './restaurants/restaurant';
 import { SommelierDecisionEntity } from './pairings/sommelier-decision';
 import { AuthEventEntity, AuthTokenEntity, MembershipEntity, SessionEntity, UserEntity } from './auth/user';
 import { WineEntity, WineProfileEmbeddable } from './catalog/wine';
+import { ProfileEditEntity } from './catalog/profile-edit';
+import { CatalogEditEntity } from './catalog/catalog-edit';
+import { RestaurantPickEntity } from './catalog/restaurant-pick';
+import { PickEditEntity } from './catalog/pick-edit';
 import { RateLimitBucketEntity } from './ratelimit/rate-limit-bucket';
 
 export * from './restaurants/restaurant';
 export * from './catalog/dish';
 export * from './catalog/wine';
+export * from './catalog/profile-edit';
+export * from './catalog/catalog-edit';
+export * from './catalog/restaurant-pick';
+export * from './catalog/pick-edit';
 export * from './pairings/pairing';
 export * from './publishing/published-version';
 export * from './pairings/sommelier-decision';
@@ -31,5 +39,5 @@ export const ENTITIES = [
   RestaurantEntity, DishEntity, DishProfileEmbeddable, WineEntity, WineProfileEmbeddable,
   PairingEntity, PublishedVersionEntity, SommelierDecisionEntity, GuestInteractionEntity, ImportJobEntity,
   UserEntity, MembershipEntity, SessionEntity, OpportunityDismissalEntity, RecommendationCodeEntity, SalesRecordEntity, AuthEventEntity, AuthTokenEntity,
-  RateLimitBucketEntity
+  RateLimitBucketEntity, ProfileEditEntity, CatalogEditEntity, RestaurantPickEntity, PickEditEntity
 ];

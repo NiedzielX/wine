@@ -87,7 +87,7 @@ flowchart LR
 | 1 | Login | e-mail, hasło | `POST /auth/login` |
 | 2 | Dashboard | baner z liczbą propozycji / nawigacja Menu | `GET /restaurants/{id}/analytics/summary` |
 | 3 | Menu | wybór dania (status, pokrycie pairingami) | `GET /restaurants/{id}/dishes` |
-| 4 | Dish details | korekta profilu (podgląd na żywo), zapis | `PATCH /dishes/{id}` |
+| 4 | Dish details | korekta profilu: skale 0–5, „Show how the match changes” (przed → po dla każdego wina, bez zapisu), „Save and confirm” albo „Save as draft”; goście widzą zmianę po publikacji (E13 F2) | `GET /dishes/{id}/profile/preview`, `PUT /dishes/{id}/profile` (`If-Match`) |
 | 5 | Pairings | „Approve” propozycji, rola Primary, kolejność, notatka | `PATCH /pairings/{id}`, `POST /pairings/{id}/decisions` |
 | 6 | Review queue | przegląd pozostałych dań, „Approve all for this dish” | `POST /restaurants/{id}/pairings/bulk-decision` |
 | 7 | Publish | checklista, ustawienia gościa, „Publish changes” | `POST /restaurants/{id}/publish` |
@@ -183,3 +183,11 @@ Statusy `ImportJob`: `uploaded → parsing → preview_ready → confirmed | fai
 ## 7. Właściciel restauracji dostaje link do demo (E22 F2)
 
 Link do instancji demo → `/demo` (przewodnik) → krok 1 (gość wybiera danie, widzi pieczęć „Para sommeliera”), krok 2 (cały stół), krok 3 (podgląd kelnera) → `/demo/tour` (jak to działa dla restauracji) → `/demo/roi` (kalkulator, założenia zespołu). Na stronach gościa stoi pasek „Dane demonstracyjne” z linkiem z powrotem do przewodnika. Bez logowania i bez danych osobowych; próba wejścia do panelu kończy się komunikatem „demo tylko do odczytu”. Kroki 4 (panel) i 5 (KPI) dochodzą w F3.
+
+## Poprawa ceny, nazwy lub pól pozycji (E13 C1)
+
+1. Sommelier, General Manager lub Owner otwiera danie (A3) albo wino (A5) i poprawia pola w karcie „Details” / „Listing” (cena jako „58,50”, nazwa, opis, rocznik, numer na karcie, „Na kieliszki” z ceną kieliszka).
+2. Formularz działa bez JavaScriptu: błąd zostawia wpisane wartości i pokazuje komunikat przy każdym złym polu; konflikt z zapisem drugiej osoby każe odświeżyć stronę.
+3. Zapis jest od razu widoczny dla gości (nazwa, opis, cena, nota), nie liczy się do niepublikowanych zmian i nie zmienia Match Score; tłumaczenia zostają jak w ostatniej publikacji, a formularz wskazuje, które mogą być nieaktualne.
+4. Zmiana nazwy dania (albo producenta, nazwy, rocznika wina), które ma pary sommeliera, wymaga potwierdzenia „poprawiam, nie zastępuję”; pary dostają znacznik „Sprawdź po zmianie nazwy”, a pozycja trafia do „Do przeglądu”, dopóki pary nie mają nowszej decyzji.
+5. Uwaga: ponowny import menu nadpisuje opis, kategorię i cenę dopasowanych dań, a import win ceny; nazwa jest kluczem dopasowania importu, więc po zmianie nazwy import starej nazwy utworzy nową pozycję.

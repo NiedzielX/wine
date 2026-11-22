@@ -35,7 +35,7 @@ export interface RestaurantExplainContext extends ExplainContext {
  * sentence after the list. `id` names the section for tests (`data-section`).
  */
 export interface HowItWorksSection {
-  id: 'list' | 'sommelier' | 'rules' | 'score' | 'table' | 'choices' | 'fair';
+  id: 'list' | 'sommelier' | 'picks' | 'rules' | 'score' | 'table' | 'choices' | 'fair';
   title: string;
   text: string[];
   points?: string[];
@@ -189,6 +189,10 @@ export const en = {
       alsoGood: 'Also good with this dish',
       recommended: 'Recommended for your dish',
       sommelierPairing: 'Sommelier’s pairing',
+      /** the restaurant’s own mark (spec 2026-11-18-restaurant-picks): never with the seal, never called a pairing */
+      restaurantPick: 'Restaurant’s pick',
+      /** under the wines, only when the list has a restaurant’s pick: what the mark is, and what it is not (U6, D25) */
+      pickNote: 'A restaurant’s pick is the restaurant’s own mark; it does not change the match score.',
       bestValue: 'Best value',
       match: 'match',
       /** accessible name of the match glass */
@@ -524,6 +528,11 @@ export const en = {
           title: 'The sommelier has the last word',
           text: [`A wine with the seal is a sommelier’s pairing: recommended for that dish by ${directorEn(c.director)} and always first on the dish’s list. A wine the sommelier rejected for a dish is never suggested with it; for the whole table, a rejection only pulls the bottle down hard.`]
         },
+        {
+          id: 'picks',
+          title: 'The restaurant’s pick',
+          text: ['A restaurant can mark some wines as its pick and show them higher among the suggestions. The mark does not change the match score, and the sommelier’s pairing always stays on top.']
+        },
         ...(c.showUnreviewed
           ? [{
               id: 'rules' as const,
@@ -726,6 +735,11 @@ export const en = {
         details: () => 'Details saved.',
         details_slug: () => 'Details saved. The address of your guest app changed: print new QR codes, the old ones no longer work.',
         suggestions: (n: number) => `${n} engine suggestions added.`,
+        profile_confirmed: () => 'Profile saved and confirmed. Guests see it after you publish.',
+        profile_draft: () => 'Profile saved as a draft. Guests see it after you publish.',
+        profile_unchanged: () => 'Nothing to change: the profile is already like this.',
+        catalog_saved: (languages: string) => `Saved. Guests see the change now. Translations stay as published: check them.${languages ? ` Translations (${languages.toUpperCase().split(',').join(', ')}) may be outdated.` : ''}`,
+        catalog_unchanged: () => 'Nothing to change: the details are already like this.',
         translations: () => 'Translations saved. Guests see them after you publish.',
         content: () => 'Content language and translations saved. Guests see them after you publish.',
         suggestion_added: () => 'Added to suggestions — approve it in “Engine suggestions”. Guests see the change only after you approve it and publish.',
@@ -771,6 +785,7 @@ export const en = {
         no_complete_checks: 'No check can be saved: each ticked line belongs to a check with an unticked line or an error.',
         slug_taken: 'Another restaurant already uses this address name. Choose another.',
         validation_failed: 'Check the details. The address name can use only lowercase letters, digits and hyphens (2 to 40 characters) and must not be a reserved word.',
+        profile_invalid: 'Check the profile: scales are whole numbers from 0 to 5, alcohol is from 0 to 25. Nothing was saved.',
         translation_invalid: 'Check the translations: one of them is too long.',
         already_suggested: 'This wine is already among the suggestions for this dish.',
         already_rejected: 'This pairing was rejected — restore it in the Rejected section.',
@@ -784,6 +799,7 @@ export const en = {
         member_deactivated: 'This person’s access is removed. Restore it before changing the role.',
         already_member: 'This person is already in the team of this restaurant. If their access was removed, restore it in the list.',
         invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
+        catalog_conflict: 'Someone changed the menu or the wine list while this import was open, and one of the new items now exists. Nothing was imported: start the import again.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -924,6 +940,7 @@ export const en = {
       toReview: (n: number) => `${n} to review`
     },
     dish: {
+      moreDetails: 'Other details',
       back: 'Menu',
       managePairings: 'Manage pairings',
       details: 'Details',
@@ -972,6 +989,8 @@ export const en = {
       show: 'Show'
     },
     wine: {
+      moreDetails: 'Style and serving',
+      bottleSize: 'Bottle size',
       back: 'Wine list',
       listing: 'Listing and prices',
       style: 'Style',
@@ -1009,6 +1028,9 @@ export const en = {
       doneText: 'Guests see your approved pairings first, with the engine filling any remaining places.',
       noPrimary: 'No primary pick yet',
       approveDish: 'Approve all for this dish',
+      renamedTitle: 'Renamed: check the pairs',
+      renamedText: 'The name changed after these pairings were decided. Check that they still fit, then decide again or leave them.',
+      renamedItem: (pairs: number) => `Name changed, check ${pairs} pairings`,
       openPairings: 'Open pairings',
       approve: 'Approve',
       reject: 'Reject'
@@ -1132,6 +1154,9 @@ export const en = {
       draftProfiles: (n: number) => `${n} taste profiles are still drafts`,
       allConfirmed: 'All taste profiles confirmed',
       allConfirmedText: 'Scores are based on profiles you checked.',
+      draftWineProfiles: (n: number) => `${n} wine ${n === 1 ? 'profile is' : 'profiles are'} still ${n === 1 ? 'a draft' : 'drafts'}`,
+      allWineProfilesConfirmed: 'All wine profiles confirmed',
+      allWineProfilesConfirmedText: 'Wine scores are based on profiles you checked.',
       check: 'Check',
       newDishes: (n: number) => `${n} new dishes will go live`,
       noNewDishes: 'No new dishes',
@@ -1146,7 +1171,7 @@ export const en = {
       saveSettings: 'Save settings',
       pending: (n: number) => `${n} unpublished ${n === 1 ? 'change' : 'changes'}`,
       latest: 'Guests see the latest version',
-      pendingText: (pairings: number, dishes: number) => `${pairings} pairings and ${dishes} new dishes. Publishing updates the guest app immediately; the QR code stays the same.`,
+      pendingText: (pairings: number, dishes: number, profiles: number) => `${pairings} pairings, ${dishes} new dishes and ${profiles} taste profiles (changed, or of items added since the last publish). Publishing updates the guest app immediately; the QR code stays the same.`,
       nothing: 'There is nothing to publish.',
       preview: 'Preview guest app',
       submit: 'Publish changes',
@@ -1346,6 +1371,95 @@ export const en = {
       link: 'Link',
       linkText: 'The same address, for a menu, a website or a message.'
     },
+    profileEditor: {
+      title: 'Edit taste profile',
+      textDish: 'The scales the engine reads for every Match Score of this dish. Change them, look at what happens to the scores, then save.',
+      textWine: 'The scales the engine reads for every Match Score of this wine. Change them, look at what happens to the scores, then save.',
+      afterPublish: 'Guests see a changed profile only after you publish.',
+      readOnly: 'Your role cannot change taste profiles.',
+      scale: (label: string) => `${label} (0 to 5)`,
+      alcohol: 'Alcohol (% abv)',
+      style: 'Style',
+      adventurous: 'Character',
+      yes: 'Adventurous',
+      no: 'Classic',
+      protein: 'Main ingredient',
+      cooking: 'Cooking method',
+      showPreview: 'Show how the match changes',
+      reset: 'Back to the saved values',
+      stateDraft: 'Draft',
+      stateDraftText: (source: string) => `Not confirmed yet (${source}). Check the scales before relying on the scores.`,
+      sources: { draft: 'drafted from the import', grape_defaults: 'defaults for the grape', catalog: 'from the catalog' } as Record<string, string>,
+      stateConfirmed: 'Confirmed',
+      stateConfirmedText: (by: string | null, at: string | null) => (by && at ? `Confirmed by ${by} on ${at}.` : by ? `Confirmed by ${by}.` : 'Confirmed by the restaurant team.'),
+      saveConfirm: 'Save and confirm',
+      saveDraft: 'Save as draft',
+      confirmOnly: 'Confirm without changes',
+      saveText: 'Saves the values shown above (the ones in the preview).',
+      invalid: 'Some values are not valid: scales are whole numbers from 0 to 5 and alcohol is from 0 to 25 in steps of 0.1. Nothing was saved.',
+      previewTitle: 'How the match changes',
+      previewTextDish: 'Match Score of this dish with every active wine, before and after the change, on your current pairings. Nothing is saved yet.',
+      previewTextWine: 'Match Score of this wine with every dish on the menu, before and after the change, on your current pairings. Nothing is saved yet.',
+      unpublished: (n: number) => `${n} pairing decisions are not published yet; the preview shows the state after the next publish.`,
+      noChange: 'These values equal the saved profile: no score changes.',
+      summary: (pairs: number, crossing: number) => `${pairs} approved ${pairs === 1 ? 'pairing changes' : 'pairings change'} its score; ${crossing} of them ${crossing === 1 ? 'crosses' : 'cross'} the line below which the engine does not suggest a wine.`,
+      noPairsChange: 'No approved pairing changes its score.',
+      colWine: 'Wine',
+      colDish: 'Dish',
+      colScore: 'Match Score',
+      colDecision: 'Your decision',
+      change: (before: number, after: number, delta: number) => `${before} → ${after}, ${delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : 'no change'}`,
+      noDecision: 'No decision',
+      guestBefore: 'Guests see now (top picks)',
+      guestAfter: 'Guests would see after publishing',
+      guestRank: (before: number | null, after: number | null) => `${before === null ? 'not in the top picks' : `place ${before}`} → ${after === null ? 'not in the top picks' : `place ${after}`}`,
+      guestWineTitle: 'Where the wine enters or leaves the top picks',
+      guestWineNone: 'The wine keeps its place in every dish\'s top picks.',
+      error: 'The preview needs valid values.'
+    },
+    catalog: {
+      dish: {
+        title: 'Details',
+        text: 'The name, description, category and price guests read on the menu. A change is live for guests at once.',
+        name: 'Name', description: 'Description', category: 'Category', price: 'Price (zł)',
+        baseHint: 'This is the base text. Translations are below.',
+        renameHint: 'Renaming changes what the file import matches: a later import of the old name creates a new dish.'
+      },
+      wine: {
+        title: 'Listing',
+        text: 'Producer, name, vintage, region, prices and the list number. A change is live for guests at once.',
+        producer: 'Producer', name: 'Wine', vintage: 'Vintage (a year or NV)', region: 'Region', country: 'Country', tastingNote: 'Tasting note',
+        listNumber: 'List no.', listNumberHint: 'Leave empty if the wine is not on the printed list.', bottlePrice: 'Bottle price (zł)',
+        pouredByGlass: 'Poured by the glass', glassPrice: 'Glass price (zł)', glassHint: 'Used only when the wine is poured by the glass; leave it as it is otherwise.',
+        baseHint: 'This is the base text. Translations are below.'
+      },
+      save: 'Save changes',
+      readOnly: 'Your role cannot change these details.',
+      identity: {
+        dish: 'This dish has {n} sommelier pairings. Rename it only to correct the name, not to replace the dish.',
+        wine: 'This wine has {n} sommelier pairings. Change the producer, name or vintage only to correct them, not to replace the wine.',
+        confirm: 'I am correcting it, not replacing it'
+      },
+      lastEditBy: 'Last edited by {name}, {date}',
+      lastEdit: 'Last edited {date}',
+      stale: 'Translations ({languages}) may be outdated.',
+      staleLink: 'Check the translations',
+      checkAfterRename: 'Check after rename',
+      pairsToCheck: '{n} pairings to check after the rename',
+      errors: {
+        required: 'Fill this in.', too_long: 'Too long.', not_positive: 'Must be more than zero.', too_many_decimals: 'At most two decimal places.',
+        glass_not_below_bottle: 'The glass must cost less than the bottle.', duplicate: 'Another item already has this name.', transition: 'This change is not allowed.',
+        not_a_number: 'Enter a number such as 58 or 58,50.', not_allowed: 'Switch on “Poured by the glass” to set a glass price.', out_of_range: 'Outside the allowed range.',
+        invalid: 'Not a valid value.', invalid_chars: 'Remove the control or invisible characters.', identity_unconfirmed: 'Confirm that you are correcting the name.',
+        unknown_field: 'Unknown field.'
+      } as Record<string, string>,
+      formErrors: {
+        version_conflict_dish: 'Someone has changed this dish in the meantime. Reload the page.',
+        version_conflict_wine: 'Someone has changed this wine in the meantime. Reload the page.',
+        forbidden: 'You don’t have permission to do that.', not_found: 'That item no longer exists.', validation_failed: 'Check the fields marked below. Nothing was saved.',
+        unexpected: 'The change could not be saved. Nothing was changed; try again.'
+      } as Record<string, string>
+    },
     translations: {
       title: 'Translations',
       text: 'Guests and the dashboard show the version in their language. An empty field shows the base text.',
@@ -1413,7 +1527,7 @@ export const en = {
       readOnly: 'Your role cannot import files.',
       kinds: {
         menu: { noun: (n: number): string => (n === 1 ? 'dish' : 'dishes'), columns: 'Category, Name, Description, Price', hint: 'New dishes arrive as drafts with a draft taste profile. They go live when you publish.', updates: 'description, category and price' },
-        wines: { noun: (n: number): string => (n === 1 ? 'wine' : 'wines'), columns: 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price', hint: 'New wines are on your list at once and get engine pairing suggestions for your review.', updates: 'prices' },
+        wines: { noun: (n: number): string => (n === 1 ? 'wine' : 'wines'), columns: 'Producer, Wine, Vintage, Region, Grape, Style, Glass price, Bottle price', hint: 'New wines are on your list at once and get engine pairing suggestions for your review. Guests see them after the next publish.', updates: 'prices' },
         sales: {
           noun: (n: number): string => (n === 1 ? 'line' : 'lines'), columns: 'Date (business day), Check number, Guests (optional), Category, Item (optional), Quantity, Net amount',
           hint: 'Export item lines from your POS as CSV or Excel. Use the business day column, not a time stamp. Split large files by whole days. Guest names and card data are not needed — such columns are ignored.',

@@ -20,7 +20,9 @@ export const DishProfileEmbeddable = defineEntity({
     cooking: p.enum(['raw', 'cured', 'poached', 'seared', 'roasted', 'grilled', 'braised', 'fried', 'baked', 'none'] as const),
     source: p.enum(['draft', 'confirmed'] as const).default('draft'),
     draftedBy: p.string().nullable(),
-    confirmedAt: p.datetime().nullable()
+    confirmedAt: p.datetime().nullable(),
+    /** who confirmed the profile (spec 2026-11-04-panel-completion, R4) */
+    confirmedBy: p.string().nullable()
   }
 });
 
