@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-progress
 created: 2026-11-18
 owner: Filip Niedziela
 related: [.ai/specs/research/benchmarks/2026-11-16-product-strategy-vs-sommelierbot.md (P3, na gałęzi docs/product-strategy-vs-competitors), .ai/specs/research/benchmarks/2026-11-16-competitive-advantages.md (S1), .ai/specs/product-brief.md (D04, D16, D18, D20, D23, A05, K03, Q02, Q11), docs/PRODUCT_CONCEPT.md (§6), .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-11-04-sales-demo-and-roi-calculator.md, .ai/specs/2026-11-04-subscriptions-and-billing.md, docs/SCREEN_SPECIFICATION.md, docs/SCREEN_MAP.md, docs/USER_ROLES.md, docs/security/threat-model.md, .ai/runs/2026-11-18-owner-proof-report-spec.md]

@@ -42,6 +42,7 @@ export * from './ports/sales';
 export * from './services/sales/types';
 export * from './services/sales/sales-kpis';
 export * from './services/sales/sales-kpi-service';
+export * from './services/proof/proof-report';
 export * from './guest/prefs';
 export * from './guest/taste';
 export * from './guest/session';
