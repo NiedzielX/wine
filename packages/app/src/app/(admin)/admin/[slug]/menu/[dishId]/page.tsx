@@ -11,7 +11,8 @@ import { TranslationsCard } from '../../../_components/translations-form';
 import { ProfileEditor } from '../../../_components/profile-editor';
 import { DishDetailsForm } from '../../../_components/catalog-forms';
 import { catalogFormLabels, priceText } from '../../../_components/catalog-page';
-import { saveDishDetails } from '../../catalog-actions';
+import { ActionButton } from '../../../_components/action-form';
+import { saveDishDetails, setDishHidden } from '../../catalog-actions';
 import { dishProfileState } from '../../../_components/profile-page';
 import { confirmDishProfile, saveDishProfile, saveDishTranslations } from '../../actions';
 import { ENGINE_FACTS, TEXT_LIMITS, profileVersion, translationsVersion } from '@wine-match/core';
@@ -57,6 +58,12 @@ export default async function DishPage({ params, searchParams }: Props) {
         actions={<>
           <Button asChild variant="outline"><Link href={`/admin/${slug}/pairings/${dish.id}`}>{m.managePairings}</Link></Button>
           {dish.status === 'published' && <Button asChild variant="outline"><Link href={`/r/${slug}/dish/${dish.id}`}>{t.admin.common.viewAsGuest}</Link></Button>}
+          {canEditCatalog && (dish.status === 'published' || dish.status === 'hidden') && (
+            <ActionButton
+              action={setDishHidden} fields={{ slug, back: `/admin/${slug}/menu/${dish.id}`, dishId: dish.id, hidden: String(dish.status === 'published'), version: d.visibilityVersion }}
+              title={dish.status === 'published' ? cm.visibility.hideHint : cm.visibility.showHint} size="default"
+            >{dish.status === 'published' ? cm.visibility.hide : cm.visibility.show}</ActionButton>
+          )}
         </>}
       />
       <Flash saved={first(sp.saved)} error={first(sp.error)} n={first(sp.n)} />

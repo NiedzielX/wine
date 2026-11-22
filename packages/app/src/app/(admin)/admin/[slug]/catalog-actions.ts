@@ -3,7 +3,7 @@
 import { parseFormPrice } from '@wine-match/core';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { perform, safeBack, str, withFlash, type Ctx } from '@/server/action-runner';
+import { act, perform, safeBack, str, withFlash, type Ctx } from '@/server/action-runner';
 import { domainError } from '@/server/domain-errors';
 
 /**
@@ -125,4 +125,23 @@ export async function saveWineDetails(previous: DetailsState | FormData, posted?
   const formErrors = new Map<string, string>();
   const result = await perform(form, 'catalog.edit', (ctx) => attempt('wine', ctx, formErrors));
   return conclude('wine', form, result, formErrors);
+}
+
+/**
+ * A3 "Hide from guests" / "Show to guests" (R7): a plain button form, no state to carry back. `hidden` says what the button
+ * does, `version` is the fingerprint of the dish the page showed (fields and status). The change is live for guests at once; a
+ * dish that cannot change (a draft, one already in that state) is `dish_transition`, a changed dish is `version_conflict`.
+ */
+export async function setDishHidden(form: FormData) {
+  return act(form, 'catalog.edit', async ({ c, slug, actor, form: f }): Promise<Record<string, string>> => {
+    const hidden = str(f, 'hidden') === 'true';
+    try {
+      const done = await c.catalogEditService.setDishHidden(slug, str(f, 'dishId'), hidden, actor, str(f, 'version') || undefined);
+      return { saved: hidden ? 'dish_hidden' : 'dish_shown', ...(done.suggestions ? { n: String(done.suggestions) } : {}) };
+    } catch (e) {
+      const d = domainError(e);
+      if (d?.code === 'validation_failed' && d.fields?.status === 'transition') return { error: 'dish_transition' };
+      throw e;
+    }
+  });
 }

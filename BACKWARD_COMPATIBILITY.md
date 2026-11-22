@@ -26,7 +26,7 @@ Pełna specyfikacja: [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md). Wer
 | Element | Co jest zmianą łamiącą |
 |---|---|
 | Trasy publiczne: `GET /dishes/{dishId}/recommendations`, `GET /public/restaurants/{slug}/menu`, `POST /recommendations/table`, `GET /import-samples/{menu\|wines}` | usunięcie trasy, parametru zapytania, pola odpowiedzi; zmiana typu pola; zawężenie dozwolonych wartości (np. `limit` 1..6) |
-| Trasy z sesją: `/auth/*`, `/restaurants/{slug}/pairings`, `/bulk-decision`, `/publish`, `/qr`, `/pairings/{id}`, `/wines/{id}`, `/imports/*`, od 2026-11-17 `GET`/`PATCH /dishes/{dishId}/details` i `/wines/{id}/details` (`If-Match` z odciskiem pól, 428 / 400 / 409; `PATCH /wines/{id}` `{active}` bez zmian) | jak wyżej, plus zmiana wymaganego uprawnienia |
+| Trasy z sesją: `/auth/*`, `/restaurants/{slug}/pairings`, `/bulk-decision`, `/publish`, `/qr`, `/pairings/{id}`, `/wines/{id}`, `/imports/*`, od 2026-11-17 `GET`/`PATCH /dishes/{dishId}/details` i `/wines/{id}/details` (`If-Match` z odciskiem pól, 428 / 400 / 409; `PATCH /wines/{id}` `{active}` bez zmian), od 2026-11-22 `GET`/`POST /dishes/{dishId}/visibility` (`If-Match` z odciskiem pól i statusu, 428 / 400 / 409, 422 `transition`) | jak wyżej, plus zmiana wymaganego uprawnienia |
 | Kształt błędu `{ error: { code, message, fields? } }` i kody (`unknown_field`, `invalid_json`, `payload_too_large`, kody importu…) | zmiana kształtu, usunięcie lub zmiana znaczenia kodu |
 | Mapowanie błędów na statusy HTTP (`fromDomainError` w [packages/app/src/server/api-auth.ts](packages/app/src/server/api-auth.ts)) | zmiana statusu dla istniejącego błędu |
 | Nagłówki: `X-CSRF-Token`, `If-Match` / `ETag` (428 / 400 / 409), `Cache-Control` tras publicznych | usunięcie lub zmiana semantyki |

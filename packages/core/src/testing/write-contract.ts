@@ -350,7 +350,7 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       // showing it again adds the suggestions it missed (only those not taken) and writes the audit row
       const pairs = await duckPairs();
       const free = ds.wines.find((w) => !pairs.some((p) => p.wineId === w.id));
-      t.expect(free).toBeDefined();
+      t.expect(free === undefined).toBe(false);
       const sug = (wineId: string, k: number): Pairing => ({ id: `31000000-0000-4000-8000-${String(k).padStart(12, '0')}`, dishId: d0.id, wineId, status: 'suggested', role: null, rank: null, comment: null, commentTranslations: {}, modelScore: 70, source: 'engine', updatedBy: 'engine', updatedAt: AT, dirty: false });
       const added = await repos.catalogWriteRepository.setDishStatus(rid(), d0.id, { from: 'hidden', to: 'published' }, dishVisibilityVersion(hidden), edit(d0.id, 3, 'shown', 'hidden', 'published'), [sug(free!.id, 1), sug(pairs[0].wineId, 2)]);
       t.expect(added).toBe(1);

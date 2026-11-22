@@ -4,7 +4,7 @@ import {
   ENGINE_VERSION, InvariantError, NotFoundError, ValidationError, VersionConflictError, buildSnapshot, picksVersion, currentContent, readContentSnapshot, readSnapshot, sameTranslations,
   type PublishInput, type PublishedVersionRecord,
   profileVersion, dishScales, wineScales,
-  assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion,
+  assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion,
   type CatalogEditRecord, type CatalogEditRepository, type CatalogWriteRepository, type DishFields, type WineFields,
   type ContentWriteRepository, type DishProfile, type WineProfile, type ProfileEditRecord, type ProfileWriteRepository, type PickEditRecord, type PickRecord, type PicksRepository, type SetPickInput, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
@@ -509,6 +509,41 @@ export class PgCatalogWriteRepository implements CatalogWriteRepository {
         w.glassPrice = next.glassPrice;
         this.audit(em, restaurantId, edit);
         await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async setDishStatus(restaurantId: string, dishId: string, change: { from: 'published' | 'hidden'; to: 'published' | 'hidden' }, expectedVersion: string | undefined, edit: CatalogEditRecord, suggestions: readonly Pairing[]) {
+    if (!isUuid(dishId) || !isUuid(restaurantId)) throw new NotFoundError('Dish');
+    try {
+      return await this.em.transactional(async (em) => {
+        await lockCatalog(em, restaurantId);
+        const d = await em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!d) throw new NotFoundError('Dish');
+        checkFieldsVersion(dishVisibilityVersion(toDish(d)), expectedVersion);
+        if (d.status !== change.from) throw new VersionConflictError();
+        d.status = change.to;
+        let added = 0;
+        if (suggestions.length) {
+          const existing = await em.find(PairingEntity, { restaurant: restaurantId, dish: dishId });
+          const taken = new Set(existing.map((e) => `${e.dish.id}:${e.wine.id}`));
+          for (const p of suggestions) {
+            const key = `${p.dishId}:${p.wineId}`;
+            if (taken.has(key)) continue;
+            taken.add(key);
+            em.create(PairingEntity, {
+              id: p.id, restaurant: em.getReference(RestaurantEntity, restaurantId), dish: em.getReference(DishEntity, p.dishId), wine: em.getReference(WineEntity, p.wineId),
+              status: 'suggested', role: null, rank: null, comment: null, modelScore: p.modelScore, factors: null, engineVersion: ENGINE_VERSION, source: 'engine',
+              dirty: false, updatedBy: p.updatedBy, updatedAt: new Date(p.updatedAt)
+            });
+            added++;
+          }
+        }
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+        return added;
       });
     } finally {
       this.em.clear();
