@@ -85,7 +85,7 @@ describe('the label on G3 (AC12, U3, U4)', () => {
 
   it('keeps the reason and the score of the wine as the engine wrote them', async () => {
     const html = await render(WinesPage, { dishId: found!.dishId }, { sid: SID });
-    expect(html).toContain(found!.pick.why.replace(/&/g, '&amp;').replace(/'/g, '&#x27;').replace(/’/g, '’'));
+    expect(html).toContain(found!.pick.why.replace(/&/g, '&amp;').replace(/'/g, '&#x27;'));
     expect(textOf(html)).toContain(`${found!.pick.matchScore}`);
   });
 
