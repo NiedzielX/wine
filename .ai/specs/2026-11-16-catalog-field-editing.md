@@ -99,7 +99,7 @@ C3 — nowa pozycja (A32)
 - **C1 nie zależy od E13 F1/F2**: pola z R1/R2 są „na żywo” dziś i po E13 (R2: `PublishedView` bierze je z danych bieżących); E13 F1 nie może przenieść ich do migawki (Q2, przegląd W11).
 - **Wspólne pliki z E13 F2** (kto scala drugi, ten rebase'uje): `permissions.ts`, A3/A5 (karty „Details”/„Listing” stąd i „Taste profile” z E13 F2 to **osobne formularze**, odciski i akcje), `container.ts`, słowniki i18n, `DATA_MODEL.md`. Audyt: Q7.
 - **C2 / C3:** R7, AC14b i Q5.
-- **E19:** nie dotykamy `active`, `availability`, `sellPriority` ani `PATCH /wines/{id}`. **E20:** brak nakładania poza importem (Ryzyka).
+- **E19:** nie dotykamy `active`, `availability`, wyborów restauracji (`restaurant_pick`, zastępuje E19 F2 `sellPriority`) ani `PATCH /wines/{id}`. **E20:** brak nakładania poza importem (Ryzyka).
 
 ### `packages/core`
 - `src/validators/catalog/dish-fields.schema.ts`, `wine-fields.schema.ts` (`z.strictObject`, wszystkie pola opcjonalne + `refine` „co najmniej jedno”; wariant `create` z polami wymaganymi z R8 i `style`, `grape` dla wina), eksport z `validators/index.ts`. Ceny jako `number` (tekst formularza: `parseFormPrice`, R11).
