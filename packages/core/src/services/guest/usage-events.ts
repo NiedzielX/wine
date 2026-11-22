@@ -1,4 +1,5 @@
 import type { RecommendationItem } from '../../engine/recommend';
+import type { RankedItem } from '../../ranking/restaurant-picks';
 import { ENGINE_VERSION } from '../../engine/scoring';
 import { parseSessionId, type GuestSessionRef, type GuestSessionSource, type UsagePath } from '../../guest/session';
 import type { QueryInput } from '../../guest/prefs';
@@ -8,6 +9,13 @@ import type { GuestInteractionInput, Repositories } from '../../ports/repositori
 /** How a wine was placed when the guest saw it, as in the public API (`tier`). */
 export type UsageTier = 'sommelier_primary' | 'sommelier' | 'engine';
 export type UsageContext = UsagePath;
+/**
+ * `pick: true` on an item or in the props of a wine view or selection marks a wine that carried the restaurant's pick
+ * label when the guest saw it (spec 2026-11-18-restaurant-picks, U7): the key is absent otherwise, so events about
+ * wines without the label are as they were. The learning layer (E17) does not read a flagged item as a sign that the
+ * wine fits (O11), and the pairing figures (E04) can tell a restaurant's pick from the engine's own choice.
+ */
+export interface UsageItem { wineId: string; tier: UsageTier; pick?: true }
 /** Only the non-default preferences, as `prefsToQuery` writes them. */
 export type UsagePrefs = Record<string, string>;
 
@@ -19,10 +27,10 @@ export type UsagePrefs = Record<string, string>;
  */
 export type UsageEvent =
   | { name: 'menu_viewed' }
-  | { name: 'recommendations_viewed'; dishId: string; props: { wineIds: string[]; items: Array<{ wineId: string; tier: UsageTier }>; prefs: UsagePrefs } }
+  | { name: 'recommendations_viewed'; dishId: string; props: { wineIds: string[]; items: UsageItem[]; prefs: UsagePrefs } }
   | { name: 'table_recommendation_viewed'; props: { dishIds: string[]; wineIds: string[]; /** the budget ruled out every bottle and was lifted (`table.budget_relaxed`, spec whole-table-waiter-path R13) */ budgetRelaxed: boolean; /** the number of people chosen on the table screens (`table.people_default`), only when chosen (R16) */ people?: number } }
-  | { name: 'wine_viewed'; dishId?: string; wineId: string; props: { context: UsageContext } }
-  | { name: 'wine_selected'; dishId?: string; wineId: string; props: { serving: 'glass' | 'bottle'; context: UsageContext; dishIds?: string[]; /** from the table, when a number of people was chosen (R16) */ people?: number } }
+  | { name: 'wine_viewed'; dishId?: string; wineId: string; props: { context: UsageContext; pick?: true } }
+  | { name: 'wine_selected'; dishId?: string; wineId: string; props: { serving: 'glass' | 'bottle'; context: UsageContext; pick?: true; dishIds?: string[]; /** from the table, when a number of people was chosen (R16) */ people?: number } }
   | { name: 'staff_lookup'; dishId: string; props: { source: 'staff'; prefs: UsagePrefs; wineIds: string[] } }
   /**
    * the waiter's whole-table lookup on G11 (spec 2026-10-16-whole-table-waiter-path, R13): `wineId` is the bottle shown
@@ -39,6 +47,14 @@ export type UsageEvent =
 /** The engine tier of a recommendation in the words of the API and the events. */
 export const usageTier = (item: Pick<RecommendationItem, 'tier'>): UsageTier =>
   item.tier === 0 ? 'sommelier_primary' : item.tier === 1 ? 'sommelier' : 'engine';
+
+/** One recommendation as an event item: the wine, its place and, only when the label was shown, `pick: true`. */
+export const usageItem = (item: Pick<RankedItem, 'tier' | 'restaurantPick'> & { wine: { id: string } }): UsageItem => ({
+  wineId: item.wine.id, tier: usageTier(item), ...(item.restaurantPick ? { pick: true as const } : {})
+});
+
+/** The `pick` prop of a wine view or selection: `{ pick: true }` when the item carried the label, otherwise nothing. */
+export const usagePick = (item: Pick<RankedItem, 'restaurantPick'> | null | undefined): { pick?: true } => (item?.restaurantPick ? { pick: true } : {});
 
 export interface UsageEventServiceDeps extends Pick<Repositories, 'guestInteractionRepository'> {
   clock: Clock;

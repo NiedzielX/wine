@@ -10,7 +10,9 @@ const MAX_LIMIT = 6;
 
 /**
  * GET /api/v1/dishes/{dishId}/recommendations?restaurant={slug}&serving=&styles=&maxPrice=&weight=&mood=&limit=
- * Public endpoint (docs/API_SPECIFICATION.md). `restaurant` is required: every query is tenant-scoped.
+ * Public endpoint (docs/API_SPECIFICATION.md). `restaurant` is required: every query is tenant-scoped. `restaurantPick`
+ * is true on a wine the restaurant marked in the published version and that qualified (spec 2026-11-18-restaurant-picks);
+ * `matchScore` is the engine's, never changed by it.
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ dishId: string }> }) {
   const { dishId } = await ctx.params;
@@ -35,6 +37,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ dishId: str
         tier: i.tier === 0 ? 'sommelier_primary' : i.tier === 1 ? 'sommelier' : 'engine',
         sommelier: i.sommelier ? { role: i.sommelier.role, name: restaurant.wineDirector } : null,
         bestValue: i.bestValue,
+        restaurantPick: i.restaurantPick === true,
         why: i.why
       }))
     }, { headers: PUBLIC_CACHE });

@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildDemoDataset } from '../src/demo/dataset';
-import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS } from '../src/domain/types';
 import { DomainError } from '../src/errors';
 import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repositories';
-import { rankForGuest } from '../src/ranking/rank-for-guest';
 import { PICKS_MAX, PICK_MIN_SCORE } from '../src/ranking/restaurant-picks';
 import { PicksService } from '../src/services/picks/picks-service';
 import { PicksSimulationService, type DishSimulation, type SimulatedItem } from '../src/services/picks/picks-simulation-service';
 import { RecommendationService } from '../src/services/guest/recommendation-service';
 import { PublishService } from '../src/services/publishing/publish-service';
-import { loadPublishedView } from '../src/services/publishing/published-view';
 
 /** Spec 2026-11-18-restaurant-picks, PR1b: the "before / after" simulator (R13, R15; AC9). */
 
@@ -39,23 +36,6 @@ async function guestList(guest: RecommendationService, dishId: string): Promise<
   const r = await guest.forDish('halka', dishId, {}, undefined, 'en');
   return r!.result.items.map((i) => ({
     wineId: i.wine.id, producer: i.wine.producer, name: i.wine.name, matchScore: i.matchScore, tier: i.tier,
-    sommelierPair: i.tier < 2, restaurantPick: (i as { restaurantPick?: boolean }).restaurantPick === true
-  }));
-}
-
-/**
- * What the guest path will serve once it reads the picks of the version (the next step wires `RecommendationService`):
- * the published view ranked by `rankForGuest` with the view's picks. Until then `forDish` serves the engine list.
- */
-async function guestListWithPicks(repos: ReturnType<typeof createMemoryRepositories>, dishId: string): Promise<SimulatedItem[]> {
-  const view = await loadPublishedView(repos, ds.restaurant);
-  const dish = view.dish(dishId)!;
-  const r = rankForGuest({
-    dish, wines: view.wines, pairings: view.pairings.filter((p) => p.dishId === dishId), prefs: DEFAULT_PREFS, locale: 'en',
-    picks: view.picks, showUnreviewed: (view.restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS).showUnreviewed
-  });
-  return r.items.map((i) => ({
-    wineId: i.wine.id, producer: i.wine.producer, name: i.wine.name, matchScore: i.matchScore, tier: i.tier,
     sommelierPair: i.tier < 2, restaurantPick: i.restaurantPick === true
   }));
 }
@@ -66,7 +46,7 @@ const code = async (p: Promise<unknown>) => {
 
 describe('the lists (R13, R15, AC9)', () => {
   it('"before" is the guest list now and "after" is the guest list after the publish, for every dish, when the picks are the only change', async () => {
-    const { sim, picks, publish, guest, repos } = setup();
+    const { sim, picks, publish, guest } = setup();
     // a published version first, so that "now" is a real version
     await publish.publish('halka', ACTOR);
     const wantedSet = active.slice(0, PICKS_MAX);
@@ -76,7 +56,7 @@ describe('the lists (R13, R15, AC9)', () => {
     for (const id of wantedSet) await picks.set('halka', id, true, ACTOR);
     expect((await sim.simulate('halka')).dishes).toEqual(now.dishes);
     await publish.publish('halka', ACTOR);
-    for (const d of now.dishes) expect(d.after).toEqual(await guestListWithPicks(repos, d.dishId));
+    for (const d of now.dishes) expect(d.after).toEqual(await guestList(guest, d.dishId));
     const done = await sim.simulate('halka');
     for (const d of done.dishes) expect(d.before).toEqual(d.after);
     expect(done.summary.dishesReordered).toBe(0);
