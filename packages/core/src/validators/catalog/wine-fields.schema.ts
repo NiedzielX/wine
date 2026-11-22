@@ -24,7 +24,7 @@ const listNumber = z.number().int().transform((n, ctx) => {
   return n;
 }).nullable();
 
-const wineFieldShape = {
+export const wineFieldShape = {
   producer: catalogText({ max: TEXT_LIMITS.name, required: true }),
   name: catalogText({ max: 160, required: true }),
   vintage,

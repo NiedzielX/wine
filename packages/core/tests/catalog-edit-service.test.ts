@@ -9,6 +9,9 @@ import { dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, w
 import { PublishService } from '../src/services/publishing/publish-service';
 import { SommelierService } from '../src/services/pairings/sommelier-service';
 import { loadPublishedView } from '../src/services/publishing/published-view';
+import { ImportService } from '../src/import/import-service';
+import type { ImportFileParser, ParsedFile } from '../src/import/types';
+import { draftDishProfile, draftWineProfile } from '../src/engine/drafts';
 import { AdminService } from '../src/services/dashboard/admin-service';
 
 /** Spec 2026-11-16-catalog-field-editing, C1a: CatalogEditService (R1 to R6, R9, R10, R15; AC1 to AC6, AC20, AC21). */
@@ -368,5 +371,111 @@ describe('setDishHidden (R7, R10, AC14, AC15)', () => {
     expect(now.filter((p) => p.status === 'suggested' && p.source === 'engine').length).toBe(shown.suggestions);
     // the pairs that already existed (decided ones) stay as they were
     expect(now.filter((p) => p.status !== 'suggested')).toEqual(mine.filter((p) => p.status !== 'suggested'));
+  });
+});
+
+describe('createDish and createWine (R8, R10, AC16, AC17)', () => {
+  const oneRow = (kind: 'menu' | 'wines', row: string[]): ImportFileParser => ({
+    parse: async (): Promise<ParsedFile> => ({
+      parser: 'csv',
+      rows: kind === 'menu' ? [['Category', 'Name', 'Description', 'Price'], row] : [['Producer', 'Wine', 'Vintage', 'Region', 'Grape', 'Style', 'Glass price', 'Bottle price'], row]
+    })
+  });
+  const importer = (t: ReturnType<typeof setup>, kind: 'menu' | 'wines', row: string[]) => {
+    let n = 0;
+    const clock = { now: () => new Date('2026-11-22T09:00:00.000Z') };
+    return new ImportService({ ...t.repos, importFileParser: oneRow(kind, row), clock, idGenerator: { uuid: () => `00000000-0000-4000-8000-${String(900000 + ++n).padStart(12, '0')}` } });
+  };
+  const key = (ps: Array<{ dishId: string; wineId: string; modelScore: number }>, by: 'dishId' | 'wineId') => ps.map((p) => [p[by === 'dishId' ? 'wineId' : 'dishId'], p.modelScore] as const).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+
+  it('creates a draft dish with the draft profile and the suggestions an import of the same row makes (AC16)', async () => {
+    const a = setup();
+    const b = setup();
+    const row = ['Desserts', 'Plum soufflé', 'Baked plum, vanilla cream', '42'];
+    const made = await a.svc.createDish('halka', { name: ' Plum soufflé ', description: 'Baked plum, vanilla cream', category: 'Desserts', price: 42 }, ACTOR);
+    const dish = a.dish('Plum soufflé');
+    expect(dish).toMatchObject({ id: made.id, status: 'draft', price: 42, category: 'Desserts', translations: {} });
+    expect(dish.profile).toEqual(draftDishProfile('Plum soufflé', 'Baked plum, vanilla cream', 'Desserts'));
+    expect(made.version).toBe(dishFieldsVersion(dishFieldsOf(dish)));
+    // the import of the same single row gives the same dish and the same suggestions
+    const imp = importer(b, 'menu', row);
+    const job = await imp.upload('halka', 'menu', { name: 'menu.csv', bytes: new Uint8Array() }, ACTOR);
+    await imp.confirm('halka', job.id, ACTOR);
+    const imported = b.dish('Plum soufflé');
+    expect({ ...dish, id: '' }).toEqual({ ...imported, id: '' });
+    const mine = a.store.pairings.get(RID)!.filter((p) => p.dishId === dish.id);
+    const theirs = b.store.pairings.get(RID)!.filter((p) => p.dishId === imported.id);
+    expect(mine.length).toBe(made.suggestions);
+    expect(mine.length).toBeGreaterThan(0);
+    expect(key(mine, 'dishId')).toEqual(key(theirs, 'dishId'));
+    expect(mine.every((p) => p.status === 'suggested' && p.source === 'engine' && !p.dirty)).toBe(true);
+    const rows = await a.repos.catalogEditRepository.list(RID, { subjectId: dish.id });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: 'dish', action: 'create', before: null, actor: ACTOR.name, actorId: ACTOR.id, identity: false, after: { name: 'Plum soufflé', price: 42, category: 'Desserts' } });
+  });
+
+  it('refuses a duplicate name (any status, any case or punctuation) and reports every missing or wrong field, creating nothing', async () => {
+    const t = setup();
+    const before = t.store.dishes.get(RID)!.length;
+    const draft = ds.dishes.find((d) => d.status === 'draft')!;
+    expect(await fieldsOf(t.svc.createDish('halka', { name: draft.name.toUpperCase() + '!', category: 'Mains', price: 10 }, ACTOR))).toEqual({ name: 'duplicate' });
+    expect(await fieldsOf(t.svc.createDish('halka', {}, ACTOR))).toEqual({ name: 'required', category: 'required', price: 'required' });
+    expect(await fieldsOf(t.svc.createDish('halka', { name: ' ', category: 'Snacks', price: 0, status: 'published', profile: {} }, ACTOR))).toMatchObject({ name: 'required', category: 'invalid', price: 'not_positive', status: 'unknown_field', profile: 'unknown_field' });
+    expect(await fieldsOf(t.svc.createDish('halka', { name: 'X', category: 'Mains', price: 12.345 }, ACTOR))).toEqual({ price: 'too_many_decimals' });
+    await expect(t.svc.createDish('no-such-restaurant', { name: 'X', category: 'Mains', price: 1 }, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+    expect(t.store.dishes.get(RID)!.length).toBe(before);
+    expect(await t.repos.catalogEditRepository.list(RID)).toEqual([]);
+  });
+
+  it('creates an active wine with the draft profile, colour, the next free list number and suggestions, as an import of the same row would (AC17)', async () => {
+    const a = setup();
+    const b = setup();
+    const made = await a.svc.createWine('halka', { producer: 'Weingut Test', name: 'Riesling trocken', vintage: 2022, region: 'Pfalz', country: 'Germany', bottlePrice: 240, style: 'white', grape: 'Riesling', pouredByGlass: true, glassPrice: 52 }, ACTOR);
+    const wine = a.wine(made.id);
+    const highest = Math.max(100, ...ds.wines.map((w) => w.listNumber ?? 0));
+    expect(wine).toMatchObject({ producer: 'Weingut Test', vintage: 2022, active: true, listNumber: highest + 1, glassPrice: 52, bottlePrice: 240, grapes: ['Riesling'], bottleSize: 750, translations: {} });
+    expect(made.listNumber).toBe(highest + 1);
+    expect(wine.profile).toEqual(draftWineProfile('Riesling', 'white'));
+    const imp = importer(b, 'wines', ['Weingut Test', 'Riesling trocken', '2022', 'Pfalz', 'Riesling', 'White', '52', '240']);
+    const job = await imp.upload('halka', 'wines', { name: 'wines.csv', bytes: new Uint8Array() }, ACTOR);
+    await imp.confirm('halka', job.id, ACTOR);
+    const imported = b.store.wines.get(RID)!.find((w) => w.producer === 'Weingut Test')!;
+    expect({ ...wine, id: '', region: '', country: '' }).toEqual({ ...imported, id: '', region: '', country: '' });
+    const mine = a.store.pairings.get(RID)!.filter((p) => p.wineId === wine.id);
+    expect(mine.length).toBe(made.suggestions);
+    expect(key(mine, 'wineId')).toEqual(key(b.store.pairings.get(RID)!.filter((p) => p.wineId === imported.id), 'wineId'));
+    expect(await a.repos.catalogEditRepository.latest(RID, 'wine', wine.id)).toMatchObject({ action: 'create', before: null, after: { producer: 'Weingut Test', style: 'white', grape: 'Riesling', listNumber: highest + 1 } });
+    // a second wine without a number gets the next one; an explicit free number is kept; a taken one is refused
+    const second = await a.svc.createWine('halka', { producer: 'Another', name: 'Red', vintage: 'NV', bottlePrice: 100, style: 'red' }, ACTOR);
+    expect(second.listNumber).toBe(highest + 2);
+    expect((await a.svc.createWine('halka', { producer: 'Third', name: 'Rose', vintage: 2023, bottlePrice: 100, style: 'rose', listNumber: 7777 }, ACTOR)).listNumber).toBe(7777);
+    expect(await fieldsOf(a.svc.createWine('halka', { producer: 'Fourth', name: 'Rose', vintage: 2023, bottlePrice: 100, style: 'rose', listNumber: 7777 }, ACTOR))).toEqual({ listNumber: 'duplicate' });
+  });
+
+  it('judges the wine by the same rules as an edit: the key, the glass, the vintage by the clock; every problem together; nothing is created', async () => {
+    const t = setup();
+    const w = ds.wines[0];
+    const before = t.store.wines.get(RID)!.length;
+    expect(await fieldsOf(t.svc.createWine('halka', { producer: w.producer.toUpperCase(), name: ` ${w.name}! `, vintage: w.vintage, bottlePrice: 99, style: 'red' }, ACTOR))).toEqual({ name: 'duplicate' });
+    expect(await fieldsOf(t.svc.createWine('halka', { producer: 'P', name: 'N', vintage: 2099, bottlePrice: 50, style: 'red', pouredByGlass: true, glassPrice: 50 }, ACTOR))).toEqual({ vintage: 'out_of_range', glassPrice: 'glass_not_below_bottle' });
+    expect(await fieldsOf(t.svc.createWine('halka', { producer: 'P', name: 'N', vintage: 2020, bottlePrice: 50, style: 'red', pouredByGlass: true }, ACTOR))).toEqual({ glassPrice: 'required' });
+    expect(await fieldsOf(t.svc.createWine('halka', { producer: 'P', name: 'N', vintage: 2020, bottlePrice: 50, style: 'red', glassPrice: 10 }, ACTOR))).toEqual({ glassPrice: 'not_allowed' });
+    expect(await fieldsOf(t.svc.createWine('halka', {}, ACTOR))).toEqual({ producer: 'required', name: 'required', vintage: 'required', bottlePrice: 'required', style: 'required' });
+    expect(await fieldsOf(t.svc.createWine('halka', { producer: 'P', name: 'N', vintage: 'nv', bottlePrice: 50, style: 'fizzy', active: false }, ACTOR))).toMatchObject({ vintage: 'invalid', style: 'invalid', active: 'unknown_field' });
+    expect(t.store.wines.get(RID)!.length).toBe(before);
+    expect(await t.repos.catalogEditRepository.list(RID)).toEqual([]);
+  });
+
+  it('a new wine has no profile in the published version, so guests do not see it until a publish; a new dish is a draft (Q5, E13 F1)', async () => {
+    const t = setup();
+    const made = await t.svc.createWine('halka', { producer: 'Late', name: 'Arrival', vintage: 2021, bottlePrice: 150, style: 'white' }, ACTOR);
+    const dish = await t.svc.createDish('halka', { name: 'Brand new dish', category: 'Mains', price: 70 }, ACTOR);
+    let view = await loadPublishedView(t.repos, ds.restaurant);
+    expect(view.wine(made.id)).toBeNull();
+    expect(view.dish(dish.id)).toBeNull();
+    await t.publish.publish('halka', ACTOR);
+    view = await loadPublishedView(t.repos, ds.restaurant);
+    expect(view.wine(made.id)).not.toBeNull();
+    expect(view.dish(dish.id)).not.toBeNull();
   });
 });

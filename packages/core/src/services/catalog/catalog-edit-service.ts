@@ -5,11 +5,13 @@ import { suggestionsFor } from '../../import/suggestions';
 import type { Dish, Pairing } from '../../domain/types';
 import type { CatalogEditRecord, DishFields, Repositories, WineFields } from '../../ports/repositories';
 import type { Clock, IdGenerator } from '../../ports/runtime';
+import { dishCreateSchema } from '../../validators/catalog/dish-create.schema';
+import { wineCreateSchema } from '../../validators/catalog/wine-create.schema';
 import { dishFieldsSchema, dishShapeSchema } from '../../validators/catalog/dish-fields.schema';
 import { wineFieldsSchema, wineShapeSchema } from '../../validators/catalog/wine-fields.schema';
 import { parseWith } from '../../validators/parse';
 import {
-  checkFieldsVersion, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, planDishEdit, planDishVisibility, planWineEdit, pruneUnchanged, staleTranslationLocales, wineFieldsOf, wineFieldsVersion
+  buildNewDish, buildNewWine, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, planDishEdit, planDishVisibility, planNewDish, planNewWine, planWineEdit, pruneUnchanged, staleTranslationLocales, wineFieldsOf, wineFieldsVersion
 } from './catalog-edit-rules';
 
 export type CatalogEditServiceDeps = Pick<
@@ -22,6 +24,14 @@ export interface CatalogVisibilityResult {
   /** the fingerprint after the change */
   version: string;
   /** engine suggestions added for the dish when it was shown again */
+  suggestions: number;
+}
+
+export interface CatalogCreateResult {
+  id: string;
+  /** the fingerprint of the new item's fields (the `ETag` of its details) */
+  version: string;
+  /** engine suggestions made for it */
   suggestions: number;
 }
 
@@ -164,6 +174,47 @@ export class CatalogEditService {
     };
     const added = await this.d.catalogWriteRepository.setDishStatus(r.id, dish.id, change, expectedVersion, edit, suggestions);
     return { status: change.to, version: dishVisibilityVersion({ ...dish, status: change.to }), suggestions: added };
+  }
+
+  /**
+   * R8: a new dish. It is a `draft` with the engine's draft profile (to check and confirm) and, like an imported one, reaches guests
+   * only with a publish. The engine's suggestions for it are made in the same transaction.
+   */
+  async createDish(slug: string, input: unknown, actor: Actor): Promise<CatalogCreateResult> {
+    const r = await this.restaurant(slug);
+    const values = parseWith(dishCreateSchema, input, 'Check the fields.');
+    const [dishes, wines, pairings] = await Promise.all([
+      this.d.dishRepository.listByRestaurant(r.id), this.d.wineRepository.listByRestaurant(r.id), this.d.pairingRepository.listByRestaurant(r.id)
+    ]);
+    const fields = planNewDish(values, { others: dishes.map((x) => ({ id: x.id, name: x.name })) });
+    const dish = buildNewDish(this.d.idGenerator.uuid(), fields);
+    const at = this.d.clock.now().toISOString();
+    const suggestions = suggestionsFor([dish], [], { dishes, wines, pairings, now: at }, () => this.d.idGenerator.uuid());
+    const edit: CatalogEditRecord = { id: this.d.idGenerator.uuid(), kind: 'dish', subjectId: dish.id, action: 'create', actor: actor.name, actorId: actor.id, before: null, after: { ...fields }, identity: false, at };
+    await this.d.catalogWriteRepository.createDish(r.id, dish, suggestions, edit);
+    return { id: dish.id, version: dishFieldsVersion(fields), suggestions: suggestions.length };
+  }
+
+  /** R8: a new wine, active, with the draft profile of `style` and `grape`, the next free list number when none is given, and its suggestions. */
+  async createWine(slug: string, input: unknown, actor: Actor): Promise<CatalogCreateResult & { listNumber: number | null }> {
+    const r = await this.restaurant(slug);
+    const values = parseWith(wineCreateSchema, input, 'Check the fields.');
+    const [dishes, wines, pairings] = await Promise.all([
+      this.d.dishRepository.listByRestaurant(r.id), this.d.wineRepository.listByRestaurant(r.id), this.d.pairingRepository.listByRestaurant(r.id)
+    ]);
+    const plan = planNewWine(values, {
+      others: wines.map((x) => ({ id: x.id, producer: x.producer, name: x.name, vintage: x.vintage, listNumber: x.listNumber ?? null })),
+      maxVintage: this.d.clock.now().getUTCFullYear() + 1
+    });
+    const wine = buildNewWine(this.d.idGenerator.uuid(), plan);
+    const at = this.d.clock.now().toISOString();
+    const suggestions = suggestionsFor([], [wine], { dishes, wines, pairings, now: at }, () => this.d.idGenerator.uuid());
+    const edit: CatalogEditRecord = {
+      id: this.d.idGenerator.uuid(), kind: 'wine', subjectId: wine.id, action: 'create', actor: actor.name, actorId: actor.id, before: null,
+      after: { ...plan.fields, style: plan.style, ...(plan.grape ? { grape: plan.grape } : {}) }, identity: false, at
+    };
+    const { listNumber } = await this.d.catalogWriteRepository.createWine(r.id, wine, { autoListNumber: plan.autoListNumber }, suggestions, edit);
+    return { id: wine.id, version: wineFieldsVersion({ ...plan.fields, listNumber }), suggestions: suggestions.length, listNumber };
   }
 
   /** R15 (4): a form that asks for it refuses a rename of something with sommelier pairings until it is confirmed. */
