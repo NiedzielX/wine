@@ -1,6 +1,6 @@
-import { DEFAULT_RESTAURANT_SETTINGS, parseDishIds, parsePeople, styleLabel, wineUsageScope, type UsageEvent } from '@wine-match/core';
+import { DEFAULT_RESTAURANT_SETTINGS, parseDishIds, parsePeople, styleLabel, usagePick, wineUsageScope, type UsageEvent } from '@wine-match/core';
 import type { Metadata } from 'next';
-import { BottomBar, Button, EmptyState, Explain, LanguageSwitch, Score, Seal, TopBar } from '../../../../_components/guest-ui';
+import { BottomBar, Button, EmptyState, Explain, LanguageSwitch, PickMark, Score, Seal, TopBar } from '../../../../_components/guest-ui';
 import { guestContext, notFound, type SearchParams } from '@/server/guest-page';
 import { formatPrice, getI18n } from '@/server/i18n';
 import { trackUsage } from '@/server/usage-events';
@@ -49,7 +49,7 @@ export default async function WinePage({ params, searchParams }: Props) {
   const w = t.guest.wine;
   // the path of this view, with dish ids from the published menu only (R8)
   const { context, dishId: viewedDish } = wineUsageScope(q, { dishes: fromTable ? (await services.catalogService.publishedMenu(slug))?.dishes ?? [] : dish ? [dish] : [] });
-  const viewed: UsageEvent[] = [{ name: 'wine_viewed', wineId: wine.id, ...(viewedDish ? { dishId: viewedDish } : {}), props: { context } }];
+  const viewed: UsageEvent[] = [{ name: 'wine_viewed', wineId: wine.id, ...(viewedDish ? { dishId: viewedDish } : {}), props: { context, ...usagePick(match) } }];
 
   if (!wine.active) {
     await trackUsage(services, restaurant, session, viewed);
@@ -97,8 +97,8 @@ export default async function WinePage({ params, searchParams }: Props) {
 
           {match && dish && (
             <div className={`mt-6 grid gap-1.5 rounded-xl p-4 ${match.sommelier ? 'bg-brass-soft' : 'bg-paper'}`}>
-              <p className={`flex items-center gap-1.5 text-small font-semibold ${match.sommelier ? 'text-brass-ink' : 'text-ink-2'}`}>
-                {match.sommelier ? <><Seal className="size-3.5" />{w.director(restaurant.wineDirector)}</> : w.whyWith(dish.name)}
+              <p className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 text-small font-semibold ${match.sommelier ? 'text-brass-ink' : 'text-ink-2'}`}>
+                {match.sommelier ? <><Seal className="size-3.5" />{w.director(restaurant.wineDirector)}</> : <>{w.whyWith(dish.name)}{match.restaurantPick && <PickMark t={t} className="bg-surface" />}</>}
               </p>
               <p className="text-body">{match.why}</p>
             </div>

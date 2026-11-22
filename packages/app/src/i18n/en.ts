@@ -35,7 +35,7 @@ export interface RestaurantExplainContext extends ExplainContext {
  * sentence after the list. `id` names the section for tests (`data-section`).
  */
 export interface HowItWorksSection {
-  id: 'list' | 'sommelier' | 'rules' | 'score' | 'table' | 'choices' | 'fair';
+  id: 'list' | 'sommelier' | 'picks' | 'rules' | 'score' | 'table' | 'choices' | 'fair';
   title: string;
   text: string[];
   points?: string[];
@@ -189,6 +189,10 @@ export const en = {
       alsoGood: 'Also good with this dish',
       recommended: 'Recommended for your dish',
       sommelierPairing: 'Sommelier’s pairing',
+      /** the restaurant’s own mark (spec 2026-11-18-restaurant-picks): never with the seal, never called a pairing */
+      restaurantPick: 'Restaurant’s pick',
+      /** under the wines, only when the list has a restaurant’s pick: what the mark is, and what it is not (U6, D25) */
+      pickNote: 'A restaurant’s pick is the restaurant’s own mark; it does not change the match score.',
       bestValue: 'Best value',
       match: 'match',
       /** accessible name of the match glass */
@@ -523,6 +527,11 @@ export const en = {
           id: 'sommelier',
           title: 'The sommelier has the last word',
           text: [`A wine with the seal is a sommelier’s pairing: recommended for that dish by ${directorEn(c.director)} and always first on the dish’s list. A wine the sommelier rejected for a dish is never suggested with it; for the whole table, a rejection only pulls the bottle down hard.`]
+        },
+        {
+          id: 'picks',
+          title: 'The restaurant’s pick',
+          text: ['A restaurant can mark some wines as its pick and show them higher among the suggestions. The mark does not change the match score, and the sommelier’s pairing always stays on top.']
         },
         ...(c.showUnreviewed
           ? [{

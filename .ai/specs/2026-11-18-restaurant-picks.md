@@ -209,3 +209,5 @@ Przegląd w świeżym kontekście; twierdzenia o kodzie sprawdzone w `engine/rec
 
 ## Realizacja
 Logi: `.ai/runs/*-picks-pr*.md`.
+
+PR2: `.ai/runs/2026-11-22-picks-pr2.md`.

@@ -1,4 +1,4 @@
-import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, prefsSummary, prefsToQuery, tasteWords, usageTier } from '@wine-match/core';
+import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS, ENGINE_FACTS, prefsSummary, prefsToQuery, tasteWords, usageItem } from '@wine-match/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BestCard, Button, DishList, EmptyState, Explain, GuestColumns, LanguageSwitch, Notice, QuickPrefs, RecoFooter, TopBar, WineRow } from '../../../../../_components/guest-ui';
@@ -20,6 +20,8 @@ type Props = { params: Promise<{ slug: string; dishId: string }>; searchParams: 
  * On desktop the menu stays in the left column so the guest can switch dishes in one click.
  * "Why these wines?" sits between the preferences and the first wine, also over an empty list; the filters sheet has
  * its own "How do the filters work?" (spec 2026-10-16-how-it-works-explanations). Settings are live, not published.
+ * The list is the one of the published version, with the restaurant's picks applied (spec 2026-11-18-restaurant-picks):
+ * a first place that is a pick says "Restaurant's pick" instead of "Recommended for your dish".
  */
 export default async function WinesPage({ params, searchParams }: Props) {
   const { slug, dishId } = await params;
@@ -70,7 +72,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
               {rest.map((i) => <WineRow key={i.wine.id} item={i} href={wineHref(i.wine.id)} serving={prefs.serving} showScores={showScores} t={t} locale={locale} />)}
             </section>
           )}
-          <RecoFooter director={restaurant.wineDirector} restaurant={restaurant.name} showUnreviewed={showUnreviewed} howHref={href(`/r/${slug}/how-it-works`, prefs)} t={t} />
+          <RecoFooter director={restaurant.wineDirector} restaurant={restaurant.name} showUnreviewed={showUnreviewed} hasPick={result.items.some((i) => i.restaurantPick)} howHref={href(`/r/${slug}/how-it-works`, prefs)} t={t} />
         </>
       )}
     </main>
@@ -85,7 +87,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
   // opening or closing the filters sheet is not a new view of the wines: only the list without the sheet counts (Q7)
   await trackUsage(services, restaurant, session, sheetOpen ? [] : [{
     name: 'recommendations_viewed', dishId: dish.id,
-    props: { wineIds: result.items.map((i) => i.wine.id), items: result.items.map((i) => ({ wineId: i.wine.id, tier: usageTier(i) })), prefs: prefsToQuery(prefs) }
+    props: { wineIds: result.items.map((i) => i.wine.id), items: result.items.map(usageItem), prefs: prefsToQuery(prefs) }
   }]);
   return (
     <>

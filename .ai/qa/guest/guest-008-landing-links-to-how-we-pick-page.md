@@ -30,7 +30,7 @@ The landing page links to the "How we pick your wine" page, which has its sectio
 1. The link address has the form /r/halka/how-it-works?sid=<session id>.
 2. The page heading is "How we pick your wine".
 3. The page says "The sommelier has the last word", "pinot noir with duck" and "No producer pays to be listed."
-4. The page has seven sections.
+4. The page has eight sections.
 5. Two links lead back to the landing page with the same session id.
 
 ## Edge cases covered

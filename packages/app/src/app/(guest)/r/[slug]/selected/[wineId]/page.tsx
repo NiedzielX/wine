@@ -1,4 +1,4 @@
-import { parseDishIds, parsePeople, usageTier, wineUsageScope } from '@wine-match/core';
+import { parseDishIds, parsePeople, usagePick, usageTier, wineUsageScope } from '@wine-match/core';
 import type { Metadata } from 'next';
 import { Button, EmptyState, Explain, LanguageSwitch, TableQuantityLine, TopBar } from '../../../../_components/guest-ui';
 import { CodeForWaiter } from '../../../../_components/recommendation-code';
@@ -65,7 +65,7 @@ export default async function SelectedPage({ params, searchParams }: Props) {
   const { context, dishId: selectedDish, dishIds } = wineUsageScope(q, { dishes: tableIds.length ? (await services.catalogService.publishedMenu(slug))?.dishes ?? [] : dish ? [dish] : [] });
   await trackUsage(services, restaurant, session, [{
     name: 'wine_selected', wineId: wine.id, ...(selectedDish ? { dishId: selectedDish } : {}),
-    props: { serving, context, ...(dishIds ? { dishIds } : {}), ...(dishIds && people !== null ? { people } : {}) }
+    props: { serving, context, ...(context === 'dish' ? usagePick(data.match) : {}), ...(dishIds ? { dishIds } : {}), ...(dishIds && people !== null ? { people } : {}) }
   }]);
   return (
     <>

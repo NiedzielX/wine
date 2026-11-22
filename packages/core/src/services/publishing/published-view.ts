@@ -40,7 +40,7 @@ export interface PublishedView {
   /**
    * The wines the restaurant marked as its picks in the version guests see (spec 2026-11-18-restaurant-picks, R6),
    * narrowed to `wines` (visible and active). Empty for a restaurant never published and for a version before schema 3.
-   * Nothing reads it yet: the guest paths use it from the next step of the picks work.
+   * `RecommendationService` passes it to `rankForGuest`; nothing else decides what a guest sees as a pick.
    */
   picks: ReadonlySet<string>;
 }

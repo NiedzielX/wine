@@ -166,6 +166,7 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
       "tier": "sommelier_primary",
       "sommelier": {"role": "primary", "name": "Marta Wierzbicka"},
       "bestValue": false,
+      "restaurantPick": false,
       "why": "Pinot and sour cherry jus — our signature match."
     },
     {
@@ -174,6 +175,7 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
       "tier": "sommelier",
       "sommelier": {"role": "best_value", "name": "Marta Wierzbicka"},
       "bestValue": true,
+      "restaurantPick": false,
       "why": "Fresh acidity cuts through the richness, and bright Gamay fruit lifts the dish."
     }
   ]
@@ -181,6 +183,8 @@ GET /v1/dishes/d_duck/recommendations?restaurant=halka&serving=glass&limit=4
 ```
 
 `tier`: `sommelier_primary` | `sommelier` | `engine`. Klient pokazuje etykietę „Sommelier’s pairing” / „Para sommeliera” wyłącznie dla dwóch pierwszych; najlepszą propozycję `engine` aplikacja gościa nazywa „Recommended for your dish” / „Polecane do Twojego dania”. Pola i wartości `tier` bez zmian — etykiety to tekst klienta.
+
+`restaurantPick` (boolean, pole addytywne; spec `2026-11-18-restaurant-picks`, R9, R16): `true` tylko przy wybranym przez restaurację winie, które w **opublikowanej** wersji jest w zbiorze „Wybór restauracji” i się kwalifikuje (`tier = engine`, `matchScore` co najmniej 75 i w oknie 10 punktów od najlepszego wina grupy `engine`; przy łagodzeniu budżetu, czyli `notice` różnym od `null`, zawsze `false`). Nigdy `true` przy `sommelier_primary` ani `sommelier`. `matchScore` i `why` to wynik silnika, bez zmiany. Klient pokazuje wtedy etykietę „Restaurant’s pick” / „Wybór restauracji” (znak restauracji, bez pieczęci sommeliera). **Zmiana zgodna wstecz (BC §2):** pole jest nowe, ale kolejność pozycji `engine` może się zmienić (najwyżej dwa wybory przechodzą na początek tej grupy, para sommeliera zawsze stoi pierwsza), a przy niepustym zbiorze lista może zawierać wina, które bez wyborów byłyby poza `limit`. Zbiór zmienia się dla gości dopiero po publikacji (`POST /restaurants/{slug}/publish`), nigdy od razu po `PUT /wines/{id}/pick`.
 
 ---
 
