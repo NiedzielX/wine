@@ -1,6 +1,7 @@
 import type { Dish, GuestPreferences, Restaurant, Wine } from '../../domain/types';
 import { DEFAULT_PREFS, DEFAULT_RESTAURANT_SETTINGS } from '../../domain/types';
-import { recommendForDish, type RecommendationItem, type RecommendationResult } from '../../engine/recommend';
+import { rankForGuest } from '../../ranking/rank-for-guest';
+import type { RankedItem, RankedResult } from '../../ranking/restaurant-picks';
 import { recommendForTable, tablePeople, tableQuantity, type TableOptions, type TableQuantity, type TableResult } from '../../engine/table';
 import { MAX_TABLE_DISHES } from '../../guest/prefs';
 import type { Repositories } from '../../ports/repositories';
@@ -14,7 +15,8 @@ export type RecommendationServiceDeps = Pick<Repositories, 'restaurantRepository
 export interface DishRecommendations {
   restaurant: Restaurant;
   dish: Dish;
-  result: RecommendationResult;
+  /** the engine's list with the restaurant's picks of the published version applied (`ranking/`) */
+  result: RankedResult;
 }
 
 /**
@@ -28,7 +30,7 @@ export interface WineDetails {
   /** the dish the guest came from, if it is published */
   dish: Dish | null;
   /** how well the wine fits that dish, with the sommelier's note when there is one */
-  match: RecommendationItem | null;
+  match: RankedItem | null;
 }
 
 export class RecommendationService {
@@ -67,7 +69,9 @@ export class RecommendationService {
 
   /**
    * `locale` sets the language of the engine's texts and of the restaurant's content; the public API passes none, so
-   * its answers stay in English with the base content (BACKWARD_COMPATIBILITY §2).
+   * its answers stay in English with the base content (BACKWARD_COMPATIBILITY §2). The ranking is `rankForGuest` on the
+   * picks of the published version (spec 2026-11-18-restaurant-picks, R11): without picks it is the engine's list as it
+   * always was; the simulator calls the same function.
    */
   async forDish(slug: string, dishId: string, prefs: Partial<GuestPreferences> = {}, limit?: number, locale?: Locale): Promise<DishRecommendations | null> {
     const view = await this.view(slug);
@@ -76,9 +80,11 @@ export class RecommendationService {
     const c = this.content(view, locale);
     const dish = c.dish(raw);
     const pairings = view.pairings.filter((p) => p.dishId === raw.id);
-    const result = recommendForDish(dish, view.wines.map(c.wine), pairings.map(c.pairing), { ...DEFAULT_PREFS, ...prefs }, limit, locale ?? 'en');
     const settings = view.restaurant.settings ?? DEFAULT_RESTAURANT_SETTINGS;
-    if (!settings.showUnreviewed) result.items = result.items.filter((i) => i.tier < 2);
+    const result = rankForGuest({
+      dish, wines: view.wines.map(c.wine), pairings: pairings.map(c.pairing), prefs: { ...DEFAULT_PREFS, ...prefs }, limit,
+      locale: locale ?? 'en', picks: view.picks, showUnreviewed: settings.showUnreviewed
+    });
     return { restaurant: c.restaurant, dish, result };
   }
 
@@ -91,10 +97,14 @@ export class RecommendationService {
     const wine = c.wine(rawWine);
     const found = dishId ? view.dish(dishId) : null;
     const dish = found ? c.dish(found) : null;
-    let match: RecommendationItem | null = null;
+    let match: RankedItem | null = null;
     if (dish && wine.active) {
       const pairings = view.pairings.filter((p) => p.dishId === dish.id);
-      match = recommendForDish(dish, view.wines.map(c.wine), pairings.map(c.pairing), DEFAULT_PREFS, view.wines.length, locale ?? 'en').items.find((i) => i.wine.id === wine.id) ?? null;
+      // as before, the wine page does not apply the "unreviewed" setting
+      match = rankForGuest({
+        dish, wines: view.wines.map(c.wine), pairings: pairings.map(c.pairing), prefs: DEFAULT_PREFS, limit: view.wines.length,
+        locale: locale ?? 'en', picks: view.picks, showUnreviewed: true
+      }).items.find((i) => i.wine.id === wine.id) ?? null;
     }
     return { restaurant: c.restaurant, wine, dish, match };
   }

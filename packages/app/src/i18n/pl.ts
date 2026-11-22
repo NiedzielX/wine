@@ -116,6 +116,8 @@ export const pl = {
       alsoGood: 'Też pasuje do tego dania',
       recommended: 'Polecane do Twojego dania',
       sommelierPairing: 'Para sommeliera',
+      restaurantPick: 'Wybór restauracji',
+      pickNote: 'Wybór restauracji to oznaczenie samej restauracji; nie zmienia wyniku dopasowania.',
       bestValue: 'Najlepsza cena',
       match: 'dopasowanie',
       matchLabel: (n: number) => `Dopasowanie ${n} procent`,
@@ -401,6 +403,11 @@ export const pl = {
           id: 'sommelier',
           title: 'Sommelier ma ostatnie słowo',
           text: [`Wino z pieczęcią to para sommeliera: do tego dania poleca je ${directorPl(c.director)} i zawsze stoi pierwsze na liście dania. Wino odrzucone przez sommeliera nie pojawi się przy tym daniu; przy doborze dla całego stołu odrzucenie tylko mocno obniża wynik butelki.`]
+        },
+        {
+          id: 'picks',
+          title: 'Wybór restauracji',
+          text: ['Restauracja może oznaczyć część win jako swój wybór i pokazać je wyżej wśród propozycji. Oznaczenie nie zmienia wyniku dopasowania, a para sommeliera zawsze zostaje na górze.']
         },
         ...(c.showUnreviewed
           ? [{

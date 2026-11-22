@@ -65,7 +65,7 @@ export class DemoSeeder extends Seeder {
     em.create(PublishedVersionEntity, {
       id: demoUuid('published_version_1'), restaurant: r, number: 1, changesCount: 0, publishedBy: restaurant.wineDirector,
       publishedAt: new Date(restaurant.publishedAt ?? '1970-01-01T00:00:00.000Z'),
-      snapshot: buildSnapshot({ restaurant, dishes, wines, pairings })
+      snapshot: buildSnapshot({ restaurant, dishes, wines, pairings, picks: [] })
     });
     await em.flush();
   }

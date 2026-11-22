@@ -1,4 +1,4 @@
-import { TABLE_PEOPLE_CHOICES, TABLE_PEOPLE_MORE, WINE_STYLES, styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RecommendationItem, type TableDishScore, type TableFit, type TableQuantity, type Wine, type WineStyle } from '@wine-match/core';
+import { TABLE_PEOPLE_CHOICES, TABLE_PEOPLE_MORE, WINE_STYLES, styleLabel, withServing, withStyleToggled, type Dish, type GuestPreferences, type Locale, type RankedItem, type TableDishScore, type TableFit, type TableQuantity, type Wine, type WineStyle } from '@wine-match/core';
 import { InfoDisclosure } from '@wine-match/ui/brand/info-disclosure';
 import { MatchGlass } from '@wine-match/ui/brand/match-glass';
 import Link from 'next/link';
@@ -126,21 +126,33 @@ export function Score({ score, colour, showScores, size, t }: { score: number; c
   );
 }
 
-export function Badges({ item, t }: { item: RecommendationItem; t: Dictionary }) {
-  if (!item.sommelier && !item.bestValue) return null;
+/**
+ * The restaurant's own mark on a wine (spec 2026-11-18-restaurant-picks, U3): plain text in a quiet outline, in the
+ * ink colours, with no seal and no brass; it is the restaurant's sign, never the sommelier's. Always visible, no script.
+ */
+export function PickMark({ t, className = '' }: { t: Dictionary; className?: string }) {
+  return <span data-pick="restaurant" className={`inline-flex items-center rounded-full border border-control px-2.5 text-small leading-5 font-semibold text-ink-2 ${className}`}>{t.guest.wines.restaurantPick}</span>;
+}
+
+export function Badges({ item, t }: { item: RankedItem; t: Dictionary }) {
+  if (!item.sommelier && !item.bestValue && !item.restaurantPick) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
+      {item.restaurantPick && <PickMark t={t} />}
       {item.sommelier && <span className="inline-flex items-center gap-1 rounded-full bg-brass-soft px-2.5 text-small leading-5 font-semibold text-brass-ink"><Seal className="size-3.5" />{t.guest.wines.sommelierPairing}</span>}
       {item.bestValue && <span className="rounded-full bg-sage-soft px-2.5 text-small leading-5 font-semibold text-sage">{t.guest.wines.bestValue}</span>}
     </div>
   );
 }
 
-export function BestCard({ item, href, serving, showScores, t, locale }: { item: RecommendationItem; href: string; serving: GuestPreferences['serving']; showScores: boolean; t: Dictionary; locale: Locale }) {
+export function BestCard({ item, href, serving, showScores, t, locale }: { item: RankedItem; href: string; serving: GuestPreferences['serving']; showScores: boolean; t: Dictionary; locale: Locale }) {
   const w = item.wine;
   return (
     <Link href={href} className="mt-6 block rounded-2xl border border-line bg-surface p-5 focus-visible:outline-2 focus-visible:outline-wine">
-      <p className="flex items-center gap-2 text-small font-semibold text-wine">{item.sommelier && <Seal />}{item.sommelier ? t.guest.wines.sommelierPairing : t.guest.wines.recommended}</p>
+      {item.restaurantPick
+        // the first place is not the engine's best suggestion, so the heading says whose choice it is (R12) — plain ink, no seal
+        ? <p data-pick="restaurant" className="flex items-center gap-2 text-small font-semibold text-ink-2">{t.guest.wines.restaurantPick}</p>
+        : <p className="flex items-center gap-2 text-small font-semibold text-wine">{item.sommelier && <Seal />}{item.sommelier ? t.guest.wines.sommelierPairing : t.guest.wines.recommended}</p>}
       <div className="mt-3 grid grid-cols-[1fr_auto] items-start gap-4">
         <div>
           <h2 className="font-serif text-h2 leading-tight">{w.name}</h2>
@@ -157,7 +169,7 @@ export function BestCard({ item, href, serving, showScores, t, locale }: { item:
   );
 }
 
-export function WineRow({ item, href, serving, showScores, t, locale }: { item: RecommendationItem; href: string; serving: GuestPreferences['serving']; showScores: boolean; t: Dictionary; locale: Locale }) {
+export function WineRow({ item, href, serving, showScores, t, locale }: { item: RankedItem; href: string; serving: GuestPreferences['serving']; showScores: boolean; t: Dictionary; locale: Locale }) {
   const w = item.wine;
   return (
     <Link href={href} className="grid grid-cols-[1fr_auto] items-start gap-3 border-b border-line py-4 last:border-b-0 focus-visible:outline-2 focus-visible:outline-wine">
@@ -178,12 +190,12 @@ export function WineRow({ item, href, serving, showScores, t, locale }: { item: 
  * wine" page (G12). `ink-2`, not `ink-3`: small text needs 4.5:1 on paper (R2). `howHref` comes ready from the page
  * (`href` of `guestContext`, so it carries `lang` and `sid`): shared components never build `/r/…` addresses.
  */
-export function RecoFooter({ director, restaurant, showUnreviewed, howHref, t }: { director: string; restaurant: string; showUnreviewed: boolean; howHref: string; t: Dictionary }) {
+export function RecoFooter({ director, restaurant, showUnreviewed, hasPick = false, howHref, t }: { director: string; restaurant: string; showUnreviewed: boolean; /** the list has a restaurant's pick: one more sentence says what the mark is */ hasPick?: boolean; howHref: string; t: Dictionary }) {
   return (
     <p className="mt-7 flex items-start gap-2 text-small text-ink-2">
       <Seal className="mt-0.5 size-4 shrink-0" />
       <span>
-        {t.guest.wines.footer(restaurant, director, showUnreviewed)}{' '}
+        {t.guest.wines.footer(restaurant, director, showUnreviewed)}{hasPick ? ` ${t.guest.wines.pickNote}` : ''}{' '}
         <Link href={howHref} className="font-medium text-ink-2 underline underline-offset-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-wine">{t.guest.hero.howLink}</Link>
       </span>
     </p>

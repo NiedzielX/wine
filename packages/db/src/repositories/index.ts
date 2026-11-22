@@ -1,12 +1,12 @@
 import { UniqueConstraintViolationException } from '@mikro-orm/core';
 import { LockMode, type EntityManager } from '@mikro-orm/postgresql';
 import {
-  ENGINE_VERSION, InvariantError, NotFoundError, VersionConflictError, buildSnapshot, currentContent, readContentSnapshot, readSnapshot, sameTranslations,
+  ENGINE_VERSION, InvariantError, NotFoundError, ValidationError, VersionConflictError, buildSnapshot, picksVersion, currentContent, readContentSnapshot, readSnapshot, sameTranslations,
   type PublishInput, type PublishedVersionRecord,
   profileVersion, dishScales, wineScales,
   assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion,
   type CatalogEditRecord, type CatalogEditRepository, type CatalogWriteRepository, type DishFields, type WineFields,
-  type ContentWriteRepository, type DishProfile, type WineProfile, type ProfileEditRecord, type ProfileWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
+  type ContentWriteRepository, type DishProfile, type WineProfile, type ProfileEditRecord, type ProfileWriteRepository, type PickEditRecord, type PickRecord, type PicksRepository, type SetPickInput, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
   type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository, type UsageTotals, type PairingStat,
@@ -14,7 +14,7 @@ import {
   type CheckKey, type CheckTotals, type SalesPeriod, type SalesRepository
 } from '@wine-match/core';
 import {
-  CatalogEditEntity, DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, ProfileEditEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
+  CatalogEditEntity, DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, PickEditEntity, ProfileEditEntity, RestaurantPickEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
   type PublishedVersionRow
 } from '../entities';
 import { translate } from './errors';
@@ -302,10 +302,13 @@ export class PgPublishRepository implements PublishRepository {
         const pairings = await em.find(PairingEntity, { restaurant: restaurantId, status: { $in: [...PUBLISHABLE] } }, { orderBy: { id: 'asc' } });
         const allDishes = await em.find(DishEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' }, lockMode: LockMode.PESSIMISTIC_READ });
         const allWines = await em.find(WineEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' }, lockMode: LockMode.PESSIMISTIC_READ });
+        // the working set of picks, read under the same restaurant lock a pick write takes (spec 2026-11-18-restaurant-picks, W6);
+        // the wines are non-deleted, and `buildSnapshot` keeps the active ones
+        const picks = (await em.find(RestaurantPickEntity, { restaurant: restaurantId })).map((x) => x.wine.id);
         const drafts = allDishes.filter((d) => d.status === 'draft');
         // the menu as it is after this publish: the released drafts are part of it
         const dishes = allDishes.map((d) => ({ ...toDish(d), status: d.status === 'draft' ? 'published' as const : d.status }));
-        const snapshot = buildSnapshot({ restaurant: toRestaurant(restaurant), dishes, wines: allWines.map(toWine), pairings: pairings.map(toPairing) });
+        const snapshot = buildSnapshot({ restaurant: toRestaurant(restaurant), dishes, wines: allWines.map(toWine), pairings: pairings.map(toPairing), picks });
         const version = em.create(PublishedVersionEntity, {
           id: input.id, restaurant, number: (last?.number ?? 0) + 1, snapshot, changesCount: pending + drafts.length + (input.contentChanges ?? 0),
           publishedBy: input.actor, publishedAt: new Date(input.at)
@@ -539,6 +542,82 @@ export class PgCatalogEditRepository implements CatalogEditRepository {
     return (await this.list(restaurantId, { kind, subjectId }))[0] ?? null;
   }
 }
+
+/**
+ * The restaurant's picks (spec 2026-11-18-restaurant-picks). A write locks the restaurant row (`FOR UPDATE`, the lock a
+ * publish takes), so the limit is checked and the row inserted under one lock (two parallel writes never leave more than
+ * the limit) and a publish sees the set wholly before or wholly after a change. Wines are deleted softly: every query joins
+ * the wine and skips the deleted ones; the picks of inactive wines stay in the set and count towards the limit. Inside the
+ * transaction the reads use the transaction's `em`.
+ */
+export class PgPicksRepository implements PicksRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  async list(restaurantId: string): Promise<PickRecord[]> {
+    if (!isUuid(restaurantId)) return [];
+    try {
+      return await this.readSet(this.em, restaurantId);
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  private async readSet(em: EntityManager, restaurantId: string): Promise<PickRecord[]> {
+    const rows = await em.find(RestaurantPickEntity, { restaurant: restaurantId, wine: { deletedAt: null } }, { populate: ['wine'] });
+    return rows
+      .map((r) => ({ wineId: r.wine.id, active: r.wine.active, setAt: r.setAt.toISOString(), setBy: r.setBy, setById: r.setById ?? null }))
+      .sort((a, b) => (a.wineId < b.wineId ? -1 : a.wineId > b.wineId ? 1 : 0));
+  }
+
+  async set(restaurantId: string, input: SetPickInput) {
+    if (!isUuid(restaurantId) || !isUuid(input.wineId)) throw new NotFoundError('Wine');
+    try {
+      return await this.em.transactional(async (em) => {
+        const restaurant = await em.findOne(RestaurantEntity, { id: restaurantId }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!restaurant) throw new NotFoundError('Wine');
+        const wine = await em.findOne(WineEntity, { id: input.wineId, restaurant: restaurantId, deletedAt: null });
+        if (!wine) throw new NotFoundError('Wine');
+        const before = await this.readSet(em, restaurantId);
+        const beforeIds = before.map((x) => x.wineId);
+        if (input.expectedVersion !== undefined && input.expectedVersion !== picksVersion(beforeIds)) throw new VersionConflictError();
+        const present = beforeIds.includes(input.wineId);
+        if (input.enabled === present) return { changed: false };
+        let afterIds: string[];
+        if (input.enabled) {
+          if (!wine.active) throw new ValidationError('wine_inactive', 'Only an active wine can be marked as a pick.');
+          if (before.length >= input.max) throw new ValidationError('too_many_picks', `A restaurant can mark at most ${input.max} wines.`);
+          em.create(RestaurantPickEntity, {
+            id: input.editId, restaurant, wine, setAt: new Date(input.at), setBy: input.actor, setById: input.actorId
+          });
+          afterIds = [...beforeIds, input.wineId].sort();
+        } else {
+          await em.nativeDelete(RestaurantPickEntity, { restaurant: restaurantId, wine: input.wineId });
+          afterIds = beforeIds.filter((id) => id !== input.wineId);
+        }
+        em.create(PickEditEntity, {
+          id: input.editId, restaurant, wineId: input.wineId, enabled: input.enabled, actor: input.actor, actorId: input.actorId,
+          before: beforeIds, after: afterIds, at: new Date(input.at)
+        });
+        await em.flush();
+        return { changed: true };
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async listEdits(restaurantId: string): Promise<PickEditRecord[]> {
+    if (!isUuid(restaurantId)) return [];
+    const rows = await this.em.find(PickEditEntity, { restaurant: restaurantId }, { orderBy: { at: 'desc', id: 'asc' } });
+    const out = rows.map((r) => ({
+      id: r.id, wineId: r.wineId, enabled: r.enabled, actor: r.actor, actorId: r.actorId ?? null, before: [...r.before], after: [...r.after], at: r.at.toISOString()
+    }));
+    this.em.clear();
+    return out;
+  }
+}
+
 
 /**
  * Ignored opportunities (spec 2026-10-16-sommelier-opportunities, R6). The upsert is one statement

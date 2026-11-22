@@ -6,6 +6,8 @@ import { countContentChanges } from '../i18n/content';
 import { pairingScore } from '../engine/scoring';
 import type { CatalogEditRecord, DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
 import { dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
+import { PICKS_MAX, RANKING_LAYER_VERSION } from '../ranking/restaurant-picks';
+import { picksVersion } from '../services/picks/picks-rules';
 import { SommelierService } from '../services/pairings/sommelier-service';
 import { loadPublishedView } from '../services/publishing/published-view';
 import { dishScales, wineScales } from '../services/publishing/snapshot';
@@ -125,12 +127,13 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
 
     t.it('publishes snapshot v2: every profile, hidden dishes and inactive wines included, and the menu (spec 2026-11-04-panel-completion, AC1)', async () => {
       const before = (await repos.publishRepository.effective(rid()))!;
-      t.expect(before.snapshot.schema).toBe(2);
+      t.expect(before.snapshot.schema).toBe(3);
       t.expect(before.info).toEqual(await repos.publishRepository.latest(rid()));
       const v = await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-10-14T13:00:00.000Z', id: '56565656-5656-4565-8565-565656565656', expectedLatest: before.info.number });
       const after = (await repos.publishRepository.effective(rid()))!;
       t.expect(after.info).toEqual(v);
-      t.expect(after.snapshot.schema).toBe(2);
+      t.expect(after.snapshot.schema).toBe(3);
+      t.expect(after.snapshot.picks).toEqual({ wineIds: [], rankingVersion: RANKING_LAYER_VERSION });
       const ids = (xs: Array<{ id: string }>) => xs.map((x) => x.id).sort();
       t.expect(ids(after.snapshot.profiles!.dishes)).toEqual(ids(ds.dishes));
       t.expect(ids(after.snapshot.profiles!.wines)).toEqual(ids(ds.wines));
@@ -365,6 +368,106 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect(await repos.wineWriteRepository.setActive(rid(), 'abc', true)).toBeNull();
       await repos.restaurantWriteRepository.updateSettings(rid(), { showUnreviewed: false, showScores: true });
       t.expect((await repos.restaurantRepository.findBySlug(ds.restaurant.slug))!.settings).toEqual({ showUnreviewed: false, showScores: true });
+    });
+
+    /* ---------- the restaurant's picks (spec 2026-11-18-restaurant-picks, R1, R3, R5, R6) ---------- */
+    const editId = (n: number) => `20000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    const pickInput = (wineId: string, enabled: boolean, n: number, over: object = {}) =>
+      ({ wineId, enabled, editId: editId(n), actor: 'Marta', actorId: null, at: `2026-11-19T09:${String(n).padStart(2, '0')}:00.000Z`, max: PICKS_MAX, ...over });
+    const activeWines = () => ds.wines.filter((w) => w.active).map((w) => w.id).sort();
+
+    t.it('marks and unmarks a wine: the set is sorted, the history keeps before and after, a repeat is a no-op without history (R1, R3)', async () => {
+      const [a, b] = activeWines();
+      t.expect(await repos.picksRepository.list(rid())).toEqual([]);
+      t.expect(await repos.picksRepository.set(rid(), pickInput(b, true, 1))).toEqual({ changed: true });
+      t.expect(await repos.picksRepository.set(rid(), pickInput(a, true, 2))).toEqual({ changed: true });
+      t.expect(await repos.picksRepository.set(rid(), pickInput(a, true, 3))).toEqual({ changed: false });
+      t.expect((await repos.picksRepository.list(rid())).map((x) => x.wineId)).toEqual([a, b]);
+      t.expect((await repos.picksRepository.list(rid()))[0]).toMatchObject({ active: true, setBy: 'Marta', setById: null });
+      t.expect(await repos.picksRepository.set(rid(), pickInput(b, false, 4))).toEqual({ changed: true });
+      t.expect(await repos.picksRepository.set(rid(), pickInput(b, false, 5))).toEqual({ changed: false });
+      t.expect((await repos.picksRepository.list(rid())).map((x) => x.wineId)).toEqual([a]);
+      const edits = await repos.picksRepository.listEdits(rid());
+      t.expect(edits.map((e) => e.id)).toEqual([editId(4), editId(2), editId(1)]);
+      t.expect(edits[0]).toMatchObject({ wineId: b, enabled: false, actor: 'Marta', actorId: null, before: [a, b].sort(), after: [a] });
+      t.expect(edits[2]).toMatchObject({ wineId: b, enabled: true, before: [], after: [b] });
+    });
+
+    t.it('is scoped by restaurant: another restaurant or an unknown wine is not found and leaves no history (R1)', async () => {
+      const [a] = activeWines();
+      await t.expect(repos.picksRepository.set(OTHER, pickInput(a, true, 1))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.picksRepository.set(rid(), pickInput(OTHER, true, 2))).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.picksRepository.set(rid(), pickInput('abc', true, 3))).rejects.toBeInstanceOf(NotFoundError);
+      t.expect(await repos.picksRepository.list(rid())).toEqual([]);
+      t.expect(await repos.picksRepository.list(OTHER)).toEqual([]);
+      t.expect(await repos.picksRepository.listEdits(rid())).toEqual([]);
+      await repos.picksRepository.set(rid(), pickInput(a, true, 4));
+      t.expect(await repos.picksRepository.list(OTHER)).toEqual([]);
+      t.expect(await repos.picksRepository.listEdits(OTHER)).toEqual([]);
+    });
+
+    t.it('keeps at most the limit, counting the picks of inactive wines, so a reactivated wine never gives more than the limit (R1, B3)', async () => {
+      const ids = activeWines();
+      for (let i = 0; i < PICKS_MAX; i++) await repos.picksRepository.set(rid(), pickInput(ids[i], true, i + 1));
+      await t.expect(repos.picksRepository.set(rid(), pickInput(ids[PICKS_MAX], true, 20))).rejects.toMatchObject({ code: 'too_many_picks' });
+      // one of the picks goes inactive: it keeps its place, so the sixth is still refused
+      await repos.wineWriteRepository.setActive(rid(), ids[0], false);
+      t.expect((await repos.picksRepository.list(rid())).length).toBe(PICKS_MAX);
+      t.expect((await repos.picksRepository.list(rid())).find((x) => x.wineId === ids[0])!.active).toBe(false);
+      await t.expect(repos.picksRepository.set(rid(), pickInput(ids[PICKS_MAX], true, 21))).rejects.toMatchObject({ code: 'too_many_picks' });
+      await repos.wineWriteRepository.setActive(rid(), ids[0], true);
+      t.expect((await repos.picksRepository.list(rid())).filter((x) => x.active).length).toBe(PICKS_MAX);
+      // an unmarked wine frees a place; a repeat of an existing pick at the limit is a no-op, not an error
+      t.expect(await repos.picksRepository.set(rid(), pickInput(ids[1], true, 22))).toEqual({ changed: false });
+      await repos.picksRepository.set(rid(), pickInput(ids[1], false, 23));
+      t.expect(await repos.picksRepository.set(rid(), pickInput(ids[PICKS_MAX], true, 24))).toEqual({ changed: true });
+      t.expect((await repos.picksRepository.listEdits(rid())).length).toBe(PICKS_MAX + 2);
+    });
+
+    t.it('does not mark a wine that is not active, but unmarks one that became inactive (R1)', async () => {
+      const inactive = ds.wines.find((w) => !w.active)!;
+      const [a] = activeWines();
+      await t.expect(repos.picksRepository.set(rid(), pickInput(inactive.id, true, 1))).rejects.toMatchObject({ code: 'wine_inactive' });
+      t.expect(await repos.picksRepository.list(rid())).toEqual([]);
+      await repos.picksRepository.set(rid(), pickInput(a, true, 2));
+      await repos.wineWriteRepository.setActive(rid(), a, false);
+      t.expect(await repos.picksRepository.set(rid(), pickInput(a, false, 3))).toEqual({ changed: true });
+      t.expect(await repos.picksRepository.list(rid())).toEqual([]);
+    });
+
+    t.it('writes against the fingerprint the caller saw: a stale one changes nothing (R2)', async () => {
+      const [a, b] = activeWines();
+      await repos.picksRepository.set(rid(), pickInput(a, true, 1, { expectedVersion: picksVersion([]) }));
+      await t.expect(repos.picksRepository.set(rid(), pickInput(b, true, 2, { expectedVersion: picksVersion([]) }))).rejects.toBeInstanceOf(VersionConflictError);
+      // checked before "already as asked": a stale form never gets a quiet no-op
+      await t.expect(repos.picksRepository.set(rid(), pickInput(a, true, 3, { expectedVersion: picksVersion([]) }))).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.picksRepository.list(rid())).map((x) => x.wineId)).toEqual([a]);
+      t.expect((await repos.picksRepository.listEdits(rid())).length).toBe(1);
+      t.expect(await repos.picksRepository.set(rid(), pickInput(b, true, 4, { expectedVersion: picksVersion([a]) }))).toEqual({ changed: true });
+    });
+
+    t.it('reaches guests only with a publish: the version holds the sorted ids of the active picks, the view narrows to active wines (R5, R6)', async () => {
+      const [a, b, c] = activeWines();
+      for (const [i, id] of [c, a, b].entries()) await repos.picksRepository.set(rid(), pickInput(id, true, i + 1));
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks.size).toBe(0);
+      const v = await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-11-19T10:00:00.000Z', id: '30000000-0000-4000-8000-000000000001' });
+      const after = (await repos.publishRepository.effective(rid()))!;
+      t.expect(after.info).toEqual(v);
+      t.expect(after.snapshot.picks!.wineIds).toEqual([a, b, c]);
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks).toEqual(new Set([a, b, c]));
+      // a later change stays out of the published version; the version is immutable
+      await repos.picksRepository.set(rid(), pickInput(b, false, 10));
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks).toEqual(new Set([a, b, c]));
+      t.expect((await repos.publishRepository.effective(rid()))!.snapshot.picks!.wineIds).toEqual([a, b, c]);
+      // a wine switched off is not shown as a pick (live, like its availability); on again, it is back
+      await repos.wineWriteRepository.setActive(rid(), a, false);
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks).toEqual(new Set([b, c]));
+      await repos.wineWriteRepository.setActive(rid(), a, true);
+      t.expect((await loadPublishedView(repos, ds.restaurant)).picks).toEqual(new Set([a, b, c]));
+      // the next publish takes the working set as it is, and writes only the active ones
+      await repos.wineWriteRepository.setActive(rid(), c, false);
+      await repos.publishRepository.publish(rid(), { actor: 'Test', at: '2026-11-19T11:00:00.000Z', id: '30000000-0000-4000-8000-000000000002' });
+      t.expect((await repos.publishRepository.effective(rid()))!.snapshot.picks!.wineIds).toEqual([a]);
     });
   });
 }

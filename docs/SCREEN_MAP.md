@@ -133,6 +133,7 @@ flowchart LR
 | A11 Publish | – | – | ✓ | ✓ |
 | A12 QR | – | – | ✓ | ✓ |
 | A15 Team | – | – | – | ✓ (GM nie zmienia właściciela ani innego GM) |
+| A27 Wybory restauracji (zaplanowany: PR3 spec `2026-11-18-restaurant-picks`; API i uprawnienie `picks.edit` są od PR1b) | – | – | ✓ widzi zbiór i symulator, nie zmienia | ✓ zmienia (`picks.edit`) |
 
 W mockupie oba konta demonstracyjne mają pełny dostęp; ograniczenia ról GM dotyczą wersji produkcyjnej (wymuszane w API).
 
