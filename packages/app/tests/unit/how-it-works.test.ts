@@ -55,13 +55,13 @@ const explanations = (t: typeof en, f: EngineFacts, c: RestaurantExplainContext)
 
 describe('phase 2 texts: numbers from ENGINE_FACTS, limits, variants (AC6, R4, R6)', () => {
   for (const [lang, t] of Object.entries(DICTS) as Array<[keyof typeof DICTS, typeof en]>) {
-    it(`${lang}: every explanation has at most 6 points and 90 words; G12 at most 350 words — in every variant`, () => {
+    it(`${lang}: every explanation has at most 6 points and 90 words; G12 at most 380 words (350 before the restaurant’s pick section, spec 2026-11-18-restaurant-picks U6) — in every variant`, () => {
       for (const c of contexts()) {
         for (const [id, points] of Object.entries(explanations(t, ENGINE_FACTS, c))) {
           expect(points.length, id).toBeLessThanOrEqual(6);
           expect(words(points), `${id}: ${points.join(' ')}`).toBeLessThanOrEqual(90);
         }
-        expect(words(pageTexts(t, ENGINE_FACTS, c))).toBeLessThanOrEqual(350);
+        expect(words(pageTexts(t, ENGINE_FACTS, c))).toBeLessThanOrEqual(380);
       }
     });
 
@@ -122,8 +122,8 @@ describe('phase 2 texts: numbers from ENGINE_FACTS, limits, variants (AC6, R4, R
         // the first point of G9 is the order; "Say:" may still quote a rule's reason for a sommelier's pairing without a note
         expect(t.guest.explain.staff.points(ENGINE_FACTS, off)[0]).not.toContain(RULES[lang]);
         expect(t.guest.explain.staff.points(ENGINE_FACTS, on)[0]).toContain(RULES[lang]);
-        expect(t.guest.howItWorks.sections(ENGINE_FACTS, off).map((s) => s.id)).toEqual(['list', 'sommelier', 'score', 'table', 'choices', 'fair']);
-        expect(t.guest.howItWorks.sections(ENGINE_FACTS, on).map((s) => s.id)).toEqual(['list', 'sommelier', 'rules', 'score', 'table', 'choices', 'fair']);
+        expect(t.guest.howItWorks.sections(ENGINE_FACTS, off).map((s) => s.id)).toEqual(['list', 'sommelier', 'picks', 'score', 'table', 'choices', 'fair']);
+        expect(t.guest.howItWorks.sections(ENGINE_FACTS, on).map((s) => s.id)).toEqual(['list', 'sommelier', 'picks', 'rules', 'score', 'table', 'choices', 'fair']);
       }
     });
 
@@ -261,7 +261,7 @@ describe('G12 "How we pick your wine" (AC12, R9, R10)', () => {
   it('English and Polish: the heading, the sections, the way back with the guest’s language and session', async () => {
     const enHtml = await render(HowItWorksPage, {}, { sid: SID });
     expect(enHtml).toMatch(/<h1[^>]*>How we pick your wine<\/h1>/);
-    expect([...enHtml.matchAll(/data-section="([^"]+)"/g)].map((m) => m[1])).toEqual(['list', 'sommelier', 'rules', 'score', 'table', 'choices', 'fair']);
+    expect([...enHtml.matchAll(/data-section="([^"]+)"/g)].map((m) => m[1])).toEqual(['list', 'sommelier', 'picks', 'rules', 'score', 'table', 'choices', 'fair']);
     expect(enHtml).toContain(`href="/r/halka?sid=${SID}"`);
     expect(enHtml).toContain('Marta Wierzbicka');
     expect(enHtml).toContain(`shown from ${ENGINE_FACTS.minModelScore}%`);
@@ -270,7 +270,7 @@ describe('G12 "How we pick your wine" (AC12, R9, R10)', () => {
     expect(plHtml).toContain(`href="/r/halka?lang=pl&amp;sid=${SID}"`);
     expect(plHtml).toContain('Wróć do menu');
     // one heading per section, no explanation disclosure: the page is the long version
-    expect((plHtml.match(/<h2/g) ?? []).length).toBe(7);
+    expect((plHtml.match(/<h2/g) ?? []).length).toBe(8);
     expect(explainIds(plHtml)).toEqual([]);
     expect(placementProblems(plHtml)).toEqual([]);
   });
