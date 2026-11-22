@@ -8,6 +8,7 @@ import { ActiveBadge, ProfileBadge, RoleBadge, ScoreBadge } from '../../../_comp
 import { PanelExplain } from '../../../_components/explain';
 import { first, formatDateTime, vintageLabel, zl } from '../../../_components/format';
 import { Flash } from '../../../_components/flash';
+import { PickBadge, PickToggle, pickMarks } from '../../../_components/pick-marks';
 import { TranslationsCard } from '../../../_components/translations-form';
 import { ProfileEditor } from '../../../_components/profile-editor';
 import { WineListingForm } from '../../../_components/catalog-forms';
@@ -40,8 +41,10 @@ export default async function WinePage({ params, searchParams }: Props) {
   const { locale, t } = await getI18n();
   const m = t.admin.wine;
   const cradle = (await getRequestScope()).cradle;
-  const d = await cradle.adminService.wineDetail(slug, wineId, locale);
+  const [d, picks] = await Promise.all([cradle.adminService.wineDetail(slug, wineId, locale), cradle.picksService.list(slug)]);
   if (!d) notFound();
+  const canPick = access.can('picks.edit');
+  const pickMark = pickMarks(picks)(wineId);
   const { wine: w, source, bestDishes, approvedFor } = d;
   const editor = await wineProfileState(cradle, slug, source, sp, canEditProfile);
   const cm = t.admin.catalog;
@@ -98,6 +101,20 @@ export default async function WinePage({ params, searchParams }: Props) {
               <div><dt className="text-muted-foreground">{m.character}</dt><dd className="mt-0.5 font-medium">{p.adventurous ? m.adventurous : m.classic}</dd></div>
             </dl>
             {!canEditCatalog && d.lastEdit && <p className="mt-4 text-xs text-muted-foreground" data-last-edit>{(access.can('audit.view') ? cm.lastEditBy.replace('{name}', d.lastEdit.actor) : cm.lastEdit).replace('{date}', formatDateTime(d.lastEdit.at, locale))}</p>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3"><CardTitle>{m.pickTitle}</CardTitle><PickBadge mark={pickMark} t={t} /></div>
+            <CardDescription>{m.pickText}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm">
+            <p>{pickMark === 'live' || pickMark === 'inactive' ? m.pickYes : pickMark === 'waiting' ? m.pickWaiting : pickMark === 'removed' ? m.pickRemoved : m.pickNo}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              {canPick && <PickToggle slug={slug} back={`/admin/${slug}/wines/${w.id}`} wineId={w.id} wineLabel={`${w.producer} ${w.name}`} mark={pickMark} state={picks} canEdit={canPick} active={w.active} t={t} />}
+              <Link href={`/admin/${slug}/picks`} className="underline underline-offset-4">{m.pickSeeAll}</Link>
+            </div>
           </CardContent>
         </Card>
 
