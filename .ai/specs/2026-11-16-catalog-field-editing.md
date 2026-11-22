@@ -173,6 +173,7 @@ A2, A4 (przyciski, C3), A3, A5 (formularz, ukryj/pokaż, audyt), A32 (nowy). Kod
 - 2026-11-16 — Przegląd niezależny: 3 blokujące, 11 ważnych, 5 drobnych (poprawki w R1–R15 i AC).
 - 2026-11-17 — Przegląd niezależny: 0 nowych blokujących, 5 ważnych, 5 drobnych (R1–R11, AC3, AC14, AC21, `db`). Właściciel: (g)=b, (h) odłożone.
 - 2026-11-17 — Implementacja fazy C1 (C1a, C1b); status `in-progress`, C2 i C3 do zrobienia.
+- 2026-11-22 — Implementacja fazy C2 (ukrycie i przywrócenie dania); status `in-progress`, C3 do zrobienia.
 
 ## Realizacja
 **Faza C1 (2026-11-17), log: `.ai/runs/2026-11-17-catalog-field-editing-c1.md`.** Status zostaje `in-progress`: C2 (widoczność dania, R7) i C3 (nowa pozycja, A32, R8) nie są zrealizowane.
@@ -188,3 +189,14 @@ A2, A4 (przyciski, C3), A3, A5 (formularz, ukryj/pokaż, audyt), A32 (nowy). Kod
   6. Powiadomienie o nieaktualnych tłumaczeniach liczy się z ostatniego wiersza audytu i publikacji (znika po następnej publikacji); flash niesie języki w parametrze `n`.
   7. Znacznik „Check after rename” liczy zmianę nazwy dania i wina (para ma znacznik, gdy którakolwiek strona zmieniła nazwę po decyzji o parze); „Do przeglądu” pokazuje pozycje według własnej zmiany nazwy.
 - Niezweryfikowane: widok formularza dla roli bez `catalog.edit` (`<dl>`; kelner nie ma sesji, a role z panelem mają uprawnienie), e2e z `agent-browser` (narzędzia brak w środowisku, 12 plików pada tak samo przed zmianą), tryb `DATA_SOURCE=postgres` na `next start` z przeglądarką (pokryty e2e HTTP na PostgreSQL).
+
+**Faza C2 (2026-11-22), log: `.ai/runs/2026-11-22-catalog-c2-c3.md`.** Status zostaje `in-progress`: C3 (nowa pozycja, A32, R8) nie jest zrealizowana.
+
+- Zrealizowane: R7 (dla `published ↔ hidden`), R9, R10 (`hidden` / `shown`), R12 (`GET`/`POST …/visibility`), R13 (komunikaty), R14 (bez `scripts/smoke.mjs`, to plik pod CODEOWNERS); AC14, AC15. Bez migracji: typ i encja audytu mają `hidden` / `shown` od C1a.
+- Odstępstwa od projektu:
+  1. Odcisk ukrycia to osobna funkcja `dishVisibilityVersion` (odcisk pól + status), a nie rozszerzenie `dishFieldsVersion`: formularz „Details” zachowuje swój odcisk i ukrycie dania nie unieważnia otwartej karty z ceną, a przycisk ukrycia zgłasza konflikt po zmianie pól lub statusu (R4 wymaga obu).
+  2. `suggestionsFor` wydzielone do `core/src/import/suggestions.ts` już w C2 (a nie w C3), bo `hidden → published` zleca brakujące propozycje (N4); import używa tej samej funkcji, zachowanie bez zmian.
+  3. Dodane `GET …/visibility` (klient potrzebuje `ETag`), jak `GET …/details` w C1.
+  4. Zapis w repozytorium (`setDishStatus`) przyjmuje przejście `{from, to}` i sprawdza je pod blokadą wiersza: danie, które w międzyczasie zmieniło status, to `VersionConflictError`, także bez `expectedVersion`.
+- Poza C2 (zgodnie ze specyfikacją): **AC14b** (`draft → hidden`) to osobny PR. E13 F1 jest na `main` i publikacja wpisuje ukryte dania do `menu.dishIds`, więc `draft → hidden` nie wymaga zmiany migawki; trzeba rozstrzygnąć przypadek `draft → hidden → published` przed pierwszą publikacją: danie nie ma wtedy wpisu w `menu.dishIds`, więc gość go nie zobaczy do publikacji, a licznik niepublikowanych zmian go nie wykaże (`hidden → published` takiego szkicu powinno zostać odrzucone albo liczone jako zmiana do publikacji).
+- Niezweryfikowane: wpis do `scripts/smoke.mjs` dla przycisku (plik pod CODEOWNERS, do dopisania w osobnym PR właściciela), widok A3 dla roli bez `catalog.edit` (jak w C1).

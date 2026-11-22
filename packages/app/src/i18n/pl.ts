@@ -609,6 +609,8 @@ export const pl = {
         profile_unchanged: () => 'Nic do zmiany: profil jest już taki.',
         catalog_saved: (languages: string) => `Zapisano. Goście widzą zmianę od razu. Tłumaczenia zostają jak w publikacji: sprawdź je.${languages ? ` Tłumaczenia (${languages.toUpperCase().split(',').join(', ')}) mogą być nieaktualne.` : ''}`,
         catalog_unchanged: () => 'Nic do zmiany: dane są już takie.',
+        dish_hidden: () => 'Danie jest ukryte przed gośćmi. Nie widzą go już.',
+        dish_shown: (suggestions: number) => `Danie wróciło do menu. Goście już je widzą.${suggestions > 0 ? ` Dodano propozycje silnika do przeglądu: ${suggestions}.` : ''}`,
         translations: () => 'Tłumaczenia zapisane. Goście zobaczą je po publikacji.',
         content: () => 'Język treści i tłumaczenia zapisane. Goście zobaczą je po publikacji.',
         suggestion_added: () => 'Dodano do propozycji — zatwierdź je w „Propozycjach silnika”. Goście zobaczą zmianę dopiero po zatwierdzeniu i publikacji.',
@@ -621,6 +623,7 @@ export const pl = {
       },
       errors: {
         version_conflict: 'Ktoś przed chwilą to zmienił. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
+        dish_transition: 'Tego dania nie można teraz ukryć ani pokazać. Danie, które jest jeszcze szkicem, wychodzi przy publikacji.',
         forbidden: 'Nie masz uprawnień do tej czynności.',
         comment_too_long: 'Notatka może mieć najwyżej 140 znaków.',
         already_paired: 'To wino jest już sparowane z tym daniem.',
@@ -1288,6 +1291,11 @@ export const pl = {
         baseHint: 'To tekst bazowy. Tłumaczenia są niżej.'
       },
       save: 'Zapisz zmiany',
+      visibility: {
+        hide: 'Ukryj przed gośćmi', show: 'Pokaż gościom',
+        hideHint: 'Goście przestają widzieć danie od razu; jego parowania i propozycje zostają.',
+        showHint: 'To danie jest ukryte. Goście znów je widzą od razu, bez publikacji.'
+      },
       readOnly: 'Twoja rola nie może zmieniać tych danych.',
       identity: {
         dish: 'To danie ma {n} parowań sommeliera. Zmień nazwę tylko po to, by ją poprawić, nie by zastąpić danie.',

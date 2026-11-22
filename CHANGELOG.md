@@ -14,6 +14,10 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 - Zmiana nazwy dania (lub producenta, nazwy, rocznika wina) z parami sommeliera: ostrzeżenie z liczbą par, potwierdzenie, wpis „Zmieniono nazwę, sprawdź pary” w „Do przeglądu” i znacznik „Sprawdź po zmianie nazwy”.
 - Zatwierdzenie importu katalogu odrzuca (409 `catalog_conflict`) nowe danie lub wino, którego klucz zajęto w międzyczasie.
 
+### Ukrywanie dania (E13, spec `2026-11-16-catalog-field-editing`, faza C2)
+- A3 ma przycisk „Hide from guests / Ukryj przed gośćmi” i „Show to guests / Pokaż gościom”: opublikowane danie znika z menu, strony dania i API gościa od razu, ukryte wraca od razu, bez publikacji i bez wpływu na licznik niepublikowanych zmian. Działa bez JavaScriptu; danie `draft` nie ma przełącznika.
+- Trasy `GET`/`POST /dishes/{dishId}/visibility` (`If-Match` z odciskiem pól i statusu; 422 `transition`), `CatalogEditService.setDishHidden`, `CatalogWriteRepository.setDishStatus`; wpisy audytu `catalog_edit` z `hidden` / `shown` (bez migracji). Po przywróceniu silnik dopisuje brakujące propozycje (wspólna funkcja `suggestionsFor` z importu).
+
 ### Poprawki
 - Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
 

@@ -731,6 +731,8 @@ export const en = {
         profile_unchanged: () => 'Nothing to change: the profile is already like this.',
         catalog_saved: (languages: string) => `Saved. Guests see the change now. Translations stay as published: check them.${languages ? ` Translations (${languages.toUpperCase().split(',').join(', ')}) may be outdated.` : ''}`,
         catalog_unchanged: () => 'Nothing to change: the details are already like this.',
+        dish_hidden: () => 'The dish is hidden from guests. They no longer see it.',
+        dish_shown: (suggestions: number) => `The dish is back on the menu. Guests can see it now.${suggestions > 0 ? ` ${suggestions} engine suggestions were added for review.` : ''}`,
         translations: () => 'Translations saved. Guests see them after you publish.',
         content: () => 'Content language and translations saved. Guests see them after you publish.',
         suggestion_added: () => 'Added to suggestions — approve it in “Engine suggestions”. Guests see the change only after you approve it and publish.',
@@ -743,6 +745,7 @@ export const en = {
       },
       errors: {
         version_conflict: 'This was changed by someone else a moment ago. The page now shows the latest version, please try again.',
+        dish_transition: 'This dish cannot be hidden or shown now. A dish that is still a draft is released by publishing.',
         forbidden: 'You don’t have permission to do that.',
         comment_too_long: 'The note can have at most 140 characters.',
         already_paired: 'This wine is already paired with the dish.',
@@ -1425,6 +1428,11 @@ export const en = {
         baseHint: 'This is the base text. Translations are below.'
       },
       save: 'Save changes',
+      visibility: {
+        hide: 'Hide from guests', show: 'Show to guests',
+        hideHint: 'Guests stop seeing the dish at once; its pairings and suggestions stay.',
+        showHint: 'This dish is hidden. Guests see it again at once, without a publish.'
+      },
       readOnly: 'Your role cannot change these details.',
       identity: {
         dish: 'This dish has {n} sommelier pairings. Rename it only to correct the name, not to replace the dish.',
