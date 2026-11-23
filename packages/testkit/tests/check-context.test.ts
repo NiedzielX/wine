@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { REVIEW_INDEPENDENCE_SINCE, REVIEW_INDEPENDENCE_VALUES, checkReviewIndependence } from '../../../scripts/lib/review-independence.mjs';
 import { applyStackFixes, checkStackVersions, parseStackTable, type PackageFile } from '../../../scripts/lib/stack-versions.mjs';
 
 /**
@@ -530,6 +531,105 @@ describe('check-context: stack versions (AGENTS.md §1.1)', () => {
     expect(r.code).toBe(1);
     expect(r.out).toContain('cannot fix');
     expect(runAt(write(tree('16.4.3')), ['--write']).code).toBe(2);
+  });
+});
+
+describe('check-context: review independence of active specifications', () => {
+  const spec = (status: string, independence: string | null, section = true) =>
+    `---\nstatus: ${status}\ncreated: 2026-11-25\n${independence === null ? '' : `review_independence: ${independence}\n`}---\n\n# Spec\n\n## Wymagania\n${section ? '\n## Przegląd niezależny\n\nWnioski.\n' : ''}`;
+  const NEW = '.ai/specs/2026-11-25-new-thing.md';
+  const OLD = '.ai/specs/2026-11-24-old-thing.md';
+  const at = (files: Files) => run({ ...validTree(), ...files });
+
+  it('pins the threshold date and the allowed values', () => {
+    expect(REVIEW_INDEPENDENCE_SINCE).toBe('2026-11-25');
+    expect(REVIEW_INDEPENDENCE_VALUES).toEqual(['none', 'different-session', 'different-model', 'different-family']);
+  });
+
+  it('passes a new approved or in-progress specification with a valid value and the section', () => {
+    for (const value of ['different-session', 'different-model', 'different-family']) {
+      for (const status of ['approved', 'in-progress']) {
+        const r = at({ [NEW]: spec(status, value) });
+        expect(r.code, `${status} ${value}`).toBe(0);
+        expect(r.out).not.toContain(NEW);
+      }
+    }
+  });
+
+  it('accepts a trailing comment and quotes around the value, and a CRLF file', () => {
+    expect(at({ [NEW]: spec('approved', 'different-model   # reviewed in a fresh session') }).code).toBe(0);
+    expect(at({ [NEW]: spec('approved', '"different-session"') }).code).toBe(0);
+    expect(at({ [NEW]: spec('approved', 'different-session').replace(/\n/g, '\r\n') }).code).toBe(0);
+  });
+
+  it('fails a new approved or in-progress specification without the field (or with an empty one)', () => {
+    for (const status of ['approved', 'in-progress']) {
+      const r = at({ [NEW]: spec(status, null) });
+      expect(r.code).toBe(1);
+      expect(r.out).toContain(`ERROR  ${NEW}: brak review_independence`);
+    }
+    expect(at({ [NEW]: spec('approved', '') }).code).toBe(1);
+  });
+
+  it('fails a new specification whose value is "none"', () => {
+    const r = at({ [NEW]: spec('in-progress', 'none') });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('review_independence is "none"');
+  });
+
+  it('fails a new specification without the "Przegląd niezależny" heading, whatever its level; bold text is not a heading', () => {
+    const r = at({ [NEW]: spec('approved', 'different-session', false) });
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('"Przegląd niezależny" section');
+    expect(at({ [NEW]: spec('approved', 'different-session', false).replace('## Wymagania\n', '### Przegląd niezależny 2026-11-25\n') }).code).toBe(0);
+    expect(at({ [NEW]: spec('approved', 'different-session', false).replace('## Wymagania\n', '**Przegląd niezależny**\n') }).code).toBe(1);
+  });
+
+  it('fails a value outside the set, also in a draft and in an old specification; a model name is not a value', () => {
+    for (const [path, status, value] of [[NEW, 'approved', 'different-family-ish'], [NEW, 'draft', 'yes'], [OLD, 'approved', 'some-model-name']] as const) {
+      const r = at({ [path]: spec(status, value) });
+      expect(r.code, `${path} ${status}`).toBe(1);
+      expect(r.out).toContain('is not one of: none | different-session | different-model | different-family');
+    }
+  });
+
+  it('only warns about an old approved or in-progress specification without the field, and counts them', () => {
+    const r = at({
+      [OLD]: spec('approved', null, false),
+      '.ai/specs/2026-11-01-older.md': spec('in-progress', null, false),
+      '.ai/specs/2026-11-02-with-field.md': spec('approved', 'none', false)
+    });
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('warning  .ai/specs/2026-11-24-old-thing.md: brak review_independence');
+    expect(r.out).toContain('warning  .ai/specs/2026-11-01-older.md: brak review_independence');
+    expect(r.out).not.toContain('2026-11-02-with-field.md');
+    expect(r.out).toMatch(/older than 2026-11-25, warning only\): 2\n/);
+  });
+
+  it('does not require the field of a draft, an implemented or an archived specification, nor of the product files', () => {
+    const r = at({
+      [NEW]: spec('draft', null, false),
+      '.ai/specs/2026-11-24-draft.md': spec('draft', null, false),
+      '.ai/specs/implemented/2026-11-25-done.md': spec('implemented', null, false),
+      '.ai/specs/archive/2026-11-25-gone.md': spec('abandoned', null, false),
+      '.ai/specs/product-brief.md': spec('approved', null, false),
+      '.ai/specs/backlog.md': spec('approved', null, false)
+    });
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('warning only): 0\n');
+    expect(r.out).not.toContain('brak review_independence');
+  });
+
+  it('skips a file without front matter and does not judge a file whose name has no date', () => {
+    const r = at({ '.ai/specs/2026-11-25-plain.md': '# No front matter\n', '.ai/specs/not-dated.md': spec('approved', null, false) });
+    expect(r.out).not.toContain('brak review_independence');
+    expect(r.out).toContain('ERROR  .ai/specs/not-dated.md: name must be');
+  });
+
+  it('applies the threshold by the date in the file name, inclusive', () => {
+    expect(checkReviewIndependence('2026-11-24-a.md', spec('approved', null))).toEqual([expect.objectContaining({ level: 'warning', missing: true })]);
+    expect(checkReviewIndependence('2026-11-25-a.md', spec('approved', null))).toEqual([expect.objectContaining({ level: 'error' })]);
+    expect(checkReviewIndependence('2027-01-01-a.md', spec('in-progress', 'different-family'))).toEqual([]);
   });
 });
 
