@@ -31,6 +31,7 @@ export default async function RestaurantAdminLayout({ children, params }: Props)
       t={t}
       back={back}
       canManageTeam={access.can('team.manage')}
+      canViewProof={access.can('proof.view')}
       demoStart={isInteractiveDemo()}
     >
       <ErrorTextsProvider value={t.admin.error}>{children}</ErrorTextsProvider>

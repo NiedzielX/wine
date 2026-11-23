@@ -7,13 +7,13 @@ import { Fragment } from 'react';
 
 /** Ready-made texts from the dictionary (a client component gets texts, not dictionary functions). */
 export interface NavLabels {
-  label: string; dashboard: string; menu: string; wines: string; pairings: string; review: string; opportunities: string; picks: string; publish: string;
+  label: string; dashboard: string; menu: string; wines: string; pairings: string; review: string; opportunities: string; picks: string; proof: string; publish: string;
   restaurant: string; importMenu: string; importWines: string; importSales: string; setup: string; qr: string; team: string;
 }
-interface Props { slug: string; reviewCount: number; publishCount: number; labels: NavLabels; /** the team entry shows only for `team.manage` (the page checks again) */ canManageTeam?: boolean }
+interface Props { slug: string; reviewCount: number; publishCount: number; labels: NavLabels; /** the team entry shows only for `team.manage` (the page checks again) */ canManageTeam?: boolean; /** the results report shows only for `proof.view` (the page and the route check again) */ canViewProof?: boolean }
 
 /** Sidebar navigation of the dashboard. Client component only for the active-link state. */
-export function AdminNav({ slug, reviewCount, publishCount, labels: l, canManageTeam = false }: Props) {
+export function AdminNav({ slug, reviewCount, publishCount, labels: l, canManageTeam = false, canViewProof = false }: Props) {
   const pathname = usePathname();
   const base = `/admin/${slug}`;
   const items: Array<{ href: string; label: string; exact?: boolean; count?: number; group?: string }> = [
@@ -25,6 +25,7 @@ export function AdminNav({ slug, reviewCount, publishCount, labels: l, canManage
     // no counter here (spec 2026-10-16-sommelier-opportunities, Q3): counting would compute the opportunities on every page
     { href: `${base}/opportunities`, label: l.opportunities },
     { href: `${base}/picks`, label: l.picks },
+    ...(canViewProof ? [{ href: `${base}/proof`, label: l.proof }] : []),
     { href: `${base}/publish`, label: l.publish, count: publishCount },
     { href: `${base}/import/menu`, label: l.importMenu, group: l.restaurant },
     { href: `${base}/import/wines`, label: l.importWines },
