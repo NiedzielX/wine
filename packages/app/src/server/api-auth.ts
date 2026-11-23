@@ -151,8 +151,7 @@ export async function handle(req: NextRequest, opts: { write: boolean; route: st
     if (opts.write && !sameToken(req.headers.get('x-csrf-token') ?? '', principal.session.csrfToken)) {
       return apiError(403, 'csrf', 'The X-CSRF-Token header is missing or wrong. Read it from GET /api/v1/auth/me.');
     }
-    // a permission without a usable slug fails closed: an empty slug has no membership, so the check refuses instead of being skipped
-    if (opts.permission) authorize(principal, opts.slug ?? '', opts.permission);
+    if (opts.slug && opts.permission) authorize(principal, opts.slug, opts.permission);
     return handler({ principal, actor: toActor(principal), c: scope.cradle, req });
   }
 }
