@@ -294,7 +294,7 @@ export class ImportService {
           const profile = draftWineProfile(f.grape, f.style);
           plan.newWines.push({
             id: id(), producer: f.producer, name: f.name, vintage: f.vintage === 'NV' ? 'NV' : num(f.vintage), region: f.region, country: f.country,
-            grapes: f.grape ? f.grape.split(/\s*[,/]\s*/).filter(Boolean) : [], glassPrice: f.glassPrice ? num(f.glassPrice) : null,
+            grapes: f.grape ? f.grape.split(/[,/]/).map((g) => g.trim()).filter(Boolean) : [], glassPrice: f.glassPrice ? num(f.glassPrice) : null,
             glassPour: profile.style === 'sweet' ? 75 : 150, bottlePrice: num(f.bottlePrice), bottleSize: 750, active: true, listNumber: next++,
             colour: STYLE_COLOURS[profile.style], tastingNote: '', profile, translations: has ? planWineTranslations({}, tr).next : {}
           });

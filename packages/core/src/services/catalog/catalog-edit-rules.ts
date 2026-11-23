@@ -249,7 +249,7 @@ export function buildNewWine(id: string, p: NewWinePlan): Wine {
   const f = p.fields;
   return {
     id, producer: f.producer, name: f.name, vintage: f.vintage, region: f.region, country: f.country,
-    grapes: p.grape ? p.grape.split(/\s*[,/]\s*/).filter(Boolean) : [], glassPrice: f.glassPrice, glassPour: profile.style === 'sweet' ? 75 : 150,
+    grapes: p.grape ? p.grape.split(/[,/]/).map((g) => g.trim()).filter(Boolean) : [], glassPrice: f.glassPrice, glassPour: profile.style === 'sweet' ? 75 : 150,
     bottlePrice: f.bottlePrice, bottleSize: 750, active: true, ...(f.listNumber !== null ? { listNumber: f.listNumber } : {}), colour: STYLE_COLOURS[profile.style],
     tastingNote: f.tastingNote, profile, translations: {}
   };
