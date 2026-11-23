@@ -45,6 +45,18 @@ beforeAll(async () => {
 }, 240_000);
 afterAll(async () => { await restoreDatabase?.(); });
 
+/**
+ * `normalise` (T-33) takes out the nonce and the order of the streamed rows. The panel page also numbers its client components in
+ * the stream (`$L28`, row ids), and the numbers differ between two renders of the same state. They are references, not content:
+ * strip the numbers and sort the rows again; every row and every byte of text stays in the comparison.
+ */
+const stable = (html: string): string => {
+  const marker = '\n<!--flight rows, sorted-->\n';
+  const [body, flight = ''] = normalise(html).split(marker);
+  const rows = flight.split('\n').filter(Boolean).map((r) => r.replace(/^[0-9a-f]+:/, '').replace(/\$L[0-9a-f]+/g, '$L'));
+  return flight ? `${body}${marker}${rows.sort().join('\n')}` : body;
+};
+
 describe('A27 for the two roles', () => {
   it('the General Manager gets the screen with working switches and the navigation entry; the Wine Director gets it with every switch disabled and a notice; no session and another restaurant’s owner get no data', async () => {
     await clear();
@@ -132,7 +144,7 @@ describe('refusals change nothing (engineering-standards §10, the three checks 
     const full = await state(tomasz);
     expect(full.picks).toHaveLength(5);
     const before = await digest();
-    const pageBefore = normalise(await text(await picksPage(tomasz)));
+    const pageBefore = stable(await text(await picksPage(tomasz)));
 
     const forged = await flip(marta, wines[0].id, false, { expectedVersion: full.version });
     expect(forged.location).toBe(`/admin/${HALKA}/picks?error=forbidden`);
@@ -146,7 +158,7 @@ describe('refusals change nothing (engineering-standards §10, the three checks 
 
     expect(await digest()).toEqual(before);
     // two reads of an unchanged page differ in the CSP nonce and the order of the streamed rows only (T-33): compare the normalised text
-    const pageAfter = normalise(await text(await picksPage(tomasz)));
+    const pageAfter = stable(await text(await picksPage(tomasz)));
     let at = 0;
     while (at < pageBefore.length && pageBefore[at] === pageAfter[at]) at += 1;
     const around = (t: string) => JSON.stringify(t.slice(Math.max(0, at - 100), at + 100));
