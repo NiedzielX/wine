@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from '../src/errors';
+import { launchDayRequestSchema, launchDaySchema } from '../src/validators/proof/launch-day.schema';
 import { buildRows, revalidate } from '../src/import/validate';
 import { bulkDecisionSchema, codeActionSchema, confirmImportSchema, loginSchema, pairingCreateSchema, pairingUpdateSchema, parseWith, rowEditsSchema, tableRecommendationSchema, wineAvailabilitySchema } from '../src/validators';
 
@@ -149,5 +150,14 @@ describe('codeActionSchema (spec 2026-10-16-recommendation-code, R7)', () => {
     // a slug that would leave the site in a redirect (`//evil.example`, `../`) is not a slug
     for (const slug of ['//evil.example', '../admin', 'Halka', 'a', 'halka?x=1']) expect(fieldsOf(codeActionSchema, { slug, code: 'W7K', intent: 'confirm' })).toHaveProperty('slug');
     expect(fieldsOf(codeActionSchema, { slug: 'halka', code: 'W7K', intent: 'confirm', confirmedAt: '2020-01-01' })).toEqual({ confirmedAt: 'unknown_field' });
+  });
+});
+
+describe('launch day request (results report)', () => {
+  it('leaves the precondition optional only for the HTTP body, refuses stray fields, and keeps the service shape strict', () => {
+    expect(parseWith(launchDayRequestSchema, { launchDay: '2026-01-05' })).toEqual({ launchDay: '2026-01-05' });
+    expect(fieldsOf(launchDayRequestSchema, { launchDay: '2026-01-05', restaurantId: 'x' })).toEqual({ restaurantId: 'unknown_field' });
+    expect(fieldsOf(launchDayRequestSchema, { launchDay: '2019-12-31' })).toHaveProperty('launchDay');
+    expect(fieldsOf(launchDaySchema, { launchDay: '2026-01-05' })).toHaveProperty('expectedCurrent');
   });
 });

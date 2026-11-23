@@ -1,4 +1,4 @@
-import type { Actor, Permission } from '@wine-match/core';
+import type { Actor, Membership, Permission } from '@wine-match/core';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { authorizeAction } from './auth';
@@ -61,7 +61,7 @@ export function withFlash(back: string, flash: Record<string, string>): string {
   return `${url.pathname}${url.search}`;
 }
 
-export type Ctx = { c: Cradle; slug: string; actor: Actor; form: FormData };
+export type Ctx = { c: Cradle; slug: string; actor: Actor; membership: Membership; form: FormData };
 
 /**
  * Runs one change. Every action re-checks the session and the permission here: the layout's check
@@ -81,7 +81,7 @@ export async function perform(form: FormData, permission: Permission, change: (c
   if ('signedOut' in access) return 'signed-out';
   const scope = await createRequestScope();
   try {
-    return { back, flash: await change({ c: scope.cradle, slug, actor: access.actor, form }) };
+    return { back, flash: await change({ c: scope.cradle, slug, actor: access.actor, membership: access.membership, form }) };
   } catch (e) {
     const d = domainError(e);
     if (d) return { back, flash: { error: d.code } };
