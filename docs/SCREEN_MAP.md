@@ -72,7 +72,8 @@ Wine program
  ├─ A6  Pairing management ....................... /admin/pairings/{dishId}
  ├─ A7  Pairing review (queue) ................... /admin/review
  ├─ A14 Opportunities (Okazje) ................... /admin/opportunities
- └─ A27 Restaurant’s picks (Wybory restauracji) .. /admin/picks  (PR3, spec 2026-11-18-restaurant-picks)
+ ├─ A27 Restaurant’s picks (Wybory restauracji) .. /admin/picks  (PR3, spec 2026-11-18-restaurant-picks)
+ └─ A33 Results report (Raport wyników) .......... /admin/proof?window=  (spec 2026-11-18-owner-proof-report; tylko Owner i GM)
 Data
  ├─ A8  Import menu .............................. /admin/import/menu?step=preview|done
  ├─ A9  Import wine list ......................... /admin/import/wines?step=preview|done
@@ -131,6 +132,7 @@ flowchart LR
 | A2–A5 | – | – | ✓ edycja | ✓ edycja |
 | A6, A7 | – | – | ✓ decyzje | podgląd |
 | A14 Opportunities | – | – | ✓ decyzje | podgląd |
+| A33 Results report | – | – | – | ✓ (zapis dnia uruchomienia: ✓) |
 | A8, A9 | – | – | ✓ | ✓ |
 | A10 Setup | – | – | ✓ (bez slugu) | ✓ |
 | A11 Publish | – | – | ✓ | ✓ |

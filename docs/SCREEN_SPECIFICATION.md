@@ -10,7 +10,7 @@ Identyfikatory ekranów według [SCREEN_MAP.md](SCREEN_MAP.md). Endpointy wedłu
 - Eventy analytics: zapisywane są tylko zdarzenia z katalogu „Zdarzenia użycia” niżej (E02, po stronie serwera); pozostałe nazwy z tabel „Analytics” — jeszcze nie.
 
 **Stan implementacji (Faza 2 migracji):** ekrany panelu A1–A7 działają w trybie odczytu w `packages/app` (`/admin/{slug}/…`; adresy z restauracją w ścieżce, bo logowanie i wybór lokalu dopiero w Fazie 4). Odstępstwa od opisu poniżej:
-- **A1 Dashboard** pokazuje KPI programu winnego liczone z danych katalogu (dania opublikowane, wina, zatwierdzone pairingi, pokrycie Primary, „needs attention”) i — od E04 F1 (spec `2026-10-15-kpi-dashboard`) — sekcję „Guest usage” (wiersz „Guest usage (E04 F1)” w tabeli A1). od E04 F3 — tabelę „Pairing performance” (wiersz „Pairing performance (E04 F3)” w tabeli A1), od E04 F2 — sekcję „Sales” z wyróżnionym Wine attach rate (wiersz „Sales (E04 F2)” w tabeli A1). Wykresy i stały baseline pilota — później. Karta „Guest activity” zniknęła.
+- **A1 Dashboard** pokazuje KPI programu winnego liczone z danych katalogu (dania opublikowane, wina, zatwierdzone pairingi, pokrycie Primary, „needs attention”) i — od E04 F1 (spec `2026-10-15-kpi-dashboard`) — sekcję „Guest usage” (wiersz „Guest usage (E04 F1)” w tabeli A1). od E04 F3 — tabelę „Pairing performance” (wiersz „Pairing performance (E04 F3)” w tabeli A1), od E04 F2 — sekcję „Sales” z wyróżnionym Wine attach rate (wiersz „Sales (E04 F2)” w tabeli A1). Wykresy — później; stały baseline pilota daje **A33 Raport wyników** (poniżej). Karta „Guest activity” zniknęła.
 - **A2, A3, A5** są do odczytu, a od E13 F2 (2026-11-17) A3 i A5 mają kartę „Edit taste profile / Edytuj profil smaku” (edycja i podgląd poniżej); od E13 C1 (2026-11-17) A3 ma kartę „Details / Dane dania”, a A5 „Listing / Pozycja na karcie”: formularze pól (bez JavaScriptu, `useActionState`) dla `catalog.edit`, dla innych `<dl>`; dodawanie i ukrywanie pozycji (A32) to C2 i C3. Filtry to formularze `GET`.
 - **Faza 3 (zapisy):** **A6 Pairings** ma pełne zarządzanie (zatwierdzanie, odrzucanie, przywracanie, rola, kolejność ↑↓, notatka do 140 znaków, własne pary, usuwanie własnych par, „Approve all”, historia decyzji, podgląd „What guests see now” z wersji opublikowanej). **A7 Review** ma Approve / Reject / Approve all (dla dania i dla całego menu). **A4 Wine list** ma przełącznik dostępności (Hide / Show) działający od razu. **A11 Publish** działa: checklista (rada, nie blokada), ustawienia dla gości (od razu), „Publish changes” (migawka). Wynik zmiany pokazuje komunikat w URL (`?saved=` / `?error=`); konflikt wersji: „This pairing was changed by someone else…”.
 - **Faza 4:** **A0 Login** działa (`/admin/login?next=`): jeden komunikat dla każdej nieudanej próby, blokada konta 15 minut po 5 próbach, powrót na żądaną stronę (tylko adresy `/admin/...`), działa bez JavaScriptu. Cały panel wymaga sesji; użytkownik bez członkostwa w restauracji dostaje 403. Autor zmiany w historii to zalogowany użytkownik. Pasek boczny pokazuje użytkownika, rolę i „Sign out”. General Manager widzi pairingi i kolejkę review w trybie „View only” (bez kontrolek decyzji), może publikować i ukrywać wina.
@@ -631,6 +631,28 @@ Spec `2026-11-18-restaurant-picks` (R17), PR3. Stałe warstwy: [RECOMMENDATION_E
 | Permissions | strona: `requireAccess` (`panel.view`); akcja: `authorizeAction(slug, 'picks.edit')` (kontrolki dla roli bez prawa są wyłączone, z komunikatem „View only”, a sfałszowany POST dostaje `forbidden`) |
 | API | `GET /restaurants/{slug}/picks`, `PUT /wines/{id}/pick?restaurant={slug}`, `GET /restaurants/{slug}/picks/simulation` ([API_SPECIFICATION.md](API_SPECIFICATION.md)) |
 | Układ | 390 i 1440 px bez poziomego przewijania (tabela w przewijanym kontenerze, lista win symulatora w przewijanym polu) |
+
+## A33 Results report (Raport wyników) — `/admin/{slug}/proof?window=N`
+
+Spec `2026-11-18-owner-proof-report` (R4 do R9, R15), krok 6. Nazwa w interfejsie: PL „Raport wyników”, EN „Results report”. Wersja do druku A34 w następnym kroku.
+
+| Pole | Opis |
+|---|---|
+| Cel | Owner i GM widzą, co było przed uruchomieniem, co jest po, jak pewny jest wniosek i czego raport nie mówi; nie ma w nim słowa o przyczynie |
+| Użytkownik | Owner, GM (`proof.view`, zapis dnia uruchomienia `proof.manage`); Sommelier i Waiter: 403 |
+| Funkcje | nagłówek okna („Window 1: 2 Feb 2026 – 1 Mar 2026”, linki „poprzednie / następne” jako `?window=`); karta wyniku: „Before (Baseline)” i „After” (procent tylko od 30 rachunków z jedzeniem, „N of M checks with food included wine”, dni z danymi), zmiana w punktach procentowych z przedziałem zaokrąglonym **na zewnątrz** (dolny koniec w dół, górny w górę; przy wzroście z dolnym końcem poniżej 1 pp z jednym miejscem po przecinku, nigdy „+0”), zdanie werdyktu (stałe, bez przyczyny) i „najmniejszy wzrost, jaki próby mogą pokazać”; **albo** „Not enough data to show a change” z licznikami i powodem z „co zrobić” (9 powodów R3); tabela okien (baza i okna z danymi: N, odsetek, przedział Wilsona, zmiana, dni z danymi); „Checks with and without a code” z zastrzeżeniem (korelacja, bez różnicy między grupami, grupa poniżej 30: „not enough data”); „Recommendation codes in the window” (wydane, potwierdzone, w sprzedaży, zamówione, kody w POS bez polecenia); formularz dnia uruchomienia z historią (rola autora, powód, „Launch day changed after window 1 ended”); „How we calculate” i „What this report does not say”; od okna 4 komunikat o starej bazie |
+| Komponenty UI | `Card`, `Table`, `Alert`, `Badge`, `Input`, `Button`; `EmptyState`, `ErrorMessage` |
+| Dane wejściowe | `ProofReportService.getReport(slug, window)` (jedno wywołanie na okno z danymi do tabeli), `window` z adresu (tylko cyfry 1–12) |
+| Dane wyjściowe | akcja serwerowa `setProofLaunchDay` (`[slug]/proof-actions.ts`: `launchDay`, `reason`, `expectedCurrent`, `back`) → `ProofReportService.setLaunchDay`; dopisanie wiersza `proof_launch_day`, nigdy edycja |
+| Loading | brak: strona poza `(lists)`, bez `loading.tsx` i bez strumieniowania (działa bez JavaScriptu, 403 zostaje 403) |
+| Empty | brak dnia uruchomienia: `EmptyState` z formularzem; brak importu: `EmptyState` „Upload a POS export” z linkiem do A13 |
+| Error | okno poza 1–12, nie-liczba albo okno, które się nie zaczęło: `ErrorMessage` „This window does not exist” z linkiem do najnowszego; flash po kodzie: `invalid_launch_day`, `reason_required`, `reason_too_long`, `version_conflict`, `forbidden` |
+| Success | flash „Launch day saved. The report now uses it as the baseline.” |
+| Walidacje | dzień uruchomienia: prawdziwa data od 2020-01-01 do dzisiejszego dnia usługi; powód wymagany od drugiego wpisu (do 200 znaków); `expectedCurrent` to id wpisu z chwili narysowania formularza (nieaktualny: `version_conflict`) |
+| Permissions | strona: `requireAccess` i `proof.view` (inaczej 403); akcja: `authorizeAction(slug, 'proof.manage')`; pozycja w nawigacji tylko dla `proof.view` |
+| Treść | PL i EN w słownikach; bez słów „AI”, „gwarantowane”, „dzięki Wine Match”, „efekt Wine Match” (test przechodzi po całym słowniku i po stronach we wszystkich stanach) |
+| API | `GET /restaurants/{slug}/proof-report`, `POST /restaurants/{slug}/proof-launch` ([API_SPECIFICATION.md](API_SPECIFICATION.md)) |
+| Układ | 390 i 1440 px bez poziomego przewijania (tabele w przewijanym kontenerze) |
 
 ## A17 Przyjęcie zaproszenia — `/admin/accept?token=`
 
