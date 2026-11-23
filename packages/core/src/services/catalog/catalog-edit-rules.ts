@@ -1,4 +1,4 @@
-import type { Dish, Wine } from '../../domain/types';
+import type { Dish, EntityStatus, Wine } from '../../domain/types';
 import { ValidationError, VersionConflictError } from '../../errors';
 import { DISH_TEXT_FIELDS, WINE_TEXT_FIELDS } from '../../i18n/content';
 import { LOCALES, type Locale } from '../../i18n/locale';
@@ -39,6 +39,14 @@ export const dishFieldsVersion = (d: DishFields): string => fingerprint([lf(d.na
 
 export const wineFieldsVersion = (w: WineFields): string =>
   fingerprint([lf(w.producer), lf(w.name), w.vintage, lf(w.region), lf(w.country), lf(w.tastingNote), w.listNumber, grosze(w.bottlePrice), grosze(w.glassPrice)]);
+
+/**
+ * The fingerprint a visibility change is checked against (R4, R7): the editable fields and the status, so a change of either
+ * since the page was read is a conflict. The details form keeps its own fingerprint (`dishFieldsVersion`): hiding a dish
+ * does not make a form that edits its price stale.
+ */
+export const dishVisibilityVersion = (d: Pick<Dish, 'name' | 'description' | 'category' | 'price' | 'status'>): string =>
+  fingerprint([dishFieldsVersion(dishFieldsOf(d)), d.status]);
 
 /** Throws VersionConflictError when someone changed the fields after the caller read them. */
 export function checkFieldsVersion(currentVersion: string, expectedVersion: string | undefined): void {
@@ -173,4 +181,17 @@ export function staleTranslationLocales(kind: 'dish' | 'wine', changedKeys: read
     const o = one as Record<string, unknown>;
     return touched.some((k) => Object.hasOwn(o, k) && typeof o[k] === 'string' && (o[k] as string).trim() !== '');
   });
+}
+
+export type DishVisibility = Extract<EntityStatus, 'published' | 'hidden'>;
+
+/**
+ * R7: `published → hidden` and `hidden → published` only. A `draft` dish is released by a publish (it has no switch), and a
+ * dish already in the wanted state is no transition: `ValidationError` `fields: { status: 'transition' }`.
+ */
+export function planDishVisibility(status: EntityStatus, hidden: boolean): { from: DishVisibility; to: DishVisibility } {
+  const to: DishVisibility = hidden ? 'hidden' : 'published';
+  const from: DishVisibility = hidden ? 'published' : 'hidden';
+  if (status !== from) throw new ValidationError('validation_failed', 'This dish cannot change its visibility now.', { status: 'transition' });
+  return { from, to };
 }

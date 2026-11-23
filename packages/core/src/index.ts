@@ -37,6 +37,7 @@ export * from './import/mapping';
 export * from './import/validate';
 export * from './import/validate-sales';
 export * from './import/import-service';
+export * from './import/suggestions';
 export * from './ports/import';
 export * from './ports/sales';
 export * from './ports/proof';

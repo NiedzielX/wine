@@ -7,7 +7,7 @@ import { orderReviewed } from '../pairings/pairing-rules';
 import { countProfileChanges } from '../publishing/snapshot';
 import { countContentChanges, localizeComment, localizeDish, localizeRestaurant, localizeWine } from '../../i18n/content';
 import type { CatalogEditRecord } from '../../ports/repositories';
-import { dishFieldsOf, dishFieldsVersion, staleTranslationLocales, wineFieldsOf, wineFieldsVersion } from '../catalog/catalog-edit-rules';
+import { dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, staleTranslationLocales, wineFieldsOf, wineFieldsVersion } from '../catalog/catalog-edit-rules';
 
 export type AdminServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository' | 'catalogEditRepository'>;
 
@@ -64,6 +64,8 @@ export interface DishDetail extends CatalogEditInfo {
   dish: Dish;
   /** as stored: the base fields and every translation (the translation form) */
   source: Dish;
+  /** the fingerprint the hide / show button sends back (fields and status, spec 2026-11-16-catalog-field-editing, R7) */
+  visibilityVersion: string;
   topMatches: ScoredWine[];
   pairings: { approved: number; suggested: number; rejected: number; hasPrimary: boolean };
 }
@@ -318,7 +320,7 @@ export class AdminService {
     const info = await this.catalogInfo(d.restaurant.id, 'dish', dish.id, dishFieldsVersion(dishFieldsOf(source)), ps, await this.identityEdits(d.restaurant.id));
     return {
       ...info,
-      restaurant: d.restaurant, dish, source, topMatches,
+      restaurant: d.restaurant, dish, source, visibilityVersion: dishVisibilityVersion(source), topMatches,
       pairings: { approved: ps.filter(isApproved).length, suggested: ps.filter((p) => p.status === 'suggested').length, rejected: ps.filter((p) => p.status === 'rejected').length, hasPrimary: ps.some((p) => isApproved(p) && p.role === 'primary') }
     };
   }

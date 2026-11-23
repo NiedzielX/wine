@@ -9,7 +9,7 @@ import type { AcceptInvitation, AcceptedInvitation, CreateInvitation, Invitation
 import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
 import { currentContent, readContentSnapshot, sameTranslations, type DishTranslations, type WineTranslations } from '../i18n/content';
 import { profileVersion } from '../services/catalog/profile-rules';
-import { assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
+import { assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
 import { picksVersion } from '../services/picks/picks-rules';
 import { buildSnapshot, readSnapshot, type PublishedVersionRecord } from '../services/publishing/snapshot';
 import type { ImportJob } from '../import/types';
@@ -411,6 +411,26 @@ export class MemoryCatalogWriteRepository implements CatalogWriteRepository {
     if (listNumber === null) delete w.listNumber;
     else w.listNumber = listNumber;
     this.store.catalogEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  async setDishStatus(restaurantId: string, dishId: string, change: { from: 'published' | 'hidden'; to: 'published' | 'hidden' }, expectedVersion: string | undefined, edit: CatalogEditRecord, suggestions: readonly Pairing[]) {
+    const d = (this.store.dishes.get(restaurantId) ?? []).find((x) => x.id === dishId);
+    if (!d) throw new NotFoundError('Dish');
+    checkFieldsVersion(dishVisibilityVersion(d), expectedVersion);
+    if (d.status !== change.from) throw new VersionConflictError();
+    d.status = change.to;
+    const list = this.store.pairings.get(restaurantId) ?? [];
+    const taken = new Set(list.map((p) => `${p.dishId}:${p.wineId}`));
+    let added = 0;
+    for (const p of suggestions) {
+      const key = `${p.dishId}:${p.wineId}`;
+      if (taken.has(key)) continue;
+      taken.add(key);
+      list.push({ ...copy(p), status: 'suggested', role: null, rank: null, dirty: false, version: 1 });
+      added++;
+    }
+    this.store.catalogEdits.push({ ...copy(edit), restaurantId });
+    return added;
   }
 }
 

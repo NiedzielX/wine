@@ -1,6 +1,6 @@
 import type { MikroORM } from '@mikro-orm/postgresql';
 import {
-  CatalogEditService, wineFieldsOf, wineFieldsVersion, ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, PICKS_MAX, picksVersion, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
+  CatalogEditService, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion, ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, PICKS_MAX, picksVersion, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -271,6 +271,33 @@ describe('concurrency on PostgreSQL', () => {
       expect(edits, `round ${round}: one audit row`).toHaveLength(1);
       const stored = (await sql<{ bottle_price: string }>('select bottle_price from wine where id = ?', [wine.id]))[0];
       expect(Number(stored.bottle_price), `round ${round}: the stored price is the winner's`).toBe(edits[0].after.bottlePrice);
+    }
+  });
+
+  it('two editors hide the same dish from the same screen: one wins, the other gets a version conflict, one audit row; a price edit racing the hide is no conflict (spec 2026-11-16-catalog-field-editing, R7)', async () => {
+    const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const seen = dishVisibilityVersion((await pgRepos(orm).dishRepository.findById(ds.restaurant.id, duck.id))!);
+      const results = await race(
+        () => catalogOf().setDishHidden('halka', duck.id, true, MARTA, seen),
+        () => catalogOf().setDishHidden('halka', duck.id, true, TOMASZ, seen)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as Error).name, `round ${round}`).toBe('VersionConflictError');
+      expect(await sql("select 1 from catalog_edit where restaurant_id = ? and action = 'hidden'", [ds.restaurant.id]), `round ${round}`).toHaveLength(1);
+      expect((await sql<{ status: string }>('select status from dish where id = ?', [duck.id]))[0].status).toBe('hidden');
+    }
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const stored = (await pgRepos(orm).dishRepository.findById(ds.restaurant.id, duck.id))!;
+      const results = await race(
+        () => catalogOf().setDishHidden('halka', duck.id, true, MARTA),
+        async (): Promise<unknown> => catalogOf().updateDish('halka', duck.id, { price: 777 }, TOMASZ, dishFieldsVersion(dishFieldsOf(stored)))
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(2);
+      const row = (await sql<{ status: string; price: string }>('select status, price from dish where id = ?', [duck.id]))[0];
+      expect([row.status, Number(row.price)], `round ${round}`).toEqual(['hidden', 777]);
     }
   });
 

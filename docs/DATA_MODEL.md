@@ -184,7 +184,7 @@ Dziennik zmian pól dania i wina (nazwa, opis, kategoria, cena; producent, nazwa
 | restaurant_id | uuid FK | każde zapytanie z `restaurantId` |
 | kind | enum | `dish`, `wine` |
 | subject_id | uuid | **bez klucza obcego**: historia przeżywa usunięcie dania lub wina |
-| action | enum | `create`, `update`, `hidden`, `shown` (C1 zapisuje tylko `update`) |
+| action | enum | `create`, `update`, `hidden`, `shown` (C1 zapisuje `update`, C2 `hidden` i `shown` z `before` / `after` `{status}`; `create` dochodzi w C3) |
 | actor, actor_id | text, uuid null | wyświetlana nazwa i konto (zwykłe kolumny) |
 | before, after | jsonb | **tylko zmienione pola** (`null` w `before` przy `create`) |
 | identity | boolean | zmiana nazwy dania albo producenta, nazwy lub rocznika wina: pary sommeliera wymagają drugiego spojrzenia („Check after rename”, wiersz w „Do przeglądu”) |
