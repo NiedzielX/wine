@@ -33,7 +33,7 @@ export function savedText(f: Flash, saved: string | undefined, n: string | undef
     case 'details': case 'details_slug': case 'translations': case 'content': case 'suggestion_added': case 'opportunity_restored':
     case 'profile_confirmed': case 'profile_draft': case 'profile_unchanged': case 'catalog_unchanged':
     case 'member_role_changed': case 'member_deactivated': case 'member_reactivated': case 'invitation_revoked':
-    case 'pick_marked': case 'pick_unmarked': case 'pick_unchanged':
+    case 'pick_marked': case 'pick_unmarked': case 'pick_unchanged': case 'launch_day_saved':
       return s[saved]();
     default: return undefined;
   }
