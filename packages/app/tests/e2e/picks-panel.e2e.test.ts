@@ -1,5 +1,6 @@
 import { queryDatabase } from '@wine-match/testkit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { normalise } from './guest-compare';
 import { HALKA, assertTablesCovered, base, bistroOwner, db, digest, get, halkaManager, halkaSommelier, runAction, send, snapshotDatabase, type Session } from './boundaries';
 
 /**
@@ -131,7 +132,7 @@ describe('refusals change nothing (engineering-standards §10, the three checks 
     const full = await state(tomasz);
     expect(full.picks).toHaveLength(5);
     const before = await digest();
-    const pageBefore = await text(await picksPage(tomasz));
+    const pageBefore = normalise(await text(await picksPage(tomasz)));
 
     const forged = await flip(marta, wines[0].id, false, { expectedVersion: full.version });
     expect(forged.location).toBe(`/admin/${HALKA}/picks?error=forbidden`);
@@ -144,7 +145,8 @@ describe('refusals change nothing (engineering-standards §10, the three checks 
     expect(foreign.location).not.toContain('saved=');
 
     expect(await digest()).toEqual(before);
-    expect(await text(await picksPage(tomasz))).toBe(pageBefore);
+    // two reads of an unchanged page differ in the CSP nonce and the order of the streamed rows only (T-33): compare the normalised text
+    expect(normalise(await text(await picksPage(tomasz)))).toBe(pageBefore);
     // the error is shown on the page in words
     const shown = await text(await picksPage(tomasz, '?error=too_many_picks'));
     expect(shown).toContain('A restaurant can mark at most 5 wines as its picks. Remove one first.');
