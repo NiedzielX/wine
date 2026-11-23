@@ -11,7 +11,7 @@ import {
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
   type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository, type UsageTotals, type PairingStat,
   type RecommendationCodeInput, type RecommendationCodeRecord, type RecommendationCodeRepository, type ServiceDayPeriod,
-  type CheckKey, type CheckTotals, type SalesPeriod, type SalesRepository
+  type CheckKey, type CheckTotals, type MarkedCheckTotals, type SalesPeriod, type SalesRepository
 } from '@wine-match/core';
 import {
   CatalogEditEntity, DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, PickEditEntity, ProfileEditEntity, RestaurantPickEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
@@ -948,16 +948,26 @@ export class PgSalesRepository implements SalesRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async checkTotals(restaurantId: string, period: SalesPeriod): Promise<CheckTotals[]> {
+    return (await this.marked(restaurantId, period)).map(({ hasCode: _hasCode, ...totals }) => totals);
+  }
+
+  /** the same sums with `hasCode`: a line with a code and a positive quantity (a returned line does not count) */
+  async checkTotalsMarked(restaurantId: string, period: SalesPeriod): Promise<MarkedCheckTotals[]> {
+    return this.marked(restaurantId, period);
+  }
+
+  private async marked(restaurantId: string, period: SalesPeriod): Promise<MarkedCheckTotals[]> {
     if (!isUuid(restaurantId)) return [];
     const rows = await this.em.getConnection().execute<Array<{
-      business_date: string; check_id: string; covers: number | null; food: string; glass_q: string; glass_a: string; bottle_q: string; bottle_a: string;
+      business_date: string; check_id: string; covers: number | null; food: string; glass_q: string; glass_a: string; bottle_q: string; bottle_a: string; has_code: boolean;
     }>>(
       `select business_date::text as business_date, check_id, max(covers) as covers,
               coalesce(sum(quantity) filter (where item_type = 'food'), 0)::text as food,
               coalesce(sum(quantity) filter (where item_type = 'wine_glass'), 0)::text as glass_q,
               coalesce(sum(net_amount) filter (where item_type = 'wine_glass'), 0)::text as glass_a,
               coalesce(sum(quantity) filter (where item_type = 'wine_bottle'), 0)::text as bottle_q,
-              coalesce(sum(net_amount) filter (where item_type = 'wine_bottle'), 0)::text as bottle_a
+              coalesce(sum(net_amount) filter (where item_type = 'wine_bottle'), 0)::text as bottle_a,
+              coalesce(bool_or(recommendation_code is not null and quantity > 0), false) as has_code
          from sales_record
         where restaurant_id = ? and replaced_at is null and business_date between ? and ?
         group by business_date, check_id
@@ -966,7 +976,7 @@ export class PgSalesRepository implements SalesRepository {
     );
     return rows.map((r) => ({
       businessDate: r.business_date, checkId: r.check_id, covers: r.covers === null ? null : Number(r.covers), foodQuantity: Number(r.food),
-      glassQuantity: Number(r.glass_q), glassAmount: Number(r.glass_a), bottleQuantity: Number(r.bottle_q), bottleAmount: Number(r.bottle_a)
+      glassQuantity: Number(r.glass_q), glassAmount: Number(r.glass_a), bottleQuantity: Number(r.bottle_q), bottleAmount: Number(r.bottle_a), hasCode: r.has_code
     }));
   }
 
