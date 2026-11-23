@@ -1,0 +1,23 @@
+/*
+ * Print layout of the results report (spec 2026-11-18-owner-proof-report, R13, A34): A4, smaller type, a white page. Loaded only
+ * with the printable page. What hides on paper is hidden with Tailwind's `print:hidden` on the element itself (the navigation of the
+ * dashboard shell does the same); no external font or image, nothing is requested for printing.
+ */
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  html {
+    font-size: 11px;
+  }
+  body {
+    background: #fff;
+  }
+  /* keep a table row and a list item on one page */
+  li,
+  tr {
+    break-inside: avoid;
+  }
+}

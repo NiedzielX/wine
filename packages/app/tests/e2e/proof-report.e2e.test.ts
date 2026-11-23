@@ -76,6 +76,29 @@ describe('A33 results report (PostgreSQL, no JavaScript)', () => {
     expect(api.report).toMatchObject({ verdict: 'increase', baseline: { foodChecks: 120 }, window: { foodChecksWithWine: 65 } });
   });
 
+  it('A34: the printable page has the report without controls, the Ctrl/Cmd+P line and nothing from outside, and the Wine Director is refused', async () => {
+    const res = await fetch(`${base()}/admin/halka/proof/print?window=1`, { headers: { cookie: `${manager.cookie}; wm_lang=en` }, redirect: 'manual' });
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    const t = text(html);
+    expect(t).toContain('Results report: Halka');
+    expect(t).toMatch(/Before \(Baseline\).*35%.*After.*50%/);
+    expect(t).toContain('+15 percentage points, interval from +2 to +27');
+    expect(t).toContain('POS data through 1 Mar 2026.');
+    expect(t).toContain('To print or save as PDF, use Ctrl/Cmd+P.');
+    expect(t).toContain('This is a comparison, not proof of a cause.');
+    expect(t).toContain('How we calculate');
+    // without a script there is no print button and no form; the controls are hidden on paper; nothing is fetched from outside
+    expect(html).not.toContain('data-print-button');
+    expect(html).not.toMatch(/<form[^>]*name="launchDay"|name="launchDay"/);
+    expect(html).toMatch(/print:hidden/);
+    expect(html).not.toMatch(/(?:src|href)="https?:\/\//);
+    expect(html).not.toMatch(/SECRETCHK|Z9Q|check_?id|sid=/i);
+    expect(t).not.toMatch(FORBIDDEN_WORDS);
+    expect((await fetch(`${base()}/admin/halka/proof/print?window=1`, { headers: { cookie: sommelier.cookie }, redirect: 'manual' })).status).toBe(403);
+    expect((await fetch(`${base()}/admin/halka/proof/print`, { redirect: 'manual' })).status).toBe(307);
+  });
+
   it('A33: a window without data of its own shows the counters and the reason with what to do, and no change or verdict; a window that does not exist is an error message', async () => {
     const second = await page(manager, '?window=2');
     const t = text(second.html);
