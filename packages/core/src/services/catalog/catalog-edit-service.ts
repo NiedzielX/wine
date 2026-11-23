@@ -1,19 +1,29 @@
 import type { Actor } from '../../auth/types';
 import type { Locale } from '../../i18n/locale';
 import { NotFoundError, ValidationError } from '../../errors';
+import { suggestionsFor } from '../../import/suggestions';
+import type { Dish, Pairing } from '../../domain/types';
 import type { CatalogEditRecord, DishFields, Repositories, WineFields } from '../../ports/repositories';
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import { dishFieldsSchema, dishShapeSchema } from '../../validators/catalog/dish-fields.schema';
 import { wineFieldsSchema, wineShapeSchema } from '../../validators/catalog/wine-fields.schema';
 import { parseWith } from '../../validators/parse';
 import {
-  checkFieldsVersion, dishFieldsOf, dishFieldsVersion, planDishEdit, planWineEdit, pruneUnchanged, staleTranslationLocales, wineFieldsOf, wineFieldsVersion
+  checkFieldsVersion, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, planDishEdit, planDishVisibility, planWineEdit, pruneUnchanged, staleTranslationLocales, wineFieldsOf, wineFieldsVersion
 } from './catalog-edit-rules';
 
 export type CatalogEditServiceDeps = Pick<
   Repositories,
   'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'publishRepository' | 'catalogWriteRepository'
 > & { clock: Clock; idGenerator: IdGenerator };
+
+export interface CatalogVisibilityResult {
+  status: 'published' | 'hidden';
+  /** the fingerprint after the change */
+  version: string;
+  /** engine suggestions added for the dish when it was shown again */
+  suggestions: number;
+}
 
 export interface CatalogEditResult<F> {
   changed: boolean;
@@ -119,6 +129,41 @@ export class CatalogEditService {
     const at = this.d.clock.now().toISOString();
     await this.d.catalogWriteRepository.updateWine(r.id, wine.id, plan.next, expectedVersion, this.record('wine', wine.id, actor, at, plan));
     return { changed: true, fields: plan.next, version: wineFieldsVersion(plan.next), staleLocales: await this.stale(r.id, 'wine', wine.id, plan.keys) };
+  }
+
+  /** The fingerprint a visibility change of the dish is checked against (what the hide / show button sends back as `version`). */
+  async getDishVisibility(slug: string, dishId: string): Promise<{ status: Dish['status']; version: string }> {
+    const r = await this.restaurant(slug);
+    const dish = await this.d.dishRepository.findById(r.id, dishId);
+    if (!dish) throw new NotFoundError('Dish');
+    return { status: dish.status, version: dishVisibilityVersion(dish) };
+  }
+
+  /**
+   * R7: hide a published dish from guests or show a hidden one again, at once and without a publish (the hidden dish is part
+   * of the published menu, so showing it needs no new version). Showing it also asks the engine for the pairs the dish
+   * missed while hidden (N4), in the same transaction. A `draft` dish has no switch (`status: 'transition'`).
+   */
+  async setDishHidden(slug: string, dishId: string, hidden: boolean, actor: Actor, expectedVersion?: string): Promise<CatalogVisibilityResult> {
+    const r = await this.restaurant(slug);
+    const dish = await this.d.dishRepository.findById(r.id, dishId);
+    if (!dish) throw new NotFoundError('Dish');
+    checkFieldsVersion(dishVisibilityVersion(dish), expectedVersion);
+    const change = planDishVisibility(dish.status, hidden);
+    const now = this.d.clock.now().toISOString();
+    let suggestions: Pairing[] = [];
+    if (!hidden) {
+      const [dishes, wines, pairings] = await Promise.all([
+        this.d.dishRepository.listByRestaurant(r.id), this.d.wineRepository.listByRestaurant(r.id), this.d.pairingRepository.listByRestaurant(r.id)
+      ]);
+      suggestions = suggestionsFor([{ ...dish, status: 'published' }], [], { dishes: dishes.filter((x) => x.id !== dish.id), wines, pairings, now }, () => this.d.idGenerator.uuid());
+    }
+    const edit: CatalogEditRecord = {
+      id: this.d.idGenerator.uuid(), kind: 'dish', subjectId: dish.id, action: hidden ? 'hidden' : 'shown', actor: actor.name, actorId: actor.id,
+      before: { status: change.from }, after: { status: change.to }, identity: false, at: now
+    };
+    const added = await this.d.catalogWriteRepository.setDishStatus(r.id, dish.id, change, expectedVersion, edit, suggestions);
+    return { status: change.to, version: dishVisibilityVersion({ ...dish, status: change.to }), suggestions: added };
   }
 
   /** R15 (4): a form that asks for it refuses a rename of something with sommelier pairings until it is confirmed. */

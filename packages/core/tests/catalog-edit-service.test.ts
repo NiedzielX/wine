@@ -5,9 +5,10 @@ import { can } from '../src/auth/permissions';
 import { NotFoundError, ValidationError, VersionConflictError } from '../src/errors';
 import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repositories';
 import { CatalogEditService } from '../src/services/catalog/catalog-edit-service';
-import { dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../src/services/catalog/catalog-edit-rules';
+import { dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion } from '../src/services/catalog/catalog-edit-rules';
 import { PublishService } from '../src/services/publishing/publish-service';
 import { SommelierService } from '../src/services/pairings/sommelier-service';
+import { loadPublishedView } from '../src/services/publishing/published-view';
 import { AdminService } from '../src/services/dashboard/admin-service';
 
 /** Spec 2026-11-16-catalog-field-editing, C1a: CatalogEditService (R1 to R6, R9, R10, R15; AC1 to AC6, AC20, AC21). */
@@ -290,5 +291,82 @@ describe('what A3, A5 and the review queue show after an edit (R10, R11, R15, AC
     expect((await admin.dishDetail('halka', d.id))!.staleLocales).toEqual(['en']);
     await t.repos.publishRepository.publish(RID, { actor: ACTOR.name, at: '2026-12-01T10:00:00.000Z', id: '00000000-0000-4000-8000-0000000000bb' });
     expect((await admin.dishDetail('halka', d.id))!.staleLocales).toEqual([]);
+  });
+});
+
+describe('setDishHidden (R7, R10, AC14, AC15)', () => {
+  const visibility = (t: ReturnType<typeof setup>, name: string) => dishVisibilityVersion(t.dish(name));
+
+  it('hides a published dish from guests at once and shows it again without a publish, with one audit row each', async () => {
+    const t = setup();
+    const d = halibut();
+    const before = await loadPublishedView(t.repos, ds.restaurant);
+    expect(before.dish(d.id)).not.toBeNull();
+    const hide = await t.svc.setDishHidden('halka', d.id, true, ACTOR, visibility(t, d.name));
+    expect(hide).toMatchObject({ status: 'hidden', suggestions: 0 });
+    expect(hide.version).toBe(visibility(t, d.name));
+    expect(t.dish(d.name).status).toBe('hidden');
+    const view = await loadPublishedView(t.repos, ds.restaurant);
+    expect(view.dish(d.id)).toBeNull();
+    expect(view.dishes.map((x) => x.id)).not.toContain(d.id);
+    const show = await t.svc.setDishHidden('halka', d.id, false, ACTOR, hide.version);
+    expect(show.status).toBe('published');
+    expect((await loadPublishedView(t.repos, ds.restaurant)).dish(d.id)).not.toBeNull();
+    const rows = await t.repos.catalogEditRepository.list(RID, { subjectId: d.id });
+    expect(rows.map((r) => [r.action, r.before, r.after, r.actor, r.actorId, r.identity])).toEqual([
+      ['shown', { status: 'hidden' }, { status: 'published' }, ACTOR.name, ACTOR.id, false],
+      ['hidden', { status: 'published' }, { status: 'hidden' }, ACTOR.name, ACTOR.id, false]
+    ]);
+  });
+
+  it('does not touch the published version, the fields or the profile of the dish', async () => {
+    const t = setup();
+    const d = halibut();
+    const pending = (await t.publish.preview('halka')).pendingChanges;
+    await t.svc.setDishHidden('halka', d.id, true, ACTOR);
+    await t.svc.setDishHidden('halka', d.id, false, ACTOR);
+    expect(t.dish(d.name)).toMatchObject({ name: d.name, description: d.description, price: d.price, category: d.category, profile: d.profile });
+    expect((await t.publish.preview('halka')).pendingChanges).toBe(pending);
+  });
+
+  it('refuses a draft dish and a dish already in the wanted state with status: transition, and writes nothing', async () => {
+    const t = setup();
+    const draft = ds.dishes.find((d) => d.status === 'draft')!;
+    expect(await fieldsOf(t.svc.setDishHidden('halka', draft.id, true, ACTOR))).toEqual({ status: 'transition' });
+    expect(await fieldsOf(t.svc.setDishHidden('halka', draft.id, false, ACTOR))).toEqual({ status: 'transition' });
+    expect(await fieldsOf(t.svc.setDishHidden('halka', halibut().id, false, ACTOR))).toEqual({ status: 'transition' });
+    expect(t.dish(draft.name).status).toBe('draft');
+    expect(await t.repos.catalogEditRepository.list(RID)).toEqual([]);
+  });
+
+  it('is a conflict with a stale fingerprint (also one that only the fields changed), unknown ids and another restaurant', async () => {
+    const t = setup();
+    const d = halibut();
+    const stale = visibility(t, d.name);
+    await t.svc.updateDish('halka', d.id, { price: 123 }, ACTOR);
+    await expect(t.svc.setDishHidden('halka', d.id, true, ACTOR, stale)).rejects.toBeInstanceOf(VersionConflictError);
+    expect(t.dish(d.name).status).toBe('published');
+    await expect(t.svc.setDishHidden('halka', OTHER_ID, true, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(t.svc.setDishHidden('no-such-restaurant', d.id, true, ACTOR)).rejects.toBeInstanceOf(NotFoundError);
+    expect((await t.repos.catalogEditRepository.list(RID)).filter((r) => r.action === 'hidden')).toEqual([]);
+  });
+
+  it('asks the engine for the pairs a dish missed while it was hidden when it is shown again (N4)', async () => {
+    const t = setup();
+    const d = halibut();
+    await t.svc.setDishHidden('halka', d.id, true, ACTOR);
+    // while hidden the dish takes no part in suggestions: drop its suggested pairs, as if a wine came in meanwhile
+    const list = t.store.pairings.get(RID)!;
+    const mine = list.filter((p) => p.dishId === d.id);
+    const dropped = mine.filter((p) => p.status === 'suggested');
+    t.store.pairings.set(RID, list.filter((p) => !(p.dishId === d.id && p.status === 'suggested')));
+    expect(dropped.length).toBeGreaterThan(0);
+    const shown = await t.svc.setDishHidden('halka', d.id, false, ACTOR);
+    expect(shown.suggestions).toBeGreaterThan(0);
+    const now = t.store.pairings.get(RID)!.filter((p) => p.dishId === d.id);
+    expect(now.length).toBe(mine.length - dropped.length + shown.suggestions);
+    expect(now.filter((p) => p.status === 'suggested' && p.source === 'engine').length).toBe(shown.suggestions);
+    // the pairs that already existed (decided ones) stay as they were
+    expect(now.filter((p) => p.status !== 'suggested')).toEqual(mine.filter((p) => p.status !== 'suggested'));
   });
 });
