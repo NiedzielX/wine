@@ -9,6 +9,7 @@ import { PanelExplain } from '../../../_components/explain';
 import { first, zl } from '../../../_components/format';
 import { ActionButton } from '../../../_components/action-form';
 import { Flash } from '../../../_components/flash';
+import { PickBadge, PickToggle, pickMarks } from '../../../_components/pick-marks';
 import { setWineAvailability } from '../../actions';
 import { getRequestScope } from '@/server/request-scope';
 import { requireAccess } from '@/server/auth';
@@ -27,9 +28,13 @@ export default async function WinesPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   const q = first(sp.q);
   const style = WINE_STYLES.find((s) => s === first(sp.style)) as WineStyle | undefined;
-  const toggle = (await requireAccess(slug)).can('wines.toggle');
-  const list = await (await getRequestScope()).cradle.adminService.wines(slug, { q, style }, (await getI18n()).locale);
+  const access = await requireAccess(slug);
+  const toggle = access.can('wines.toggle');
+  const canPick = access.can('picks.edit');
+  const cradle = (await getRequestScope()).cradle;
+  const [list, picks] = await Promise.all([cradle.adminService.wines(slug, { q, style }, (await getI18n()).locale), cradle.picksService.list(slug)]);
   if (!list) notFound();
+  const mark = pickMarks(picks);
   const path = `/admin/${slug}/wines`;
   const { locale, t } = await getI18n();
   const m = t.admin.wines;
@@ -56,7 +61,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
             <TableHeader>
               <TableRow>
                 <TableHead>{m.producerAndWine}</TableHead><TableHead>{m.vintage}</TableHead><TableHead>{m.region}</TableHead><TableHead>{m.grape}</TableHead>
-                <TableHead>{m.style}</TableHead><TableHead>{m.serving}</TableHead><TableHead className="text-right">{m.glass}</TableHead><TableHead className="text-right">{m.bottle}</TableHead><TableHead>{m.availability}</TableHead><TableHead className="w-24"><span className="sr-only">{m.changeAvailability}</span></TableHead>
+                <TableHead>{m.style}</TableHead><TableHead>{m.serving}</TableHead><TableHead className="text-right">{m.glass}</TableHead><TableHead className="text-right">{m.bottle}</TableHead><TableHead>{m.availability}</TableHead><TableHead>{m.pick}</TableHead><TableHead className="w-24"><span className="sr-only">{m.changeAvailability}</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -74,6 +79,10 @@ export default async function WinesPage({ params, searchParams }: Props) {
                   <TableCell className="text-right tabular-nums">{w.glassPrice !== null ? zl(w.glassPrice, locale) : '—'}</TableCell>
                   <TableCell className="text-right tabular-nums">{zl(w.bottlePrice, locale)}</TableCell>
                   <TableCell><ActiveBadge active={w.active} compact t={t} /></TableCell>
+                  <TableCell className="whitespace-normal">
+                    <PickBadge mark={mark(w.id)} t={t} />
+                    {canPick && <PickToggle slug={slug} back={`${path}${sp.q || sp.style ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(style ? { style } : {}) })}` : ''}`} wineId={w.id} wineLabel={`${w.producer} ${w.name}`} mark={mark(w.id)} state={picks} canEdit={canPick} active={w.active} t={t} />}
+                  </TableCell>
                   <TableCell className="text-right">
                     {toggle && <ActionButton action={setWineAvailability} fields={{ slug, back: `${path}${sp.q || sp.style ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(style ? { style } : {}) })}` : ''}`, wineId: w.id, active: String(!w.active) }} variant="ghost">{w.active ? m.hide : m.show}</ActionButton>}
                   </TableCell>

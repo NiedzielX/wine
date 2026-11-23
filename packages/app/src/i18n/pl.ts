@@ -466,6 +466,7 @@ export const pl = {
       importWines: 'Import karty win',
       importSales: 'Import sprzedaży',
       opportunities: 'Okazje',
+      picks: 'Wybory restauracji',
       team: 'Zespół',
       acceptInvitation: 'Dołącz do restauracji'
     },
@@ -505,6 +506,7 @@ export const pl = {
       pairings: 'Parowania',
       review: 'Do przeglądu',
       opportunities: 'Okazje',
+      picks: 'Wybory restauracji',
       publish: 'Publikacja',
       restaurant: 'Restauracja',
       importMenu: 'Import menu',
@@ -624,7 +626,10 @@ export const pl = {
         member_role_changed: () => 'Rola zmieniona. Działa od kolejnego żądania tej osoby.',
         member_deactivated: () => 'Dostęp odebrany. Osoba zostaje od razu wylogowana z tej restauracji.',
         member_reactivated: () => 'Dostęp przywrócony. Osoba może znów korzystać z panelu.',
-        invitation_revoked: () => 'Zaproszenie anulowane. Jego link już nie działa.'
+        invitation_revoked: () => 'Zaproszenie anulowane. Jego link już nie działa.',
+        pick_marked: () => 'Wino oznaczone jako wybór restauracji. Goście zobaczą to po publikacji.',
+        pick_unmarked: () => 'Wybór usunięty. Goście przestaną go widzieć po publikacji.',
+        pick_unchanged: () => 'Nic do zmiany: wino już jest w tym stanie.'
       },
       errors: {
         version_conflict: 'Ktoś przed chwilą to zmienił. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
@@ -676,6 +681,8 @@ export const pl = {
         already_member: 'Ta osoba jest już w zespole tej restauracji. Jeśli odebrano jej dostęp, przywróć go na liście.',
         invitation_conflict: 'Inne zaproszenie na ten adres powstało w tej samej chwili. Spróbuj ponownie.',
         catalog_conflict: 'Ktoś zmienił menu lub kartę win, gdy ten import był otwarty, i jedna z nowych pozycji już istnieje. Nic nie zaimportowano: zacznij import od nowa.',
+        too_many_picks: 'Restauracja może oznaczyć najwyżej 5 win jako swoje wybory. Najpierw usuń jeden.',
+        wine_inactive: 'Wyborem może być tylko wino widoczne dla gości. Najpierw pokaż je na karcie win.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
     },
@@ -688,7 +695,10 @@ export const pl = {
       active: 'Aktywne',
       hiddenFromGuests: 'Ukryte przed gośćmi',
       status: { approved: 'Zatwierdzone przez sommeliera', modified: 'Zmienione przez sommeliera', suggested: 'Propozycja', rejected: 'Odrzucone' },
-      roles: { primary: 'Podstawowe', alternative: 'Alternatywa', best_value: 'Najlepsza cena' }
+      roles: { primary: 'Podstawowe', alternative: 'Alternatywa', best_value: 'Najlepsza cena' },
+      pick: 'Wybór restauracji',
+      pickWaiting: 'Wybór, czeka na publikację',
+      pickRemoved: 'Wybór usunięty, czeka na publikację'
     },
     dashboard: {
       title: 'Pulpit',
@@ -858,9 +868,17 @@ export const pl = {
       glassAndBottle: 'Kieliszek i butelka',
       bottleOnly: 'Tylko butelka',
       hide: 'Ukryj',
-      show: 'Pokaż'
+      show: 'Pokaż',
+      pick: 'Wybór'
     },
     wine: {
+      pickTitle: 'Wybór restauracji',
+      pickText: 'Wybór przesuwa wino wyżej wśród propozycji silnika, ze zwykłą etykietą. Nigdy nie zmienia wyniku dopasowania i nigdy nie staje nad parą sommeliera. Goście widzą zmianę po publikacji.',
+      pickYes: 'To wino jest jednym z wyborów restauracji.',
+      pickWaiting: 'Wino jest oznaczone, ale goście nie widzą go jako wyboru do publikacji.',
+      pickRemoved: 'Wino nie jest już oznaczone, ale goście widzą je jako wybór do publikacji.',
+      pickNo: 'To wino nie jest oznaczone.',
+      pickSeeAll: 'Wszystkie wybory i symulator',
       moreDetails: 'Styl i podawanie',
       bottleSize: 'Pojemność butelki',
       back: 'Karta win',
@@ -910,6 +928,10 @@ export const pl = {
     pairings: {
       title: (dish: string) => `Parowania: ${dish}`,
       noDishes: 'Nie ma jeszcze dań.',
+      pickTitle: 'Wybory restauracji w tym daniu',
+      pickMoved: 'przesuwa się wyżej w tym daniu',
+      pickLabel: 'ma tu etykietę, kolejność bez zmian',
+      pickAfterPublish: 'To zobaczą goście po publikacji. Wyborami zarządzasz na ekranie Wybory restauracji.',
       readOnly: 'Widzisz wszystkie parowania, historię i to, co widzą goście. O parowaniach decyduje tylko Wine Director.',
       dishes: 'Dania',
       approvedTitle: 'Zatwierdzone dla gości',
@@ -1007,6 +1029,83 @@ export const pl = {
         ordered_not_reviewed: (wine: string, orders: number, days: number) => `${wine} zamówiono z kodem polecenia do tego dania ${orders} ${plural(orders, 'raz', 'razy', 'razy')} w ostatnich ${days} dniach, a to parowanie nie jest zatwierdzone.`
       }
     },
+    /**
+     * A27 „Wybory restauracji” (spec 2026-11-18-restaurant-picks, R17). Etykieta jest restauracji, nigdy sommeliera;
+     * liczby ze stałych warstwy; panel mówi „silnik”, nigdy „AI”.
+     */
+    picks: {
+      title: 'Wybory restauracji',
+      description: (n: number, max: number) => `Wybrane wina: ${n} z ${max}.`,
+      howTitle: 'Jak działają wybory',
+      howPoints: (f: { minScore: number; window: number; promoted: number }) => [
+        'Wybór przesuwa wino wyżej wśród propozycji silnika i pokazuje etykietę „Wybór restauracji”. Wynik dopasowania nigdy się nie zmienia.',
+        'Para sommeliera zawsze zostaje na górze, a wybór nigdy nie dostaje pieczęci sommeliera.',
+        `Przesunąć się może tylko wino z wynikiem co najmniej ${f.minScore}, nie więcej niż ${f.window} pkt poniżej najlepszej propozycji; na początek listy trafiają najwyżej ${f.promoted} wybory.`,
+        'Goście widzą zmianę dopiero po publikacji. Symulator poniżej pokazuje, co by się zmieniło.'
+      ],
+      readOnly: 'Widzisz wybory i możesz użyć symulatora. Wybory zmieniają tylko właściciel i dyrektor generalny.',
+      waiting: (added: number, removed: number) => `Goście jeszcze tego nie widzą: do dodania ${added}, do usunięcia ${removed}. Opublikuj, żeby zastosować.`,
+      goPublish: 'Przejdź do publikacji',
+      unreviewedHidden: 'Ustawienia gościa ukrywają propozycje silnika, których nikt nie sprawdził. Wybory są takimi propozycjami, więc goście ich nie widzą. Możesz to zmienić na ekranie Publikacja.',
+      search: 'Szukaj wina',
+      searchLabel: 'Szukaj win do oznaczenia',
+      noneTitle: 'Nie znaleziono win',
+      noneEmpty: 'Restauracja nie ma jeszcze win. Najpierw zaimportuj kartę win, potem oznacz do 5 wyborów.',
+      noneFiltered: 'Spróbuj innego wyszukiwania.',
+      importWines: 'Importuj kartę win',
+      wine: 'Wino',
+      status: 'Stan',
+      effect: 'Skutek po publikacji',
+      action: 'Zmiana',
+      marked: 'Wybór restauracji',
+      markedWaiting: 'Wybór restauracji, czeka na publikację',
+      unmarkedWaiting: 'Już nie jest wyborem, goście widzą to do publikacji',
+      inactivePick: 'Ukryte przed gośćmi, nadal zajmuje jedno z miejsc',
+      notPick: '—',
+      mark: 'Oznacz jako wybór',
+      unmark: 'Usuń wybór',
+      full: 'Wszystkie miejsca są zajęte. Najpierw usuń jeden wybór.',
+      showFirst: 'Najpierw pokaż wino na karcie win.',
+      effectMoved: (n: number) => `Przesuwa wyżej w ${n} ${plural(n, 'daniu', 'daniach', 'daniach')}`,
+      effectLabel: (n: number) => `Etykieta w ${n} ${plural(n, 'daniu', 'daniach', 'daniach')}, kolejność bez zmian`,
+      effectNone: 'Bez skutku',
+      effectUnknown: 'Oznacz wino, żeby zobaczyć skutek',
+      noEffect: (reason: string, f: { minScore: number; window: number; promoted: number }) => {
+        switch (reason) {
+          case 'inactive': return 'Wino jest ukryte przed gośćmi.';
+          case 'not_in_list': return 'Goście jeszcze nie widzą tego wina (dodane po ostatniej publikacji) albo silnik nie proponuje go do żadnego dania.';
+          case 'sommelier_pair': return 'To para sommeliera: zachowuje pieczęć i nie dostaje etykiety wyboru.';
+          case 'unreviewed_hidden': return 'Ustawienia ukrywają propozycje, których nikt nie sprawdził.';
+          case 'below_min_score': return `Wynik dopasowania w tych daniach jest poniżej ${f.minScore}.`;
+          case 'outside_window': return `Wino jest o więcej niż ${f.window} pkt poniżej najlepszej propozycji.`;
+          case 'over_cap': return `${f.promoted} inne wybory są już na początku.`;
+          default: return 'Bez skutku dla dań.';
+        }
+      },
+      simTitle: 'Przed i po',
+      simText: 'Układa każde danie dwa razy tą samą funkcją, którą obsługiwani są goście: przed (to, co goście widzą teraz) i po (z wyborami poniżej, po publikacji). Nic się nie zapisuje. Porównywane są tylko wybory: inne niepublikowane zmiany (parowania, profile) nie są uwzględnione, więc „po” jest równe liście gościa tylko wtedy, gdy wybory to jedyna niepublikowana zmiana.',
+      simWines: 'Wina do sprawdzenia (do 5)',
+      simDish: 'Danie',
+      allDishes: 'Wszystkie dania',
+      simulate: 'Symuluj',
+      simReset: 'Wróć do bieżących wyborów',
+      simInvalid: 'Sprawdź symulację: wybierz najwyżej 5 win i danie z listy.',
+      simNotPublished: 'Restauracja nie była jeszcze publikowana, więc goście nie widzą wyborów. „Przed” to lista bez wyborów.',
+      simSummary: (reordered: number, dishes: number, without: number) => `Kolejność zmienia się w ${reordered} z ${dishes} ${plural(dishes, 'dania', 'dań', 'dań')}. Wybory bez skutku: ${without}.`,
+      simNone: 'Brak wyborów do sprawdzenia. Oznacz wino albo zaznacz wina powyżej.',
+      simPicks: 'Co robi każdy wybór',
+      simDishes: 'Dania ze zmianą',
+      simUnchanged: (n: number) => `Bez zmian: ${n} ${plural(n, 'danie', 'dania', 'dań')}.`,
+      before: 'Przed: goście teraz',
+      after: 'Po: po publikacji',
+      sommelierPair: 'Para sommeliera',
+      engineList: 'Propozycja silnika',
+      emptyList: 'Brak win',
+      up: (n: number) => `wyżej o ${n}`,
+      down: (n: number) => `niżej o ${n}`,
+      entered: 'wchodzi na listę',
+      left: 'znika z listy'
+    },
     publish: {
       title: 'Publikacja',
       description: (when: string, version: string) => `Ostatnia publikacja: ${when}${version}. Goście widzą opublikowaną wersję przez kod QR.`,
@@ -1049,7 +1148,10 @@ export const pl = {
       submit: 'Opublikuj zmiany',
       upToDate: 'Wszystko aktualne',
       upToDateText: 'Wprowadź zmianę w Parowaniach lub w kolejce Do przeglądu, potem wróć tutaj, aby ją opublikować.',
-      versionBadge: (n: number) => `Wersja ${n}`
+      versionBadge: (n: number) => `Wersja ${n}`,
+      picks: (added: number, removed: number) => `Wybory restauracji: +${added} / −${removed}`,
+      picksText: 'Czekają na publikację. Goście zobaczą wybory dopiero po publikacji.',
+      picksOpen: 'Otwórz wybory'
     },
     explain: {
       dashboard: {

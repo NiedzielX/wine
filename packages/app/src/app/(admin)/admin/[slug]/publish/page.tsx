@@ -106,6 +106,13 @@ export default async function PublishPage({ params, searchParams }: Props) {
               <p className="text-sm text-muted-foreground">
                 {p.pendingChanges ? m.pendingText(p.pendingPairings, p.draftDishes.length, p.pendingProfiles) : m.nothing}
               </p>
+              {p.pendingPicks > 0 && (
+                <p className="mt-2 text-sm" data-pending-picks>
+                  <b className="font-medium">{m.picks(p.pendingPicksAdded, p.pendingPicksRemoved)}</b>{' '}
+                  <span className="text-muted-foreground">{m.picksText}</span>{' '}
+                  <Link href={`${base}/picks`} className="underline underline-offset-4">{m.picksOpen}</Link>
+                </p>
+              )}
             </div>
             <div className="flex gap-2">
               <Button asChild variant="outline"><Link href={`/r/${slug}`}>{m.preview}</Link></Button>

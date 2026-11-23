@@ -71,7 +71,8 @@ Wine program
  │   └─ A5  Wine details ......................... /admin/wines/{wineId}
  ├─ A6  Pairing management ....................... /admin/pairings/{dishId}
  ├─ A7  Pairing review (queue) ................... /admin/review
- └─ A14 Opportunities (Okazje) ................... /admin/opportunities
+ ├─ A14 Opportunities (Okazje) ................... /admin/opportunities
+ └─ A27 Restaurant’s picks (Wybory restauracji) .. /admin/picks  (PR3, spec 2026-11-18-restaurant-picks)
 Data
  ├─ A8  Import menu .............................. /admin/import/menu?step=preview|done
  ├─ A9  Import wine list ......................... /admin/import/wines?step=preview|done
@@ -97,6 +98,8 @@ flowchart LR
     A7[A7 Review queue] --> A6
     A14[A14 Opportunities] --> A6
     A6 --> A14
+    A27[A27 Restaurant’s picks] --> A11
+    A4 --> A27
   end
   A1 --> A14
   subgraph Data
@@ -133,7 +136,7 @@ flowchart LR
 | A11 Publish | – | – | ✓ | ✓ |
 | A12 QR | – | – | ✓ | ✓ |
 | A15 Team | – | – | – | ✓ (GM nie zmienia właściciela ani innego GM) |
-| A27 Wybory restauracji (zaplanowany: PR3 spec `2026-11-18-restaurant-picks`; API i uprawnienie `picks.edit` są od PR1b) | – | – | ✓ widzi zbiór i symulator, nie zmienia | ✓ zmienia (`picks.edit`) |
+| A27 Wybory restauracji | – | – | ✓ widzi zbiór i symulator, kontrolki wyłączone | ✓ zmienia (`picks.edit`) |
 
 W mockupie oba konta demonstracyjne mają pełny dostęp; ograniczenia ról GM dotyczą wersji produkcyjnej (wymuszane w API).
 
