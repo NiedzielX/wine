@@ -146,7 +146,11 @@ describe('refusals change nothing (engineering-standards §10, the three checks 
 
     expect(await digest()).toEqual(before);
     // two reads of an unchanged page differ in the CSP nonce and the order of the streamed rows only (T-33): compare the normalised text
-    expect(normalise(await text(await picksPage(tomasz)))).toBe(pageBefore);
+    const pageAfter = normalise(await text(await picksPage(tomasz)));
+    let at = 0;
+    while (at < pageBefore.length && pageBefore[at] === pageAfter[at]) at += 1;
+    const around = (t: string) => JSON.stringify(t.slice(Math.max(0, at - 100), at + 100));
+    expect(pageAfter === pageBefore ? '' : `the page differs at ${at}: before ${around(pageBefore)}, after ${around(pageAfter)}`).toBe('');
     // the error is shown on the page in words
     const shown = await text(await picksPage(tomasz, '?error=too_many_picks'));
     expect(shown).toContain('A restaurant can mark at most 5 wines as its picks. Remove one first.');
