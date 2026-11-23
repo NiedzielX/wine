@@ -430,7 +430,7 @@ describe('concurrency on PostgreSQL', () => {
 
   /* ---------- the launch day log of the results report (spec 2026-11-18-owner-proof-report, R5, AC19) ---------- */
   const launchInput = (launchDay: string, expectedCurrent: string | null, reason: string | null) =>
-    ({ id: randomUUID(), launchDay, reason, setByRole: 'owner', setByMembershipId: null, at: new Date().toISOString(), expectedCurrent });
+    ({ id: randomUUID(), launchDay, reason, setByRole: 'owner' as const, setByMembershipId: null, at: new Date().toISOString(), expectedCurrent });
   const launchRows = () => sql<{ seq: number; reason: string | null }>('select seq, reason from proof_launch_day where restaurant_id = ? order by seq', [rid()]);
 
   it('two parallel first launch days: one becomes entry 1, the other a version conflict; no second row, so none without a reason', async () => {

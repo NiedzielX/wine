@@ -3455,20 +3455,25 @@
         },
         "set_by_role": {
           "name": "set_by_role",
-          "type": "varchar(255)",
+          "type": "text",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
           "unique": false,
-          "length": 255,
+          "length": null,
           "precision": null,
           "scale": null,
           "default": null,
           "comment": null,
           "collation": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": [
+            "owner",
+            "manager",
+            "sommelier",
+            "waiter"
+          ],
+          "mappedType": "enum"
         }
       },
       "indexes": [
@@ -3508,13 +3513,19 @@
       "checks": [
         {
           "name": "proof_launch_day_reason_check",
-          "expression": "seq = 1 or (reason is not null and char_length(reason) > 0)",
-          "definition": "check (seq = 1 or (reason is not null and char_length(reason) > 0))"
+          "expression": "seq = 1 or (reason is not null and char_length(btrim(reason)) > 0)",
+          "definition": "check (seq = 1 or (reason is not null and char_length(btrim(reason)) > 0))"
         },
         {
           "name": "proof_launch_day_seq_check",
           "expression": "seq >= 1",
           "definition": "check (seq >= 1)"
+        },
+        {
+          "name": "proof_launch_day_set_by_role_check",
+          "expression": "\"set_by_role\" in ('owner', 'manager', 'sommelier', 'waiter')",
+          "definition": "check (\"set_by_role\" in ('owner', 'manager', 'sommelier', 'waiter'))",
+          "columnName": "set_by_role"
         }
       ],
       "triggers": [],

@@ -128,7 +128,24 @@ run('PostgreSQL', () => {
   beforeAll(async () => { orm = await freshDatabase(); });
   afterAll(async () => { await orm?.close(true); });
 
-  repositoryContract('postgres', async () => ({ repos: pgRepos(orm), dataset: ds }), { describe, it, expect, beforeAll, afterAll });
+  // The contract's second restaurant (results report log isolation) is removed again afterwards: the checks below count the demo data's users.
+  repositoryContract('postgres', async () => {
+    let second: string | undefined;
+    const sql = (text: string, params: unknown[]) => orm.em.getConnection().execute(text, params);
+    return {
+      repos: pgRepos(orm),
+      dataset: ds,
+      secondRestaurant: async () => (second ??= (await seedSecondRestaurant(orm)).restaurantId),
+      teardown: async () => {
+        if (!second) return;
+        const people = SECOND_RESTAURANT.members.map((m) => m.userId);
+        await sql('delete from proof_launch_day where restaurant_id = ?', [second]);
+        await sql('delete from membership where restaurant_id = ?', [second]);
+        await sql(`delete from app_user where id in (${people.map(() => '?').join(', ')})`, people);
+        await sql('delete from restaurant where id = ?', [second]);
+      }
+    };
+  }, { describe, it, expect, beforeAll, afterAll });
 
   it('gives the same recommendations as the engine on the demo data', async () => {
     const { rec } = services(pgRepos(orm));

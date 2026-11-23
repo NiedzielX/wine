@@ -1,3 +1,5 @@
+import type { Role } from '../auth/types';
+
 /**
  * The launch day of the results report (spec 2026-11-18-owner-proof-report, R5): the day the guests could first use
  * Wine Match, which fixes the baseline window. An append-only log: the newest entry is the current day, older ones are
@@ -13,7 +15,7 @@ export interface ProofLaunchEntry {
   /** null only for the first entry; every later one has it (R5) */
   reason: string | null;
   /** the role of the person (not personal data) */
-  setByRole: string;
+  setByRole: Role;
   /** the membership, for the audit; null when it is gone */
   setByMembershipId: string | null;
   /** when the entry was made (the application clock) */
@@ -25,7 +27,7 @@ export interface AppendLaunchDayInput {
   id: string;
   launchDay: string;
   reason: string | null;
-  setByRole: string;
+  setByRole: Role;
   setByMembershipId: string | null;
   at: string;
   /** the `id` of the current entry the caller saw, null when it saw none; a different one is VersionConflictError */

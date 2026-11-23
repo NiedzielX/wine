@@ -7,12 +7,17 @@ import { createMemoryRepositories, MemoryStore } from '../src/memory/memory-repo
 import { CatalogService } from '../src/services/catalog/catalog-service';
 import { RecommendationService, TableNeedsTwoDishesError } from '../src/services/guest/recommendation-service';
 import { repositoryContract } from '../src/testing/repository-contract';
+import { addSecondRestaurant } from '../src/testing/team-contract';
 
 const ds = buildDemoDataset({ ids: 'uuid' });
 const repos = () => createMemoryRepositories(MemoryStore.from(ds));
 const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
 
-repositoryContract('memory', async () => ({ repos: repos(), dataset: ds }), { describe, it, expect, beforeAll, afterAll });
+repositoryContract('memory', async () => {
+  const store = MemoryStore.from(ds);
+  let second: string | undefined;
+  return { repos: createMemoryRepositories(store), dataset: ds, secondRestaurant: async () => (second ??= addSecondRestaurant(store).restaurantId) };
+}, { describe, it, expect, beforeAll, afterAll });
 
 describe('demo dataset', () => {
   it('maps ids to stable UUIDs', () => {
