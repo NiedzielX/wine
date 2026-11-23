@@ -654,6 +654,22 @@ Spec `2026-11-18-owner-proof-report` (R4 do R9, R15), krok 6. Nazwa w interfejsi
 | API | `GET /restaurants/{slug}/proof-report`, `POST /restaurants/{slug}/proof-launch` ([API_SPECIFICATION.md](API_SPECIFICATION.md)) |
 | Układ | 390 i 1440 px bez poziomego przewijania (tabele w przewijanym kontenerze) |
 
+## A34 Results report, printable version (Wersja do druku) — `/admin/{slug}/proof/print?window=N`
+
+Spec `2026-11-18-owner-proof-report` (R13, F2), krok 7. Link „Printable version / Wersja do druku” w nagłówku A33.
+
+| Pole | Opis |
+|---|---|
+| Cel | Właściciel drukuje raport albo zapisuje go jako PDF z przeglądarki i pokazuje wspólnikowi |
+| Użytkownik | Owner, GM (`proof.view`); Sommelier i Waiter: 403 |
+| Funkcje | te same sekcje co A33 dla jednego okna (te same komponenty): nagłówek z nazwą restauracji, oknem, dniem uruchomienia i „POS data through” (data z danych, nie z zegara serwera), karta wyniku, tabela okien z przedziałami, zestawienie rachunków z kodem i bez z zastrzeżeniem, „How we calculate”, „What this report does not say”; bez formularza dnia uruchomienia i bez kart kodów (A33) |
+| Druk | `@page` A4, marginesy 14 mm, czcionka 11 px na papierze (`print.css` ładowany tylko z tą stroną), nawigacja panelu i pasek sterowania `print:hidden`; zdanie „To print or save as PDF, use Ctrl/Cmd+P.” widoczne zawsze, przycisk „Print” tylko z JavaScriptem (wzór DM3 z E22, `proof-print-button.tsx`); bez zewnętrznych zasobów i fontów z sieci; w emulacji druku najwyżej 2 strony A4 |
+| Komponenty UI | te z A33 (`proof-parts.tsx`), `EmptyState`, `ErrorMessage` |
+| Dane wejściowe | `ProofReportService.getReport` przez `loadProofView` (jak A33) |
+| Loading / Empty / Error | brak `loading.tsx`; brak dnia uruchomienia lub importu: `EmptyState` z linkiem do A33; okno spoza 1–12 lub niezaczęte: `ErrorMessage` |
+| Permissions | `requireAccess` i `proof.view` (inaczej 403); strona tylko do odczytu |
+| Układ | 390 i 1440 px bez poziomego przewijania na ekranie |
+
 ## A17 Przyjęcie zaproszenia — `/admin/accept?token=`
 
 Spec `2026-11-04-staff-accounts-and-roles` (E12), faza 2. Tryb resetu hasła (`/admin/reset`) dojdzie w F4.
