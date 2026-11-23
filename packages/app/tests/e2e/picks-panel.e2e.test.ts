@@ -47,13 +47,13 @@ afterAll(async () => { await restoreDatabase?.(); });
 
 /**
  * `normalise` (T-33) takes out the nonce and the order of the streamed rows. The panel page also numbers its client components in
- * the stream (`$L28`, row ids), and the numbers differ between two renders of the same state. They are references, not content:
+ * the stream (`$L28`, `"$67"`, row ids), and the numbers differ between two renders of the same state. They are references, not content:
  * strip the numbers and sort the rows again; every row and every byte of text stays in the comparison.
  */
 const stable = (html: string): string => {
   const marker = '\n<!--flight rows, sorted-->\n';
   const [body, flight = ''] = normalise(html).split(marker);
-  const rows = flight.split('\n').filter(Boolean).map((r) => r.replace(/^[0-9a-f]+:/, '').replace(/\$L[0-9a-f]+/g, '$L'));
+  const rows = flight.split('\n').filter(Boolean).map((r) => r.replace(/^[0-9a-f]+:/, '').replace(/\$L[0-9a-f]+/g, '$L').replace(/"\$[0-9a-f]{1,4}"/g, '"$"'));
   return flight ? `${body}${marker}${rows.sort().join('\n')}` : body;
 };
 

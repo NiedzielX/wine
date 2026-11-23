@@ -94,6 +94,11 @@ describe('the request guard: sessions, CSRF, cross-site, permissions, bodies', (
     const gm = await loginAs('tomasz@halka.pl');
     const forbidden = await handle(req('http://localhost/x', { cookie: gm.cookie }), { write: false, route: '/x', slug: 'halka', permission: 'pairings.decide' }, async () => apiError(200, 'ok', 'x'));
     expect(forbidden.status).toBe(403);
+    // a permission without a slug (or with an empty one) fails closed, even for an account that holds the permission in some restaurant
+    const noSlug = await handle(req('http://localhost/x', { cookie: session.cookie }), { write: false, route: '/x', permission: 'pairings.decide' }, async () => apiError(200, 'ok', 'x'));
+    expect(noSlug.status).toBe(403);
+    const emptySlug = await handle(req('http://localhost/x', { cookie: session.cookie }), { write: false, route: '/x', slug: '', permission: 'pairings.decide' }, async () => apiError(200, 'ok', 'x'));
+    expect(emptySlug.status).toBe(403);
     const good = await handle(jsonReq('http://localhost/x', {}, 'POST', { cookie: session.cookie, 'x-csrf-token': session.csrf }), { write: true, route: '/x', slug: 'halka', permission: 'pairings.decide' }, async ({ actor, principal }) => apiError(200, 'ok', `${actor.name}|${principal.user.email}`));
     expect(good.status).toBe(200);
     expect(await good.text()).toContain('Marta Wierzbicka|marta@halka.pl');
