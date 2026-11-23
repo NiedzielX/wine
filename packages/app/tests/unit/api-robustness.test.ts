@@ -240,6 +240,12 @@ const PROFILES: Profile[] = [
     queryJunk: { picks: [200, 422], dish: [200, 404, 422] } },
   { key: 'PUT /api/v1/wines/{id}/pick', auth: 'session', user: 'tomasz', deny: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404],
     build: () => ({ params: { id: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { on: true } }), junk: { on: BOOL_JUNK, expectedVersion: STRING_FIELD_JUNK } },
+  // results report (spec 2026-11-18-owner-proof-report): read and write are for the owner and the general manager; the Wine Director has neither
+  { key: 'GET /api/v1/restaurants/{slug}/proof-report', auth: 'session', user: 'tomasz', deny: 'marta', write: false, repeatable: true, slugParam: 'slug', build: () => ({ params: { slug: SLUG }, query: '' }),
+    queryJunk: { window: [422] } },
+  { key: 'POST /api/v1/restaurants/{slug}/proof-launch', auth: 'session', user: 'tomasz', deny: 'marta', write: true, repeatable: false, body: 'json', slugParam: 'slug',
+    build: () => ({ params: { slug: SLUG }, query: '', headers: { 'if-match': '"none"' }, body: { launchDay: '2026-01-05' } }),
+    junk: { launchDay: [...STRING_FIELD_JUNK, '', 'x', '2019-12-31', '2026-02-30', LONG], reason: [[], {}, 12345, true, 'x'.repeat(201)], expectedCurrent: [[], {}, 12345, true, 'x', ''] } },
   // E13 F2: the profile routes. The If-Match fingerprint has its own format (`<8 hex>-<length>`), so the valid request carries one.
   { key: 'GET /api/v1/dishes/{dishId}/profile', auth: 'session', user: 'marta', write: false, repeatable: true, idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q() }) },
   { key: 'PUT /api/v1/dishes/{dishId}/profile', auth: 'session', user: 'marta', write: true, repeatable: false, body: 'json', idStatus: [404], build: () => ({ params: { dishId: FAKE }, query: q(), headers: { 'if-match': '"deadbeef-10"' }, body: { profile: DISH_PROFILE, confirm: true } }),

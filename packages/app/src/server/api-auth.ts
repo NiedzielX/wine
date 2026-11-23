@@ -174,6 +174,18 @@ export function ifMatchToken(req: NextRequest): string | undefined | null {
   return /^[0-9a-f]{8}-\d{1,6}$/.test(token) ? token : null;
 }
 
+/**
+ * `If-Match: "<uuid>"` → the id of the log entry the caller saw; `If-Match: "none"` → the caller saw no entry (`null`);
+ * `undefined` when the header is absent; `'invalid'` when it is neither (spec 2026-11-18-owner-proof-report, R11).
+ */
+export function ifMatchEntry(req: NextRequest): string | null | undefined | 'invalid' {
+  const raw = req.headers.get('if-match');
+  if (raw === null) return undefined;
+  const token = raw.replace(/^W\//, '').replace(/"/g, '').trim();
+  if (token === 'none') return null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token) ? token : 'invalid';
+}
+
 /** The largest JSON body any route accepts. A row-edit batch of 2000 rows is well below this. */
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
