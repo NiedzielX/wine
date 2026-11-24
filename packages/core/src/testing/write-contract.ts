@@ -5,7 +5,7 @@ import { InvariantError, NotFoundError, VersionConflictError } from '../errors';
 import { countContentChanges } from '../i18n/content';
 import { pairingScore } from '../engine/scoring';
 import type { CatalogEditRecord, DecisionRecord, PairingOp, PairingRepository, Repositories } from '../ports/repositories';
-import { dishFieldsOf, dishFieldsVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
+import { buildNewDish, buildNewWine, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, nextListNumber, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
 import { PICKS_MAX, RANKING_LAYER_VERSION } from '../ranking/restaurant-picks';
 import { picksVersion } from '../services/picks/picks-rules';
 import { SommelierService } from '../services/pairings/sommelier-service';
@@ -327,6 +327,86 @@ export function writeContract(name: string, setup: () => Promise<{ repos: Reposi
       t.expect((await repos.catalogEditRepository.list(rid(), { subjectId: w1.id })).length).toBe(2);
       // the fields are live: the published snapshot keeps the old ones until the next publish only for what it stores (profiles, translations)
       t.expect((await repos.dishRepository.findById(rid(), duck.id))!.price).toBe(100);
+    });
+
+    t.it('hides and shows a dish with its audit row and the missing suggestions in one transaction, against the fingerprint of fields and status, scoped by restaurant (spec 2026-11-16-catalog-field-editing, R7, R10, AC14, AC15)', async () => {
+      const edit = (subjectId: string, k: number, action: 'hidden' | 'shown', from: string, to: string): CatalogEditRecord => ({
+        id: `30000000-0000-4000-8000-${String(k).padStart(12, '0')}`, kind: 'dish', subjectId, action, actor: 'Marta', actorId: null,
+        before: { status: from }, after: { status: to }, identity: false, at: `2026-11-22T10:0${k}:00.000Z`
+      });
+      const d0 = duck0();
+      const read = async () => (await repos.dishRepository.findById(rid(), d0.id))!;
+      const version = dishVisibilityVersion(d0);
+      await repos.catalogWriteRepository.setDishStatus(rid(), d0.id, { from: 'published', to: 'hidden' }, version, edit(d0.id, 1, 'hidden', 'published', 'hidden'), []);
+      const hidden = await read();
+      t.expect(hidden).toMatchObject({ status: 'hidden', name: d0.name, price: d0.price, profile: d0.profile, translations: d0.translations });
+      t.expect(dishVisibilityVersion(hidden)).not.toBe(version);
+      // the fields' own fingerprint is untouched by the status, so a details form open elsewhere is no conflict
+      t.expect(dishFieldsVersion(dishFieldsOf(hidden))).toBe(dishFieldsVersion(dishFieldsOf(d0)));
+      // hidden dishes are gone from the guests' view at once, and a second hide (or a stale fingerprint) is a conflict that changes nothing
+      t.expect((await loadPublishedView(repos, ds.restaurant)).dish(d0.id)).toBeNull();
+      await t.expect(repos.catalogWriteRepository.setDishStatus(rid(), d0.id, { from: 'published', to: 'hidden' }, version, edit(d0.id, 2, 'hidden', 'published', 'hidden'), [])).rejects.toBeInstanceOf(VersionConflictError);
+      await t.expect(repos.catalogWriteRepository.setDishStatus(rid(), d0.id, { from: 'published', to: 'hidden' }, undefined, edit(d0.id, 2, 'hidden', 'published', 'hidden'), [])).rejects.toBeInstanceOf(VersionConflictError);
+      // showing it again adds the suggestions it missed (only those not taken) and writes the audit row
+      const pairs = await duckPairs();
+      const free = ds.wines.find((w) => !pairs.some((p) => p.wineId === w.id));
+      t.expect(free === undefined).toBe(false);
+      const sug = (wineId: string, k: number): Pairing => ({ id: `31000000-0000-4000-8000-${String(k).padStart(12, '0')}`, dishId: d0.id, wineId, status: 'suggested', role: null, rank: null, comment: null, commentTranslations: {}, modelScore: 70, source: 'engine', updatedBy: 'engine', updatedAt: AT, dirty: false });
+      const added = await repos.catalogWriteRepository.setDishStatus(rid(), d0.id, { from: 'hidden', to: 'published' }, dishVisibilityVersion(hidden), edit(d0.id, 3, 'shown', 'hidden', 'published'), [sug(free!.id, 1), sug(pairs[0].wineId, 2)]);
+      t.expect(added).toBe(1);
+      t.expect((await read()).status).toBe('published');
+      t.expect((await duckPairs()).length).toBe(pairs.length + 1);
+      t.expect((await loadPublishedView(repos, ds.restaurant)).dish(d0.id)).not.toBeNull();
+      // a failed change leaves no suggestion and no audit row behind
+      await t.expect(repos.catalogWriteRepository.setDishStatus(rid(), d0.id, { from: 'published', to: 'hidden' }, 'stale', edit(d0.id, 4, 'hidden', 'published', 'hidden'), [])).rejects.toBeInstanceOf(VersionConflictError);
+      t.expect((await repos.catalogEditRepository.list(rid(), { subjectId: d0.id })).map((e) => [e.action, e.before, e.after])).toEqual([['shown', { status: 'hidden' }, { status: 'published' }], ['hidden', { status: 'published' }, { status: 'hidden' }]]);
+      // another restaurant's or an unknown id: not found
+      await t.expect(repos.catalogWriteRepository.setDishStatus(OTHER, d0.id, { from: 'published', to: 'hidden' }, undefined, edit(d0.id, 5, 'hidden', 'published', 'hidden'), [])).rejects.toBeInstanceOf(NotFoundError);
+      await t.expect(repos.catalogWriteRepository.setDishStatus(rid(), 'abc', { from: 'published', to: 'hidden' }, undefined, edit(OTHER, 5, 'hidden', 'published', 'hidden'), [])).rejects.toBeInstanceOf(NotFoundError);
+      t.expect((await read()).status).toBe('published');
+    });
+
+    t.it('creates a dish and a wine with their suggestions and audit row in one transaction, re-checks names, keys and list numbers on the locked state, and is scoped by restaurant (spec 2026-11-16-catalog-field-editing, R8, R10, AC16, AC17)', async () => {
+      const edit = (kind: 'dish' | 'wine', subjectId: string, k: number): CatalogEditRecord => ({
+        id: `40000000-0000-4000-8000-${String(k).padStart(12, '0')}`, kind, subjectId, action: 'create', actor: 'Marta', actorId: null, before: null, after: { listNumber: 0 }, identity: false, at: `2026-11-22T11:0${k}:00.000Z`
+      });
+      const sug = (dishId: string, wineId: string, k: number): Pairing => ({ id: `41000000-0000-4000-8000-${String(k).padStart(12, '0')}`, dishId, wineId, status: 'suggested', role: null, rank: null, comment: null, commentTranslations: {}, modelScore: 66, source: 'engine', updatedBy: 'engine', updatedAt: AT, dirty: false });
+      // a dish: draft, with the draft profile, suggestions and one audit row; a name that exists (any case, punctuation) is a duplicate and writes nothing
+      const dish = buildNewDish('42000000-0000-4000-8000-000000000001', { name: 'Plum soufflé', description: 'Baked plum', category: 'Desserts', price: 42 });
+      const anyWine = ds.wines[0];
+      await repos.catalogWriteRepository.createDish(rid(), dish, [sug(dish.id, anyWine.id, 1)], edit('dish', dish.id, 1));
+      t.expect(await repos.dishRepository.findById(rid(), dish.id)).toMatchObject({ name: 'Plum soufflé', status: 'draft', price: 42, category: 'Desserts', translations: {} });
+      t.expect((await repos.pairingRepository.listByDish(rid(), dish.id)).map((p) => [p.wineId, p.status, p.source])).toEqual([[anyWine.id, 'suggested', 'engine']]);
+      const clone = buildNewDish('42000000-0000-4000-8000-000000000002', { name: ' PLUM SOUFFLE! ', description: '', category: 'Mains', price: 1 });
+      await t.expect(repos.catalogWriteRepository.createDish(rid(), clone, [sug(clone.id, anyWine.id, 2)], edit('dish', clone.id, 2))).rejects.toMatchObject({ code: 'validation_failed', fields: { name: 'duplicate' } });
+      t.expect(await repos.dishRepository.findById(rid(), clone.id)).toBeNull();
+      t.expect((await repos.pairingRepository.listByDish(rid(), clone.id)).length).toBe(0);
+      const drafted = ds.dishes.find((d) => d.status === 'draft')!;
+      await t.expect(repos.catalogWriteRepository.createDish(rid(), buildNewDish('42000000-0000-4000-8000-000000000003', { name: drafted.name, description: '', category: 'Mains', price: 1 }), [], edit('dish', OTHER, 3))).rejects.toMatchObject({ fields: { name: 'duplicate' } });
+      await t.expect(repos.catalogWriteRepository.createDish(OTHER, dish, [], edit('dish', dish.id, 4))).rejects.toBeInstanceOf(NotFoundError);
+      // a wine: the next free number under the lock when none is explicit, an explicit taken number or key is a duplicate
+      const before = await repos.wineRepository.listByRestaurant(rid());
+      const plan = (producer: string, n: number, listNumber: number | null, autoListNumber: boolean) => buildNewWine(`43000000-0000-4000-8000-${String(n).padStart(12, '0')}`, {
+        fields: { producer, name: 'Cuvée', vintage: 2022, region: 'R', country: 'C', tastingNote: 'Note', listNumber, bottlePrice: 150, glassPrice: null }, style: 'red', grape: 'Gamay', autoListNumber
+      });
+      const auto = plan('Auto Producer', 1, 1, true);
+      const got = await repos.catalogWriteRepository.createWine(rid(), auto, { autoListNumber: true }, [sug(ds.dishes[0].id, auto.id, 3)], edit('wine', auto.id, 5));
+      t.expect(got.listNumber).toBe(nextListNumber(before));
+      t.expect(await repos.wineRepository.findById(rid(), auto.id)).toMatchObject({ producer: 'Auto Producer', active: true, listNumber: nextListNumber(before), grapes: ['Gamay'], tastingNote: 'Note', translations: {} });
+      t.expect((await repos.catalogEditRepository.latest(rid(), 'wine', auto.id))).toMatchObject({ action: 'create', before: null, after: { listNumber: nextListNumber(before) } });
+      t.expect((await repos.pairingRepository.listByRestaurant(rid())).filter((p) => p.wineId === auto.id).length).toBe(1);
+      const explicit = plan('Explicit Producer', 2, 4321, false);
+      t.expect((await repos.catalogWriteRepository.createWine(rid(), explicit, { autoListNumber: false }, [], edit('wine', explicit.id, 6))).listNumber).toBe(4321);
+      const taken = plan('Taken Producer', 3, 4321, false);
+      await t.expect(repos.catalogWriteRepository.createWine(rid(), taken, { autoListNumber: false }, [sug(ds.dishes[0].id, taken.id, 4)], edit('wine', taken.id, 7))).rejects.toMatchObject({ fields: { listNumber: 'duplicate' } });
+      const sameKey = { ...plan('auto producer', 4, 9, false), name: 'CUVEE!' };
+      await t.expect(repos.catalogWriteRepository.createWine(rid(), sameKey, { autoListNumber: false }, [], edit('wine', sameKey.id, 8))).rejects.toMatchObject({ fields: { name: 'duplicate' } });
+      t.expect(await repos.wineRepository.findById(rid(), taken.id)).toBeNull();
+      t.expect(await repos.wineRepository.findById(rid(), sameKey.id)).toBeNull();
+      await t.expect(repos.catalogWriteRepository.createWine(OTHER, explicit, { autoListNumber: true }, [], edit('wine', explicit.id, 9))).rejects.toBeInstanceOf(NotFoundError);
+      // only the three successful creates left a row
+      t.expect((await repos.catalogEditRepository.list(rid())).map((e) => e.id).sort()).toEqual(['40000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000005', '40000000-0000-4000-8000-000000000006']);
+      t.expect(await repos.catalogEditRepository.list(OTHER)).toEqual([]);
     });
 
     t.it('guests see translations of the published version only; publish takes the current ones', async () => {

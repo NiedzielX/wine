@@ -27,6 +27,8 @@ export interface PicksState {
   max: number;
   /** the working set: every wine that is not deleted, active or not (an inactive one still takes a place), sorted by wine id */
   picks: PickEntry[];
+  /** wines guests still see as picks (the published set) that are no longer marked: they leave with the next publish */
+  removed: Array<{ wineId: string; producer: string; name: string; vintage: number | 'NV' }>;
 }
 
 export interface PickWriteResult {
@@ -70,12 +72,17 @@ export class PicksService {
     ]);
     const byId = new Map(wines.map((w) => [w.id, w]));
     const live = effective ? readSnapshot(effective.snapshot).picks : new Set<string>();
+    const marked = new Set(picks.map((p) => p.wineId));
     return {
       version: picksVersion(picks.map((p) => p.wineId)),
       max: PICKS_MAX,
       picks: picks.flatMap((p) => {
         const w = byId.get(p.wineId);
         return w ? [{ ...p, producer: w.producer, name: w.name, vintage: w.vintage, published: p.active && live.has(p.wineId) }] : [];
+      }),
+      removed: [...live].sort().flatMap((id) => {
+        const w = byId.get(id);
+        return w && w.active && !marked.has(id) ? [{ wineId: id, producer: w.producer, name: w.name, vintage: w.vintage }] : [];
       })
     };
   }

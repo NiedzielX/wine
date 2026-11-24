@@ -19,6 +19,7 @@ export function savedText(f: Flash, saved: string | undefined, n: string | undef
     case 'suggestions': return s.suggestions(num(n));
     case 'opportunity_dismissed': return s.opportunity_dismissed(DISMISS_DAYS);
     // `n` carries the languages whose published translation may be outdated, e.g. `en,pl` (only known codes are used)
+    case 'dish_shown': return s.dish_shown(num(n));
     case 'catalog_saved': return s.catalog_saved((n ?? '').split(',').filter((l) => l === 'en' || l === 'pl').join(','));
     case 'imported': {
       const [created = 0, updated = 0, suggestions = 0] = (n ?? '0-0-0').split('-').map(num);
@@ -31,8 +32,9 @@ export function savedText(f: Flash, saved: string | undefined, n: string | undef
     case 'approved': case 'rejected': case 'restored': case 'role': case 'note': case 'moved': case 'added': case 'deleted':
     case 'wine_shown': case 'wine_hidden': case 'settings': case 'import_uploaded': case 'import_checked': case 'import_cancelled':
     case 'details': case 'details_slug': case 'translations': case 'content': case 'suggestion_added': case 'opportunity_restored':
-    case 'profile_confirmed': case 'profile_draft': case 'profile_unchanged': case 'catalog_unchanged':
+    case 'catalog_created': case 'dish_hidden': case 'profile_confirmed': case 'profile_draft': case 'profile_unchanged': case 'catalog_unchanged':
     case 'member_role_changed': case 'member_deactivated': case 'member_reactivated': case 'invitation_revoked':
+    case 'pick_marked': case 'pick_unmarked': case 'pick_unchanged':
       return s[saved]();
     default: return undefined;
   }

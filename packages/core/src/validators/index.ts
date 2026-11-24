@@ -17,5 +17,8 @@ export * from './catalog/catalog-text';
 export * from './catalog/form-price';
 export * from './catalog/dish-fields.schema';
 export * from './catalog/wine-fields.schema';
+export * from './catalog/dish-visibility.schema';
+export * from './catalog/dish-create.schema';
+export * from './catalog/wine-create.schema';
 export * from './picks/pick.schema';
 export * from './picks/simulation.schema';

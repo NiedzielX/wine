@@ -590,6 +590,7 @@ export const en = {
       importWines: 'Import wine list',
       importSales: 'Import sales',
       opportunities: 'Opportunities',
+      picks: 'Restaurant’s picks',
       team: 'Team',
       acceptInvitation: 'Join a restaurant'
     },
@@ -629,6 +630,7 @@ export const en = {
       pairings: 'Pairings',
       review: 'Review queue',
       opportunities: 'Opportunities',
+      picks: 'Restaurant’s picks',
       publish: 'Publish',
       restaurant: 'Restaurant',
       importMenu: 'Import menu',
@@ -740,6 +742,9 @@ export const en = {
         profile_unchanged: () => 'Nothing to change: the profile is already like this.',
         catalog_saved: (languages: string) => `Saved. Guests see the change now. Translations stay as published: check them.${languages ? ` Translations (${languages.toUpperCase().split(',').join(', ')}) may be outdated.` : ''}`,
         catalog_unchanged: () => 'Nothing to change: the details are already like this.',
+        catalog_created: () => 'Added. The taste profile is a draft: check it and confirm it.',
+        dish_hidden: () => 'The dish is hidden from guests. They no longer see it.',
+        dish_shown: (suggestions: number) => `The dish is back on the menu. Guests can see it now.${suggestions > 0 ? ` ${suggestions} engine suggestions were added for review.` : ''}`,
         translations: () => 'Translations saved. Guests see them after you publish.',
         content: () => 'Content language and translations saved. Guests see them after you publish.',
         suggestion_added: () => 'Added to suggestions — approve it in “Engine suggestions”. Guests see the change only after you approve it and publish.',
@@ -748,10 +753,14 @@ export const en = {
         member_role_changed: () => 'Role changed. It applies on the person’s next request.',
         member_deactivated: () => 'Access removed. The person is signed out of this restaurant at once.',
         member_reactivated: () => 'Access restored. The person can use the dashboard again.',
-        invitation_revoked: () => 'Invitation cancelled. Its link no longer works.'
+        invitation_revoked: () => 'Invitation cancelled. Its link no longer works.',
+        pick_marked: () => 'Marked as the restaurant’s pick. Guests see it after you publish.',
+        pick_unmarked: () => 'Pick removed. Guests stop seeing it after you publish.',
+        pick_unchanged: () => 'Nothing to change: the wine is already in that state.'
       },
       errors: {
         version_conflict: 'This was changed by someone else a moment ago. The page now shows the latest version, please try again.',
+        dish_transition: 'This dish cannot be hidden or shown now. A dish that is still a draft is released by publishing.',
         forbidden: 'You don’t have permission to do that.',
         comment_too_long: 'The note can have at most 140 characters.',
         already_paired: 'This wine is already paired with the dish.',
@@ -800,6 +809,8 @@ export const en = {
         already_member: 'This person is already in the team of this restaurant. If their access was removed, restore it in the list.',
         invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
         catalog_conflict: 'Someone changed the menu or the wine list while this import was open, and one of the new items now exists. Nothing was imported: start the import again.',
+        too_many_picks: 'A restaurant can mark at most 5 wines as its picks. Remove one first.',
+        wine_inactive: 'Only a wine that guests can see can be a pick. Show it on the wine list first.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -812,7 +823,10 @@ export const en = {
       active: 'Active',
       hiddenFromGuests: 'Hidden from guests',
       status: { approved: 'Sommelier approved', modified: 'Sommelier modified', suggested: 'Suggested', rejected: 'Rejected' },
-      roles: { primary: 'Primary', alternative: 'Alternative', best_value: 'Best value' }
+      roles: { primary: 'Primary', alternative: 'Alternative', best_value: 'Best value' },
+      pick: 'Restaurant’s pick',
+      pickWaiting: 'Pick, waiting for publish',
+      pickRemoved: 'Pick removed, waiting for publish'
     },
     dashboard: {
       title: 'Dashboard',
@@ -986,9 +1000,17 @@ export const en = {
       glassAndBottle: 'Glass and bottle',
       bottleOnly: 'Bottle only',
       hide: 'Hide',
-      show: 'Show'
+      show: 'Show',
+      pick: 'Pick'
     },
     wine: {
+      pickTitle: 'Restaurant’s pick',
+      pickText: 'A pick moves the wine higher among the engine’s suggestions, with a plain label. It never changes the Match Score and never stands above a sommelier’s pairing. Guests see a change after you publish.',
+      pickYes: 'This wine is one of the restaurant’s picks.',
+      pickWaiting: 'It is marked, but guests do not see it as a pick until you publish.',
+      pickRemoved: 'It is no longer marked, but guests see it as a pick until you publish.',
+      pickNo: 'This wine is not marked.',
+      pickSeeAll: 'All picks and the simulator',
       moreDetails: 'Style and serving',
       bottleSize: 'Bottle size',
       back: 'Wine list',
@@ -1038,6 +1060,10 @@ export const en = {
     pairings: {
       title: (dish: string) => `Pairings: ${dish}`,
       noDishes: 'There are no dishes yet.',
+      pickTitle: 'Restaurant’s picks on this dish',
+      pickMoved: 'moves up on this dish',
+      pickLabel: 'labelled here, order unchanged',
+      pickAfterPublish: 'What guests see after you publish. Picks are managed on the Restaurant’s picks screen.',
       readOnly: 'You can see every pairing, the history and what guests see. Only the Wine Director decides pairings.',
       dishes: 'Dishes',
       approvedTitle: 'Approved for guests',
@@ -1135,6 +1161,83 @@ export const en = {
         ordered_not_reviewed: (wine: string, orders: number, days: number) => `${wine} was ordered with a recommendation code for this dish ${orders} ${orders === 1 ? 'time' : 'times'} in the last ${days} days, and this pairing isn’t approved.`
       }
     },
+    /**
+     * A27 "Restaurant’s picks" (spec 2026-11-18-restaurant-picks, R17). The label is the restaurant’s, never the
+     * sommelier’s; the numbers come from the layer’s own constants; the dashboard says "engine", never "AI".
+     */
+    picks: {
+      title: 'Restaurant’s picks',
+      description: (n: number, max: number) => `${n} of ${max} wines are marked as the restaurant’s pick.`,
+      howTitle: 'How picks work',
+      howPoints: (f: { minScore: number; window: number; promoted: number }) => [
+        'A pick moves a wine higher among the engine’s suggestions and shows the label “Restaurant’s pick”. The Match Score is never changed.',
+        'A sommelier’s pairing always stays on top, and a pick never gets the sommelier’s seal.',
+        `Only a wine with a Match Score of at least ${f.minScore}, no more than ${f.window} points under the best suggestion, can move; at most ${f.promoted} picks go to the front of a list.`,
+        'Guests see a change only after you publish it. The simulator below shows what would change.'
+      ],
+      readOnly: 'You can see the picks and try the simulator. Only the owner and the general manager change the picks.',
+      waiting: (added: number, removed: number) => `Not visible to guests yet: ${added} to add and ${removed} to remove. Publish to apply.`,
+      goPublish: 'Go to Publish',
+      unreviewedHidden: 'Your guest settings hide engine suggestions that nobody has reviewed. Picks are such suggestions, so guests do not see them. You can change this on the Publish screen.',
+      search: 'Search wines',
+      searchLabel: 'Search wines to mark',
+      noneTitle: 'No wines found',
+      noneEmpty: 'This restaurant has no wines yet. Import the wine list first, then mark up to 5 picks.',
+      noneFiltered: 'Try another search.',
+      importWines: 'Import your wine list',
+      wine: 'Wine',
+      status: 'Status',
+      effect: 'Effect once published',
+      action: 'Change',
+      marked: 'Restaurant’s pick',
+      markedWaiting: 'Restaurant’s pick, waiting for publish',
+      unmarkedWaiting: 'No longer a pick, guests still see it until you publish',
+      inactivePick: 'Hidden from guests, still takes one of the places',
+      notPick: '—',
+      mark: 'Mark as pick',
+      unmark: 'Remove pick',
+      full: 'All places are used. Remove a pick first.',
+      showFirst: 'Show the wine on the wine list first.',
+      effectMoved: (n: number) => `Moves up on ${n} ${n === 1 ? 'dish' : 'dishes'}`,
+      effectLabel: (n: number) => `Labelled on ${n} ${n === 1 ? 'dish' : 'dishes'}, order unchanged`,
+      effectNone: 'No effect',
+      effectUnknown: 'Mark it to see the effect',
+      noEffect: (reason: string, f: { minScore: number; window: number; promoted: number }) => {
+        switch (reason) {
+          case 'inactive': return 'The wine is hidden from guests.';
+          case 'not_in_list': return 'Guests cannot see this wine yet (added since the last publish), or the engine does not offer it for any dish.';
+          case 'sommelier_pair': return 'It is a sommelier’s pairing: it keeps its seal and is not labelled as a pick.';
+          case 'unreviewed_hidden': return 'Your settings hide suggestions nobody has reviewed.';
+          case 'below_min_score': return `Its Match Score is under ${f.minScore} on these dishes.`;
+          case 'outside_window': return `It is more than ${f.window} points under the best suggestion.`;
+          case 'over_cap': return `${f.promoted} other picks already go first.`;
+          default: return 'No effect on the dishes.';
+        }
+      },
+      simTitle: 'Before and after',
+      simText: 'Ranks every dish twice with the same function guests are served by: before (what guests see now) and after (with the picks below, once published). Nothing is saved. Only picks are compared: other unpublished changes (pairings, profiles) are not included, so “after” equals the guest list only when picks are your only unpublished change.',
+      simWines: 'Wines to try (up to 5)',
+      simDish: 'Dish',
+      allDishes: 'All dishes',
+      simulate: 'Simulate',
+      simReset: 'Back to the working picks',
+      simInvalid: 'Check the simulation: choose at most 5 wines and a dish from the list.',
+      simNotPublished: 'This restaurant was never published, so guests see no picks yet. “Before” is the list without picks.',
+      simSummary: (reordered: number, dishes: number, without: number) => `${reordered} of ${dishes} ${dishes === 1 ? 'dish changes' : 'dishes change'} order. ${without} ${without === 1 ? 'pick has' : 'picks have'} no effect.`,
+      simNone: 'No picks to try. Mark a wine, or tick wines above.',
+      simPicks: 'What each pick does',
+      simDishes: 'Dishes with a change',
+      simUnchanged: (n: number) => `${n} ${n === 1 ? 'dish does' : 'dishes do'} not change.`,
+      before: 'Before: guests now',
+      after: 'After: once published',
+      sommelierPair: 'Sommelier’s pairing',
+      engineList: 'Engine suggestion',
+      emptyList: 'No wines',
+      up: (n: number) => `up ${n}`,
+      down: (n: number) => `down ${n}`,
+      entered: 'enters the list',
+      left: 'leaves the list'
+    },
     publish: {
       title: 'Publish',
       description: (when: string, version: string) => `Last published ${when}${version}. Guests see the published version through the QR code.`,
@@ -1177,7 +1280,10 @@ export const en = {
       submit: 'Publish changes',
       upToDate: 'Up to date',
       upToDateText: 'Make a change on the Pairings or Review queue screens, then come back to publish it.',
-      versionBadge: (n: number) => `Version ${n}`
+      versionBadge: (n: number) => `Version ${n}`,
+      picks: (added: number, removed: number) => `Restaurant’s picks: +${added} / −${removed}`,
+      picksText: 'Waiting to be published. Guests see the picks only after you publish.',
+      picksOpen: 'Open picks'
     },
     /**
      * "How it works" on the dashboard (spec 2026-10-16-how-it-works-explanations, phase 3): one explanation per card,
@@ -1434,6 +1540,19 @@ export const en = {
         baseHint: 'This is the base text. Translations are below.'
       },
       save: 'Save changes',
+      create: {
+        addDish: 'Add dish', addWine: 'Add wine',
+        dishTitle: 'New dish', dishText: 'A new dish starts as a draft: guests see it after you publish. Its taste profile is a draft too; check it and confirm it on the dish page.',
+        wineTitle: 'New wine', wineText: 'A new wine appears on the wine list with a draft taste profile; guests see it after you publish. Check the profile and confirm it on the wine page.',
+        submitDish: 'Add dish', submitWine: 'Add wine', cancel: 'Cancel',
+        style: 'Style', grape: 'Grape (optional)', grapeHint: 'Only used to prepare the draft taste profile; several grapes: separate them with a comma.',
+        listNumberHint: 'Leave empty to take the next free number.'
+      },
+      visibility: {
+        hide: 'Hide from guests', show: 'Show to guests',
+        hideHint: 'Guests stop seeing the dish at once; its pairings and suggestions stay.',
+        showHint: 'This dish is hidden. Guests see it again at once, without a publish.'
+      },
       readOnly: 'Your role cannot change these details.',
       identity: {
         dish: 'This dish has {n} sommelier pairings. Rename it only to correct the name, not to replace the dish.',

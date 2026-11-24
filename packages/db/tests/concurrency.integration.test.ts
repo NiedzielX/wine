@@ -1,6 +1,6 @@
 import type { MikroORM } from '@mikro-orm/postgresql';
 import {
-  CatalogEditService, wineFieldsOf, wineFieldsVersion, ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, PICKS_MAX, picksVersion, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
+  CatalogEditService, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion, ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, PICKS_MAX, picksVersion, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -274,6 +274,58 @@ describe('concurrency on PostgreSQL', () => {
     }
   });
 
+  it('two editors hide the same dish from the same screen: one wins, the other gets a version conflict, one audit row; a price edit racing the hide is no conflict (spec 2026-11-16-catalog-field-editing, R7)', async () => {
+    const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const seen = dishVisibilityVersion((await pgRepos(orm).dishRepository.findById(ds.restaurant.id, duck.id))!);
+      const results = await race(
+        () => catalogOf().setDishHidden('halka', duck.id, true, MARTA, seen),
+        () => catalogOf().setDishHidden('halka', duck.id, true, TOMASZ, seen)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as Error).name, `round ${round}`).toBe('VersionConflictError');
+      expect(await sql("select 1 from catalog_edit where restaurant_id = ? and action = 'hidden'", [ds.restaurant.id]), `round ${round}`).toHaveLength(1);
+      expect((await sql<{ status: string }>('select status from dish where id = ?', [duck.id]))[0].status).toBe('hidden');
+    }
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const stored = (await pgRepos(orm).dishRepository.findById(ds.restaurant.id, duck.id))!;
+      const results = await race(
+        () => catalogOf().setDishHidden('halka', duck.id, true, MARTA),
+        async (): Promise<unknown> => catalogOf().updateDish('halka', duck.id, { price: 777 }, TOMASZ, dishFieldsVersion(dishFieldsOf(stored)))
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(2);
+      const row = (await sql<{ status: string; price: string }>('select status, price from dish where id = ?', [duck.id]))[0];
+      expect([row.status, Number(row.price)], `round ${round}`).toEqual(['hidden', 777]);
+    }
+  });
+
+  it('two dishes added with one name at once: one is created, the other is a duplicate; two wines added without a number get different numbers (spec 2026-11-16-catalog-field-editing, R8)', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(
+        async (): Promise<unknown> => catalogOf().createDish('halka', { name: 'Brand new tartlet', category: 'Starters', price: 30 }, MARTA),
+        async (): Promise<unknown> => catalogOf().createDish('halka', { name: 'BRAND NEW TARTLET!', category: 'Starters', price: 31 }, TOMASZ)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ fields: { name: 'duplicate' } });
+      expect(await sql("select 1 from dish where lower(regexp_replace(name, '[^A-Za-z]', '', 'g')) = 'brandnewtartlet'"), `round ${round}`).toHaveLength(1);
+      expect(await sql("select 1 from catalog_edit where restaurant_id = ? and action = 'create'", [ds.restaurant.id]), `round ${round}`).toHaveLength(1);
+    }
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(
+        async (): Promise<unknown> => catalogOf().createWine('halka', { producer: 'Race A', name: 'Cuvee', vintage: 2021, bottlePrice: 100, style: 'red' }, MARTA),
+        async (): Promise<unknown> => catalogOf().createWine('halka', { producer: 'Race B', name: 'Cuvee', vintage: 2021, bottlePrice: 100, style: 'red' }, TOMASZ)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(2);
+      const numbers = (await sql<{ list_number: number }>("select list_number from wine where producer in ('Race A', 'Race B')")).map((r) => r.list_number);
+      expect(new Set(numbers).size, `round ${round}: two different numbers`).toBe(2);
+      expect(await sql('select list_number from wine where restaurant_id = ? group by list_number having count(*) > 1', [ds.restaurant.id]), `round ${round}`).toHaveLength(0);
+    }
+  });
+
   it('two different dishes renamed to one name at once: one rename wins, the other is a duplicate, never two dishes with one name', async () => {
     const [a, b] = ds.dishes.filter((d) => d.status === 'published');
     for (let round = 0; round < ROUNDS; round++) {
@@ -398,6 +450,34 @@ describe('concurrency on PostgreSQL', () => {
       expect([[ids[0]], [ids[0], ids[1]].sort()], `round ${round}`).toContainEqual(published);
       const working = await sql<{ wine_id: string }>('select wine_id from restaurant_pick where restaurant_id = ?', [rid()]);
       expect(working.map((r) => r.wine_id).sort(), `round ${round}`).toEqual([ids[0], ids[1]].sort());
+    }
+  });
+
+  /* ---------- the launch day log of the results report (spec 2026-11-18-owner-proof-report, R5, AC19) ---------- */
+  const launchInput = (launchDay: string, expectedCurrent: string | null, reason: string | null) =>
+    ({ id: randomUUID(), launchDay, reason, setByRole: 'owner' as const, setByMembershipId: null, at: new Date().toISOString(), expectedCurrent });
+  const launchRows = () => sql<{ seq: number; reason: string | null }>('select seq, reason from proof_launch_day where restaurant_id = ? order by seq', [rid()]);
+
+  it('two parallel first launch days: one becomes entry 1, the other a version conflict; no second row, so none without a reason', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(...[0, 1, 2, 3].map((i) => () => pgRepos(orm).proofLaunchRepository.append(rid(), launchInput(`2033-01-1${i}`, null, null))));
+      expect(fulfilled(results), `round ${round}: one winner`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ name: 'VersionConflictError' });
+      expect((await launchRows()).map((r) => r.seq), `round ${round}: one row`).toEqual([1]);
+    }
+  });
+
+  it('two parallel changes of the launch day from the same screen: one wins as entry 2 with its reason, the other a version conflict', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const first = await pgRepos(orm).proofLaunchRepository.append(rid(), launchInput('2033-01-10', null, null));
+      const results = await race(...[0, 1, 2].map((i) => () => pgRepos(orm).proofLaunchRepository.append(rid(), launchInput(`2033-01-2${i}`, first.id, `reason ${i}`))));
+      expect(fulfilled(results), `round ${round}: one winner`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ name: 'VersionConflictError' });
+      const rows = await launchRows();
+      expect(rows.map((r) => r.seq), `round ${round}`).toEqual([1, 2]);
+      expect(rows.filter((r) => r.seq > 1).every((r) => r.reason), `round ${round}: every later row has a reason`).toBe(true);
     }
   });
 });

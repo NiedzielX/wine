@@ -6,7 +6,7 @@ import type { PublishedVersionInfo, Repositories } from '../../ports/repositorie
 import type { Clock, IdGenerator } from '../../ports/runtime';
 import { isReviewed } from '../pairings/pairing-rules';
 import { countContentChanges } from '../../i18n/content';
-import { countPickChanges, countProfileChanges } from './snapshot';
+import { countProfileChanges, diffPicks } from './snapshot';
 
 export type PublishServiceDeps = Pick<Repositories, 'restaurantRepository' | 'dishRepository' | 'wineRepository' | 'pairingRepository' | 'restaurantWriteRepository' | 'publishRepository' | 'picksRepository'> & {
   clock: Clock;
@@ -29,6 +29,9 @@ export interface PublishPreview {
   pendingProfiles: number;
   /** picks that differ from the published set, active wines only (spec 2026-11-18-restaurant-picks, R7) */
   pendingPicks: number;
+  /** of `pendingPicks`: wines marked since the last publish, and wines that guests still see as picks but are no longer marked */
+  pendingPicksAdded: number;
+  pendingPicksRemoved: number;
   draftDishes: Dish[];
   /** the checklist of the publish screen (advice, never a blocker) */
   withoutPrimary: Dish[];
@@ -60,14 +63,15 @@ export class PublishService {
     const lastVersion = effective?.info ?? null;
     const pendingContent = countContentChanges({ restaurant, dishes, wines }, published);
     const pendingProfiles = countProfileChanges({ dishes, wines }, effective);
-    const pendingPicks = countPickChanges(wines, picks.map((x) => x.wineId), effective);
+    const pickDiff = diffPicks(wines, picks.map((x) => x.wineId), effective);
+    const pendingPicks = pickDiff.added + pickDiff.removed;
     const live = dishes.filter((x) => x.status !== 'hidden');
     const primary = new Set(pairings.filter((p) => isReviewed(p) && p.role === 'primary').map((p) => p.dishId));
     const draftDishes = dishes.filter((x) => x.status === 'draft');
     return {
       restaurant,
       settings: { ...DEFAULT_RESTAURANT_SETTINGS, ...restaurant.settings },
-      lastVersion, pendingPairings, pendingContent, pendingProfiles, pendingPicks, draftDishes,
+      lastVersion, pendingPairings, pendingContent, pendingProfiles, pendingPicks, pendingPicksAdded: pickDiff.added, pendingPicksRemoved: pickDiff.removed, draftDishes,
       pendingChanges: pendingPairings + draftDishes.length + pendingContent + pendingProfiles + pendingPicks,
       withoutPrimary: live.filter((x) => !primary.has(x.id)),
       unreviewedSuggestions: pairings.filter((p) => p.status === 'suggested').length,

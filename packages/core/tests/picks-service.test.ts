@@ -96,6 +96,27 @@ describe('PicksService.set (R2, AC5)', () => {
   });
 });
 
+describe('PicksService.list: removed (PR3, A27)', () => {
+  it('names the wines guests still see as picks that are no longer marked, and drops them once published', async () => {
+    const { picks, publish } = setup();
+    await picks.set('halka', active[0], true, ACTOR);
+    await picks.set('halka', active[1], true, ACTOR);
+    expect((await picks.list('halka')).removed).toEqual([]);
+    await publish.publish('halka', ACTOR);
+    await picks.set('halka', active[0], false, ACTOR);
+    const state = await picks.list('halka');
+    expect(state.removed.map((r) => r.wineId)).toEqual([active[0]]);
+    expect(state.picks.map((p) => p.wineId)).toEqual([active[1]]);
+    const p = await publish.preview('halka');
+    expect([p.pendingPicksAdded, p.pendingPicksRemoved, p.pendingPicks]).toEqual([0, 1, 1]);
+    await picks.set('halka', active[2], true, ACTOR);
+    const q = await publish.preview('halka');
+    expect([q.pendingPicksAdded, q.pendingPicksRemoved, q.pendingPicks]).toEqual([1, 1, 2]);
+    await publish.publish('halka', ACTOR);
+    expect((await picks.list('halka')).removed).toEqual([]);
+  });
+});
+
 describe('schemas (R16)', () => {
   it('the pick body is {on, expectedVersion?} and nothing else', () => {
     expect(pickSetSchema.safeParse({ on: true }).success).toBe(true);

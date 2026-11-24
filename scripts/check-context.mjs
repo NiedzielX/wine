@@ -18,6 +18,7 @@
 import { lstatSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { REVIEW_INDEPENDENCE_SINCE, checkReviewIndependence } from './lib/review-independence.mjs';
 import { applyStackFixes, checkStackVersions, parseStackTable } from './lib/stack-versions.mjs';
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
@@ -254,6 +255,18 @@ for (const name of listDir(join(root, '.ai', 'specs'), (n) => n.endsWith('.md') 
   if (bytes > BUDGETS.activeSpec.warnBytes) warn(`.ai/specs/${name}`, `${bytes} B is over ${BUDGETS.activeSpec.warnBytes} B: split it so an agent reads less`);
 }
 
+// 6b. Review independence of active specifications (front-matter review_independence; rule and threshold date:
+// scripts/lib/review-independence.mjs). Older specifications without the field are a warning, counted in the report.
+let legacyWithoutIndependence = 0;
+for (const name of listDir(join(root, '.ai', 'specs'), (n) => n.endsWith('.md') && !NOT_SPECS.has(n))) {
+  const text = read(join(root, '.ai', 'specs', name));
+  if (text === null) continue;
+  for (const f of checkReviewIndependence(name, text)) {
+    if (f.missing) legacyWithoutIndependence += 1;
+    (f.level === 'error' ? error : warn)(`.ai/specs/${name}`, f.message);
+  }
+}
+
 // 7. References to AGENTS.md sections must resolve to a heading of the root AGENTS.md
 if (rootAgents) {
   const headings = new Set();
@@ -376,6 +389,7 @@ for (const m of measured.filter((x) => !x.file.startsWith('.ai/lessons/'))) {
 }
 out(`  skills checked: ${skillCount}`);
 if (stackChecked !== null) out(`  stack versions checked: ${stackChecked} (AGENTS.md §1.1)`);
+out(`  specifications without review_independence (older than ${REVIEW_INDEPENDENCE_SINCE}, warning only): ${legacyWithoutIndependence}`);
 if (chains.length) {
   out('Chains (Codex: root + package AGENTS.md; row: root + CLAUDE.md + instruction files of the routing row):');
   for (const c of chains) out(`  ${c.label.padEnd(44)} ${String(c.bytes).padStart(7)} B  ~${tokens(c.bytes)} tokens`);
