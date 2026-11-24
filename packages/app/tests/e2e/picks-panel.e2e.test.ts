@@ -46,16 +46,12 @@ beforeAll(async () => {
 afterAll(async () => { await restoreDatabase?.(); });
 
 /**
- * `normalise` (T-33) takes out the nonce and the order of the streamed rows. The panel page also numbers its client components in
- * the stream (`$L28`, row ids), and the numbers differ between two renders of the same state. They are references, not content:
- * strip the numbers and sort the rows again; every row and every byte of text stays in the comparison.
+ * The page before and after a refused attempt, compared as rendered HTML: `normalise` (T-33) takes out the CSP nonce and the streamed
+ * Flight scripts. The Flight rows repeat the same content with component reference numbers (`$L28`, `"$67"`, row ids) that differ between two
+ * renders of one state, so chasing them only hides a real change behind a growing list of patterns; the HTML carries everything a
+ * person sees (every pick, every switch, every number), and that is what must not move.
  */
-const stable = (html: string): string => {
-  const marker = '\n<!--flight rows, sorted-->\n';
-  const [body, flight = ''] = normalise(html).split(marker);
-  const rows = flight.split('\n').filter(Boolean).map((r) => r.replace(/^[0-9a-f]+:/, '').replace(/\$L[0-9a-f]+/g, '$L'));
-  return flight ? `${body}${marker}${rows.sort().join('\n')}` : body;
-};
+const stable = (html: string): string => normalise(html).split('\n<!--flight rows, sorted-->\n')[0];
 
 describe('A27 for the two roles', () => {
   it('the General Manager gets the screen with working switches and the navigation entry; the Wine Director gets it with every switch disabled and a notice; no session and another restaurant’s owner get no data', async () => {

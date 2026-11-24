@@ -2,9 +2,12 @@ import type { Dish, EntityStatus, Wine } from '../../domain/types';
 import { ValidationError, VersionConflictError } from '../../errors';
 import { DISH_TEXT_FIELDS, WINE_TEXT_FIELDS } from '../../i18n/content';
 import { LOCALES, type Locale } from '../../i18n/locale';
-import { normKey } from '../../import/normalize';
+import { draftDishProfile, draftWineProfile } from '../../engine/drafts';
+import { STYLE_COLOURS, normKey } from '../../import/normalize';
 import type { DishFields, WineFields } from '../../ports/repositories';
+import type { DishCreateInput } from '../../validators/catalog/dish-create.schema';
 import type { DishDetailsInput } from '../../validators/catalog/dish-fields.schema';
+import type { WineCreateInput } from '../../validators/catalog/wine-create.schema';
 import type { WineDetailsInput } from '../../validators/catalog/wine-fields.schema';
 
 /**
@@ -194,4 +197,60 @@ export function planDishVisibility(status: EntityStatus, hidden: boolean): { fro
   const from: DishVisibility = hidden ? 'published' : 'hidden';
   if (status !== from) throw new ValidationError('validation_failed', 'This dish cannot change its visibility now.', { status: 'transition' });
   return { from, to };
+}
+
+/** The number a wine gets when none is given: the next after the highest, from 101 (the import numbers wines the same way, N10). */
+export const nextListNumber = (others: ReadonlyArray<{ listNumber?: number | null }>): number => Math.max(100, ...others.map((o) => o.listNumber ?? 0)) + 1;
+
+/** R8: the fields of a new dish; a name that exists (any status) is `duplicate`. */
+export function planNewDish(input: DishCreateInput, ctx: { others: readonly DishOther[] }): DishFields {
+  const fields: DishFields = { name: input.name, description: input.description ?? '', category: input.category, price: input.price };
+  assertDishUnique({ ...fields, name: '' }, fields, '', ctx.others);
+  return fields;
+}
+
+/** A new dish is a draft with the engine's draft profile, like one from the import. */
+export const buildNewDish = (id: string, f: DishFields): Dish => ({
+  id, name: f.name, description: f.description, category: f.category, price: f.price, status: 'draft',
+  profile: draftDishProfile(f.name, f.description, f.category), translations: {}
+});
+
+export interface NewWinePlan {
+  fields: WineFields;
+  style: string;
+  grape: string;
+  /** no list number was given: the repository takes the next free one under the lock (it may differ from `fields.listNumber`) */
+  autoListNumber: boolean;
+}
+
+/** R8, R2: the glass price needs the switch and costs less than the bottle, the vintage is at most next year, the key and an explicit list number are free; all problems come back together. */
+export function planNewWine(input: WineCreateInput, ctx: { others: readonly WineOther[]; maxVintage: number }): NewWinePlan {
+  const errors: Record<string, string> = {};
+  if (typeof input.vintage === 'number' && input.vintage > ctx.maxVintage) errors.vintage = 'out_of_range';
+  const glassOn = input.pouredByGlass === true;
+  if (glassOn) {
+    if (input.glassPrice === undefined) errors.glassPrice = 'required';
+    else if (input.glassPrice >= input.bottlePrice) errors.glassPrice = 'glass_not_below_bottle';
+  } else if (input.glassPrice !== undefined) {
+    errors.glassPrice = 'not_allowed';
+  }
+  const autoListNumber = input.listNumber === undefined || input.listNumber === null;
+  const fields: WineFields = {
+    producer: input.producer, name: input.name, vintage: input.vintage, region: input.region ?? '', country: input.country ?? '', tastingNote: input.tastingNote ?? '',
+    listNumber: autoListNumber ? nextListNumber(ctx.others) : (input.listNumber as number), bottlePrice: input.bottlePrice, glassPrice: glassOn ? (input.glassPrice ?? null) : null
+  };
+  if (Object.keys(errors).length === 0) Object.assign(errors, wineUniquenessErrors({ ...fields, producer: '', name: '', vintage: 'NV', listNumber: null }, fields, '', ctx.others));
+  if (Object.keys(errors).length) fail(errors);
+  return { fields, style: input.style, grape: input.grape ?? '', autoListNumber };
+}
+
+export function buildNewWine(id: string, p: NewWinePlan): Wine {
+  const profile = draftWineProfile(p.grape, p.style);
+  const f = p.fields;
+  return {
+    id, producer: f.producer, name: f.name, vintage: f.vintage, region: f.region, country: f.country,
+    grapes: p.grape ? p.grape.split(/[,/]/).map((g) => g.trim()).filter(Boolean) : [], glassPrice: f.glassPrice, glassPour: profile.style === 'sweet' ? 75 : 150,
+    bottlePrice: f.bottlePrice, bottleSize: 750, active: true, ...(f.listNumber !== null ? { listNumber: f.listNumber } : {}), colour: STYLE_COLOURS[profile.style],
+    tastingNote: f.tastingNote, profile, translations: {}
+  };
 }
