@@ -66,6 +66,8 @@ PostgreSQL + MikroORM, migracje w `packages/db/src/migrations/` (`Migration<YYYY
 
 **Tabele addytywne i migawka z 2026-11-19** (spec `2026-11-18-restaurant-picks`, PR1a, migracja `Migration20261119092849_restaurant_picks`): tabele `restaurant_pick` (wybory restauracji, unikat `(restaurant_id, wine_id)`) i `pick_edit` (dziennik, `wine_id` bez klucza obcego, kolumna `enabled`), istniejące tabele bez zmian, bez backfillu; `down` usuwa tabele (tylko dev i test; w produkcji wycofanie to poprzedni obraz, a tabele zostają). Migawka publikacji ma `schema: 3` z `picks: { wineIds, rankingVersion }`. Kontraktem jest to, że czytnik przyjmuje `schema >= 2`: wersja `schema: 2` czyta się jak dotąd (profile i skład karty z wersji), z pustym zbiorem wyborów, a wersje są niezmienne i nie są migrowane. **Plan wycofania:** obraz sprzed tej zmiany czyta wersję `schema: 3` jak `schema: 2` tylko wtedy, gdy ma czytnik z PR0 (`schema >= 2`); starszy obraz odczytałby ją jak `schema: 1` (profile i widoczność z danych bieżących), dlatego pierwszy zapis `schema: 3` idzie dopiero po wdrożeniu PR0.
 
+**Tabela addytywna z 2026-11-22** (spec `2026-11-18-owner-proof-report`, krok 3, migracja `Migration20261122161134_proof_launch_day`): tabela `proof_launch_day` (dziennik dnia uruchomienia raportu wyników), istniejące tabele bez zmian, bez backfillu; `down` usuwa tabelę (tylko dev i test; w produkcji wycofanie to poprzedni obraz, a tabela zostaje, bo poprzedni obraz jej nie czyta).
+
 ## 4. Konfiguracja i zmienne środowiskowe
 
 Źródła: [.env.example](.env.example), [packages/core/src/config/env.ts](packages/core/src/config/env.ts).
