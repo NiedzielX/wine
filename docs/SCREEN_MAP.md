@@ -66,9 +66,11 @@ A0  Login ........................................ /admin/login?next=
 A1  Dashboard .................................... /admin
 Wine program
  ├─ A2  Menu ..................................... /admin/menu?q=&cat=
- │   └─ A3  Dish details ......................... /admin/menu/{dishId}
+ │   ├─ A3  Dish details ......................... /admin/menu/{dishId}
+ │   └─ A32 New dish ............................. /admin/menu/new   (catalog.edit; E13 C3)
  ├─ A4  Wine list ................................ /admin/wines?q=&style=
- │   └─ A5  Wine details ......................... /admin/wines/{wineId}
+ │   ├─ A5  Wine details ......................... /admin/wines/{wineId}
+ │   └─ A32 New wine ............................. /admin/wines/new  (catalog.edit; E13 C3)
  ├─ A6  Pairing management ....................... /admin/pairings/{dishId}
  ├─ A7  Pairing review (queue) ................... /admin/review
  ├─ A14 Opportunities (Okazje) ................... /admin/opportunities
@@ -129,6 +131,7 @@ flowchart LR
 | G9, G11 | – | ✓ | ✓ | ✓ |
 | A1 Dashboard | – | – | ✓ | ✓ |
 | A2–A5 | – | – | ✓ edycja | ✓ edycja |
+| A32 Nowa pozycja (danie, wino; E13 C3) | – | – | ✓ (`catalog.edit`) | ✓ (`catalog.edit`) |
 | A6, A7 | – | – | ✓ decyzje | podgląd |
 | A14 Opportunities | – | – | ✓ decyzje | podgląd |
 | A8, A9 | – | – | ✓ | ✓ |

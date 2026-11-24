@@ -138,6 +138,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       guestInteractionRepository: asClass(db.PgGuestInteractionRepository).scoped(),
       recommendationCodeRepository: asClass(db.PgRecommendationCodeRepository).scoped(),
       salesRepository: asClass(db.PgSalesRepository).scoped(),
+      proofLaunchRepository: asClass(db.PgProofLaunchRepository).scoped(),
       systemHealth: asClass(db.PgSystemHealth).scoped(),
       rateLimiter: asClass(db.PgRateLimiter).scoped(),
       teamRepository: asClass(db.PgTeamRepository).scoped(),
@@ -169,6 +170,7 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       guestInteractionRepository: asValue(repos.guestInteractionRepository),
       recommendationCodeRepository: asValue(repos.recommendationCodeRepository),
       salesRepository: asValue(repos.salesRepository),
+      proofLaunchRepository: asValue(repos.proofLaunchRepository),
       systemHealth: asValue<SystemHealth>(new MemorySystemHealth()),
       // one process, bounded (MAX_MEMORY_RATE_LIMIT_ENTRIES): the counters live as long as the container
       rateLimiter: asValue<RateLimiter>(new MemoryRateLimiter(undefined, env().rateLimitMaxClients ?? DEFAULT_RATE_LIMIT_MAX_CLIENTS)),

@@ -2,6 +2,7 @@ import type { OnceRunner } from './contract-types';
 import { recommendationCodeContract } from './recommendation-code-contract';
 import { seedUsageEvents } from './usage-events';
 import { salesContract } from './sales-contract';
+import { proofLaunchContract } from './proof-launch-contract';
 import type { DemoDataset } from '../demo/dataset';
 import type { OpportunityDismissal } from '../domain/types';
 import type { GuestInteractionInput, Repositories } from '../ports/repositories';
@@ -13,14 +14,15 @@ import type { GuestInteractionInput, Repositories } from '../ports/repositories'
  */
 export function repositoryContract(
   name: string,
-  setup: () => Promise<{ repos: Repositories; dataset: DemoDataset; teardown?: () => Promise<void> }>,
+  setup: () => Promise<{ repos: Repositories; dataset: DemoDataset; secondRestaurant: () => Promise<string>; teardown?: () => Promise<void> }>,
   t: OnceRunner
 ): void {
   t.describe(`repository contract: ${name}`, () => {
     let repos: Repositories;
     let ds: DemoDataset;
+    let secondRestaurant: () => Promise<string>;
     let teardown: (() => Promise<void>) | undefined;
-    t.beforeAll(async () => { ({ repos, dataset: ds, teardown } = await setup()); });
+    t.beforeAll(async () => { ({ repos, dataset: ds, secondRestaurant, teardown } = await setup()); });
     t.afterAll(async () => { await teardown?.(); });
 
     t.it('finds a restaurant by slug and returns null for unknown slugs', async () => {
@@ -345,5 +347,6 @@ export function repositoryContract(
 
     /* ---------- sales lines (spec 2026-10-15-pos-sales-import-attach-rate) ---------- */
     salesContract(t, () => ({ repos, ds }));
+    proofLaunchContract(t, () => ({ repos, ds, secondRestaurant }));
   });
 }

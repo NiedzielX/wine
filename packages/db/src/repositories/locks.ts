@@ -10,3 +10,12 @@ import type { EntityManager } from '@mikro-orm/postgresql';
 export async function lockCatalog(em: EntityManager, restaurantId: string): Promise<void> {
   await em.execute(`select pg_advisory_xact_lock(hashtext('catalog:' || ?::text))`, [restaurantId]);
 }
+
+/**
+ * The advisory lock of a restaurant's launch day log (spec 2026-11-18-owner-proof-report, R5): the check of the current
+ * entry and the insert of the next one happen under it, so two writers cannot both pass the check. The prefix differs
+ * from `catalog:` and `sales_record:`.
+ */
+export async function lockProofLaunch(em: EntityManager, restaurantId: string): Promise<void> {
+  await em.execute(`select pg_advisory_xact_lock(hashtext('proof_launch:' || ?::text))`, [restaurantId]);
+}

@@ -10,7 +10,7 @@ import { catalogPrice, catalogText } from './catalog-text';
 export const DISH_PRICE_MAX = 10_000;
 export const DISH_CATEGORY_VALUES = ['Starters', 'Mains', 'Desserts'] as const;
 
-const dishFieldShape = {
+export const dishFieldShape = {
   name: catalogText({ max: TEXT_LIMITS.name, required: true }),
   description: catalogText({ max: TEXT_LIMITS.description, required: false, multiline: true }),
   category: z.enum(DISH_CATEGORY_VALUES),

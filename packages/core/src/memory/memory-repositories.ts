@@ -9,13 +9,15 @@ import type { AcceptInvitation, AcceptedInvitation, CreateInvitation, Invitation
 import type { AuthAuditRepository, AuthEventFilter, TeamChange, TeamRepository } from '../ports/team';
 import { currentContent, readContentSnapshot, sameTranslations, type DishTranslations, type WineTranslations } from '../i18n/content';
 import { profileVersion } from '../services/catalog/profile-rules';
-import { assertDishUnique, assertWineUnique, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
+import { assertDishUnique, assertWineUnique, nextListNumber, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion } from '../services/catalog/catalog-edit-rules';
 import { picksVersion } from '../services/picks/picks-rules';
 import { buildSnapshot, readSnapshot, type PublishedVersionRecord } from '../services/publishing/snapshot';
 import type { ImportJob } from '../import/types';
 import type { AuthRepository } from '../ports/auth';
 import type { CatalogImportPlan, ImportPlan, ImportRepository, SalesImportPlan } from '../ports/import';
+import type { AppendLaunchDayInput, ProofLaunchEntry, ProofLaunchRepository } from '../ports/proof';
 import type { MarkedCheckTotals, SalesRepository } from '../ports/sales';
+import { checkLaunchAppend } from '../services/proof/launch-rules';
 import { aggregateChecks } from '../services/sales/sales-kpis';
 import type { CheckKey, SalesPeriod, SalesRecord } from '../services/sales/types';
 import type {
@@ -85,6 +87,8 @@ export class MemoryStore {
   readonly picks: Array<PickRecord & { restaurantId: string }> = [];
   /** the picks history, oldest first */
   readonly pickEdits: Array<PickEditRecord & { restaurantId: string }> = [];
+  /** the launch day log of the results report, oldest first (the demo data has none) */
+  readonly proofLaunch: Array<ProofLaunchEntry & { restaurantId: string }> = [];
   readonly users: AuthUser[] = [];
   readonly memberships: StoredMembership[] = [];
   /** the authentication trail, oldest first */
@@ -407,6 +411,44 @@ export class MemoryCatalogWriteRepository implements CatalogWriteRepository {
     if (listNumber === null) delete w.listNumber;
     else w.listNumber = listNumber;
     this.store.catalogEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  private addSuggestions(restaurantId: string, suggestions: readonly Pairing[]) {
+    const list = this.store.pairings.get(restaurantId) ?? [];
+    this.store.pairings.set(restaurantId, list);
+    const taken = new Set(list.map((p) => `${p.dishId}:${p.wineId}`));
+    let added = 0;
+    for (const p of suggestions) {
+      const key = `${p.dishId}:${p.wineId}`;
+      if (taken.has(key)) continue;
+      taken.add(key);
+      list.push({ ...copy(p), status: 'suggested', role: null, rank: null, dirty: false, version: 1 });
+      added++;
+    }
+    return added;
+  }
+
+  async createDish(restaurantId: string, dish: Dish, suggestions: readonly Pairing[], edit: CatalogEditRecord) {
+    const list = this.store.dishes.get(restaurantId);
+    if (!list) throw new NotFoundError('Restaurant');
+    const fields = dishFieldsOf(dish);
+    assertDishUnique({ ...fields, name: '' }, fields, dish.id, list);
+    list.push(copy(dish));
+    this.addSuggestions(restaurantId, suggestions);
+    this.store.catalogEdits.push({ ...copy(edit), restaurantId });
+  }
+
+  async createWine(restaurantId: string, wine: Wine, opts: { autoListNumber: boolean }, suggestions: readonly Pairing[], edit: CatalogEditRecord) {
+    const list = this.store.wines.get(restaurantId);
+    if (!list) throw new NotFoundError('Restaurant');
+    const made = copy(wine);
+    if (opts.autoListNumber) made.listNumber = nextListNumber(list);
+    const fields = wineFieldsOf(made);
+    assertWineUnique({ ...fields, producer: '', name: '', vintage: 'NV', listNumber: null }, fields, made.id, list);
+    list.push(made);
+    this.addSuggestions(restaurantId, suggestions);
+    this.store.catalogEdits.push({ ...copy(edit), restaurantId, after: { ...copy(edit.after), listNumber: made.listNumber ?? null } });
+    return { listNumber: made.listNumber ?? null };
   }
 
   async setDishStatus(restaurantId: string, dishId: string, change: { from: 'published' | 'hidden'; to: 'published' | 'hidden' }, expectedVersion: string | undefined, edit: CatalogEditRecord, suggestions: readonly Pairing[]) {
@@ -844,6 +886,34 @@ export class MemorySalesRepository implements SalesRepository {
   }
 }
 
+export class MemoryProofLaunchRepository implements ProofLaunchRepository {
+  constructor(private readonly store: MemoryStore) {}
+
+  private mine(restaurantId: string): ProofLaunchEntry[] {
+    return this.store.proofLaunch.filter((e) => e.restaurantId === restaurantId).map(({ restaurantId: _r, ...e }) => ({ ...e })).sort((a, b) => b.seq - a.seq);
+  }
+
+  async current(restaurantId: string) {
+    return this.mine(restaurantId)[0] ?? null;
+  }
+
+  async history(restaurantId: string) {
+    return this.mine(restaurantId);
+  }
+
+  // one synchronous step between the check and the push, so parallel callers cannot both pass the check
+  async append(restaurantId: string, input: AppendLaunchDayInput): Promise<ProofLaunchEntry> {
+    if (!this.store.restaurants.some((r) => r.id === restaurantId)) throw new NotFoundError('Restaurant');
+    const rows = this.mine(restaurantId);
+    const reason = checkLaunchAppend(rows[0] ?? null, input);
+    const entry: ProofLaunchEntry = {
+      id: input.id, seq: (rows[0]?.seq ?? 0) + 1, launchDay: input.launchDay, reason, setByRole: input.setByRole, setByMembershipId: input.setByMembershipId, setAt: input.at
+    };
+    this.store.proofLaunch.push({ ...entry, restaurantId });
+    return { ...entry };
+  }
+}
+
 export class MemoryOpportunityDismissalRepository implements OpportunityDismissalRepository {
   constructor(private readonly store: MemoryStore) {}
 
@@ -1112,6 +1182,7 @@ export function createMemoryRepositories(store: MemoryStore): Repositories {
     catalogWriteRepository: new MemoryCatalogWriteRepository(store),
     catalogEditRepository: new MemoryCatalogEditRepository(store),
     picksRepository: new MemoryPicksRepository(store),
+    proofLaunchRepository: new MemoryProofLaunchRepository(store),
     importRepository: new MemoryImportRepository(store),
     opportunityDismissalRepository: new MemoryOpportunityDismissalRepository(store),
     guestInteractionRepository: new MemoryGuestInteractionRepository(store),

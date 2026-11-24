@@ -1,5 +1,6 @@
 import type { ImportRepository } from './import';
 import type { InvitationRepository } from './invitations';
+import type { ProofLaunchRepository } from './proof';
 import type { SalesRepository } from './sales';
 import type { AuthAuditRepository, TeamRepository } from './team';
 import type { CommentTranslations, DishTranslations, PublishedContent, RestaurantTranslations, WineTranslations } from '../i18n/content';
@@ -230,6 +231,17 @@ export interface CatalogWriteRepository {
    * `from` any more, or whose fingerprint differs from `expectedVersion` (`dishVisibilityVersion`), is VersionConflictError.
    * Returns the number of suggestions added.
    */
+  /**
+   * A new dish (always `draft`) with the engine suggestions made for it, and its audit row, in one transaction under the catalog
+   * lock; the name is checked again against every dish of the restaurant (`ValidationError` `name: duplicate`).
+   */
+  createDish(restaurantId: string, dish: Dish, suggestions: readonly Pairing[], edit: CatalogEditRecord): Promise<void>;
+  /**
+   * A new wine with its suggestions and audit row, same promises as `createDish`: key and an explicit list number re-checked
+   * under the lock (`duplicate`); with `autoListNumber` the number is the next free one counted under the lock (N10). Returns the
+   * list number the wine got, which is also written into the audit row's `after`.
+   */
+  createWine(restaurantId: string, wine: Wine, opts: { autoListNumber: boolean }, suggestions: readonly Pairing[], edit: CatalogEditRecord): Promise<{ listNumber: number | null }>;
   setDishStatus(restaurantId: string, dishId: string, change: { from: 'published' | 'hidden'; to: 'published' | 'hidden' }, expectedVersion: string | undefined, edit: CatalogEditRecord, suggestions: readonly Pairing[]): Promise<number>;
 }
 
@@ -453,6 +465,7 @@ export interface Repositories {
   guestInteractionRepository: GuestInteractionRepository;
   recommendationCodeRepository: RecommendationCodeRepository;
   salesRepository: SalesRepository;
+  proofLaunchRepository: ProofLaunchRepository;
   teamRepository: TeamRepository;
   authAuditRepository: AuthAuditRepository;
   invitationRepository: InvitationRepository;

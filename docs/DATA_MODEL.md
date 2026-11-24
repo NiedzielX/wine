@@ -15,6 +15,7 @@ Typy domenowe: `packages/core/src/domain/types.ts`. Encje MikroORM: `packages/db
 | SommelierDecision | tak | audyt, `actor` jako tekst do czasu wprowadzenia User; **bez klucza obcego** do pairingu (kolumna `pairing_id`), żeby historia przeżyła usunięcie pairingu; ma `restaurant_id`, `dish_id`, `wine_id` |
 | PublishedVersion | tak | migawka w `snapshot` (jsonb, od 2026-11-16 `schema: 2`, od 2026-11-19 `schema: 3`): pary (approved / modified / rejected), tłumaczenia, profile smaku dań i win, skład karty (`menu.dishIds`); `number` unikalny w restauracji; goście czytają najnowszą przez `PublishedView` |
 | RestaurantPick (`restaurant_pick`), PickEdit (`pick_edit`), od 2026-11-19 | tak | wybory restauracji (spec `2026-11-18-restaurant-picks`, PR1a): zbiór roboczy (jeden wiersz na restauracja + wino, maks. 5) i dziennik zmian; do gości dociera dopiero z publikacją (`snapshot.picks`); serwis, API i ekrany w kolejnych PR |
+| ProofLaunchDay (`proof_launch_day`), od 2026-11-22 | tak | dzień uruchomienia raportu wyników (spec `2026-11-18-owner-proof-report`, krok 3): dziennik tylko do dopisywania, najnowszy wiersz to bieżący dzień; serwis, API i ekran w kolejnych krokach |
 | GuestInteraction | tak | zapisywana od E02 F1 (spec `2026-10-15-guest-usage-events`) przez `GuestInteractionRepository` (`record`, `listBySession`, `countGuestSessions`, od E04 F1 `usageTotals` — agregaty okna KPI; od E04 F3 `pairingStats` — pokazania i wybory per (danie, wino, źródło z `props.items[].tier`) w oknie, dla A1 i E10 S4; pamięć: do 10 000 zdarzeń). `session_id` = parametr URL `sid` (bez tabeli GuestSession); `source`, `context`, `menuVersion` (= `restaurant.published_at`) w `props`; kolumna `version_id` nie istnieje. Sesja gościa = `session_id` ze zdarzeniem `guest_session_started` |
 | ImportJob | tak | wiersze podglądu w kolumnie `rows` (jsonb) zamiast tabeli ImportRow |
 | User (`app_user`), Membership, Session | tak | hasło jako skrót scrypt; w `session` tylko SHA-256 tokenu; licznik prób i blokada w `app_user`; `membership.role`: owner, manager, sommelier, waiter. `sommelier_decision.actor_id` wskazuje konto (zwykła kolumna). Od 2026-11-05 (E12 F1): `membership.status` (`active` / `deactivated`), `version`, `deactivated_at`, `deactivated_by`; `AuthRepository.membershipsOf` zwraca tylko aktywne, więc dezaktywowana osoba traci dostęp przy następnym żądaniu |
@@ -79,6 +80,7 @@ erDiagram
   Restaurant ||--o{ RestaurantPick : "restaurant picks"
   Wine ||--o{ RestaurantPick : "marked wine"
   Restaurant ||--o{ PickEdit : "picks history"
+  Restaurant ||--o{ ProofLaunchDay : "results report launch day"
   Restaurant ||--o{ OpportunityDismissal : "ignored opportunities"
   Restaurant ||--o{ RecommendationCode : "recommendation codes"
   Wine ||--o{ RecommendationCode : "chosen wine"
@@ -182,13 +184,17 @@ Dziennik zmian pól dania i wina (nazwa, opis, kategoria, cena; producent, nazwa
 | restaurant_id | uuid FK | każde zapytanie z `restaurantId` |
 | kind | enum | `dish`, `wine` |
 | subject_id | uuid | **bez klucza obcego**: historia przeżywa usunięcie dania lub wina |
-| action | enum | `create`, `update`, `hidden`, `shown` (C1 zapisuje `update`, C2 `hidden` i `shown` z `before` / `after` `{status}`; `create` dochodzi w C3) |
+| action | enum | `create`, `update`, `hidden`, `shown` (C1 zapisuje `update`, C2 `hidden` i `shown` z `before` / `after` `{status}`; C3 `create` z `before` `null` i `after` z wszystkimi polami nowej pozycji; dla wina także `style` i `grape`, a przy numerze „następny wolny” faktycznie nadany `listNumber`) |
 | actor, actor_id | text, uuid null | wyświetlana nazwa i konto (zwykłe kolumny) |
 | before, after | jsonb | **tylko zmienione pola** (`null` w `before` przy `create`) |
 | identity | boolean | zmiana nazwy dania albo producenta, nazwy lub rocznika wina: pary sommeliera wymagają drugiego spojrzenia („Check after rename”, wiersz w „Do przeglądu”) |
 | created_at | timestamptz | czas z `Clock` aplikacji; indeks `(restaurant_id, kind, subject_id, created_at)` |
 
 Odcisk pól (`dishFieldsVersion`, `wineFieldsVersion`, `core/src/services/catalog/catalog-edit-rules.ts`) to `expectedVersion` formularzy i `If-Match` API; obejmuje tylko edytowalne pola, więc zmiana profilu, tłumaczeń albo dostępności nie daje konfliktu. Unikalność: nazwa dania po `normKey` (także szkice i ukryte), klucz `producent|nazwa|rocznik` wina i numer na karcie (tylko gdy się zmienia), sprawdzane w transakcji pod blokadą doradczą `hashtext('catalog:' || restaurant_id)`, którą bierze też zatwierdzenie importu katalogu.
+
+### ProofLaunchDay (`proof_launch_day`), od 2026-11-22
+
+Dzień uruchomienia raportu wyników (spec `2026-11-18-owner-proof-report`, R5): pierwszy dzień biznesowy, w którym goście mogli korzystać z Wine Match; wyznacza stałe okno bazowe (28 dni przed). Dziennik tylko do dopisywania: zmiana dnia to nowy wiersz z powodem, nigdy edycja ani usunięcie (port `ProofLaunchRepository` ma tylko `current`, `history`, `append`). Kolumny: `id` uuid PK, `restaurant_id` FK, `seq` int (1, 2, … na restaurację), `launch_day` date, `reason` varchar(200) null, `set_by_role` (rola, nie dane osobowe; `text` z `CHECK` na te same cztery role co `membership.role`), `set_by_membership_id` uuid null (zwykła kolumna, do audytu), `set_at` (czas z zegara aplikacji); unikat `(restaurant_id, seq)`, indeks `(restaurant_id, set_at)`, `CHECK (seq >= 1)` i `CHECK (seq = 1 OR (reason IS NOT NULL AND char_length(btrim(reason)) > 0))`, więc baza sama odmawia drugiego wpisu bez powodu, także złożonego z samych spacji (`btrim` obcina spacje; serwis przycina też tabulatory i nowe linie, `normalizeReason`), i `CHECK` na rolę. Zapis bierze `pg_advisory_xact_lock(hashtext('proof_launch:' || restaurant_id))`, czyta najnowszy wiersz, sprawdza `expectedCurrent` (id wiersza, który zapisujący widział; inaczej `VersionConflictError`) i powód (`reason_required`, `reason_too_long`), po czym wstawia `seq + 1`. Obowiązuje najnowszy wiersz. Reguły: `core/src/services/proof/launch-rules.ts`.
 
 ### RestaurantPick (`restaurant_pick`) i PickEdit (`pick_edit`), od 2026-11-19
 
