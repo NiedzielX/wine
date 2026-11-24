@@ -52,6 +52,7 @@ related: []              # inne specyfikacje, runs, lessons
 superseded_by:           # tylko w archive/
 author_model:            # model, który napisał specyfikację (np. claude-opus-5-5), albo "not recorded"
 reviewed_by:             # model niezależnego recenzenta (inny niż autor), albo "not recorded (independent agent, model unknown)"
+review_independence: none   # none | different-session | different-model | different-family (jak niezależny od autora był przegląd; bez identyfikatorów modeli)
 ---
 
 # <Tytuł>
@@ -75,6 +76,9 @@ Pliki, moduły, zmiany w modelu danych / API / regułach silnika, wpływ na ekra
 
 ## Ryzyka i otwarte pytania
 
+## Przegląd niezależny
+Kto i jak przejrzał specyfikację (poziom z `review_independence`), główne uwagi i co z nimi zrobiono. Wymagane przed `approved`.
+
 ## Changelog
 - YYYY-MM-DD — Autor/recenzent: <model autora> / <model recenzenta> (źródło dowodu: log przebiegu albo wpis w specyfikacji).
 
@@ -82,7 +86,9 @@ Pliki, moduły, zmiany w modelu danych / API / regułach silnika, wpływ na ekra
 (Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
 ```
 
-**Konwencja „autor i recenzent” (dowód niezależnego przeglądu).** `author_model` i `reviewed_by` w frontmatterze oraz jedna linia „Autor/recenzent” w sekcji Changelog podają, **który model** napisał specyfikację i który ją przejrzał. Wpisujemy tylko to, co wynika z repozytorium (log przebiegu w `.ai/runs/`, wpis w Changelog); nigdy nie zgadujemy nazwy modelu. Gdy tekst mówi „przegląd niezależny”, a modelu nie podaje, wpisz `reviewed_by: not recorded (independent agent, model unknown)`. Gdy przeglądu nie było albo nie ma po nim śladu, zostaw pola puste lub `not recorded`. Recenzent powinien być innym modelem niż autor (AGENTS.md §3); klucze są opcjonalne dla `check:context`, który nie waliduje frontmattera specyfikacji.
+**Konwencja „autor i recenzent” (dowód niezależnego przeglądu).** `author_model` i `reviewed_by` w frontmatterze oraz jedna linia „Autor/recenzent” w sekcji Changelog podają, **który model** napisał specyfikację i który ją przejrzał. Wpisujemy tylko to, co wynika z repozytorium (log przebiegu w `.ai/runs/`, wpis w Changelog); nigdy nie zgadujemy nazwy modelu. Gdy tekst mówi „przegląd niezależny”, a modelu nie podaje, wpisz `reviewed_by: not recorded (independent agent, model unknown)`. Gdy przeglądu nie było albo nie ma po nim śladu, zostaw pola puste lub `not recorded`. Recenzent powinien być innym modelem niż autor (AGENTS.md §3); `author_model` i `reviewed_by` są opcjonalne dla `check:context`.
+
+**`review_independence` (egzekwowane przez `check:context`).** Poziom niezależności przeglądu od autora, bez identyfikatorów modeli: `none` (brak przeglądu lub brak śladu po nim), `different-session` (inna sesja tego samego modelu, świeży kontekst), `different-model` (inny model tej samej rodziny), `different-family` (model z innej rodziny). Wpisuj poziom, który faktycznie zachodził; `different-session` wpisane uczciwie jest lepsze niż `different-family` wpisane życzeniowo. Specyfikacja `approved` lub `in-progress` z datą w nazwie pliku od 2026-11-25 musi mieć wartość inną niż `none` i sekcję „Przegląd niezależny” (nagłówek), inaczej `check:context` kończy się błędem; wartość spoza zbioru jest błędem zawsze. Starsze specyfikacje bez pola dostają tylko ostrzeżenie „brak review_independence”. Zalecenia co do poziomu: `.ai/docs/review-protocol.md` §9.
 
 ### Szablon logu
 
