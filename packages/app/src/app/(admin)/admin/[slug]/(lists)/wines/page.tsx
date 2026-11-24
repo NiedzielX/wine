@@ -31,6 +31,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
   const access = await requireAccess(slug);
   const toggle = access.can('wines.toggle');
   const canPick = access.can('picks.edit');
+  const canAdd = access.can('catalog.edit');
   const cradle = (await getRequestScope()).cradle;
   const [list, picks] = await Promise.all([cradle.adminService.wines(slug, { q, style }, (await getI18n()).locale), cradle.picksService.list(slug)]);
   if (!list) notFound();
@@ -41,7 +42,7 @@ export default async function WinesPage({ params, searchParams }: Props) {
 
   return (
     <Page>
-      <PageHeader title={m.title} description={m.description(list.active, list.byGlass)} />
+      <PageHeader title={m.title} description={m.description(list.active, list.byGlass)} actions={canAdd && <Button asChild><Link href={`${path}/new`}>{t.admin.catalog.create.addWine}</Link></Button>} />
       <PanelExplain id="wines" className="-mt-3 mb-4" summary={t.admin.explain.wines.summary} points={t.admin.explain.wines.points} />
       <Flash saved={first(sp.saved)} error={first(sp.error)} />
       <form action={path} method="get" className="mb-4 flex flex-wrap items-center gap-2">

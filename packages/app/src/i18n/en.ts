@@ -742,6 +742,7 @@ export const en = {
         profile_unchanged: () => 'Nothing to change: the profile is already like this.',
         catalog_saved: (languages: string) => `Saved. Guests see the change now. Translations stay as published: check them.${languages ? ` Translations (${languages.toUpperCase().split(',').join(', ')}) may be outdated.` : ''}`,
         catalog_unchanged: () => 'Nothing to change: the details are already like this.',
+        catalog_created: () => 'Added. The taste profile is a draft: check it and confirm it.',
         dish_hidden: () => 'The dish is hidden from guests. They no longer see it.',
         dish_shown: (suggestions: number) => `The dish is back on the menu. Guests can see it now.${suggestions > 0 ? ` ${suggestions} engine suggestions were added for review.` : ''}`,
         translations: () => 'Translations saved. Guests see them after you publish.',
@@ -1539,6 +1540,14 @@ export const en = {
         baseHint: 'This is the base text. Translations are below.'
       },
       save: 'Save changes',
+      create: {
+        addDish: 'Add dish', addWine: 'Add wine',
+        dishTitle: 'New dish', dishText: 'A new dish starts as a draft: guests see it after you publish. Its taste profile is a draft too; check it and confirm it on the dish page.',
+        wineTitle: 'New wine', wineText: 'A new wine appears on the wine list with a draft taste profile; guests see it after you publish. Check the profile and confirm it on the wine page.',
+        submitDish: 'Add dish', submitWine: 'Add wine', cancel: 'Cancel',
+        style: 'Style', grape: 'Grape (optional)', grapeHint: 'Only used to prepare the draft taste profile; several grapes: separate them with a comma.',
+        listNumberHint: 'Leave empty to take the next free number.'
+      },
       visibility: {
         hide: 'Hide from guests', show: 'Show to guests',
         hideHint: 'Guests stop seeing the dish at once; its pairings and suggestions stay.',

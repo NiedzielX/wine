@@ -301,6 +301,31 @@ describe('concurrency on PostgreSQL', () => {
     }
   });
 
+  it('two dishes added with one name at once: one is created, the other is a duplicate; two wines added without a number get different numbers (spec 2026-11-16-catalog-field-editing, R8)', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(
+        async (): Promise<unknown> => catalogOf().createDish('halka', { name: 'Brand new tartlet', category: 'Starters', price: 30 }, MARTA),
+        async (): Promise<unknown> => catalogOf().createDish('halka', { name: 'BRAND NEW TARTLET!', category: 'Starters', price: 31 }, TOMASZ)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ fields: { name: 'duplicate' } });
+      expect(await sql("select 1 from dish where lower(regexp_replace(name, '[^A-Za-z]', '', 'g')) = 'brandnewtartlet'"), `round ${round}`).toHaveLength(1);
+      expect(await sql("select 1 from catalog_edit where restaurant_id = ? and action = 'create'", [ds.restaurant.id]), `round ${round}`).toHaveLength(1);
+    }
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(
+        async (): Promise<unknown> => catalogOf().createWine('halka', { producer: 'Race A', name: 'Cuvee', vintage: 2021, bottlePrice: 100, style: 'red' }, MARTA),
+        async (): Promise<unknown> => catalogOf().createWine('halka', { producer: 'Race B', name: 'Cuvee', vintage: 2021, bottlePrice: 100, style: 'red' }, TOMASZ)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(2);
+      const numbers = (await sql<{ list_number: number }>("select list_number from wine where producer in ('Race A', 'Race B')")).map((r) => r.list_number);
+      expect(new Set(numbers).size, `round ${round}: two different numbers`).toBe(2);
+      expect(await sql('select list_number from wine where restaurant_id = ? group by list_number having count(*) > 1', [ds.restaurant.id]), `round ${round}`).toHaveLength(0);
+    }
+  });
+
   it('two different dishes renamed to one name at once: one rename wins, the other is a duplicate, never two dishes with one name', async () => {
     const [a, b] = ds.dishes.filter((d) => d.status === 'published');
     for (let round = 0; round < ROUNDS; round++) {
