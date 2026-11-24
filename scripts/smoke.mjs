@@ -399,6 +399,41 @@ await check('a cancelled link is the one "not valid" page', new URL(madeBody.lin
 await check('an unknown link is the same page', '/admin/accept?token=smoke-not-a-real-link-0000', { cookie: '', status: 404, has: ['This link is not valid any more'] });
 await check('no token is a 404 too', '/admin/accept', { cookie: '', status: 404 });
 
+// --- restaurant's picks (spec 2026-11-18-restaurant-picks): A27 and its routes. Reads and refusals only, no pick is ever set.
+const picksPath = `/admin/${slug}/picks`;
+await check('A27 picks: the General Manager gets the working screen', picksPath, { cookie: GM, has: ['<title>Restaurant’s picks | Wine Match dashboard</title>', '>Restaurant’s picks</h1>', 'How picks work', 'Search wines'], hasNot: ['View only', 'Only the owner and the general manager change the picks.'] });
+await check('A27 picks: the Wine Director gets it view-only', picksPath, { has: ['>Restaurant’s picks</h1>', 'View only', 'Only the owner and the general manager change the picks.'] });
+await check('A27 picks: no session goes to sign-in', picksPath, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(picksPath)}` });
+const picksApi = `/api/v1/restaurants/${slug}/picks`;
+const picksRead = await check('picks API: the General Manager reads the set', picksApi, { cookie: GM, has: ['"version"', '"max"', '"picks"'] });
+const picksBody = JSON.parse(picksRead.text || '{}');
+expect('picks API has the documented shape (version, max, picks list) and an ETag', typeof picksBody.version === 'string' && Number.isInteger(picksBody.max) && Array.isArray(picksBody.picks) && (picksRead.res.headers.get('etag') ?? '') === `"${picksBody.version}"`, picksRead.text.slice(0, 200));
+await check('picks API: no session is 401', picksApi, { cookie: '', status: 401 });
+await check('picks API: no session cannot mark a wine (401)', `/api/v1/wines/${wine}/pick?restaurant=${slug}`, { method: 'PUT', body: { on: true }, cookie: '', status: 401 });
+await check('picks API: marking a wine without the CSRF token is refused (403), nothing is saved', `/api/v1/wines/${wine}/pick?restaurant=${slug}`, { method: 'PUT', body: { on: true }, cookie: GM, status: 403, has: ['csrf'] });
+await check('picks API: the set is unchanged after the refusal', picksApi, { cookie: GM, has: [`"version":"${picksBody.version}"`] });
+
+// --- adding a dish or a wine by hand (spec 2026-11-16-catalog-field-editing, C3): A32 forms, GET only (nothing is created)
+for (const [who, cookie] of [['the Wine Director', SESSION], ['the General Manager', GM]]) {
+  await check(`A32 ${who} gets the Add dish form`, `${A}/menu/new`, { cookie, has: ['id="dish-name"', 'id="dish-price"', 'New dish', 'Add dish'] });
+  await check(`A32 ${who} gets the Add wine form`, `${A}/wines/new`, { cookie, has: ['id="wine-producer"', 'id="wine-style"', 'New wine', 'Add wine'] });
+}
+for (const path of ['/menu/new', '/wines/new']) {
+  await check(`no session: A32 ${path} goes to sign-in`, `${A}${path}`, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(`${A}${path}`)}` });
+}
+
+// --- hiding a dish from guests (spec 2026-11-16-catalog-field-editing, C2): the A3 button and the status route, reads only
+await check('A3 shows "Hide from guests" to a role with catalog.edit', `${A}/menu/${duck}`, { has: ['Hide from guests'], hasNot: ['Show to guests'] });
+await check('A3 shows it to the General Manager too', `${A}/menu/${duck}`, { cookie: GM, has: ['Hide from guests'] });
+const vis = await check('visibility API: reads the status of a dish', `/api/v1/dishes/${duck}/visibility?restaurant=${slug}`, { cookie: SESSION, has: [`"id":"${duck}"`, '"status":"published"'] });
+expect('visibility API sends the version as an ETag', /^"[^"]+"$/.test(vis.res.headers.get('etag') ?? ''), vis.res.headers.get('etag'));
+await check('visibility API: no session is 401', `/api/v1/dishes/${duck}/visibility?restaurant=${slug}`, { cookie: '', status: 401 });
+await check('visibility API: hiding without the CSRF token is refused (403)', `/api/v1/dishes/${duck}/visibility?restaurant=${slug}`, { method: 'POST', body: { hidden: true }, cookie: SESSION, status: 403, has: ['csrf'] });
+await check('the dish is still published for guests after the refusal', `/api/v1/public/restaurants/${slug}/menu`, { cookie: '', has: [duck] });
+
+// --- public recommendations carry the restaurant's pick flag (spec 2026-11-18-restaurant-picks, R15)
+expect('API recommendations: every item has a boolean restaurantPick', recs.items.length > 0 && recs.items.every((i) => typeof i.restaurantPick === 'boolean'), JSON.stringify(recs.items.map((i) => i.restaurantPick)));
+
 // --- import, QR and setup (Phase 5). Nothing here changes the catalog: every import is cancelled.
 for (const path of ['/import/menu', '/import/wines', '/import/sales', '/setup', '/qr']) {
   await check(`no session: ${path} is not reachable`, `/admin/${slug}${path}`, { cookie: '', redirect: 'manual', status: 307, location: '/admin/login' });
