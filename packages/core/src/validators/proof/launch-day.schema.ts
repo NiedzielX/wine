@@ -23,3 +23,12 @@ export const launchDaySchema = z.strictObject({
 });
 
 export type LaunchDayInput = z.output<typeof launchDaySchema>;
+
+/**
+ * The same body as it arrives over HTTP (`POST /restaurants/{slug}/proof-launch`): `expectedCurrent` may be left out of the
+ * body when the caller sends the precondition in `If-Match`. The route decides (428 when neither is there) and always hands
+ * the service the complete `launchDaySchema` shape, so a missing precondition never reaches the port as "none".
+ */
+export const launchDayRequestSchema = launchDaySchema.partial({ expectedCurrent: true });
+
+export type LaunchDayRequest = z.output<typeof launchDayRequestSchema>;
