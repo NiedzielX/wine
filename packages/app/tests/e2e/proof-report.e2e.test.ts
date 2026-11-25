@@ -20,7 +20,7 @@ const page = async (s: Session, q = '', lang: 'en' | 'pl' = 'en') => {
   return { status: res.status, html: await res.text() };
 };
 /** the visible text: no markup and no script (the RSC payload of the page is a script) */
-const text = (html: string) => html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+const text = (html: string) => html.replace(/<script\b[\s\S]*?<\/script\s*>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 const currentId = (html: string) => /name="expectedCurrent"[^>]*value="([0-9a-f-]{36})"|value="([0-9a-f-]{36})"[^>]*name="expectedCurrent"/.exec(html)?.slice(1).find(Boolean) ?? '';
 const setDay = (s: Session, fields: Record<string, string>) => runAction(s, 'setProofLaunchDay', 'halka', { back: '/admin/halka/proof', ...fields }, ['/proof']);
 const rows = async () => queryDatabase<{ seq: number; launch_day: string; reason: string | null }>(db(), `select seq, to_char(launch_day, 'YYYY-MM-DD') as launch_day, reason from proof_launch_day p join restaurant r on r.id = p.restaurant_id where r.slug = 'halka' order by seq`, []);
