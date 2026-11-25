@@ -181,5 +181,5 @@ with open('menu-purchase-cost.csv', 'w', newline='', encoding='utf-8') as f:
 with open('wines-purchase-cost.csv', 'w', newline='', encoding='utf-8') as f:
     w = csv.writer(f, delimiter=';')
     w.writerow(['Producent', 'Wino', 'Rocznik', 'Region', 'Szczep', 'Kolor', 'Cena zakupu netto', 'Cena butelka'])
-    w.writerow(['Weingut Keller', 'Riesling trocken', '2022', 'Rheinhessen', 'Riesling', 'Białe', '7777,77', '240'])
-    w.writerow(['Isole e Olena', 'Chianti Classico', '2020', 'Tuscany', 'Sangiovese', 'Czerwone', '95,00', '220'])
+    w.writerow(['Bodega Prueba', 'Blanco de Prueba', '2022', 'Rías Baixas', 'Albariño', 'Białe', '7777,77', '240'])
+    w.writerow(['Bodega Prueba', 'Tinto de Prueba', '2020', 'Rioja', 'Tempranillo', 'Czerwone', '95,00', '220'])

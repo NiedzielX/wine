@@ -32,7 +32,7 @@ describe('purchase-cost columns in real files', () => {
 
   it('wines-purchase-cost.csv: the bottle price is "Cena butelka", the cost is skipped', async () => {
     const mapped = mapTable('wines', await table('wines-purchase-cost.csv'));
-    expect(mapped.records.map((r) => [r.name, r.bottlePrice, r.glassPrice])).toEqual([['Riesling trocken', '240', ''], ['Chianti Classico', '220', '']]);
+    expect(mapped.records.map((r) => [r.name, r.bottlePrice, r.glassPrice])).toEqual([['Blanco de Prueba', '240', ''], ['Tinto de Prueba', '220', '']]);
     expect(mapped.notes).toContain('Cost columns skipped, never read as a price: Cena zakupu netto.');
     expect(JSON.stringify(mapped)).not.toContain('7777');
   });
