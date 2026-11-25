@@ -1,6 +1,6 @@
 ---
 date: 2026-10-14
-updated:
+updated: 2026-11-25
 area: engine
 status: active
 source: .ai/runs/2026-10-14-import-and-qr.md
@@ -16,6 +16,7 @@ promoted: AGENTS.md §1.3
 - **Formularz wysyła stan KAŻDEGO pola.** Odznaczone pole „Import” przy wierszu, który użytkownik właśnie poprawił, nie jest jego decyzją. Traktuj stan jako wybór użytkownika tylko wtedy, gdy RÓŻNI SIĘ od zapisanego (`validate.ts: chose`).
 - **Szeroka tabela w siatce rozpycha stronę**, dopóki każdy poziom siatki nie ma `min-w-0` (przewijanie ma być wewnątrz karty).
 - **Rozróżniaj „brak pliku” i „pusty plik”:** przeglądarka wysyła pustą nazwę, gdy nic nie wybrano, i prawdziwą nazwę z rozmiarem 0 dla pustego pliku.
+- (2026-11-25) **Reguła prefiksu daje fałszywe dopasowanie cen.** „Cena zakupu netto” zaczyna się od synonimu `cena`, więc kolumna kosztu zakupu stawała się ceną dania lub wina, a ceny są danymi bieżącymi widocznymi dla gości bez publikacji; w menu synonimami ceny były nawet `cost` i `koszt`. Nagłówek ze słowem o koszcie zakupu (`isCostHeader` w `mapping.ts`) jest pomijany z uwagą w podglądzie, przed dopasowaniem po prefiksie. Nowy synonim ceny sprawdź przeciwko nagłówkom kosztu (`import.test.ts`: „cost columns are never read as a price”).
 
 ## Reguły
 - Typ pliku po **zawartości** (magic bytes); rozszerzenie niezgodne z zawartością = odmowa, nie zgadywanie. Limity: 10 MB, 2000 wierszy, rozpakowany XLSX ≤ 25 MB (zip bomb), brak parsera XML z encjami (XXE).
