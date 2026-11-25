@@ -1,9 +1,9 @@
 ---
 started: 2026-11-25 12:33
-ended: 2026-11-25 13:10
+ended: 2026-11-25 14:05
 agent: Claude Code (model not recorded)
 spec: .ai/specs/2026-11-25-margin-dashboard.md
-outcome: partial
+outcome: success
 related: [.ai/specs/2026-11-18-owner-proof-report.md, .ai/specs/2026-11-18-restaurant-picks.md]
 ---
 
@@ -21,10 +21,18 @@ Specyfikacja w statusie `draft` według szablonu z `.ai/docs/process-templates.m
 - `node scripts/check-qa-scenarios.mjs`: 156 scenarios, all linked.
 - `node scripts/secret-scan.mjs`: 22 matches, all on the allowlist.
 - Liczby przykładów M1–M6 przeliczone w `node` niezależnie od tekstu.
-- Przegląd niezależny: NIE wykonany, brak narzędzia pod-agentów w tej sesji; `review_independence: none`, powód w sekcji „Przegląd niezależny” specyfikacji. Wykonano tylko przegląd własny.
+- Pierwsza wersja: przegląd niezależny nie wykonany (brak narzędzia pod-agentów); wykonany później, patrz „Poprawki po przeglądzie”.
+
+## Poprawki po przeglądzie
+Przegląd niezależny wykonał agent w świeżym kontekście (inny model niż autor; pierwsza wersja nie miała go z powodu braku narzędzia pod-agentów w mojej sesji). Werdykt: gotowe po poprawkach. Poprawiono w `.ai/specs/2026-11-25-margin-dashboard.md`:
+- B1: metryka przemianowana na „marżę wina wskazanego w poleceniu” (porcja z wyboru gościa, domyślnie butelka; POS łączy kod z rachunkiem), D15, test z domyślną porcją; jawna porcja przy kodzie jako opcjonalny PR14.
+- W1–W10 i drobne 1–17: kolejność i podział PR (PR0–PR14), `costsVersion` z `ETag`/`If-Match`/428 i zapis zbiorczy, symulator bez zmian z dołożoną marżą po stronie `MarginReportService`, progi podpowiedzi z przykładem M7, mediana parzysta i punkt odniesienia, usunięcie konwersji z etykietą i flagi `pick`, kanarek dla wartości pochodnych i kanały boczne, PR0 (import nie zamienia kosztu w cenę), N04 (D17), D4 z opcją, walidacja `C` jako tekst, FK i 404, logi, `check:boundaries`, demo, VAT, tabela planu produktu, `costHistory`.
+- Odłożone z powodem: ustawienie VAT per lokal (D2), historia kosztu (D12), flaga `pick` i pomiar etykiety (D7).
+- Decyzje przeniesione: alternatywy D1–D17 do `.ai/specs/research/2026-11-25-margin-dashboard-decisions.md` (spec 35 839 B, limit 40 960). `review_independence: different-model`.
+- Weryfikacja po poprawkach: `check-context` 0 błędów, 35 ostrzeżeń (bez zmian); `check-qa-scenarios` 156 OK; `secret-scan` 22 na allowliście; liczby M5 (`s`, przedział) i M4 (mediana 43,9) przeliczone w `node`.
 
 ## Wynik
-Specyfikacja `draft` gotowa, 14 decyzji dla człowieka (D1–D14) z rekomendacjami, 11 PR-ów. Do zrobienia: przegląd niezależny, akceptacja człowieka. Nic nie wypchnięte.
+Specyfikacja `draft` po przeglądzie niezależnym, 17 decyzji dla człowieka (D1–D17) z rekomendacjami, 15 PR-ów (PR0–PR14). Do zrobienia: akceptacja człowieka. Nic nie wypchnięte.
 
 ## Lekcje
 brak
