@@ -33,7 +33,7 @@ A test without a scenario, or a scenario without a test, fails `node scripts/che
 | `ops` | Operator-facing behaviour of the running app: metrics endpoint, request log, health check, production smoke test |
 | `showcase` | The public sales pages under `/demo`: the return calculator and its printable summary (E22) |
 | `security` | Access boundaries by object id, role hierarchy, invitation forgery, security headers and error answers (`docs/security/threat-model.md`) |
-| `import` | Reserved for menu, wine and sales import (no end-to-end test yet) |
+| `import` | Menu, wine and sales import: how the columns of a file are read (a cost column is never a price) |
 
 Add a new area only when no existing one fits, and add it to this table in the same change.
 

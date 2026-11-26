@@ -29,6 +29,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 - Trasy `POST /dishes?restaurant=` i `POST /wines?restaurant=` (201, `Location`, `ETag`), `CatalogEditService.createDish` / `createWine`, `CatalogWriteRepository.createDish` / `createWine` (nazwa, klucz wina i numer na karcie sprawdzane pod blokadą restauracji, następny wolny numer liczony pod blokadą); wpisy audytu `catalog_edit` `create` (bez migracji).
 
 ### Poprawki
+- Import menu i win nie czyta kolumny kosztu jako ceny (`import-cost-columns-not-price`): nagłówek „Cena zakupu netto”, „Koszt”, „Cost”, „Purchase price” lub „Cena hurtowa” pasował do pola ceny przez regułę prefiksu (`cena`), więc koszt zakupu mógł trafić do menu gości (dane bieżące, bez publikacji). Taka kolumna jest teraz pomijana z uwagą w podglądzie. **Zmiana zachowania:** `cost` i `koszt` w imporcie menu dotąd oznaczały cenę dania, teraz są pomijane (`BACKWARD_COMPATIBILITY.md` §6). Wiersz T-44 w modelu zagrożeń, scenariusz `import-001`.
 - Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
 
 ### Operacje

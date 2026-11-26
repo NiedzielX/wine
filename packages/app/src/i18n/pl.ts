@@ -1747,6 +1747,7 @@ export const pl = {
         pdf: 'Ten PDF został odczytany jako tekst. PDF nie ma prawdziwych kolumn, więc przed importem sprawdź każdy wiersz.',
         noCategory: 'Brak kolumny z kategorią: dania bez kategorii trafiają do dań głównych. Sprawdź je w podglądzie.',
         unused: (columns: string) => `Nieużyte kolumny: ${columns}.`,
+        costSkipped: (columns: string) => `Pominięte kolumny kosztów, nigdy nie odczytywane jako cena: ${columns}.`,
         noHeader: (order: string) => `Nie znaleziono wiersza nagłówka, więc kolumny odczytano w tej kolejności: ${order}.`,
         noCovers: 'Brak kolumny z liczbą gości: z tego pliku nie da się policzyć przychodu z wina na gościa.',
         dayMonth: 'Daty typu 03/04/2026 odczytano jako dzień/miesiąc (3 kwietnia 2026).',

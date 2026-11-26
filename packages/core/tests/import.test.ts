@@ -514,4 +514,74 @@ describe('RestaurantService', () => {
   });
 });
 
+/* ------------------ cost columns are never prices (fix import-cost-columns-not-price) ------------------ */
+
+const COST_HEADERS = ['Cena zakupu', 'Cena zakupu netto', 'CENA ZAKUPU NETTO', '  cena  zakupu ', 'Koszt', 'KOSZT', 'Koszt własny', 'Cost', 'Cost price', 'Purchase price',
+  'Purchase cost', 'Cena hurtowa', 'Hurt', 'Cena hurt.', 'Cena zakupowa', 'Koszt zakupu (PLN)', 'Price cost'];
+const CANARY = '7777,77';
+
+describe('cost columns are never read as a price', () => {
+  it.each(COST_HEADERS)('menu: "%s" before "Cena" stays unmapped and the price is the Cena column', (cost) => {
+    const t = mapTable('menu', [['Danie', cost, 'Cena'], ['Tart', CANARY, '36']]);
+    expect(t.records).toEqual([{ category: '', name: 'Tart', description: '', price: '36' }]);
+    expect(JSON.stringify(t)).not.toContain(CANARY);
+    expect(t.notes.join('\n')).toContain(`Cost columns skipped, never read as a price: ${cost.trim()}.`);
+  });
+
+  it.each(COST_HEADERS)('wines: "%s" before "Cena butelka" stays unmapped', (cost) => {
+    const t = mapTable('wines', [['Producent', 'Wino', cost, 'Cena kieliszek', 'Cena butelka'], ['Keller', 'Riesling', CANARY, '52', '240']]);
+    expect(t.records[0]).toMatchObject({ glassPrice: '52', bottlePrice: '240' });
+    expect(JSON.stringify(t.records)).not.toContain(CANARY);
+    expect(t.notes.join('\n')).toContain('Cost columns skipped');
+  });
+
+  it('a cost column after the price and a cost column first of all behave the same', () => {
+    for (const rows of [[['Cost', 'Name', 'Price'], [CANARY, 'Tart', '36']], [['Name', 'Price', 'Cost'], ['Tart', '36', CANARY]]]) {
+      const t = mapTable('menu', rows);
+      expect(t.records[0]).toMatchObject({ name: 'Tart', price: '36' });
+      expect(JSON.stringify(t)).not.toContain(CANARY);
+    }
+  });
+
+  it('a file with only a cost column has a header and no price: the cost is not read headerless as a price either', () => {
+    const menu = mapTable('menu', [['Name', 'Koszt'], ['Tart', CANARY]]);
+    expect(menu.records).toEqual([{ category: '', name: 'Tart', description: '', price: '' }]);
+    expect(menu.notes.join('\n')).toContain('Cost columns skipped');
+    expect(menu.notes.join('\n')).not.toMatch(/No header row/);
+    const wines = mapTable('wines', [['Producer', 'Wine', 'Purchase price'], ['Keller', 'Riesling', CANARY]]);
+    expect(wines.records[0]).toMatchObject({ bottlePrice: '', glassPrice: '' });
+    expect(JSON.stringify(wines.records)).not.toContain(CANARY);
+  });
+
+  it('a plain price column still maps, and a file without cost columns has no cost note', () => {
+    for (const price of ['Cena', 'Price', 'Cena (PLN)', 'Price (PLN)', 'PLN']) {
+      const t = mapTable('menu', [['Name', price], ['Tart', '36']]);
+      expect(t.records[0]).toMatchObject({ name: 'Tart', price: '36' });
+      expect(t.notes.join('\n')).not.toContain('Cost columns');
+    }
+    for (const price of ['Cena', 'Price', 'Cena butelka']) expect(mapTable('wines', [['Producer', 'Wine', price], ['Keller', 'Riesling', '240']]).records[0]).toMatchObject({ bottlePrice: '240' });
+  });
+
+  it('cost columns are not listed twice (not as "Columns not used")', () => {
+    const t = mapTable('menu', [['Danie', 'Cena zakupu', 'Cena', 'Alergeny'], ['Tart', '5', '36', 'nuts']]);
+    expect(t.notes).toEqual([
+      'Cost columns skipped, never read as a price: Cena zakupu.',
+      'Columns not used: Alergeny.',
+      expect.stringMatching(/No category column/)
+    ]);
+  });
+
+  it('the import service keeps the cost out of the stored rows and says why the column was skipped', async () => {
+    const t = build();
+    t.files['menu-cost.xlsx'] = { parser: 'xlsx', rows: [['Category', 'Name', 'Description', 'Cena zakupu netto', 'Cena'], ['Desserts', 'Plum tart', 'Baked plum tart', CANARY, '36']] };
+    t.files['wines-cost.csv'] = { parser: 'csv', rows: [['Producer', 'Wine', 'Vintage', 'Region', 'Grape', 'Style', 'Koszt', 'Bottle price'], ['Keller', 'Riesling 2', '2022', 'Rheinhessen', 'Riesling', 'White', CANARY, '240']] };
+    const menu = await t.imp.upload('halka', 'menu', file('menu-cost.xlsx'), ACTOR);
+    expect(menu.rows[0].fields).toMatchObject({ price: '36' });
+    expect(menu.notes.some((n) => n.startsWith('Cost columns skipped'))).toBe(true);
+    const wines = await t.imp.upload('halka', 'wines', file('wines-cost.csv'), ACTOR);
+    expect(wines.rows[0].fields).toMatchObject({ bottlePrice: '240' });
+    expect(JSON.stringify([menu, wines, await t.imp.get('halka', menu.id)])).not.toContain('7777');
+  });
+});
+
 importContract('memory', async () => { const dataset = buildDemoDataset({ ids: 'uuid' }); return { repos: createMemoryRepositories(MemoryStore.from(dataset)), dataset }; }, { describe, it, expect, beforeEach });

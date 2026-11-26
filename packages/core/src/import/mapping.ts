@@ -12,7 +12,7 @@ const SYNONYMS: Record<'menu' | 'wines', Record<string, string[]>> = {
     name: ['name', 'dish', 'dish name', 'danie', 'nazwa', 'nazwa dania', 'pozycja', 'item', 'menu item'],
     description: ['description', 'opis', 'skladniki', 'ingredients', 'details', 'desc'],
     category: ['category', 'kategoria', 'section', 'sekcja', 'dzial', 'course', 'typ dania'],
-    price: ['price', 'cena', 'pln', 'zl', 'cost', 'koszt', 'cena pln', 'price pln']
+    price: ['price', 'cena', 'pln', 'zl', 'cena pln', 'price pln']
   },
   wines: {
     producer: ['producer', 'producent', 'winery', 'winnica', 'domaine', 'estate', 'maker'],
@@ -55,6 +55,18 @@ const DEFAULT_ORDER: Record<'menu' | 'wines', string[][]> = {
   wines: [['producer', 'name', 'vintage', 'region', 'grape', 'style', 'glassPrice', 'bottlePrice']]
 };
 
+/**
+ * A header about what the restaurant PAID („Cena zakupu netto”, „Koszt”, „Cost”, „Purchase price”, „Cena hurtowa”). Prices
+ * are current data and guests read them without a publish, so a cost must never become one: the prefix rule below would
+ * otherwise read „Cena zakupu” as „Cena”. Words are matched by their stem, so „zakupu”, „zakupowa”, „kosztu”, „hurt.” count.
+ * Until a margin feature exists, such a column is skipped with a note (spec 2026-11-25-margin-dashboard, R9).
+ */
+const COST_STEMS = ['zakup', 'koszt', 'cost', 'purchas', 'hurt', 'wholesale'];
+const PRICE_FIELDS = new Set(['price', 'glassPrice', 'bottlePrice']);
+export function isCostHeader(cell: string): boolean {
+  return normKey(cell).split(' ').some((word) => COST_STEMS.some((stem) => word.startsWith(stem)));
+}
+
 function matchField(kind: 'menu' | 'wines', cell: string): string | null {
   const k = normKey(cell);
   if (!k) return null;
@@ -81,16 +93,19 @@ export interface MappedTable {
 export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
   if (kind === 'sales') return mapSalesTable(rows);
   const key = kind === 'menu' ? 'name' : 'producer';
-  let best: { index: number; map: Record<string, number> } | null = null;
+  let best: { index: number; map: Record<string, number>; cost: Set<number> } | null = null;
   for (let i = 0; i < Math.min(5, rows.length); i++) {
     const map: Record<string, number> = {};
+    const cost = new Set<number>();
     rows[i].forEach((cell, c) => {
       const f = matchField(kind, cell);
+      // a cost header never becomes a price; it may still be another field (a note about purchasing is not a cost value)
+      if (isCostHeader(cell) && (!f || PRICE_FIELDS.has(f))) { cost.add(c); return; }
       if (f && !(f in map)) map[f] = c;
     });
-    // a plain "price" next to a glass price is the bottle price
+    // a plain "price" next to a glass price is the bottle price; a name next to a cost column is a header without a price
     const n = Object.keys(map).length;
-    if (n >= 2 && (key in map || 'name' in map) && (!best || n > Object.keys(best.map).length)) best = { index: i, map };
+    if ((n >= 2 || (n >= 1 && cost.size > 0)) && (key in map || 'name' in map) && (!best || n > Object.keys(best.map).length)) best = { index: i, map, cost };
   }
   const notes: string[] = [];
   let map: Record<string, number>;
@@ -99,7 +114,9 @@ export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
     map = best.map;
     start = best.index + 1;
     const known = Object.keys(map);
-    const ignored = rows[best.index].filter((c, i) => c && !Object.values(map).includes(i));
+    const costNames = rows[best.index].filter((c, i) => c && best!.cost.has(i)).map((c) => c.trim());
+    if (costNames.length) notes.push(`Cost columns skipped, never read as a price: ${costNames.join(', ')}.`);
+    const ignored = rows[best.index].filter((c, i) => c && !Object.values(map).includes(i) && !best!.cost.has(i));
     if (ignored.length) notes.push(`Columns not used: ${ignored.join(', ')}.`);
     if (kind === 'menu' && !('category' in map)) notes.push('No category column: dishes without a category are set to Mains. Check them in the preview.');
     void known;

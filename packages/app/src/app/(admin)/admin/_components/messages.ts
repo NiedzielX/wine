@@ -76,6 +76,8 @@ export function noteText(note: string, t: Dictionary): string {
   if (note === english.dayMonth) return n.dayMonth;
   if (note === english.monthDay) return n.monthDay;
   if (note === english.repeatedChecks) return n.repeatedChecks;
+  const cost = /^Cost columns skipped, never read as a price: (.*)\.$/.exec(note);
+  if (cost) return n.costSkipped(cost[1]);
   const unused = /^Columns not used: (.*)\.$/.exec(note);
   if (unused) return n.unused(unused[1]);
   const order = /^No header row was found, so the columns were read in this order: (.*)\.$/.exec(note);

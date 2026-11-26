@@ -137,6 +137,8 @@ describe('messages by code', () => {
     // English stays as core wrote it, except that the header-less column order names the columns as the table does
     expect(notes.map((n) => noteText(n, en))).toEqual(notes.map((n) => n.replace('order: name, price.', 'order: Name, Price (zł).')));
     expect(noteText(en.admin.import.notes.pdf, pl)).toBe(pl.admin.import.notes.pdf);
+    expect(noteText('Cost columns skipped, never read as a price: Cena zakupu netto, Koszt.', pl)).toBe('Pominięte kolumny kosztów, nigdy nie odczytywane jako cena: Cena zakupu netto, Koszt.');
+    expect(noteText('Cost columns skipped, never read as a price: Koszt.', en)).toBe('Cost columns skipped, never read as a price: Koszt.');
     expect(noteText('Columns not used: Colour, Notes.', pl)).toBe('Nieużyte kolumny: Colour, Notes.');
     expect(noteText('No header row was found, so the columns were read in this order: name, price.', pl)).toBe('Nie znaleziono wiersza nagłówka, więc kolumny odczytano w tej kolejności: Nazwa, Cena (zł).');
     expect(noteText('Something new.', pl)).toBe('Something new.');
