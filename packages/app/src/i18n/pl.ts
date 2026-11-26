@@ -1,4 +1,4 @@
-import type { EngineFacts, Role } from '@wine-match/core';
+import type { EngineFacts, ProofCaveat, ProofReason, Role } from '@wine-match/core';
 import { showcasePl } from './showcase-pl';
 import type { Dictionary, ExplainContext, HowItWorksSection, IssueParams, RestaurantExplainContext, TableFitText, TableQuantityText, UsageExplainFacts, WineExplainContext } from './en';
 
@@ -467,6 +467,7 @@ export const pl = {
       importSales: 'Import sprzedaży',
       opportunities: 'Okazje',
       picks: 'Wybory restauracji',
+      proof: 'Raport wyników',
       team: 'Zespół',
       acceptInvitation: 'Dołącz do restauracji'
     },
@@ -507,6 +508,7 @@ export const pl = {
       review: 'Do przeglądu',
       opportunities: 'Okazje',
       picks: 'Wybory restauracji',
+      proof: 'Raport wyników',
       publish: 'Publikacja',
       restaurant: 'Restauracja',
       importMenu: 'Import menu',
@@ -632,7 +634,8 @@ export const pl = {
         invitation_revoked: () => 'Zaproszenie anulowane. Jego link już nie działa.',
         pick_marked: () => 'Wino oznaczone jako wybór restauracji. Goście zobaczą to po publikacji.',
         pick_unmarked: () => 'Wybór usunięty. Goście przestaną go widzieć po publikacji.',
-        pick_unchanged: () => 'Nic do zmiany: wino już jest w tym stanie.'
+        pick_unchanged: () => 'Nic do zmiany: wino już jest w tym stanie.',
+        launch_day_saved: () => 'Dzień uruchomienia zapisany. Raport używa go teraz jako bazy.'
       },
       errors: {
         version_conflict: 'Ktoś przed chwilą to zmienił. Strona pokazuje teraz najnowszą wersję, spróbuj ponownie.',
@@ -686,6 +689,9 @@ export const pl = {
         invitation_conflict: 'Inne zaproszenie na ten adres powstało w tej samej chwili. Spróbuj ponownie.',
         catalog_conflict: 'Ktoś zmienił menu lub kartę win, gdy ten import był otwarty, i jedna z nowych pozycji już istnieje. Nic nie zaimportowano: zacznij import od nowa.',
         too_many_picks: 'Restauracja może oznaczyć najwyżej 5 win jako swoje wybory. Najpierw usuń jeden.',
+        invalid_launch_day: 'Dzień uruchomienia musi być prawdziwą datą od 2020-01-01 i nie późniejszą niż dziś.',
+        reason_required: 'Zmiana dnia uruchomienia wymaga krótkiego powodu.',
+        reason_too_long: 'Powód może mieć najwyżej 200 znaków.',
         wine_inactive: 'Wyborem może być tylko wino widoczne dla gości. Najpierw pokaż je na karcie win.',
         unexpected: 'Nie udało się zapisać zmiany. Nic nie zostało zmienione, spróbuj ponownie.'
       }
@@ -1268,6 +1274,104 @@ export const pl = {
           `Nazwiska gości, płatności i nazwy pozycji nie są zapisywane. Do ${maxRows} pozycji w pliku: większe eksporty dziel po całych dniach.`
         ]
       }
+    },
+    /**
+     * A33 „Raport wyników” (spec 2026-11-18-owner-proof-report, R4 do R9, R15). Zasady języka (R8): bez słowa „AI”, bez
+     * „gwarantowane”, bez przyczyny („dzięki Wine Match”, „efekt Wine Match”); zdania werdyktu są stałe; „zmierzone z eksportu POS”
+     * i „z Twoich rachunków” są dozwolone. Raport mówi, co się zmieniło i jak pewny jest wniosek, nigdy dlaczego.
+     */
+    proof: {
+      title: 'Raport wyników',
+      description: 'Co pokazują Twoje rachunki z kasy przed uruchomieniem i po nim, i jak pewny jest ten wniosek. Raport nie ustala, co spowodowało zmianę.',
+      window: (k: number, from: string, to: string) => `Okno ${k}: ${from} – ${to}`,
+      windowShort: (k: number) => `Okno ${k}`,
+      windowNav: 'Wybierz okno',
+      prev: 'Poprzednie okno',
+      next: 'Następne okno',
+      print: 'Wersja do druku',
+      launchSet: (day: string, role: string, changes: number) => `Dzień uruchomienia ustawiony ${day} przez rolę: ${role}${changes > 0 ? `; zmieniony ${changes} ${changes === 1 ? 'raz' : 'razy'}` : ''}.`,
+      launchChangedLate: 'Dzień uruchomienia zmieniony po zakończeniu okna 1',
+      dataThrough: (day: string, lastImport: string) => `Dane POS do dnia ${day}${lastImport ? `, ostatni import ${lastImport}` : ''}.`,
+      emptyNoLaunchTitle: 'Najpierw ustaw dzień uruchomienia',
+      emptyNoLaunchText: 'Raport porównuje 28 dni przed uruchomieniem z 28-dniowymi oknami po nim. Wpisz pierwszy dzień, w którym goście mogli korzystać z Wine Match przy stolikach.',
+      emptyNoLaunchReadOnly: 'Dzień uruchomienia nie jest ustawiony. Poproś właściciela lub dyrektora generalnego o jego wpisanie.',
+      emptyNoImportTitle: 'Wgraj eksport POS',
+      emptyNoImportText: 'Raport jest zmierzony z Twojej sprzedaży w kasie. Nie zaimportowano jeszcze żadnej sprzedaży.',
+      emptyNoImportAction: 'Importuj sprzedaż',
+      invalidWindowTitle: 'Takie okno nie istnieje',
+      invalidWindowText: (max: number) => `Okno to liczba całkowita od 1 do ${max}, a samo okno musi się już zacząć.`,
+      invalidWindowAction: 'Pokaż najnowsze okno',
+      resultTitle: 'Wynik',
+      before: 'Przed',
+      after: 'Po',
+      checksOf: (n: number, m: number) => `${n} z ${m} rachunków z jedzeniem zawierało wino`,
+      tradingDays: (d: number, days: number) => `dni z danymi: ${d} z ${days}`,
+      changeLine: (delta: string, low: string, high: string) => `${delta} punktów procentowych, przedział od ${low} do ${high}`,
+      minimumChange: (pp: number) => `Przy takiej liczbie rachunków raport może pokazać wzrost od około ${pp} punktów procentowych.`,
+      verdict: {
+        increase: 'Odsetek rachunków z winem jest wyższy niż w oknie bazowym i różnica jest większa niż zwykłe wahania przy tej liczbie rachunków. Raport nie ustala, co ją spowodowało.',
+        decrease: 'Odsetek rachunków z winem jest niższy niż w oknie bazowym i różnica jest większa niż zwykłe wahania przy tej liczbie rachunków. Raport nie ustala, co ją spowodowało.',
+        inconclusive: 'Z tych danych nie da się powiedzieć, czy odsetek wzrósł, spadł, czy został bez zmian.'
+      },
+      notEnoughTitle: 'Za mało danych, żeby pokazać zmianę',
+      notEnoughText: 'Poniżej same liczby. Zmiana, jej przedział i werdykt pojawią się, gdy oba okresy będą miały dość danych.',
+      rateHidden: (min: number) => `poniżej ${min} rachunków: bez procentu`,
+      baselineLabel: 'Baza',
+      reasons: {
+        no_launch_day: () => ({ what: 'Nie ustawiono dnia uruchomienia.', todo: 'Wpisz dzień uruchomienia poniżej.' }),
+        no_sales_import: () => ({ what: 'Nie zaimportowano sprzedaży z POS.', todo: 'Wgraj eksport POS.' }),
+        baseline_no_data: (f: { from: string; to: string }) => ({ what: 'Baza nie ma sprzedaży.', todo: `Wgraj eksport POS za ${f.from} – ${f.to}.` }),
+        baseline_too_few_checks: (f: { minChecks: number }) => ({ what: `Baza ma mniej niż ${f.minChecks} rachunków z jedzeniem.`, todo: 'Dłuższa baza nie jest możliwa: raport bierze 28 dni przed uruchomieniem. Sprawdź, czy cały okres jest zaimportowany.' }),
+        baseline_too_few_days: (f: { minDays: number }) => ({ what: `Baza ma dane z mniej niż ${f.minDays} dni.`, todo: 'Sprawdź, czy eksport obejmuje każdy dzień, w którym lokal był otwarty.' }),
+        window_incomplete: (f: { to: string }) => ({ what: 'To okno jeszcze trwa.', todo: `Wróć po ${f.to}; liczby wyżej są częściowe.` }),
+        window_not_imported: (f: { to: string; dataThrough: string }) => ({ what: `Dane POS kończą się ${f.dataThrough}, przed końcem okna.`, todo: `Wgraj eksport POS do ${f.to}.` }),
+        window_too_few_checks: (f: { minChecks: number }) => ({ what: `Okno ma mniej niż ${f.minChecks} rachunków z jedzeniem.`, todo: 'Poczekaj na następne okno albo sprawdź import.' }),
+        window_too_few_days: (f: { minDays: number }) => ({ what: `Okno ma dane z mniej niż ${f.minDays} dni.`, todo: 'Sprawdź, czy eksport obejmuje każdy dzień, w którym lokal był otwarty.' })
+      } as Record<ProofReason, (f: { from: string; to: string; minChecks: number; minDays: number; dataThrough: string }) => { what: string; todo: string }>,
+      oldBaseline: 'Baza jest starsza niż trzy okna. Pora roku, zmiana karty lub cen mogą tłumaczyć różnicę.',
+      tableTitle: 'Wszystkie okna',
+      colPeriod: 'Okres',
+      colChecks: 'Rachunki z winem',
+      colRate: 'Odsetek',
+      colInterval: 'Przedział',
+      colChange: 'Zmiana',
+      colDays: 'Dni z danymi',
+      noValue: '–',
+      incomplete: 'okno trwa',
+      groupsTitle: 'Rachunki z kodem i bez',
+      groupsCaveat: 'To zestawienie, nie dowód przyczyny. Stoliki, które użyły kodu, same sięgnęły po rekomendację; mogły zamówić wino i bez niej. Brak kodu w kasie nie znaczy, że stolik nie użył Wine Match. Kod wpisuje się przy zamówieniu polecanego wina, więc odsetek w grupie z kodem jest wysoki z definicji.',
+      groupWithCode: 'Z kodem',
+      groupWithoutCode: 'Bez kodu',
+      groupNotEnough: 'za mało danych',
+      groupRevenue: 'Przychód z wina na rachunek z jedzeniem',
+      groupNone: 'Baza nie ma grup: kodów wtedy jeszcze nie było.',
+      codesTitle: 'Kody polecenia w oknie',
+      codesIssued: 'Wydane',
+      codesConfirmed: 'Potwierdzone przez kelnera',
+      codesInSales: 'Znalezione w sprzedaży',
+      codesOrdered: 'Zamówione',
+      codesUnmatched: 'W POS bez polecenia',
+      howTitle: 'Jak to liczymy',
+      howText: (f: { minChecks: number; minDays: number }) => `Baza to 28 dni przed dniem uruchomienia, a każde okno to kolejne 28 dni (cztery pełne tygodnie), zmierzone z Twojego eksportu POS. Rachunek liczy się, gdy ma jedzenie; ma wino, gdy suma linii z winem po zwrotach jest większa od zera; rachunki tylko barowe są pominięte. Odsetek to rachunki z winem podzielone przez rachunki z jedzeniem. Okres potrzebuje co najmniej ${f.minChecks} rachunków z jedzeniem i danych z co najmniej ${f.minDays} dni. Przedział jest co najmniej tak szeroki, jak pokazany: rachunki jednego dnia są do siebie podobne, a okna ogląda się jedno po drugim bez poprawki. To nie jest test statystyczny ani podstawa do automatycznych decyzji.`,
+      notTitle: 'Czego ten raport nie mówi',
+      notPoints: {
+        not_causal: 'Dlaczego odsetek się zmienił: raport pokazuje, co się zmieniło, nie przyczynę.',
+        no_control_group: 'Nie ma grupy porównawczej, innej restauracji ani stolików bez aplikacji.',
+        season_menu_prices: 'Pora roku, nowa karta, zmiany cen, pogoda i wydarzenia mogą same przesunąć odsetek.',
+        checks_of_a_day_are_alike: 'Rachunki jednego dnia są do siebie podobne (weekend, pogoda), więc prawdziwa niepewność jest większa niż przedział.',
+        looks_are_not_corrected: 'Okna ogląda się jedno po drugim, a przedziały nie są o to poprawione.'
+      } as Record<ProofCaveat, string>,
+      launchTitle: 'Dzień uruchomienia',
+      launchHelp: 'Pierwszy dzień, w którym goście mogli korzystać z Wine Match przy stolikach. Wyznacza bazę. Zmiana trafia do historii z powodem, nigdy nie nadpisuje wpisu.',
+      launchLabel: 'Dzień uruchomienia',
+      reasonLabel: 'Powód zmiany',
+      reasonFirst: 'Przy pierwszym wpisie nieobowiązkowy.',
+      reasonLater: 'Wymagany: krótki powód, do 200 znaków.',
+      save: 'Zapisz dzień uruchomienia',
+      readOnly: 'Dzień uruchomienia zmieniają tylko właściciel i dyrektor generalny.',
+      historyTitle: 'Historia',
+      historyEntry: (n: number, day: string, role: string, when: string) => `${n}. ${day}, rola: ${role}, ${when}`,
+      historyReason: (reason: string) => `Powód: ${reason}`
     },
     team: {
       title: 'Zespół',
