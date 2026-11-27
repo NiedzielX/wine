@@ -228,4 +228,4 @@ Zatwierdzona przez właściciela 2026-11-18. Decyzje: Q1 progi bez zmian, raport
 - 2026-11-18 — Zatwierdzona (status approved) z decyzjami Q1, Q4, Q9 i wariantu zwrotu jak w „Gotowość”.
 
 ## Realizacja
-(Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
+Logi: `.ai/runs/2026-11-24-results-report-s5-s7.md` (mapa AC na testy, odstępstwa). `status` do zielonego CI testów przeglądarkowych.

@@ -20,7 +20,7 @@ const page = async (s: Session, q = '', lang: 'en' | 'pl' = 'en') => {
   return { status: res.status, html: await res.text() };
 };
 /** the visible text: no markup and no script (the RSC payload of the page is a script) */
-const text = (html: string) => html.replace(/<script\b[\s\S]*?<\/script\s*>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+const text = (html: string) => html.replace(/<script\b[\s\S]*?<\/script[^>]*>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, '\'').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 const currentId = (html: string) => /name="expectedCurrent"[^>]*value="([0-9a-f-]{36})"|value="([0-9a-f-]{36})"[^>]*name="expectedCurrent"/.exec(html)?.slice(1).find(Boolean) ?? '';
 const setDay = (s: Session, fields: Record<string, string>) => runAction(s, 'setProofLaunchDay', 'halka', { back: '/admin/halka/proof', ...fields }, ['/proof']);
 const rows = async () => queryDatabase<{ seq: number; launch_day: string; reason: string | null }>(db(), `select seq, to_char(launch_day, 'YYYY-MM-DD') as launch_day, reason from proof_launch_day p join restaurant r on r.id = p.restaurant_id where r.slug = 'halka' order by seq`, []);
@@ -74,6 +74,29 @@ describe('A33 results report (PostgreSQL, no JavaScript)', () => {
     // the api carries the same numbers
     const api = (await (await get(manager, '/api/v1/restaurants/halka/proof-report?window=1')).json()) as { report: { verdict: string; baseline: { foodChecks: number }; window: { foodChecksWithWine: number } } };
     expect(api.report).toMatchObject({ verdict: 'increase', baseline: { foodChecks: 120 }, window: { foodChecksWithWine: 65 } });
+  });
+
+  it('A34: the printable page has the report without controls, the Ctrl/Cmd+P line and nothing from outside, and the Wine Director is refused', async () => {
+    const res = await fetch(`${base()}/admin/halka/proof/print?window=1`, { headers: { cookie: `${manager.cookie}; wm_lang=en` }, redirect: 'manual' });
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    const t = text(html);
+    expect(t).toContain('Results report: Halka');
+    expect(t).toMatch(/Before \(Baseline\).*35%.*After.*50%/);
+    expect(t).toContain('+15 percentage points, interval from +2 to +27');
+    expect(t).toContain('POS data through 1 Mar 2026.');
+    expect(t).toContain('To print or save as PDF, use Ctrl/Cmd+P.');
+    expect(t).toContain('This is a comparison, not proof of a cause.');
+    expect(t).toContain('How we calculate');
+    // without a script there is no print button and no form; the controls are hidden on paper; nothing is fetched from outside
+    expect(html).not.toContain('data-print-button');
+    expect(html).not.toMatch(/<form[^>]*name="launchDay"|name="launchDay"/);
+    expect(html).toMatch(/print:hidden/);
+    expect(html).not.toMatch(/(?:src|href)="https?:\/\//);
+    expect(html).not.toMatch(/SECRETCHK|Z9Q|check_?id|sid=/i);
+    expect(t).not.toMatch(FORBIDDEN_WORDS);
+    expect((await fetch(`${base()}/admin/halka/proof/print?window=1`, { headers: { cookie: sommelier.cookie }, redirect: 'manual' })).status).toBe(403);
+    expect((await fetch(`${base()}/admin/halka/proof/print`, { redirect: 'manual' })).status).toBe(307);
   });
 
   it('A33: a window without data of its own shows the counters and the reason with what to do, and no change or verdict; a window that does not exist is an error message', async () => {
