@@ -77,6 +77,8 @@ Uzasadnienie ceny: przy 1 500 gościach miesięcznie wzrost Wine Attach Rate o 5
 
 Doprecyzowanie z 2026-10-15 (decyzja właściciela, spec `2026-10-15-pos-sales-import-attach-rate`, Q7): wcześniejsze brzmienie „zamówienia z co najmniej jedną pozycją wina / zamówienia z jedzeniem” nie ograniczało licznika do rachunków z jedzeniem. Ponieważ wskaźnik jest per rachunek, a nie per gość, założenie „+5 pp” (§5) nie przekłada się 1:1 na liczbę gości. W panelu: karta „Wine Attach Rate” na A13 (wybrany okres), dashboard A1 (E04).
 
+**Raport wyników i stała baza (spec `2026-11-18-owner-proof-report`):** A1 porównuje ruchome 28 dni z poprzednimi 28, więc po dwóch miesiącach mierzy tempo, nie efekt uruchomienia. Raport wyników (A33) ma **stałą bazę**: 28 dni przed dniem uruchomienia, wpisanym przez właściciela lub GM i zmienianym tylko dopisaniem z powodem, oraz kolejne 28-dniowe okna. Pokazuje Wine Attach Rate przed i po z przedziałem niepewności, mówi „za mało danych” poniżej 30 rachunków z jedzeniem lub 14 dni z danymi i nie twierdzi nic o przyczynie.
+
 ### KPI sprzedażowe (wymagają danych sprzedaży)
 
 | KPI | Definicja |

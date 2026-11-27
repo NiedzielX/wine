@@ -1,7 +1,7 @@
 {
   "name": "wine-match",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "Wine Match \u2014 B2B2C wine pairing platform for restaurants (monorepo)",
   "workspaces": [
@@ -58,12 +58,12 @@
   },
   "devDependencies": {
     "@types/node": "22.20.5",
-    "@vitest/coverage-v8": "5.0.5",
-    "oxlint": "1.89.0",
+    "@vitest/coverage-v8": "5.1.0",
+    "oxlint": "1.93.0",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
-    "vite": "8.3.5",
-    "vitest": "5.0.5"
+    "vite": "8.3.7",
+    "vitest": "5.1.0"
   },
   "allowScripts": {
     "esbuild": false

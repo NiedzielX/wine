@@ -83,6 +83,18 @@ describe('the request guard: sessions, CSRF, cross-site, permissions, bodies', (
     expect(text).not.toContain('secret');
   });
 
+  it('a route that names a permission never reaches its handler without a restaurant: 401 first, then 422, never a skipped check', async () => {
+    let ran = false;
+    const handler = async () => { ran = true; return apiError(200, 'ok', 'x'); };
+    const anon = await handle(req('http://localhost/x'), { write: false, route: '/x', permission: 'catalog.edit' }, handler);
+    expect(anon.status).toBe(401);
+    const session = await loginAs('marta@halka.pl');
+    const noSlug = await handle(req('http://localhost/x', { cookie: session.cookie }), { write: false, route: '/x', permission: 'catalog.edit' }, handler);
+    expect(noSlug.status).toBe(422);
+    expect(await noSlug.json()).toMatchObject({ error: { code: 'validation_failed', fields: { restaurant: 'required' } } });
+    expect(ran).toBe(false);
+  });
+
   it('a protected route: no session is 401; a wrong CSRF token is 403; a missing role is 403; a good request runs', async () => {
     const anon = await handle(req('http://localhost/x'), { write: false, route: '/x' }, async () => apiError(200, 'ok', 'x'));
     expect(anon.status).toBe(401);

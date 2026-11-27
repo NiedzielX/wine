@@ -71,6 +71,8 @@ Dowieźć pięć funkcji z TLDR jako pięć mergeowalnych faz.
 - **R5** Panel: kolumna dostępności na A4 i przełącznik na A5 (trzy stany jako trzy przyciski, działają bez JavaScriptu); tekst „Ukryte” i „Wyprzedane” rozróżnialne tekstem, nie kolorem. API: `PATCH /api/v1/wines/{id}/availability?restaurant={slug}` (nowa trasa, istniejące `PATCH .../wines/{id}` z `{active}` bez zmian).
 
 ### Wina do sprzedania (F2)
+> **F2 zastąpione przez `2026-11-18-restaurant-picks`** (zatwierdzone 2026-11-18); treść poniżej historyczna, nie do implementacji.
+
 - **R6** `Wine.sellPriority: boolean` (+ `sell_priority_set_at`, `sell_priority_set_by`). Ustawia tylko `SommelierService`-obok serwis `PriorityService.setSellPriority(slug, wineId, on, actor)` z uprawnieniem `wines.priority`; maks. `SELL_PRIORITY_MAX = 5`, tylko wino `active`. Limit sprawdzany atomowo (blokada wiersza restauracji w transakcji i zliczenie w tej samej transakcji; dwa równoległe zapisy nie przekroczą 5). Wyłączenie wina (`active = false`) lub usunięcie go nie zwalnia licznika po cichu: wino nieaktywne nie liczy się do limitu i traci znacznik przy odczycie.
 - **R7** `recommendForDish` przyjmuje zbiór win z priorytetem. Invarianty (każdy ma test):
   1. bez priorytetów wynik jest bit w bit taki jak dziś (test złoty `engine-golden` bez zmian);
@@ -145,7 +147,7 @@ Dowieźć pięć funkcji z TLDR jako pięć mergeowalnych faz.
 | Faza | Zmiana | Uwagi |
 |---|---|---|
 | F1 | `wine.availability text not null default 'available'` z check, `availability_changed_at timestamptz null`, `availability_changed_by text null` | Dodatkowo domena: `Wine.availability`, `isOrderable`; mapper w `db/src/mappers.ts`; dane demo Halka bez zmian (`available`). |
-| F2 | `wine.sell_priority boolean not null default false`, `sell_priority_set_at`, `sell_priority_set_by` | Bez indeksu (≤ 100 win). Limit 5 pilnuje serwis, nie baza. |
+| F2 (**zastąpione**: `2026-11-18-restaurant-picks`) | `wine.sell_priority boolean not null default false`, `sell_priority_set_at`, `sell_priority_set_by` | Bez indeksu (≤ 100 win). Limit 5 pilnuje serwis, nie baza. |
 | F3 | tabela `restaurant_brand (restaurant_id pk/fk, accent_hex char(7) null, logo bytea null, logo_type text null, logo_version int, updated_at, updated_by)` | Osobna tabela, żeby odczyt restauracji nie ciągnął `bytea`. Kolumny `bytea` w `defineEntity`: do sprawdzenia, jak mapuje to MikroORM 7.2 (O6). |
 | F5 | `notification_seen (user_id, restaurant_id, seen_at)` z unikalnym `(user_id, restaurant_id)` | Jedyna nowa tabela dzwonka; reszta pochodna. |
 Po każdej migracji: `db:migration:create`, przegląd SQL, `db:migrate`, `schema:check` dla każdej nazwy bazy (lekcja `schema-check-snapshot-per-database`), wpis w `docs/DATA_MODEL.md`, pozycja w BC §3, w kontrakcie repozytoriów przypadki dla nowych metod portu.
@@ -162,7 +164,7 @@ Wyniki są identyczne, gdy żadne wino nie ma ustawionego priorytetu: `ENGINE_VE
 | A4, A5 | kolumna dostępności, znacznik „Do sprzedania”, przełączniki | istniejące | F1, F2 |
 | A6, A1 | znacznik priorytetu w propozycjach; Primary wyprzedane | istniejące | F1, F2 |
 | A26 | Dostępność win (kolumna na A4, przełącznik na A5, oznaczenie Primary wyprzedanego na A6 i A1) | istniejące strony, bez nowej trasy | F1 |
-| A27 | „Wina do sprzedania” (znacznik i licznik n z 5 na A4, oznaczenie w propozycjach A6, zmiana tylko z `wines.priority`) | istniejące strony, bez nowej trasy | F2 |
+| A27 | „Wina do sprzedania” (**F2 zastąpione**: A27 „Wybory restauracji”, `2026-11-18-restaurant-picks`; znacznik i licznik n z 5 na A4, oznaczenie w propozycjach A6, zmiana tylko z `wines.priority`) | istniejące strony, bez nowej trasy | F2 |
 | A28 | Branding (logo, akcent, podgląd G0) | `/admin/{slug}/branding` | F3 |
 | A29 | Zestaw QR do druku, rozszerza A12 (`?template=`, `?tables=`) | istniejący `/admin/{slug}/qr` | F4 |
 | (stan A1) | Powiadomienia: pełna lista, „Oznacz jako przeczytane”; **plan nie przydziela E19 osobnego numeru ani tej funkcji w zakresie E19**, więc to stan Dashboardu (A1) pod `/admin/{slug}/notifications`, nie nowy ekran; F5 wymaga potwierdzenia właściciela (O12) | `/admin/{slug}/notifications` | F5 |
@@ -170,11 +172,11 @@ Wyniki są identyczne, gdy żadne wino nie ma ustawionego priorytetu: `ENGINE_VE
 Dzwonek to link z licznikiem tekstowym i `sr-only` w AdminShell (bez rozwijanej listy, więc działa bez JavaScriptu). Identyfikatory A26–A29 pochodzą z tabeli przydziału w planie (sekcja „Identyfikatory ekranów”); A15–A25 należą do innych epików.
 
 ### Uprawnienia (`core/src/auth/permissions.ts`)
-Nowe: `wines.priority` i `branding.edit` (owner, manager); bez zmian `wines.toggle`, `panel.view`. Macierz w `docs/USER_ROLES.md` i testy `permissions` dostają nowe wiersze (w tym test ścieżki odmowy dla sommeliera i kelnera, BC §5: zmiana uprawnień wymaga specyfikacji, aktualizacji `USER_ROLES.md` i drugiej osoby w review). Nazwy `wines.priority` i `branding.edit` zgodne z planem; tabelę prowadzi E12, więc wpisy dopisujemy do niej, nie tworzymy własnej; kolejność scalania z E12 do ustalenia.
+Nowe: `wines.priority` (F2 zastąpione: `picks.edit` z `2026-11-18-restaurant-picks`) i `branding.edit` (owner, manager); bez zmian `wines.toggle`, `panel.view`. Macierz w `docs/USER_ROLES.md` i testy `permissions` dostają nowe wiersze (w tym test ścieżki odmowy dla sommeliera i kelnera, BC §5: zmiana uprawnień wymaga specyfikacji, aktualizacji `USER_ROLES.md` i drugiej osoby w review). Nazwy `wines.priority` i `branding.edit` zgodne z planem; tabelę prowadzi E12, więc wpisy dopisujemy do niej, nie tworzymy własnej; kolejność scalania z E12 do ustalenia.
 
 ### Fazy (każda osobny PR)
 - **F1. Dostępność** (risk: **high**: migracja schematu i zmiana widoku gościa; SDLC `risk-high` dla migracji, wymaga QA reviewera albo wyjątku właściciela). Zakres: R1–R5, AC1–AC7, AC21–AC22. Kolejność: domena + `isOrderable` + migracja + port/pamięć/PG + kontrakt → serwis i trasa → akcja i A4/A5/A6/A1 → gość (G3, G7, G8, G9, `RecommendationCodeService`) → docs. Weryfikacja: `npm run lint`, `typecheck`, `npm test`, `npm run test:db`, `npm run build`, `npm run test:e2e`, UI przy 390 i 1440 px (A4, A5, G3, G7).
-- **F2. „Wina do sprzedania”** (risk: high; migracja schematu, zmiana rankingu, wrażliwość N01, wymaga QA reviewera lub wyjątku właściciela). Zakres: R6–R11, AC8–AC13, AC21–AC22. Kolejność: krok 1 `npm run engine:matrix` na Halce, żeby potwierdzić `SELL_PRIORITY_MIN_SCORE` i `BOOST` → migracja → `recommendForDish` + testy własności (z mutacją) → `PriorityService` i uprawnienie → A4/A6 → etykieta gościa i G12 → docs. Weryfikacja: jak F1 + `engine-golden` + test własności + UI G3/G9 przy 390 i 1440 px + `check:design`.
+- **F2. „Wina do sprzedania”** — **F2 zastąpione przez `2026-11-18-restaurant-picks`; nie implementować** (risk: high; migracja schematu, zmiana rankingu, wrażliwość N01, wymaga QA reviewera lub wyjątku właściciela). Zakres: R6–R11, AC8–AC13, AC21–AC22. Kolejność: krok 1 `npm run engine:matrix` na Halce, żeby potwierdzić `SELL_PRIORITY_MIN_SCORE` i `BOOST` → migracja → `recommendForDish` + testy własności (z mutacją) → `PriorityService` i uprawnienie → A4/A6 → etykieta gościa i G12 → docs. Weryfikacja: jak F1 + `engine-golden` + test własności + UI G3/G9 przy 390 i 1440 px + `check:design`.
 - **F3. Branding** (risk: **high**: migracja schematu, treść wgrywana przez użytkownika serwowana publicznie). Zakres: R12–R15, AC14–AC16, AC21–AC22. Kolejność: `validateAccent` + stałe i test zgodności z `guest.css` → migracja i repozytorium → trasa logo → A28 z podglądem → zagnieżdżony layout gościa i `RestaurantHero` → `check:design` rozszerzony o walidację przykładowych akcentów (bez podnoszenia baseline) → docs. Weryfikacja: jak F1 + `check:design` + a11y/kontrast + UI G0, G3, A28 przy 390 i 1440 px.
 - **F4. Zestaw QR** (risk: low, bez migracji). Zakres: R16–R18, AC17–AC18, AC21–AC22. Kolejność: szablony i `@page` → `?template=`, `?tables=` → wyłączenie druku przy adresie lokalnym → logo i akcent na stojaku (po F3, miękka zależność) → docs. Weryfikacja: lint, typecheck, unit/SSR, build, `smoke`, podgląd wydruku (A4, A6) w przeglądarce i UI przy 390 i 1440 px.
 - **F5. Dzwonek** (risk: **high**: migracja schematu; warunkowa, patrz O12). Zakres: R19–R21, AC19–AC22. Kolejność: reguły pochodne (czysta funkcja) → migracja `notification_seen` → serwis → AdminShell (licznik) i stan A1 „powiadomienia” → docs. Weryfikacja: jak F1, plus pomiar kosztu licznika w layoucie na Halce (O7).
@@ -209,6 +211,7 @@ Kolejność pracy: F1 przed F2 (priorytet używa `isOrderable`), F3 niezależna,
 - **Decyzje właściciela (2026-11-04):** pytania do właściciela z tej specyfikacji rozstrzygnięto przez delegację; zob. plan `2026-11-04-product-completion-plan.md`, sekcja „Decyzje podjęte”. Przyjęto domyślne rekomendacje; faza wymagająca zewnętrznej decyzji (prawnik, księgowa, spike) czeka na nią.
 
 ## Changelog
+- 2026-11-19 — Adnotacja (bez zmiany pozostałych wymagań): F2 zastąpione przez `2026-11-18-restaurant-picks` (zatwierdzone przez właściciela 2026-11-18). Treść F2 zostaje jako historia; F1, F3, F4, F5 bez zmian.
 - 2026-11-04 — Autor/recenzent: not recorded / not recorded (independent agent, model unknown) (w specyfikacji jest „Przegląd niezależny 2026-11-04” bez nazwy modelu).
 
 ## Realizacja

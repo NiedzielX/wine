@@ -39,12 +39,12 @@ Wine Match: platforma B2B2C rekomendacji win dla restauracji — aplikacja gośc
 
 | Obszar | Technologia | Wersja |
 |---|---|---|
-| Aplikacja | Next.js (App Router, Turbopack), React | 16.4.3, 19.3.1 |
+| Aplikacja | Next.js (App Router, Turbopack), React | 16.4.5, 19.3.1 |
 | Język | TypeScript (natywny kompilator) | 7.0.2 |
-| Baza danych | PostgreSQL + MikroORM (migracje, seedery, pula połączeń) | PG ≥ 16, MikroORM 7.2.5 |
+| Baza danych | PostgreSQL + MikroORM (migracje, seedery, pula połączeń) | PG ≥ 16, MikroORM 7.2.8 |
 | Dependency Injection | Awilix (tryb `PROXY`) | 13.0.5 |
-| CSS | Tailwind CSS (strony gościa) / shadcn/ui na Tailwind (panel) | 4.3.3 / new-york-v4 |
-| Testy | Vitest | 5.0.5 |
+| CSS | Tailwind CSS (strony gościa) / shadcn/ui na Tailwind (panel) | 4.3.5 / new-york-v4 |
+| Testy | Vitest | 5.1.0 |
 | Monorepo | npm workspaces | npm ≥ 11.6, Node ≥ 22.17 |
 
 **MUSISZ** trzymać się tego stosu. Nowa biblioteka, zmiana wersji głównej albo zamiana narzędzia (np. inny ORM, kontener DI, biblioteka komponentów, pnpm) wymaga specyfikacji (§3). Wersje są przypięte dokładnie (`.npmrc`: `save-exact`); nowe zależności wybieraj spośród wydań opublikowanych co najmniej 14 dni temu.
@@ -80,7 +80,7 @@ Wszystkie polecenia (testy, build, skrypty operatora, bramki): `.ai/docs/command
 
 ### 1.6 Standardy inżynieryjne
 
-Skrót; pełna wersja (w tym konwencja pojęć domenowych): `.ai/docs/architecture-rules.md` §1.6; mapowanie reguł: `.ai/docs/engineering-standards.md`.
+Skrót; pełna wersja (w tym konwencja pojęć domenowych): `.ai/docs/architecture-rules.md` §1.6; reguły i miejsca ich egzekwowania: `.ai/docs/engineering-standards.md`.
 - **Trasa API** (`app/src/server/`): `handle()` / `handlePublic()`, ciało wyłącznie przez `parseBody(req, schemat)` ze schematem Zod `strictObject` z `core/validators/`, bez własnego `try/catch` (błędy mapuje `guarded()`).
 - **Logi** tylko przez `logger`, **konfiguracja** tylko przez `env()` (leniwa; `next build` nie wymaga środowiska ani bazy; konfiguracja decydująca o widoczności zawodzi zamykająco). `console.*` jest zabronione.
 - Klucze wybierane przez klienta (`constructor`, `__proto__`): `Map` lub `Object.fromEntries`, nie zwykły obiekt. Stany pusty / błąd / ładowanie: `EmptyState`, `ErrorMessage`, `LoadingMessage` z `@wine-match/ui`.
@@ -174,7 +174,7 @@ Praca nie jest skończona, dopóki jej działania nie udowodnisz. „Powinno dzi
 - **Nowy kod ma testy jednostkowe** w pakiecie, w którym leży, dla głównej ścieżki i ważnych przypadków brzegowych. Pokrycie jest raportowane, ale nie ma progu, który przerywa build. Nie dopisuj testów tylko po to, żeby podbić procent.
 - **Wykluczenia z pokrycia są jawne** (w `vitest.config.ts` pakietu, z uzasadnieniem; nowe wymaga zgody właściciela) i **testy piszemy w katalogu `tests/` pakietu**; lista wykluczeń i układ testów (np. `*.integration.test.ts` z bazą): `.ai/docs/commands.md`, sekcja „Testy”.
 - **Silnik jest deterministyczny.** W `packages/core/src/engine/` nie używaj `Math.random`, dat, sieci ani wywołań LLM. Każda nowa reguła ma nazwę (`rule`), test w `packages/core/tests/engine.test.ts` i wpis w `docs/RECOMMENDATION_ENGINE.md`.
-- **Sommelier ponad modelem.** Etykieta „Para sommeliera” / „Sommelier’s pairing” tylko dla par `approved` / `modified` (reguła R06 w briefie; najlepsza propozycja silnika to „Polecane do Twojego dania” / „Recommended for your dish”, bez pieczęci). Wyświetlany Match Score to zawsze wynik silnika, bez podbijania.
+- **Sommelier ponad modelem.** Etykieta „Para sommeliera” / „Sommelier’s pairing” tylko dla par `approved` / `modified` (reguła R06 w briefie; najlepsza propozycja silnika to „Polecane do Twojego dania” / „Recommended for your dish”, bez pieczęci; „Wybór restauracji” / „Restaurant’s pick” jest znakiem restauracji, nigdy nie nosi pieczęci, zmienia tylko kolejność w grupie propozycji silnika i nigdy nie staje nad parą sommeliera; spec `2026-11-18-restaurant-picks`, D24/D25). Wyświetlany Match Score to zawsze wynik silnika, bez podbijania.
 - **Bez „AI” w interfejsie gościa.** Nie używaj komunikatów typu „AI recommendation”, „Ask AI”, „Powered by AI”.
 - **Bez zewnętrznych zasobów w runtime.** Fonty, ikony i biblioteki są lokalne (npm). Nie dodawaj CDN, Google Fonts ani `next/font/google`.
 - **Architektura z §1.2–1.4 obowiązuje zawsze** (pełne reguły: `.ai/docs/architecture-rules.md`). Obejście granicy pakietu (np. import encji w stronie, logika biznesowa w komponencie, zapytanie bez `restaurantId`) jest błędem, nawet jeśli działa.

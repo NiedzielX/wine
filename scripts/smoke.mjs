@@ -371,6 +371,10 @@ await check('GM cannot change a pairing through the API', pUrl, { method: 'PATCH
 await check('GM cannot bulk-approve', `/api/v1/restaurants/${slug}/pairings/bulk-decision`, { method: 'POST', body: { action: 'approve_all' }, headers: gmw, status: 403 });
 await check('GM can read pairings', `/api/v1/restaurants/${slug}/pairings`, { cookie: GM, has: ['"data"'] });
 await check('GM can hide and show wines', wineUrl, { method: 'PATCH', body: { active: true }, headers: gmw, has: ['"active":true'] });
+// catalog field editing (spec 2026-11-16-catalog-field-editing, C1): A3 and A5 carry the plain forms, the details route needs If-Match
+await check('A3 has the Details form with the base-text hint and the version field', `/admin/${slug}/menu/${duck}`, { cookie: GM, has: ['id="dish-name"', 'id="dish-price"', 'This is the base text. Translations are below.', 'name="version"', 'Save changes'] });
+await check('A5 has the Listing form with the glass switch and the glass price', `/admin/${slug}/wines/${wine}`, { cookie: GM, has: ['id="wine-producer"', 'name="pouredByGlass"', 'id="wine-glassPrice"', 'Save changes'] });
+await check('the details route needs If-Match (428)', `/api/v1/dishes/${duck}/details?restaurant=${slug}`, { method: 'PATCH', headers: gmw, body: { price: 112 }, status: 428 });
 await check('GM sees the publish screen with a working button', `/admin/${slug}/publish`, { cookie: GM, has: ['Publish changes'], hasNot: ['Your role cannot publish'] });
 await check('a session of one user does not open another restaurant', `/admin/nope`, { cookie: GM, status: 403 });
 
@@ -394,6 +398,41 @@ await check('GM cancels the invitation', `${invUrl}/${madeBody.id}`, { method: '
 await check('a cancelled link is the one "not valid" page', new URL(madeBody.link ?? 'http://x/').pathname + new URL(madeBody.link ?? 'http://x/').search, { cookie: '', status: 404, has: ['This link is not valid any more'] });
 await check('an unknown link is the same page', '/admin/accept?token=smoke-not-a-real-link-0000', { cookie: '', status: 404, has: ['This link is not valid any more'] });
 await check('no token is a 404 too', '/admin/accept', { cookie: '', status: 404 });
+
+// --- restaurant's picks (spec 2026-11-18-restaurant-picks): A27 and its routes. Reads and refusals only, no pick is ever set.
+const picksPath = `/admin/${slug}/picks`;
+await check('A27 picks: the General Manager gets the working screen', picksPath, { cookie: GM, has: ['<title>Restaurant’s picks | Wine Match dashboard</title>', '>Restaurant’s picks</h1>', 'How picks work', 'Search wines'], hasNot: ['View only', 'Only the owner and the general manager change the picks.'] });
+await check('A27 picks: the Wine Director gets it view-only', picksPath, { has: ['>Restaurant’s picks</h1>', 'View only', 'Only the owner and the general manager change the picks.'] });
+await check('A27 picks: no session goes to sign-in', picksPath, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(picksPath)}` });
+const picksApi = `/api/v1/restaurants/${slug}/picks`;
+const picksRead = await check('picks API: the General Manager reads the set', picksApi, { cookie: GM, has: ['"version"', '"max"', '"picks"'] });
+const picksBody = JSON.parse(picksRead.text || '{}');
+expect('picks API has the documented shape (version, max, picks list) and an ETag', typeof picksBody.version === 'string' && Number.isInteger(picksBody.max) && Array.isArray(picksBody.picks) && (picksRead.res.headers.get('etag') ?? '') === `"${picksBody.version}"`, picksRead.text.slice(0, 200));
+await check('picks API: no session is 401', picksApi, { cookie: '', status: 401 });
+await check('picks API: no session cannot mark a wine (401)', `/api/v1/wines/${wine}/pick?restaurant=${slug}`, { method: 'PUT', body: { on: true }, cookie: '', status: 401 });
+await check('picks API: marking a wine without the CSRF token is refused (403), nothing is saved', `/api/v1/wines/${wine}/pick?restaurant=${slug}`, { method: 'PUT', body: { on: true }, cookie: GM, status: 403, has: ['csrf'] });
+await check('picks API: the set is unchanged after the refusal', picksApi, { cookie: GM, has: [`"version":"${picksBody.version}"`] });
+
+// --- adding a dish or a wine by hand (spec 2026-11-16-catalog-field-editing, C3): A32 forms, GET only (nothing is created)
+for (const [who, cookie] of [['the Wine Director', SESSION], ['the General Manager', GM]]) {
+  await check(`A32 ${who} gets the Add dish form`, `${A}/menu/new`, { cookie, has: ['id="dish-name"', 'id="dish-price"', 'New dish', 'Add dish'] });
+  await check(`A32 ${who} gets the Add wine form`, `${A}/wines/new`, { cookie, has: ['id="wine-producer"', 'id="wine-style"', 'New wine', 'Add wine'] });
+}
+for (const path of ['/menu/new', '/wines/new']) {
+  await check(`no session: A32 ${path} goes to sign-in`, `${A}${path}`, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(`${A}${path}`)}` });
+}
+
+// --- hiding a dish from guests (spec 2026-11-16-catalog-field-editing, C2): the A3 button and the status route, reads only
+await check('A3 shows "Hide from guests" to a role with catalog.edit', `${A}/menu/${duck}`, { has: ['Hide from guests'], hasNot: ['Show to guests'] });
+await check('A3 shows it to the General Manager too', `${A}/menu/${duck}`, { cookie: GM, has: ['Hide from guests'] });
+const vis = await check('visibility API: reads the status of a dish', `/api/v1/dishes/${duck}/visibility?restaurant=${slug}`, { cookie: SESSION, has: [`"id":"${duck}"`, '"status":"published"'] });
+expect('visibility API sends the version as an ETag', /^"[^"]+"$/.test(vis.res.headers.get('etag') ?? ''), vis.res.headers.get('etag'));
+await check('visibility API: no session is 401', `/api/v1/dishes/${duck}/visibility?restaurant=${slug}`, { cookie: '', status: 401 });
+await check('visibility API: hiding without the CSRF token is refused (403)', `/api/v1/dishes/${duck}/visibility?restaurant=${slug}`, { method: 'POST', body: { hidden: true }, cookie: SESSION, status: 403, has: ['csrf'] });
+await check('the dish is still published for guests after the refusal', `/api/v1/public/restaurants/${slug}/menu`, { cookie: '', has: [duck] });
+
+// --- public recommendations carry the restaurant's pick flag (spec 2026-11-18-restaurant-picks, R15)
+expect('API recommendations: every item has a boolean restaurantPick', recs.items.length > 0 && recs.items.every((i) => typeof i.restaurantPick === 'boolean'), JSON.stringify(recs.items.map((i) => i.restaurantPick)));
 
 // --- import, QR and setup (Phase 5). Nothing here changes the catalog: every import is cancelled.
 for (const path of ['/import/menu', '/import/wines', '/import/sales', '/setup', '/qr']) {
@@ -511,7 +550,7 @@ await check('A4 wine list: no results', `${A}/wines?q=zzzz`, { has: ['No wines f
 const list = await (await fetch(`${base}${A}/wines`, { headers: { cookie: SESSION } })).text();
 const hidden = /href="[^"]*\/wines\/([0-9a-f-]{36})"[^>]*>Château Musar/.exec(list)?.[1];
 if (hidden) await check('A5 wine details of a hidden wine', `${A}/wines/${hidden}`, { has: ['Hidden from guests', 'Château Musar'] });
-await check('A5 wine details', `${A}/wines/${wine}`, { has: ['Listing and prices', 'Best dishes for this wine', 'Wine profile', 'Approved pairings', 'Duck breast', 'Translations', 'name="tastingNote_pl"', 'name="country_en"', 'data-explain="score"'] });
+await check('A5 wine details', `${A}/wines/${wine}`, { has: ['Listing', 'Best dishes for this wine', 'Wine profile', 'Approved pairings', 'Duck breast', 'Translations', 'name="tastingNote_pl"', 'name="country_en"', 'data-explain="score"'] });
 await check('A5 unknown wine', `${A}/wines/00000000-0000-4000-8000-000000000000`, { status: 404 });
 await check('A6 pairings index redirects to a dish', `${A}/pairings`, { has: ['What guests see now', 'Approved for guests'] });
 await check('A6 pairings of a dish', `${A}/pairings/${duck}`, { has: ['Pairings: Duck breast', 'Sommelier approved', 'Primary', 'What guests see now', 'Sommelier’s pairing', '<span class="sr-only"> Engine match score</span>', 'data-explain="pairings"', 'How do guests see your pairings?', 'data-explain="suggestions"', '<span class="sr-only">How do guests see engine suggestions?</span>'], hasNot: [...OLD_LABELS, 'title="Engine match score"'] });
@@ -572,6 +611,30 @@ if (langAction) {
   const evil = await post({ [langAction]: '', lang: 'xx', back: 'https://evil.example/' });
   expect('the switch ignores an unknown language and a foreign address', evil.status === 303 && !(evil.headers.getSetCookie?.() ?? []).some((c) => c.startsWith('wm_lang')) && evil.headers.get('location') === '/admin', `${evil.status} ${evil.headers.get('location')}`);
 }
+
+// --- results report (spec 2026-11-18-owner-proof-report): A33, A34 and their routes. Reads and refusals only, no launch day is ever set.
+// The demo data has no launch day, so A33 and A34 show their "set the launch day first" states; the report body, the print element and the
+// Ctrl/Cmd+P line need a launch day and a POS import and are covered by proof-report.e2e.test.ts.
+const proofPath = `/admin/${slug}/proof`;
+await check('A33 results report: the General Manager gets the page', proofPath, { cookie: GM, has: ['<title>Results report | Wine Match dashboard</title>', '>Results report</h1>', 'Set the launch day first'] });
+await check('A33 results report: the Wine Director is refused (403)', proofPath, { cookie: SESSION, status: 403, hasNot: ['Set the launch day first'] });
+await check('A33 results report: no session goes to sign-in', proofPath, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(proofPath)}` });
+await check('A34 printable report: the General Manager gets the page', `${proofPath}/print`, { cookie: GM, has: ['<title>Results report, printable version | Wine Match dashboard</title>', 'Set the launch day first', `href="${proofPath}"`], hasNot: ['data-print-button'] });
+await check('A34 printable report: the Wine Director is refused (403)', `${proofPath}/print`, { cookie: SESSION, status: 403, hasNot: ['Set the launch day first'] });
+await check('A34 printable report: no session goes to sign-in', `${proofPath}/print`, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(`${proofPath}/print`)}` });
+const proofApi = `/api/v1/restaurants/${slug}/proof-report`;
+const proofRead = await check('proof report API: the General Manager reads the report', proofApi, { cookie: GM, has: ['"window"', '"report"', '"launch"', '"verdict"', '"history"'] });
+const proofBody = JSON.parse(proofRead.text || '{}');
+expect('proof report API has the documented shape ({window, report, launch.current/history/changes}) and an ETag of the current entry', Number.isInteger(proofBody.window) && typeof proofBody.report?.verdict === 'string' && Array.isArray(proofBody.report?.caveats) && Array.isArray(proofBody.launch?.history) && Number.isInteger(proofBody.launch?.changes) && 'current' in (proofBody.launch ?? {}) && (proofRead.res.headers.get('etag') ?? '') === `"${proofBody.launch?.current?.id ?? 'none'}"` && /no-store/.test(proofRead.res.headers.get('cache-control') ?? ''), proofRead.text.slice(0, 200));
+await check('proof report API: the Wine Director is refused (403)', proofApi, { cookie: SESSION, status: 403, hasNot: ['"report"'] });
+await check('proof report API: no session is 401', proofApi, { cookie: '', status: 401 });
+await check('proof report API: window=0 is 422', `${proofApi}?window=0`, { cookie: GM, status: 422, has: ['invalid_window'] });
+const proofLaunch = `/api/v1/restaurants/${slug}/proof-launch`;
+const proofBefore = { etag: proofRead.res.headers.get('etag'), launch: JSON.stringify(proofBody.launch) };
+await check('proof launch API: no session cannot set the launch day (401)', proofLaunch, { method: 'POST', body: { launchDay: '2026-02-02', expectedCurrent: null }, cookie: '', status: 401 });
+await check('proof launch API: setting it without the CSRF token is refused (403), nothing is saved', proofLaunch, { method: 'POST', body: { launchDay: '2026-02-02', expectedCurrent: null }, cookie: GM, status: 403, has: ['csrf'] });
+const proofAfter = await check('proof report API: the launch log is unchanged after the refusals', proofApi, { cookie: GM, has: ['"launch"'] });
+expect('the launch log, its current entry and the ETag are the same as before the refusals', proofAfter.res.headers.get('etag') === proofBefore.etag && JSON.stringify(JSON.parse(proofAfter.text || '{}').launch) === proofBefore.launch, `${proofBefore.etag} ${proofBefore.launch} -> ${proofAfter.res.headers.get('etag')} ${proofAfter.text.slice(0, 200)}`);
 
 await check('sign out', '/api/v1/auth/logout', { method: 'POST', headers: write(), status: 204 });
 await check('after sign-out the old session is dead', '/api/v1/auth/me', { cookie: SESSION, status: 401 });

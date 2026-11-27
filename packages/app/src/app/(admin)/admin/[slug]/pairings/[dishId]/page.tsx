@@ -4,13 +4,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Page, PageHeader } from '../../../_components/admin-shell';
 import { ActionButton, Hidden } from '../../../_components/action-form';
-import { DISMISS_DAYS, ENGINE_FACTS } from '@wine-match/core';
+import { DISMISS_DAYS, ENGINE_FACTS, PICKS_PROMOTED_MAX, PICK_MIN_SCORE, PICK_WINDOW } from '@wine-match/core';
 import { DishStatusBadge, PairingStatusBadge, RoleBadge, ScoreBadge } from '../../../_components/badges';
 import { PanelExplain } from '../../../_components/explain';
 import { Flash, ReadOnlyNotice } from '../../../_components/flash';
 import { OpportunityList, pairingAnchor } from '../../../_components/opportunity-list';
+import { PickBadge, pickMarks } from '../../../_components/pick-marks';
 import { first, formatDateTime, zl } from '../../../_components/format';
 import { addPairing, approveAllPairings, approvePairing, deletePairing, movePairing, rejectPairing, restorePairing, savePairingNote, setPairingRole } from '../../actions';
+import { isDomainError } from '@/server/domain-errors';
 import { getRequestScope } from '@/server/request-scope';
 import { requireAccess } from '@/server/auth';
 import { getI18n } from '@/server/i18n';
@@ -26,7 +28,7 @@ type Props = { params: Promise<{ slug: string; dishId: string }>; searchParams: 
 export default async function PairingsPage({ params, searchParams }: Props) {
   const { slug, dishId } = await params;
   const sp = await searchParams;
-  const { adminService, opportunityService, recommendationService } = (await getRequestScope()).cradle;
+  const { adminService, opportunityService, recommendationService, picksService, picksSimulationService } = (await getRequestScope()).cradle;
   const decide = (await requireAccess(slug)).can('pairings.decide');
   const { locale, t } = await getI18n();
   const m = t.admin.pairings;
@@ -36,6 +38,18 @@ export default async function PairingsPage({ params, searchParams }: Props) {
   const { dish } = w;
   const guest = await recommendationService.forDish(slug, dish.id, {}, undefined, locale);
   const guestItems = guest?.result.items ?? [];
+  // the restaurant's picks on this dish: the marks and, from the simulator (the one ranking path guests use), what each pick does here
+  const picks = await picksService.list(slug);
+  const mark = pickMarks(picks);
+  const pickSim = picks.picks.length > 0
+    ? await picksSimulationService.simulate(slug, { dishId: dish.id, locale }).catch((e: unknown) => {
+      if (isDomainError(e, 'not_found')) return null; // a dish guests cannot see yet is not in the simulation
+      throw e;
+    })
+    : null;
+  const pickRows = pickSim?.dishes[0]?.picks ?? [];
+  const pickName = new Map(picks.picks.map((x) => [x.wineId, `${x.producer} ${x.name}`]));
+  const pickFacts = { minScore: PICK_MIN_SCORE, window: PICK_WINDOW, promoted: PICKS_PROMOTED_MAX };
   // S1–S3 of this dish only (no queries on guest events): the card is there only when something is worth a look
   const opportunities = (await opportunityService.list(slug, { dishId: dish.id, scope: 'dish' }, locale))?.groups[0]?.items ?? [];
   const o = t.admin.opportunities;
@@ -71,6 +85,26 @@ export default async function PairingsPage({ params, searchParams }: Props) {
         </nav>
 
         <div className="grid min-w-0 content-start gap-6">
+          {pickRows.length > 0 && (
+            <Card className="gap-0 py-0" data-picks-on-dish>
+              <CardHeader className="border-b py-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <CardTitle>{m.pickTitle}</CardTitle>
+                  <Link className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" href={`/admin/${slug}/picks`}>{t.admin.nav.picks}</Link>
+                </div>
+                <CardDescription>{m.pickAfterPublish}</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-2 py-4 text-sm">
+                {pickRows.map((r) => (
+                  <div key={r.wineId} className="grid gap-0.5 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-4">
+                    <span className="font-medium">{pickName.get(r.wineId) ?? t.admin.common.wineRemoved}</span>
+                    <span>{r.effect === 'moved' ? m.pickMoved : r.effect === 'label_only' ? m.pickLabel : <>{t.admin.picks.effectNone}{r.reason && <span className="block text-xs text-muted-foreground">{t.admin.picks.noEffect(r.reason, pickFacts)}</span>}</>}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {opportunities.length > 0 && (
             <Card className="gap-0 py-0">
               <CardHeader className="border-b py-4">
@@ -101,7 +135,7 @@ export default async function PairingsPage({ params, searchParams }: Props) {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="font-medium">{p.wine ? `${p.wine.producer} ${p.wine.name}` : t.admin.common.wineRemoved}</div>
+                        <div className="font-medium">{p.wine ? `${p.wine.producer} ${p.wine.name}` : t.admin.common.wineRemoved}{p.wine && mark(p.wine.id) !== 'none' && <> <PickBadge mark={mark(p.wine.id)} t={t} /></>}</div>
                         {p.wine && <div className="text-xs text-muted-foreground">{p.wine.vintage}, {p.wine.region}. {m.prices(p.wine.glassPrice !== null ? zl(p.wine.glassPrice, locale) : null, zl(p.wine.bottlePrice, locale))}{p.wine.active ? '' : m.hiddenFromGuests}</div>}
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -168,7 +202,7 @@ export default async function PairingsPage({ params, searchParams }: Props) {
               {w.suggested.map((p) => (
                 <div key={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b px-6 py-3 last:border-b-0">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium">{p.wine ? `${p.wine.producer} ${p.wine.name}` : t.admin.common.wineRemoved} <ScoreBadge score={p.modelScore} t={t} /></div>
+                    <div className="text-sm font-medium">{p.wine ? `${p.wine.producer} ${p.wine.name}` : t.admin.common.wineRemoved} <ScoreBadge score={p.modelScore} t={t} />{p.wine && mark(p.wine.id) !== 'none' && <> <PickBadge mark={mark(p.wine.id)} t={t} /></>}</div>
                     <p className="text-xs text-muted-foreground">{p.why}</p>
                   </div>
                   {decide && (

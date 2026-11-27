@@ -1,6 +1,6 @@
 import type { MikroORM } from '@mikro-orm/postgresql';
 import {
-  ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
+  CatalogEditService, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion, ImportService, InvitationService, MAX_CODES_PER_SESSION_DAY, PICKS_MAX, picksVersion, ProfileService, profileVersion, dishScales, PublishService, RecommendationCodeService, SECOND_RESTAURANT, SommelierService, TeamService, buildDemoDataset, type SecondRestaurant
 } from '@wine-match/core';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -254,6 +254,108 @@ describe('concurrency on PostgreSQL', () => {
     }
   });
 
+  const catalogOf = () => new CatalogEditService({ ...pgRepos(orm), clock: { now: () => new Date('2026-11-17T09:00:00.000Z') }, idGenerator: { uuid: () => randomUUID() } });
+
+  it('two editors save the same wine from the same screen (expectedVersion): one wins, the other gets a version conflict, one audit row, the stored fields are the winner\'s (spec 2026-11-16-catalog-field-editing, AC4)', async () => {
+    const wine = ds.wines.find((w) => w.listNumber !== undefined)!;
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const expectedVersion = wineFieldsVersion(wineFieldsOf((await pgRepos(orm).wineRepository.findById(ds.restaurant.id, wine.id))!));
+      const results = await race(
+        () => catalogOf().updateWine('halka', wine.id, { bottlePrice: 501 }, MARTA, expectedVersion),
+        () => catalogOf().updateWine('halka', wine.id, { bottlePrice: 502 }, TOMASZ, expectedVersion)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as Error).name, `round ${round}`).toBe('VersionConflictError');
+      const edits = await sql<{ actor: string; after: { bottlePrice: number } }>('select actor, after from catalog_edit where restaurant_id = ?', [ds.restaurant.id]);
+      expect(edits, `round ${round}: one audit row`).toHaveLength(1);
+      const stored = (await sql<{ bottle_price: string }>('select bottle_price from wine where id = ?', [wine.id]))[0];
+      expect(Number(stored.bottle_price), `round ${round}: the stored price is the winner's`).toBe(edits[0].after.bottlePrice);
+    }
+  });
+
+  it('two editors hide the same dish from the same screen: one wins, the other gets a version conflict, one audit row; a price edit racing the hide is no conflict (spec 2026-11-16-catalog-field-editing, R7)', async () => {
+    const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const seen = dishVisibilityVersion((await pgRepos(orm).dishRepository.findById(ds.restaurant.id, duck.id))!);
+      const results = await race(
+        () => catalogOf().setDishHidden('halka', duck.id, true, MARTA, seen),
+        () => catalogOf().setDishHidden('halka', duck.id, true, TOMASZ, seen)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as Error).name, `round ${round}`).toBe('VersionConflictError');
+      expect(await sql("select 1 from catalog_edit where restaurant_id = ? and action = 'hidden'", [ds.restaurant.id]), `round ${round}`).toHaveLength(1);
+      expect((await sql<{ status: string }>('select status from dish where id = ?', [duck.id]))[0].status).toBe('hidden');
+    }
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const stored = (await pgRepos(orm).dishRepository.findById(ds.restaurant.id, duck.id))!;
+      const results = await race(
+        () => catalogOf().setDishHidden('halka', duck.id, true, MARTA),
+        async (): Promise<unknown> => catalogOf().updateDish('halka', duck.id, { price: 777 }, TOMASZ, dishFieldsVersion(dishFieldsOf(stored)))
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(2);
+      const row = (await sql<{ status: string; price: string }>('select status, price from dish where id = ?', [duck.id]))[0];
+      expect([row.status, Number(row.price)], `round ${round}`).toEqual(['hidden', 777]);
+    }
+  });
+
+  it('two dishes added with one name at once: one is created, the other is a duplicate; two wines added without a number get different numbers (spec 2026-11-16-catalog-field-editing, R8)', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(
+        async (): Promise<unknown> => catalogOf().createDish('halka', { name: 'Brand new tartlet', category: 'Starters', price: 30 }, MARTA),
+        async (): Promise<unknown> => catalogOf().createDish('halka', { name: 'BRAND NEW TARTLET!', category: 'Starters', price: 31 }, TOMASZ)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ fields: { name: 'duplicate' } });
+      expect(await sql("select 1 from dish where lower(regexp_replace(name, '[^A-Za-z]', '', 'g')) = 'brandnewtartlet'"), `round ${round}`).toHaveLength(1);
+      expect(await sql("select 1 from catalog_edit where restaurant_id = ? and action = 'create'", [ds.restaurant.id]), `round ${round}`).toHaveLength(1);
+    }
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(
+        async (): Promise<unknown> => catalogOf().createWine('halka', { producer: 'Race A', name: 'Cuvee', vintage: 2021, bottlePrice: 100, style: 'red' }, MARTA),
+        async (): Promise<unknown> => catalogOf().createWine('halka', { producer: 'Race B', name: 'Cuvee', vintage: 2021, bottlePrice: 100, style: 'red' }, TOMASZ)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(2);
+      const numbers = (await sql<{ list_number: number }>("select list_number from wine where producer in ('Race A', 'Race B')")).map((r) => r.list_number);
+      expect(new Set(numbers).size, `round ${round}: two different numbers`).toBe(2);
+      expect(await sql('select list_number from wine where restaurant_id = ? group by list_number having count(*) > 1', [ds.restaurant.id]), `round ${round}`).toHaveLength(0);
+    }
+  });
+
+  it('two different dishes renamed to one name at once: one rename wins, the other is a duplicate, never two dishes with one name', async () => {
+    const [a, b] = ds.dishes.filter((d) => d.status === 'published');
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(
+        () => catalogOf().updateDish('halka', a.id, { name: 'Brand new name' }, MARTA),
+        () => catalogOf().updateDish('halka', b.id, { name: 'BRAND NEW NAME!' }, TOMASZ)
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason).toMatchObject({ fields: { name: 'duplicate' } });
+      expect(await sql("select 1 from dish where lower(regexp_replace(name, '[^A-Za-z]', '', 'g')) = 'brandnewname'"), `round ${round}`).toHaveLength(1);
+      expect(await sql('select 1 from catalog_edit where restaurant_id = ?', [ds.restaurant.id])).toHaveLength(1);
+    }
+  });
+
+  it('a rename racing an import that creates a dish of that name: never two dishes with one key, whichever takes the lock first', async () => {
+    const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const job = await importOf().upload('halka', 'menu', fixture('menu-bom.csv'), MARTA);
+      const results = await race(
+        async (): Promise<unknown> => catalogOf().updateDish('halka', duck.id, { name: 'Tartare, hand-cut' }, MARTA),
+        () => importOf().confirm('halka', job.id, TOMASZ)
+      );
+      expect(results.filter((r) => r.status === 'fulfilled').length, `round ${round}`).toBeGreaterThanOrEqual(1);
+      expect(await sql("select 1 from dish where name = 'Tartare, hand-cut'"), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as { code?: string }).code, `round ${round}`).toMatch(/duplicate|validation_failed|catalog_conflict/);
+    }
+  });
+
   it('two editors save the same dish profile from the same screen (expectedVersion): one wins, the other gets a version conflict, one audit row (spec 2026-11-04-panel-completion, AC8)', async () => {
     const profilesOf = () => new ProfileService({ ...pgRepos(orm), clock: { now: () => new Date() }, idGenerator: { uuid: () => randomUUID() } });
     const duck = ds.dishes.find((d) => d.name === 'Duck breast')!;
@@ -272,6 +374,110 @@ describe('concurrency on PostgreSQL', () => {
       const stored = (await sql<{ profile_intensity: number; profile_confirmed_by: string }>('select profile_intensity, profile_confirmed_by from dish where id = ?', [duck.id]))[0];
       expect(stored.profile_intensity, `round ${round}: the stored profile is the winner's`).toBe(edits[0].after.intensity);
       expect(stored.profile_confirmed_by).toBe(edits[0].actor);
+    }
+  });
+
+  /* ---------- the restaurant's picks (spec 2026-11-18-restaurant-picks, AC5) ---------- */
+  const rid = () => ds.restaurant.id;
+  const activeWineIds = () => ds.wines.filter((w) => w.active).map((w) => w.id).sort();
+  const markInput = (wineId: string, enabled = true, over: object = {}) =>
+    ({ wineId, enabled, editId: randomUUID(), actor: 'Marta', actorId: MARTA.id, at: new Date().toISOString(), max: PICKS_MAX, ...over });
+
+  it('parallel picks of different wines never leave more than the limit: the free places are taken, the rest get too_many_picks, one history row per accepted pick', async () => {
+    const ids = activeWineIds();
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const first = ids.slice(0, 3);
+      for (const id of first) await pgRepos(orm).picksRepository.set(rid(), markInput(id));
+      const results = await race(...ids.slice(3, 11).map((id) => () => pgRepos(orm).picksRepository.set(rid(), markInput(id))));
+      expect(fulfilled(results), `round ${round}: exactly the two free places`).toHaveLength(PICKS_MAX - first.length);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ code: 'too_many_picks' });
+      const rows = await sql<{ n: string }>('select count(*)::text as n from restaurant_pick where restaurant_id = ?', [rid()]);
+      expect(Number(rows[0].n), `round ${round}: exactly the limit`).toBe(PICKS_MAX);
+      const edits = await sql<{ n: string }>('select count(*)::text as n from pick_edit where restaurant_id = ?', [rid()]);
+      expect(Number(edits[0].n), `round ${round}: one history row per pick`).toBe(PICKS_MAX);
+    }
+  });
+
+  it('a pick of a wine that is being reactivated counts all the time: the limit holds whether the wine is on or off (B3)', async () => {
+    const ids = activeWineIds();
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      for (const id of ids.slice(0, PICKS_MAX)) await pgRepos(orm).picksRepository.set(rid(), markInput(id));
+      await pgRepos(orm).wineWriteRepository.setActive(rid(), ids[0], false);
+      const results = await race<unknown>(
+        () => pgRepos(orm).wineWriteRepository.setActive(rid(), ids[0], true),
+        ...ids.slice(PICKS_MAX, PICKS_MAX + 4).map((id) => () => pgRepos(orm).picksRepository.set(rid(), markInput(id)))
+      );
+      expect(results.filter((r) => r.status === 'rejected' && (r.reason as { code?: string }).code !== 'too_many_picks'), `round ${round}: only the limit refuses`).toHaveLength(0);
+      const active = await sql<{ n: string }>('select count(*)::text as n from restaurant_pick p join wine w on w.id = p.wine_id where p.restaurant_id = ? and w.active', [rid()]);
+      const all = await sql<{ n: string }>('select count(*)::text as n from restaurant_pick where restaurant_id = ?', [rid()]);
+      expect(Number(all[0].n), `round ${round}: the set stays at the limit`).toBe(PICKS_MAX);
+      expect(Number(active[0].n), `round ${round}: never more than the limit active`).toBeLessThanOrEqual(PICKS_MAX);
+    }
+  });
+
+  it('two writes of the same wine from the same screen (expectedVersion): one wins, the other a version conflict; one row, one history row', async () => {
+    const [wine] = activeWineIds();
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const expectedVersion = picksVersion([]);
+      const results = await race(
+        () => pgRepos(orm).picksRepository.set(rid(), markInput(wine, true, { expectedVersion })),
+        () => pgRepos(orm).picksRepository.set(rid(), markInput(wine, true, { expectedVersion }))
+      );
+      expect(fulfilled(results), `round ${round}`).toHaveLength(1);
+      for (const r of rejected(results)) expect((r.reason as Error).name, `round ${round}`).toBe('VersionConflictError');
+      expect(await sql('select 1 from restaurant_pick where restaurant_id = ?', [rid()]), `round ${round}`).toHaveLength(1);
+      expect(await sql('select 1 from pick_edit where restaurant_id = ?', [rid()]), `round ${round}`).toHaveLength(1);
+    }
+  });
+
+  it('a publish and a pick at the same time: the version holds the set wholly before or wholly after the change, never half of it', async () => {
+    const ids = activeWineIds();
+    const publishOf = () => new PublishService({ ...pgRepos(orm), clock: { now: () => new Date() }, idGenerator: { uuid: () => randomUUID() } });
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      // the first pick is unpublished: the publish has something to do, whatever the second pick does
+      await pgRepos(orm).picksRepository.set(rid(), markInput(ids[0]));
+      const results = await race<unknown>(
+        () => publishOf().publish('halka', MARTA),
+        () => pgRepos(orm).picksRepository.set(rid(), markInput(ids[1]))
+      );
+      expect(fulfilled(results), `round ${round}: both succeed`).toHaveLength(2);
+      const versions = await sql<{ number: number; snapshot: { picks: { wineIds: string[] } }; changes_count: number }>('select number, snapshot, changes_count from published_version where restaurant_id = ? order by number', [rid()]);
+      const published = versions[versions.length - 1].snapshot.picks.wineIds;
+      expect([[ids[0]], [ids[0], ids[1]].sort()], `round ${round}`).toContainEqual(published);
+      const working = await sql<{ wine_id: string }>('select wine_id from restaurant_pick where restaurant_id = ?', [rid()]);
+      expect(working.map((r) => r.wine_id).sort(), `round ${round}`).toEqual([ids[0], ids[1]].sort());
+    }
+  });
+
+  /* ---------- the launch day log of the results report (spec 2026-11-18-owner-proof-report, R5, AC19) ---------- */
+  const launchInput = (launchDay: string, expectedCurrent: string | null, reason: string | null) =>
+    ({ id: randomUUID(), launchDay, reason, setByRole: 'owner' as const, setByMembershipId: null, at: new Date().toISOString(), expectedCurrent });
+  const launchRows = () => sql<{ seq: number; reason: string | null }>('select seq, reason from proof_launch_day where restaurant_id = ? order by seq', [rid()]);
+
+  it('two parallel first launch days: one becomes entry 1, the other a version conflict; no second row, so none without a reason', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const results = await race(...[0, 1, 2, 3].map((i) => () => pgRepos(orm).proofLaunchRepository.append(rid(), launchInput(`2033-01-1${i}`, null, null))));
+      expect(fulfilled(results), `round ${round}: one winner`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ name: 'VersionConflictError' });
+      expect((await launchRows()).map((r) => r.seq), `round ${round}: one row`).toEqual([1]);
+    }
+  });
+
+  it('two parallel changes of the launch day from the same screen: one wins as entry 2 with its reason, the other a version conflict', async () => {
+    for (let round = 0; round < ROUNDS; round++) {
+      await resetData(orm);
+      const first = await pgRepos(orm).proofLaunchRepository.append(rid(), launchInput('2033-01-10', null, null));
+      const results = await race(...[0, 1, 2].map((i) => () => pgRepos(orm).proofLaunchRepository.append(rid(), launchInput(`2033-01-2${i}`, first.id, `reason ${i}`))));
+      expect(fulfilled(results), `round ${round}: one winner`).toHaveLength(1);
+      for (const r of rejected(results)) expect(r.reason, `round ${round}`).toMatchObject({ name: 'VersionConflictError' });
+      const rows = await launchRows();
+      expect(rows.map((r) => r.seq), `round ${round}`).toEqual([1, 2]);
+      expect(rows.filter((r) => r.seq > 1).every((r) => r.reason), `round ${round}: every later row has a reason`).toBe(true);
     }
   });
 });

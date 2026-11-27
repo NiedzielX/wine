@@ -66,12 +66,17 @@ A0  Login ........................................ /admin/login?next=
 A1  Dashboard .................................... /admin
 Wine program
  ├─ A2  Menu ..................................... /admin/menu?q=&cat=
- │   └─ A3  Dish details ......................... /admin/menu/{dishId}
+ │   ├─ A3  Dish details ......................... /admin/menu/{dishId}
+ │   └─ A32 New dish ............................. /admin/menu/new   (catalog.edit; E13 C3)
  ├─ A4  Wine list ................................ /admin/wines?q=&style=
- │   └─ A5  Wine details ......................... /admin/wines/{wineId}
+ │   ├─ A5  Wine details ......................... /admin/wines/{wineId}
+ │   └─ A32 New wine ............................. /admin/wines/new  (catalog.edit; E13 C3)
  ├─ A6  Pairing management ....................... /admin/pairings/{dishId}
  ├─ A7  Pairing review (queue) ................... /admin/review
- └─ A14 Opportunities (Okazje) ................... /admin/opportunities
+ ├─ A14 Opportunities (Okazje) ................... /admin/opportunities
+ ├─ A27 Restaurant’s picks (Wybory restauracji) .. /admin/picks  (PR3, spec 2026-11-18-restaurant-picks)
+ └─ A33 Results report (Raport wyników) .......... /admin/proof?window=  (spec 2026-11-18-owner-proof-report; tylko Owner i GM)
+     └─ A34 Wersja do druku (Printable version) .. /admin/proof/print?window=  (A4, bez nawigacji)
 Data
  ├─ A8  Import menu .............................. /admin/import/menu?step=preview|done
  ├─ A9  Import wine list ......................... /admin/import/wines?step=preview|done
@@ -97,6 +102,8 @@ flowchart LR
     A7[A7 Review queue] --> A6
     A14[A14 Opportunities] --> A6
     A6 --> A14
+    A27[A27 Restaurant’s picks] --> A11
+    A4 --> A27
   end
   A1 --> A14
   subgraph Data
@@ -126,13 +133,16 @@ flowchart LR
 | G9, G11 | – | ✓ | ✓ | ✓ |
 | A1 Dashboard | – | – | ✓ | ✓ |
 | A2–A5 | – | – | ✓ edycja | ✓ edycja |
+| A32 Nowa pozycja (danie, wino; E13 C3) | – | – | ✓ (`catalog.edit`) | ✓ (`catalog.edit`) |
 | A6, A7 | – | – | ✓ decyzje | podgląd |
 | A14 Opportunities | – | – | ✓ decyzje | podgląd |
+| A33 Results report, A34 wersja do druku | – | – | – | ✓ (zapis dnia uruchomienia: ✓) |
 | A8, A9 | – | – | ✓ | ✓ |
 | A10 Setup | – | – | ✓ (bez slugu) | ✓ |
 | A11 Publish | – | – | ✓ | ✓ |
 | A12 QR | – | – | ✓ | ✓ |
 | A15 Team | – | – | – | ✓ (GM nie zmienia właściciela ani innego GM) |
+| A27 Wybory restauracji | – | – | ✓ widzi zbiór i symulator, kontrolki wyłączone | ✓ zmienia (`picks.edit`) |
 
 W mockupie oba konta demonstracyjne mają pełny dostęp; ograniczenia ról GM dotyczą wersji produkcyjnej (wymuszane w API).
 

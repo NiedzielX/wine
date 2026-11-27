@@ -2,6 +2,7 @@ import type { Actor } from '../auth/types';
 import type { Dish, Pairing, Wine } from '../domain/types';
 import { draftDishProfile, draftWineProfile } from '../engine/drafts';
 import { generateSuggestions } from '../engine/suggest';
+import { suggestionsFor } from './suggestions';
 import { NotFoundError, ValidationError } from '../errors';
 import type { CatalogImportPlan, ImportRepository, SalesImportPlan } from '../ports/import';
 import type { Repositories } from '../ports/repositories';
@@ -293,7 +294,7 @@ export class ImportService {
           const profile = draftWineProfile(f.grape, f.style);
           plan.newWines.push({
             id: id(), producer: f.producer, name: f.name, vintage: f.vintage === 'NV' ? 'NV' : num(f.vintage), region: f.region, country: f.country,
-            grapes: f.grape ? f.grape.split(/\s*[,/]\s*/).filter(Boolean) : [], glassPrice: f.glassPrice ? num(f.glassPrice) : null,
+            grapes: f.grape ? f.grape.split(/[,/]/).map((g) => g.trim()).filter(Boolean) : [], glassPrice: f.glassPrice ? num(f.glassPrice) : null,
             glassPour: profile.style === 'sweet' ? 75 : 150, bottlePrice: num(f.bottlePrice), bottleSize: 750, active: true, listNumber: next++,
             colour: STYLE_COLOURS[profile.style], tastingNote: '', profile, translations: has ? planWineTranslations({}, tr).next : {}
           });
@@ -302,20 +303,9 @@ export class ImportService {
     }
     plan.result.created = plan.newDishes.length + plan.newWines.length;
     plan.result.updated = plan.dishUpdates.length + plan.wineUpdates.length;
-    plan.newPairings = this.suggestionsFor(plan.newDishes, plan.newWines, ctx);
+    plan.newPairings = suggestionsFor(plan.newDishes, plan.newWines, ctx, () => this.d.idGenerator.uuid());
     plan.result.suggestions = plan.newPairings.length;
     return plan;
-  }
-
-  /** Engine suggestions only for pairs that involve something new and do not exist yet. */
-  private suggestionsFor(newDishes: Dish[], newWines: Wine[], ctx: { dishes: Dish[]; wines: Wine[]; pairings: Pairing[]; now: string }): Pairing[] {
-    const taken = new Set(ctx.pairings.map((p) => `${p.dishId}:${p.wineId}`));
-    const allWines = [...ctx.wines, ...newWines];
-    const newDishIds = new Set(newDishes.map((d) => d.id));
-    const newWineIds = new Set(newWines.map((w) => w.id));
-    const dishes = [...ctx.dishes.filter((d) => d.status !== 'hidden'), ...newDishes];
-    return generateSuggestions(dishes, allWines, { generatedAt: ctx.now, idFor: () => this.d.idGenerator.uuid() })
-      .filter((p) => (newDishIds.has(p.dishId) || newWineIds.has(p.wineId)) && !taken.has(`${p.dishId}:${p.wineId}`));
   }
 
   /** Prepares suggestions for dishes and wines that have none yet (Setup: "Generate suggestions"). */

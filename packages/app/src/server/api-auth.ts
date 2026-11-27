@@ -151,7 +151,12 @@ export async function handle(req: NextRequest, opts: { write: boolean; route: st
     if (opts.write && !sameToken(req.headers.get('x-csrf-token') ?? '', principal.session.csrfToken)) {
       return apiError(403, 'csrf', 'The X-CSRF-Token header is missing or wrong. Read it from GET /api/v1/auth/me.');
     }
-    if (opts.slug && opts.permission) authorize(principal, opts.slug, opts.permission);
+    if (opts.permission) {
+      // A route that names a permission is never run without checking it: a missing restaurant is answered here with the same
+      // 422 the routes gave before (after the 401 and the CSRF check), so there is no path to the handler that skips `authorize`.
+      if (!opts.slug) return apiError(422, 'validation_failed', 'Query parameter "restaurant" is required.', { restaurant: 'required' });
+      authorize(principal, opts.slug, opts.permission);
+    }
     return handler({ principal, actor: toActor(principal), c: scope.cradle, req });
   }
 }
@@ -172,6 +177,18 @@ export function ifMatchToken(req: NextRequest): string | undefined | null {
   if (raw === null) return undefined;
   const token = raw.replace(/^W\//, '').replace(/"/g, '').trim();
   return /^[0-9a-f]{8}-\d{1,6}$/.test(token) ? token : null;
+}
+
+/**
+ * `If-Match: "<uuid>"` → the id of the log entry the caller saw; `If-Match: "none"` → the caller saw no entry (`null`);
+ * `undefined` when the header is absent; `'invalid'` when it is neither (spec 2026-11-18-owner-proof-report, R11).
+ */
+export function ifMatchEntry(req: NextRequest): string | null | undefined | 'invalid' {
+  const raw = req.headers.get('if-match');
+  if (raw === null) return undefined;
+  const token = raw.replace(/^W\//, '').replace(/"/g, '').trim();
+  if (token === 'none') return null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token) ? token : 'invalid';
 }
 
 /** The largest JSON body any route accepts. A row-edit batch of 2000 rows is well below this. */

@@ -1,21 +1,24 @@
 import { UniqueConstraintViolationException } from '@mikro-orm/core';
 import { LockMode, type EntityManager } from '@mikro-orm/postgresql';
 import {
-  ENGINE_VERSION, InvariantError, NotFoundError, VersionConflictError, buildSnapshot, currentContent, readContentSnapshot, readSnapshot, sameTranslations,
+  ENGINE_VERSION, InvariantError, NotFoundError, ValidationError, VersionConflictError, buildSnapshot, picksVersion, currentContent, readContentSnapshot, readSnapshot, sameTranslations,
   type PublishInput, type PublishedVersionRecord,
   profileVersion, dishScales, wineScales,
-  type ContentWriteRepository, type DishProfile, type WineProfile, type ProfileEditRecord, type ProfileWriteRepository, type DishTranslations, type RestaurantContent, type WineTranslations,
+  assertDishUnique, assertWineUnique, nextListNumber, checkFieldsVersion, dishFieldsOf, dishFieldsVersion, dishVisibilityVersion, wineFieldsOf, wineFieldsVersion,
+  type CatalogEditRecord, type CatalogEditRepository, type CatalogWriteRepository, type Dish, type DishFields, type Wine, type WineFields,
+  type ContentWriteRepository, type DishProfile, type WineProfile, type ProfileEditRecord, type ProfileWriteRepository, type PickEditRecord, type PickRecord, type PicksRepository, type SetPickInput, type DishTranslations, type RestaurantContent, type WineTranslations,
   type DishRepository, type EntityStatus, type OpportunityDismissal, type OpportunityDismissalRepository, type Pairing, type PairingChangeSet, type PairingRepository, type PairingWriteRepository,
   type PublishedVersionInfo, type PublishRepository, type RestaurantDetails, type RestaurantRepository, type RestaurantSettings, type RestaurantWriteRepository,
   type WineRepository, type WineWriteRepository, type GuestInteractionInput, type GuestInteractionRepository, type UsageTotals, type PairingStat,
   type RecommendationCodeInput, type RecommendationCodeRecord, type RecommendationCodeRepository, type ServiceDayPeriod,
-  type CheckKey, type CheckTotals, type SalesPeriod, type SalesRepository
+  type CheckKey, type CheckTotals, type MarkedCheckTotals, type SalesPeriod, type SalesRepository
 } from '@wine-match/core';
 import {
-  DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, ProfileEditEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
+  CatalogEditEntity, DishEntity, GuestInteractionEntity, OpportunityDismissalEntity, PairingEntity, PickEditEntity, ProfileEditEntity, RestaurantPickEntity, PublishedVersionEntity, RestaurantEntity, SommelierDecisionEntity, WineEntity,
   type PublishedVersionRow
 } from '../entities';
 import { translate } from './errors';
+import { lockCatalog } from './locks';
 import { isUuid } from './ids';
 import { toRecommendationCode, type RecommendationCodeSqlRow } from '../mappers';
 import { toDecision, toDish, toGuestInteraction, toOpportunityDismissal, toPairing, toRestaurant, toWine } from '../mappers';
@@ -299,10 +302,13 @@ export class PgPublishRepository implements PublishRepository {
         const pairings = await em.find(PairingEntity, { restaurant: restaurantId, status: { $in: [...PUBLISHABLE] } }, { orderBy: { id: 'asc' } });
         const allDishes = await em.find(DishEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' }, lockMode: LockMode.PESSIMISTIC_READ });
         const allWines = await em.find(WineEntity, { restaurant: restaurantId, deletedAt: null }, { orderBy: { id: 'asc' }, lockMode: LockMode.PESSIMISTIC_READ });
+        // the working set of picks, read under the same restaurant lock a pick write takes (spec 2026-11-18-restaurant-picks, W6);
+        // the wines are non-deleted, and `buildSnapshot` keeps the active ones
+        const picks = (await em.find(RestaurantPickEntity, { restaurant: restaurantId })).map((x) => x.wine.id);
         const drafts = allDishes.filter((d) => d.status === 'draft');
         // the menu as it is after this publish: the released drafts are part of it
         const dishes = allDishes.map((d) => ({ ...toDish(d), status: d.status === 'draft' ? 'published' as const : d.status }));
-        const snapshot = buildSnapshot({ restaurant: toRestaurant(restaurant), dishes, wines: allWines.map(toWine), pairings: pairings.map(toPairing) });
+        const snapshot = buildSnapshot({ restaurant: toRestaurant(restaurant), dishes, wines: allWines.map(toWine), pairings: pairings.map(toPairing), picks });
         const version = em.create(PublishedVersionEntity, {
           id: input.id, restaurant, number: (last?.number ?? 0) + 1, snapshot, changesCount: pending + drafts.length + (input.contentChanges ?? 0),
           publishedBy: input.actor, publishedAt: new Date(input.at)
@@ -441,6 +447,274 @@ export class PgProfileWriteRepository implements ProfileWriteRepository {
     return out;
   }
 }
+
+/**
+ * Writes of dish and wine fields. One transaction: the catalog lock of the restaurant, the row `FOR UPDATE`, the caller's
+ * fingerprint against the locked row, uniqueness (name, wine key, list number) re-checked on the locked state, the fields
+ * and the audit row together. Everything is scoped by `restaurant_id`; a foreign or unknown id is NotFoundError.
+ */
+export class PgCatalogWriteRepository implements CatalogWriteRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  private audit(em: EntityManager, restaurantId: string, e: CatalogEditRecord) {
+    em.create(CatalogEditEntity, {
+      id: e.id, restaurant: em.getReference(RestaurantEntity, restaurantId), kind: e.kind, subjectId: e.subjectId, action: e.action, actor: e.actor,
+      actorId: e.actorId, before: e.before, after: e.after, identity: e.identity, createdAt: new Date(e.at)
+    });
+  }
+
+  async updateDish(restaurantId: string, dishId: string, next: DishFields, expectedVersion: string | undefined, edit: CatalogEditRecord) {
+    if (!isUuid(dishId) || !isUuid(restaurantId)) throw new NotFoundError('Dish');
+    try {
+      await this.em.transactional(async (em) => {
+        await lockCatalog(em, restaurantId);
+        const d = await em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!d) throw new NotFoundError('Dish');
+        const current = dishFieldsOf(toDish(d));
+        checkFieldsVersion(dishFieldsVersion(current), expectedVersion);
+        const all = await em.find(DishEntity, { restaurant: restaurantId, deletedAt: null });
+        assertDishUnique(current, next, d.id, all.map((x) => ({ id: x.id, name: x.name })));
+        d.name = next.name;
+        d.description = next.description;
+        d.category = next.category;
+        d.price = next.price;
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async updateWine(restaurantId: string, wineId: string, next: WineFields, expectedVersion: string | undefined, edit: CatalogEditRecord) {
+    if (!isUuid(wineId) || !isUuid(restaurantId)) throw new NotFoundError('Wine');
+    try {
+      await this.em.transactional(async (em) => {
+        await lockCatalog(em, restaurantId);
+        const w = await em.findOne(WineEntity, { id: wineId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!w) throw new NotFoundError('Wine');
+        const current = wineFieldsOf(toWine(w));
+        checkFieldsVersion(wineFieldsVersion(current), expectedVersion);
+        const all = await em.find(WineEntity, { restaurant: restaurantId, deletedAt: null });
+        assertWineUnique(current, next, w.id, all.map(toWine));
+        w.producer = next.producer;
+        w.name = next.name;
+        w.vintage = next.vintage === 'NV' ? null : next.vintage;
+        w.region = next.region;
+        w.country = next.country;
+        w.tastingNote = next.tastingNote;
+        w.listNumber = next.listNumber;
+        w.bottlePrice = next.bottlePrice;
+        w.glassPrice = next.glassPrice;
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  private addPairings(em: EntityManager, restaurantId: string, suggestions: readonly Pairing[]) {
+    for (const p of suggestions) {
+      em.create(PairingEntity, {
+        id: p.id, restaurant: em.getReference(RestaurantEntity, restaurantId), dish: em.getReference(DishEntity, p.dishId), wine: em.getReference(WineEntity, p.wineId),
+        status: 'suggested', role: null, rank: null, comment: null, modelScore: p.modelScore, factors: null, engineVersion: ENGINE_VERSION, source: 'engine',
+        dirty: false, updatedBy: p.updatedBy, updatedAt: new Date(p.updatedAt)
+      });
+    }
+  }
+
+  async createDish(restaurantId: string, dish: Dish, suggestions: readonly Pairing[], edit: CatalogEditRecord) {
+    if (!isUuid(restaurantId)) throw new NotFoundError('Restaurant');
+    try {
+      await this.em.transactional(async (em) => {
+        await lockCatalog(em, restaurantId);
+        if (!(await em.findOne(RestaurantEntity, { id: restaurantId }))) throw new NotFoundError('Restaurant');
+        const all = await em.find(DishEntity, { restaurant: restaurantId, deletedAt: null });
+        const fields = dishFieldsOf(dish);
+        assertDishUnique({ ...fields, name: '' }, fields, dish.id, all.map((x) => ({ id: x.id, name: x.name })));
+        const last = await em.find(DishEntity, { restaurant: restaurantId }, { orderBy: { sortOrder: 'desc' }, limit: 1 });
+        em.create(DishEntity, {
+          id: dish.id, restaurant: em.getReference(RestaurantEntity, restaurantId), name: dish.name, description: dish.description, category: dish.category, price: dish.price,
+          status: dish.status, sortOrder: (last[0]?.sortOrder ?? -1) + 1, translations: dish.translations ?? {}, profile: { ...dish.profile, draftedBy: 'rules-1.0', confirmedAt: null }
+        });
+        await em.flush();
+        this.addPairings(em, restaurantId, suggestions);
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async createWine(restaurantId: string, wine: Wine, opts: { autoListNumber: boolean }, suggestions: readonly Pairing[], edit: CatalogEditRecord) {
+    if (!isUuid(restaurantId)) throw new NotFoundError('Restaurant');
+    try {
+      return await this.em.transactional(async (em) => {
+        await lockCatalog(em, restaurantId);
+        if (!(await em.findOne(RestaurantEntity, { id: restaurantId }))) throw new NotFoundError('Restaurant');
+        const all = (await em.find(WineEntity, { restaurant: restaurantId, deletedAt: null })).map(toWine);
+        const made: Wine = { ...wine };
+        if (opts.autoListNumber) made.listNumber = nextListNumber(all);
+        const fields = wineFieldsOf(made);
+        assertWineUnique({ ...fields, producer: '', name: '', vintage: 'NV', listNumber: null }, fields, made.id, all);
+        em.create(WineEntity, {
+          id: made.id, restaurant: em.getReference(RestaurantEntity, restaurantId), producer: made.producer, name: made.name, vintage: made.vintage === 'NV' ? null : made.vintage,
+          region: made.region, country: made.country, grapes: made.grapes, listNumber: made.listNumber ?? null, glassPrice: made.glassPrice, glassPourMl: made.glassPour,
+          bottlePrice: made.bottlePrice, bottleSizeMl: made.bottleSize, active: made.active, colourHex: made.colour, tastingNote: made.tastingNote, translations: made.translations ?? {},
+          profile: { ...made.profile, source: 'grape_defaults' }
+        });
+        await em.flush();
+        this.addPairings(em, restaurantId, suggestions);
+        this.audit(em, restaurantId, { ...edit, after: { ...edit.after, listNumber: made.listNumber ?? null } });
+        await em.flush();
+        return { listNumber: made.listNumber ?? null };
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async setDishStatus(restaurantId: string, dishId: string, change: { from: 'published' | 'hidden'; to: 'published' | 'hidden' }, expectedVersion: string | undefined, edit: CatalogEditRecord, suggestions: readonly Pairing[]) {
+    if (!isUuid(dishId) || !isUuid(restaurantId)) throw new NotFoundError('Dish');
+    try {
+      return await this.em.transactional(async (em) => {
+        await lockCatalog(em, restaurantId);
+        const d = await em.findOne(DishEntity, { id: dishId, restaurant: restaurantId, deletedAt: null }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!d) throw new NotFoundError('Dish');
+        checkFieldsVersion(dishVisibilityVersion(toDish(d)), expectedVersion);
+        if (d.status !== change.from) throw new VersionConflictError();
+        d.status = change.to;
+        let added = 0;
+        if (suggestions.length) {
+          const existing = await em.find(PairingEntity, { restaurant: restaurantId, dish: dishId });
+          const taken = new Set(existing.map((e) => `${e.dish.id}:${e.wine.id}`));
+          for (const p of suggestions) {
+            const key = `${p.dishId}:${p.wineId}`;
+            if (taken.has(key)) continue;
+            taken.add(key);
+            em.create(PairingEntity, {
+              id: p.id, restaurant: em.getReference(RestaurantEntity, restaurantId), dish: em.getReference(DishEntity, p.dishId), wine: em.getReference(WineEntity, p.wineId),
+              status: 'suggested', role: null, rank: null, comment: null, modelScore: p.modelScore, factors: null, engineVersion: ENGINE_VERSION, source: 'engine',
+              dirty: false, updatedBy: p.updatedBy, updatedAt: new Date(p.updatedAt)
+            });
+            added++;
+          }
+        }
+        this.audit(em, restaurantId, edit);
+        await em.flush();
+        return added;
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+}
+
+export class PgCatalogEditRepository implements CatalogEditRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  async list(restaurantId: string, filter: { kind?: 'dish' | 'wine'; subjectId?: string; identityOnly?: boolean } = {}) {
+    if (!isUuid(restaurantId) || (filter.subjectId && !isUuid(filter.subjectId))) return [];
+    const rows = await this.em.find(
+      CatalogEditEntity,
+      {
+        restaurant: restaurantId, ...(filter.kind ? { kind: filter.kind } : {}), ...(filter.subjectId ? { subjectId: filter.subjectId } : {}),
+        ...(filter.identityOnly ? { identity: true } : {})
+      },
+      { orderBy: { createdAt: 'desc', id: 'asc' } }
+    );
+    const out: CatalogEditRecord[] = rows.map((r) => ({
+      id: r.id, kind: r.kind, subjectId: r.subjectId, action: r.action, actor: r.actor, actorId: r.actorId ?? null, before: r.before ?? null, after: r.after,
+      identity: r.identity, at: r.createdAt.toISOString()
+    }));
+    this.em.clear();
+    return out;
+  }
+
+  async latest(restaurantId: string, kind: 'dish' | 'wine', subjectId: string) {
+    return (await this.list(restaurantId, { kind, subjectId }))[0] ?? null;
+  }
+}
+
+/**
+ * The restaurant's picks (spec 2026-11-18-restaurant-picks). A write locks the restaurant row (`FOR UPDATE`, the lock a
+ * publish takes), so the limit is checked and the row inserted under one lock (two parallel writes never leave more than
+ * the limit) and a publish sees the set wholly before or wholly after a change. Wines are deleted softly: every query joins
+ * the wine and skips the deleted ones; the picks of inactive wines stay in the set and count towards the limit. Inside the
+ * transaction the reads use the transaction's `em`.
+ */
+export class PgPicksRepository implements PicksRepository {
+  private readonly em: EntityManager;
+  constructor({ em }: Deps) { this.em = em; }
+
+  async list(restaurantId: string): Promise<PickRecord[]> {
+    if (!isUuid(restaurantId)) return [];
+    try {
+      return await this.readSet(this.em, restaurantId);
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  private async readSet(em: EntityManager, restaurantId: string): Promise<PickRecord[]> {
+    const rows = await em.find(RestaurantPickEntity, { restaurant: restaurantId, wine: { deletedAt: null } }, { populate: ['wine'] });
+    return rows
+      .map((r) => ({ wineId: r.wine.id, active: r.wine.active, setAt: r.setAt.toISOString(), setBy: r.setBy, setById: r.setById ?? null }))
+      .sort((a, b) => (a.wineId < b.wineId ? -1 : a.wineId > b.wineId ? 1 : 0));
+  }
+
+  async set(restaurantId: string, input: SetPickInput) {
+    if (!isUuid(restaurantId) || !isUuid(input.wineId)) throw new NotFoundError('Wine');
+    try {
+      return await this.em.transactional(async (em) => {
+        const restaurant = await em.findOne(RestaurantEntity, { id: restaurantId }, { lockMode: LockMode.PESSIMISTIC_WRITE });
+        if (!restaurant) throw new NotFoundError('Wine');
+        const wine = await em.findOne(WineEntity, { id: input.wineId, restaurant: restaurantId, deletedAt: null });
+        if (!wine) throw new NotFoundError('Wine');
+        const before = await this.readSet(em, restaurantId);
+        const beforeIds = before.map((x) => x.wineId);
+        if (input.expectedVersion !== undefined && input.expectedVersion !== picksVersion(beforeIds)) throw new VersionConflictError();
+        const present = beforeIds.includes(input.wineId);
+        if (input.enabled === present) return { changed: false };
+        let afterIds: string[];
+        if (input.enabled) {
+          if (!wine.active) throw new ValidationError('wine_inactive', 'Only an active wine can be marked as a pick.');
+          if (before.length >= input.max) throw new ValidationError('too_many_picks', `A restaurant can mark at most ${input.max} wines.`);
+          em.create(RestaurantPickEntity, {
+            id: input.editId, restaurant, wine, setAt: new Date(input.at), setBy: input.actor, setById: input.actorId
+          });
+          afterIds = [...beforeIds, input.wineId].sort();
+        } else {
+          await em.nativeDelete(RestaurantPickEntity, { restaurant: restaurantId, wine: input.wineId });
+          afterIds = beforeIds.filter((id) => id !== input.wineId);
+        }
+        em.create(PickEditEntity, {
+          id: input.editId, restaurant, wineId: input.wineId, enabled: input.enabled, actor: input.actor, actorId: input.actorId,
+          before: beforeIds, after: afterIds, at: new Date(input.at)
+        });
+        await em.flush();
+        return { changed: true };
+      });
+    } finally {
+      this.em.clear();
+    }
+  }
+
+  async listEdits(restaurantId: string): Promise<PickEditRecord[]> {
+    if (!isUuid(restaurantId)) return [];
+    const rows = await this.em.find(PickEditEntity, { restaurant: restaurantId }, { orderBy: { at: 'desc', id: 'asc' } });
+    const out = rows.map((r) => ({
+      id: r.id, wineId: r.wineId, enabled: r.enabled, actor: r.actor, actorId: r.actorId ?? null, before: [...r.before], after: [...r.after], at: r.at.toISOString()
+    }));
+    this.em.clear();
+    return out;
+  }
+}
+
 
 /**
  * Ignored opportunities (spec 2026-10-16-sommelier-opportunities, R6). The upsert is one statement
@@ -771,16 +1045,26 @@ export class PgSalesRepository implements SalesRepository {
   constructor({ em }: Deps) { this.em = em; }
 
   async checkTotals(restaurantId: string, period: SalesPeriod): Promise<CheckTotals[]> {
+    return (await this.marked(restaurantId, period)).map(({ hasCode: _hasCode, ...totals }) => totals);
+  }
+
+  /** the same sums with `hasCode`: a line with a code and a positive quantity (a returned line does not count) */
+  async checkTotalsMarked(restaurantId: string, period: SalesPeriod): Promise<MarkedCheckTotals[]> {
+    return this.marked(restaurantId, period);
+  }
+
+  private async marked(restaurantId: string, period: SalesPeriod): Promise<MarkedCheckTotals[]> {
     if (!isUuid(restaurantId)) return [];
     const rows = await this.em.getConnection().execute<Array<{
-      business_date: string; check_id: string; covers: number | null; food: string; glass_q: string; glass_a: string; bottle_q: string; bottle_a: string;
+      business_date: string; check_id: string; covers: number | null; food: string; glass_q: string; glass_a: string; bottle_q: string; bottle_a: string; has_code: boolean;
     }>>(
       `select business_date::text as business_date, check_id, max(covers) as covers,
               coalesce(sum(quantity) filter (where item_type = 'food'), 0)::text as food,
               coalesce(sum(quantity) filter (where item_type = 'wine_glass'), 0)::text as glass_q,
               coalesce(sum(net_amount) filter (where item_type = 'wine_glass'), 0)::text as glass_a,
               coalesce(sum(quantity) filter (where item_type = 'wine_bottle'), 0)::text as bottle_q,
-              coalesce(sum(net_amount) filter (where item_type = 'wine_bottle'), 0)::text as bottle_a
+              coalesce(sum(net_amount) filter (where item_type = 'wine_bottle'), 0)::text as bottle_a,
+              coalesce(bool_or(recommendation_code is not null and quantity > 0), false) as has_code
          from sales_record
         where restaurant_id = ? and replaced_at is null and business_date between ? and ?
         group by business_date, check_id
@@ -789,7 +1073,7 @@ export class PgSalesRepository implements SalesRepository {
     );
     return rows.map((r) => ({
       businessDate: r.business_date, checkId: r.check_id, covers: r.covers === null ? null : Number(r.covers), foodQuantity: Number(r.food),
-      glassQuantity: Number(r.glass_q), glassAmount: Number(r.glass_a), bottleQuantity: Number(r.bottle_q), bottleAmount: Number(r.bottle_a)
+      glassQuantity: Number(r.glass_q), glassAmount: Number(r.glass_a), bottleQuantity: Number(r.bottle_q), bottleAmount: Number(r.bottle_a), hasCode: r.has_code
     }));
   }
 

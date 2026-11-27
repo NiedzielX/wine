@@ -1,4 +1,4 @@
-import type { CookingMethod, EngineFacts, ImportIssueCode, ProteinType, Role, SetupStepKey } from '@wine-match/core';
+import type { CookingMethod, EngineFacts, ImportIssueCode, ProofCaveat, ProofReason, ProteinType, Role, SetupStepKey } from '@wine-match/core';
 import { showcaseEn } from './showcase-en';
 
 /** Values quoted in an import issue (`ImportIssue.params`): the cell text, the guessed style, a row number. */
@@ -35,7 +35,7 @@ export interface RestaurantExplainContext extends ExplainContext {
  * sentence after the list. `id` names the section for tests (`data-section`).
  */
 export interface HowItWorksSection {
-  id: 'list' | 'sommelier' | 'rules' | 'score' | 'table' | 'choices' | 'fair';
+  id: 'list' | 'sommelier' | 'picks' | 'rules' | 'score' | 'table' | 'choices' | 'fair';
   title: string;
   text: string[];
   points?: string[];
@@ -189,6 +189,10 @@ export const en = {
       alsoGood: 'Also good with this dish',
       recommended: 'Recommended for your dish',
       sommelierPairing: 'Sommelier’s pairing',
+      /** the restaurant’s own mark (spec 2026-11-18-restaurant-picks): never with the seal, never called a pairing */
+      restaurantPick: 'Restaurant’s pick',
+      /** under the wines, only when the list has a restaurant’s pick: what the mark is, and what it is not (U6, D25) */
+      pickNote: 'A restaurant’s pick is the restaurant’s own mark; it does not change the match score.',
       bestValue: 'Best value',
       match: 'match',
       /** accessible name of the match glass */
@@ -524,6 +528,11 @@ export const en = {
           title: 'The sommelier has the last word',
           text: [`A wine with the seal is a sommelier’s pairing: recommended for that dish by ${directorEn(c.director)} and always first on the dish’s list. A wine the sommelier rejected for a dish is never suggested with it; for the whole table, a rejection only pulls the bottle down hard.`]
         },
+        {
+          id: 'picks',
+          title: 'The restaurant’s pick',
+          text: ['A restaurant can mark some wines as its pick and show them higher among the suggestions. The mark does not change the match score, and the sommelier’s pairing always stays on top.']
+        },
         ...(c.showUnreviewed
           ? [{
               id: 'rules' as const,
@@ -581,6 +590,8 @@ export const en = {
       importWines: 'Import wine list',
       importSales: 'Import sales',
       opportunities: 'Opportunities',
+      picks: 'Restaurant’s picks',
+      proof: 'Results report',
       team: 'Team',
       acceptInvitation: 'Join a restaurant'
     },
@@ -620,6 +631,8 @@ export const en = {
       pairings: 'Pairings',
       review: 'Review queue',
       opportunities: 'Opportunities',
+      picks: 'Restaurant’s picks',
+      proof: 'Results report',
       publish: 'Publish',
       restaurant: 'Restaurant',
       importMenu: 'Import menu',
@@ -729,6 +742,11 @@ export const en = {
         profile_confirmed: () => 'Profile saved and confirmed. Guests see it after you publish.',
         profile_draft: () => 'Profile saved as a draft. Guests see it after you publish.',
         profile_unchanged: () => 'Nothing to change: the profile is already like this.',
+        catalog_saved: (languages: string) => `Saved. Guests see the change now. Translations stay as published: check them.${languages ? ` Translations (${languages.toUpperCase().split(',').join(', ')}) may be outdated.` : ''}`,
+        catalog_unchanged: () => 'Nothing to change: the details are already like this.',
+        catalog_created: () => 'Added. The taste profile is a draft: check it and confirm it.',
+        dish_hidden: () => 'The dish is hidden from guests. They no longer see it.',
+        dish_shown: (suggestions: number) => `The dish is back on the menu. Guests can see it now.${suggestions > 0 ? ` ${suggestions} engine suggestions were added for review.` : ''}`,
         translations: () => 'Translations saved. Guests see them after you publish.',
         content: () => 'Content language and translations saved. Guests see them after you publish.',
         suggestion_added: () => 'Added to suggestions — approve it in “Engine suggestions”. Guests see the change only after you approve it and publish.',
@@ -737,10 +755,15 @@ export const en = {
         member_role_changed: () => 'Role changed. It applies on the person’s next request.',
         member_deactivated: () => 'Access removed. The person is signed out of this restaurant at once.',
         member_reactivated: () => 'Access restored. The person can use the dashboard again.',
-        invitation_revoked: () => 'Invitation cancelled. Its link no longer works.'
+        invitation_revoked: () => 'Invitation cancelled. Its link no longer works.',
+        pick_marked: () => 'Marked as the restaurant’s pick. Guests see it after you publish.',
+        pick_unmarked: () => 'Pick removed. Guests stop seeing it after you publish.',
+        pick_unchanged: () => 'Nothing to change: the wine is already in that state.',
+        launch_day_saved: () => 'Launch day saved. The report now uses it as the baseline.'
       },
       errors: {
         version_conflict: 'This was changed by someone else a moment ago. The page now shows the latest version, please try again.',
+        dish_transition: 'This dish cannot be hidden or shown now. A dish that is still a draft is released by publishing.',
         forbidden: 'You don’t have permission to do that.',
         comment_too_long: 'The note can have at most 140 characters.',
         already_paired: 'This wine is already paired with the dish.',
@@ -770,6 +793,7 @@ export const en = {
         no_rows_selected: 'Tick at least one row to import.',
         unknown_row: 'That row does not exist in this import.',
         invalid_kind: 'Import the menu, the wine list or sales.',
+        cost_without_header: 'No header row was recognised, and the file has a column that looks like a purchase cost. A cost is never read as a price, and without a header the columns cannot be told apart. Name the columns in the first row (for example "Name", "Price") and upload the file again.',
         no_header: 'The file is missing columns the sales import needs: date, check number, item type, quantity and net amount.',
         no_complete_checks: 'No check can be saved: each ticked line belongs to a check with an unticked line or an error.',
         slug_taken: 'Another restaurant already uses this address name. Choose another.',
@@ -788,6 +812,12 @@ export const en = {
         member_deactivated: 'This person’s access is removed. Restore it before changing the role.',
         already_member: 'This person is already in the team of this restaurant. If their access was removed, restore it in the list.',
         invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
+        catalog_conflict: 'Someone changed the menu or the wine list while this import was open, and one of the new items now exists. Nothing was imported: start the import again.',
+        too_many_picks: 'A restaurant can mark at most 5 wines as its picks. Remove one first.',
+        invalid_launch_day: 'The launch day must be a real date from 2020-01-01 and not later than today.',
+        reason_required: 'A change of the launch day needs a short reason.',
+        reason_too_long: 'The reason can have at most 200 characters.',
+        wine_inactive: 'Only a wine that guests can see can be a pick. Show it on the wine list first.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
     },
@@ -800,7 +830,10 @@ export const en = {
       active: 'Active',
       hiddenFromGuests: 'Hidden from guests',
       status: { approved: 'Sommelier approved', modified: 'Sommelier modified', suggested: 'Suggested', rejected: 'Rejected' },
-      roles: { primary: 'Primary', alternative: 'Alternative', best_value: 'Best value' }
+      roles: { primary: 'Primary', alternative: 'Alternative', best_value: 'Best value' },
+      pick: 'Restaurant’s pick',
+      pickWaiting: 'Pick, waiting for publish',
+      pickRemoved: 'Pick removed, waiting for publish'
     },
     dashboard: {
       title: 'Dashboard',
@@ -928,6 +961,7 @@ export const en = {
       toReview: (n: number) => `${n} to review`
     },
     dish: {
+      moreDetails: 'Other details',
       back: 'Menu',
       managePairings: 'Manage pairings',
       details: 'Details',
@@ -973,9 +1007,19 @@ export const en = {
       glassAndBottle: 'Glass and bottle',
       bottleOnly: 'Bottle only',
       hide: 'Hide',
-      show: 'Show'
+      show: 'Show',
+      pick: 'Pick'
     },
     wine: {
+      pickTitle: 'Restaurant’s pick',
+      pickText: 'A pick moves the wine higher among the engine’s suggestions, with a plain label. It never changes the Match Score and never stands above a sommelier’s pairing. Guests see a change after you publish.',
+      pickYes: 'This wine is one of the restaurant’s picks.',
+      pickWaiting: 'It is marked, but guests do not see it as a pick until you publish.',
+      pickRemoved: 'It is no longer marked, but guests see it as a pick until you publish.',
+      pickNo: 'This wine is not marked.',
+      pickSeeAll: 'All picks and the simulator',
+      moreDetails: 'Style and serving',
+      bottleSize: 'Bottle size',
       back: 'Wine list',
       listing: 'Listing and prices',
       style: 'Style',
@@ -1013,6 +1057,9 @@ export const en = {
       doneText: 'Guests see your approved pairings first, with the engine filling any remaining places.',
       noPrimary: 'No primary pick yet',
       approveDish: 'Approve all for this dish',
+      renamedTitle: 'Renamed: check the pairs',
+      renamedText: 'The name changed after these pairings were decided. Check that they still fit, then decide again or leave them.',
+      renamedItem: (pairs: number) => `Name changed, check ${pairs} pairings`,
       openPairings: 'Open pairings',
       approve: 'Approve',
       reject: 'Reject'
@@ -1020,6 +1067,10 @@ export const en = {
     pairings: {
       title: (dish: string) => `Pairings: ${dish}`,
       noDishes: 'There are no dishes yet.',
+      pickTitle: 'Restaurant’s picks on this dish',
+      pickMoved: 'moves up on this dish',
+      pickLabel: 'labelled here, order unchanged',
+      pickAfterPublish: 'What guests see after you publish. Picks are managed on the Restaurant’s picks screen.',
       readOnly: 'You can see every pairing, the history and what guests see. Only the Wine Director decides pairings.',
       dishes: 'Dishes',
       approvedTitle: 'Approved for guests',
@@ -1117,6 +1168,83 @@ export const en = {
         ordered_not_reviewed: (wine: string, orders: number, days: number) => `${wine} was ordered with a recommendation code for this dish ${orders} ${orders === 1 ? 'time' : 'times'} in the last ${days} days, and this pairing isn’t approved.`
       }
     },
+    /**
+     * A27 "Restaurant’s picks" (spec 2026-11-18-restaurant-picks, R17). The label is the restaurant’s, never the
+     * sommelier’s; the numbers come from the layer’s own constants; the dashboard says "engine", never "AI".
+     */
+    picks: {
+      title: 'Restaurant’s picks',
+      description: (n: number, max: number) => `${n} of ${max} wines are marked as the restaurant’s pick.`,
+      howTitle: 'How picks work',
+      howPoints: (f: { minScore: number; window: number; promoted: number }) => [
+        'A pick moves a wine higher among the engine’s suggestions and shows the label “Restaurant’s pick”. The Match Score is never changed.',
+        'A sommelier’s pairing always stays on top, and a pick never gets the sommelier’s seal.',
+        `Only a wine with a Match Score of at least ${f.minScore}, no more than ${f.window} points under the best suggestion, can move; at most ${f.promoted} picks go to the front of a list.`,
+        'Guests see a change only after you publish it. The simulator below shows what would change.'
+      ],
+      readOnly: 'You can see the picks and try the simulator. Only the owner and the general manager change the picks.',
+      waiting: (added: number, removed: number) => `Not visible to guests yet: ${added} to add and ${removed} to remove. Publish to apply.`,
+      goPublish: 'Go to Publish',
+      unreviewedHidden: 'Your guest settings hide engine suggestions that nobody has reviewed. Picks are such suggestions, so guests do not see them. You can change this on the Publish screen.',
+      search: 'Search wines',
+      searchLabel: 'Search wines to mark',
+      noneTitle: 'No wines found',
+      noneEmpty: 'This restaurant has no wines yet. Import the wine list first, then mark up to 5 picks.',
+      noneFiltered: 'Try another search.',
+      importWines: 'Import your wine list',
+      wine: 'Wine',
+      status: 'Status',
+      effect: 'Effect once published',
+      action: 'Change',
+      marked: 'Restaurant’s pick',
+      markedWaiting: 'Restaurant’s pick, waiting for publish',
+      unmarkedWaiting: 'No longer a pick, guests still see it until you publish',
+      inactivePick: 'Hidden from guests, still takes one of the places',
+      notPick: '—',
+      mark: 'Mark as pick',
+      unmark: 'Remove pick',
+      full: 'All places are used. Remove a pick first.',
+      showFirst: 'Show the wine on the wine list first.',
+      effectMoved: (n: number) => `Moves up on ${n} ${n === 1 ? 'dish' : 'dishes'}`,
+      effectLabel: (n: number) => `Labelled on ${n} ${n === 1 ? 'dish' : 'dishes'}, order unchanged`,
+      effectNone: 'No effect',
+      effectUnknown: 'Mark it to see the effect',
+      noEffect: (reason: string, f: { minScore: number; window: number; promoted: number }) => {
+        switch (reason) {
+          case 'inactive': return 'The wine is hidden from guests.';
+          case 'not_in_list': return 'Guests cannot see this wine yet (added since the last publish), or the engine does not offer it for any dish.';
+          case 'sommelier_pair': return 'It is a sommelier’s pairing: it keeps its seal and is not labelled as a pick.';
+          case 'unreviewed_hidden': return 'Your settings hide suggestions nobody has reviewed.';
+          case 'below_min_score': return `Its Match Score is under ${f.minScore} on these dishes.`;
+          case 'outside_window': return `It is more than ${f.window} points under the best suggestion.`;
+          case 'over_cap': return `${f.promoted} other picks already go first.`;
+          default: return 'No effect on the dishes.';
+        }
+      },
+      simTitle: 'Before and after',
+      simText: 'Ranks every dish twice with the same function guests are served by: before (what guests see now) and after (with the picks below, once published). Nothing is saved. Only picks are compared: other unpublished changes (pairings, profiles) are not included, so “after” equals the guest list only when picks are your only unpublished change.',
+      simWines: 'Wines to try (up to 5)',
+      simDish: 'Dish',
+      allDishes: 'All dishes',
+      simulate: 'Simulate',
+      simReset: 'Back to the working picks',
+      simInvalid: 'Check the simulation: choose at most 5 wines and a dish from the list.',
+      simNotPublished: 'This restaurant was never published, so guests see no picks yet. “Before” is the list without picks.',
+      simSummary: (reordered: number, dishes: number, without: number) => `${reordered} of ${dishes} ${dishes === 1 ? 'dish changes' : 'dishes change'} order. ${without} ${without === 1 ? 'pick has' : 'picks have'} no effect.`,
+      simNone: 'No picks to try. Mark a wine, or tick wines above.',
+      simPicks: 'What each pick does',
+      simDishes: 'Dishes with a change',
+      simUnchanged: (n: number) => `${n} ${n === 1 ? 'dish does' : 'dishes do'} not change.`,
+      before: 'Before: guests now',
+      after: 'After: once published',
+      sommelierPair: 'Sommelier’s pairing',
+      engineList: 'Engine suggestion',
+      emptyList: 'No wines',
+      up: (n: number) => `up ${n}`,
+      down: (n: number) => `down ${n}`,
+      entered: 'enters the list',
+      left: 'leaves the list'
+    },
     publish: {
       title: 'Publish',
       description: (when: string, version: string) => `Last published ${when}${version}. Guests see the published version through the QR code.`,
@@ -1159,7 +1287,10 @@ export const en = {
       submit: 'Publish changes',
       upToDate: 'Up to date',
       upToDateText: 'Make a change on the Pairings or Review queue screens, then come back to publish it.',
-      versionBadge: (n: number) => `Version ${n}`
+      versionBadge: (n: number) => `Version ${n}`,
+      picks: (added: number, removed: number) => `Restaurant’s picks: +${added} / −${removed}`,
+      picksText: 'Waiting to be published. Guests see the picks only after you publish.',
+      picksOpen: 'Open picks'
     },
     /**
      * "How it works" on the dashboard (spec 2026-10-16-how-it-works-explanations, phase 3): one explanation per card,
@@ -1283,6 +1414,109 @@ export const en = {
         ]
       }
     },
+    /**
+     * A33 "Results report" (spec 2026-11-18-owner-proof-report, R4 to R9, R15). Wording rules (R8): never the word AI, never
+     * "guaranteed", never a cause ("thanks to Wine Match", "Wine Match effect"); the verdict sentences are fixed; "measured from
+     * the POS export" and "from your checks" are allowed. The report says what changed and how sure we can be, never why.
+     */
+    proof: {
+      title: 'Results report',
+      description: 'What your own POS checks show before and after launch, and how sure we can be. It does not say what caused the change.',
+      window: (k: number, from: string, to: string) => `Window ${k}: ${from} – ${to}`,
+      windowShort: (k: number) => `Window ${k}`,
+      windowNav: 'Choose a window',
+      prev: 'Previous window',
+      next: 'Next window',
+      print: 'Printable version',
+      printTitle: 'Results report, printable version',
+      printHeading: (restaurant: string) => `Results report: ${restaurant}`,
+      printButton: 'Print',
+      printHint: 'To print or save as PDF, use Ctrl/Cmd+P.',
+      backToReport: 'Back to the report',
+      launchSet: (day: string, role: string, changes: number) => `Launch day set to ${day} by ${role}${changes > 0 ? `; changed ${changes} ${changes === 1 ? 'time' : 'times'}` : ''}.`,
+      launchChangedLate: 'Launch day changed after window 1 ended',
+      dataThrough: (day: string, lastImport: string) => `POS data through ${day}${lastImport ? `, last import ${lastImport}` : ''}.`,
+      emptyNoLaunchTitle: 'Set the launch day first',
+      emptyNoLaunchText: 'The report compares the 28 days before the launch with the 28-day windows after it. Enter the first day guests could use Wine Match at the tables.',
+      emptyNoLaunchReadOnly: 'The launch day has not been set. Ask the owner or the general manager to set it.',
+      emptyNoImportTitle: 'Upload a POS export',
+      emptyNoImportText: 'The report is measured from your POS sales. No sales have been imported yet.',
+      emptyNoImportAction: 'Import sales',
+      invalidWindowTitle: 'This window does not exist',
+      invalidWindowText: (max: number) => `The window must be a whole number from 1 to ${max}, and it must have started.`,
+      invalidWindowAction: 'Show the newest window',
+      resultTitle: 'Result',
+      before: 'Before',
+      after: 'After',
+      checksOf: (n: number, m: number) => `${n} of ${m} checks with food included wine`,
+      tradingDays: (d: number, days: number) => `days with data: ${d} of ${days}`,
+      changeLine: (delta: string, low: string, high: string) => `${delta} percentage points, interval from ${low} to ${high}`,
+      minimumChange: (pp: number) => `With these numbers of checks the report can show a rise of about ${pp} percentage points or more.`,
+      verdict: {
+        increase: 'The share of checks with wine is higher than in the baseline window and the difference is larger than ordinary swings at this number of checks. The report does not say what caused it.',
+        decrease: 'The share of checks with wine is lower than in the baseline window and the difference is larger than ordinary swings at this number of checks. The report does not say what caused it.',
+        inconclusive: 'From this data it is not possible to say whether the share rose, fell or stayed the same.'
+      },
+      notEnoughTitle: 'Not enough data to show a change',
+      notEnoughText: 'The counts are below. The change, its interval and the verdict appear when both periods have enough data.',
+      rateHidden: (min: number) => `under ${min} checks: no percentage`,
+      baselineLabel: 'Baseline',
+      reasons: {
+        no_launch_day: () => ({ what: 'The launch day is not set.', todo: 'Enter the launch day below.' }),
+        no_sales_import: () => ({ what: 'No POS sales have been imported.', todo: 'Upload a POS export.' }),
+        baseline_no_data: (f: { from: string; to: string }) => ({ what: 'The baseline has no sales.', todo: `Upload the POS export for ${f.from} – ${f.to}.` }),
+        baseline_too_few_checks: (f: { minChecks: number }) => ({ what: `The baseline has fewer than ${f.minChecks} checks with food.`, todo: 'A longer baseline is not possible: the report uses the 28 days before launch. Check that the whole period is imported.' }),
+        baseline_too_few_days: (f: { minDays: number }) => ({ what: `The baseline has data for fewer than ${f.minDays} days.`, todo: 'Check that the export covers every day the restaurant was open.' }),
+        window_incomplete: (f: { to: string }) => ({ what: 'This window is still running.', todo: `Come back after ${f.to}; the counts above are partial.` }),
+        window_not_imported: (f: { to: string; dataThrough: string }) => ({ what: `POS data ends ${f.dataThrough}, before the end of the window.`, todo: `Upload the POS export up to ${f.to}.` }),
+        window_too_few_checks: (f: { minChecks: number }) => ({ what: `The window has fewer than ${f.minChecks} checks with food.`, todo: 'Wait for the next window or check the import.' }),
+        window_too_few_days: (f: { minDays: number }) => ({ what: `The window has data for fewer than ${f.minDays} days.`, todo: 'Check that the export covers every day the restaurant was open.' })
+      } as Record<ProofReason, (f: { from: string; to: string; minChecks: number; minDays: number; dataThrough: string }) => { what: string; todo: string }>,
+      oldBaseline: 'The baseline is older than three windows. Season, a new menu or prices may explain the difference.',
+      tableTitle: 'All windows',
+      colPeriod: 'Period',
+      colChecks: 'Checks with wine',
+      colRate: 'Share',
+      colInterval: 'Interval',
+      colChange: 'Change',
+      colDays: 'Days with data',
+      noValue: '–',
+      incomplete: 'window running',
+      groupsTitle: 'Checks with and without a code',
+      groupsCaveat: 'This is a comparison, not proof of a cause. Tables that used a code reached for a recommendation themselves; they might have ordered wine without it. No code in the till does not mean the table did not use Wine Match. A code is entered when the recommended wine is ordered, so the share in the group with a code is high by definition.',
+      groupWithCode: 'With a code',
+      groupWithoutCode: 'Without a code',
+      groupNotEnough: 'not enough data',
+      groupRevenue: 'Wine revenue per check with food',
+      groupNone: 'The baseline has no groups: codes did not exist then.',
+      codesTitle: 'Recommendation codes in the window',
+      codesIssued: 'Issued',
+      codesConfirmed: 'Confirmed by the waiter',
+      codesInSales: 'Found in sales',
+      codesOrdered: 'Ordered',
+      codesUnmatched: 'In the POS without a recommendation',
+      howTitle: 'How we calculate',
+      howText: (f: { minChecks: number; minDays: number }) => `The baseline is the 28 days before the launch day, and each window is the next 28 days (four full weeks), measured from your POS export. A check counts when it has food; it has wine when the wine lines, after refunds, are above zero; bar-only checks are left out. The share is checks with wine divided by checks with food. A period needs at least ${f.minChecks} checks with food and data for at least ${f.minDays} days. The interval is at least as wide as shown: checks of one day resemble each other, and the windows are looked at one after another without correction. It is not a statistical test and not a basis for automatic decisions.`,
+      notTitle: 'What this report does not say',
+      notPoints: {
+        not_causal: 'Why the share changed: the report shows what changed, not the cause.',
+        no_control_group: 'There is no comparison group, no other restaurant and no tables without the app.',
+        season_menu_prices: 'Season, a new menu, price changes, weather and events can move the share on their own.',
+        checks_of_a_day_are_alike: 'Checks of one day resemble each other (weekend, weather), so the real uncertainty is larger than the interval.',
+        looks_are_not_corrected: 'Windows are looked at one after another and the intervals are not corrected for that.'
+      } as Record<ProofCaveat, string>,
+      launchTitle: 'Launch day',
+      launchHelp: 'The first day guests could use Wine Match at the tables. It fixes the baseline. A change is added to the history with a reason, never overwritten.',
+      launchLabel: 'Launch day',
+      reasonLabel: 'Reason for the change',
+      reasonFirst: 'Optional for the first entry.',
+      reasonLater: 'Required: a short reason, up to 200 characters.',
+      save: 'Save launch day',
+      readOnly: 'Only the owner and the general manager change the launch day.',
+      historyTitle: 'History',
+      historyEntry: (n: number, day: string, role: string, when: string) => `${n}. ${day}, by ${role}, ${when}`,
+      historyReason: (reason: string) => `Reason: ${reason}`
+    },
     team: {
       title: 'Team',
       description: 'Everyone with access to this restaurant. A change applies on the person’s next request: there is nothing to publish.',
@@ -1398,6 +1632,62 @@ export const en = {
       guestWineTitle: 'Where the wine enters or leaves the top picks',
       guestWineNone: 'The wine keeps its place in every dish\'s top picks.',
       error: 'The preview needs valid values.'
+    },
+    catalog: {
+      dish: {
+        title: 'Details',
+        text: 'The name, description, category and price guests read on the menu. A change is live for guests at once.',
+        name: 'Name', description: 'Description', category: 'Category', price: 'Price (zł)',
+        baseHint: 'This is the base text. Translations are below.',
+        renameHint: 'Renaming changes what the file import matches: a later import of the old name creates a new dish.'
+      },
+      wine: {
+        title: 'Listing',
+        text: 'Producer, name, vintage, region, prices and the list number. A change is live for guests at once.',
+        producer: 'Producer', name: 'Wine', vintage: 'Vintage (a year or NV)', region: 'Region', country: 'Country', tastingNote: 'Tasting note',
+        listNumber: 'List no.', listNumberHint: 'Leave empty if the wine is not on the printed list.', bottlePrice: 'Bottle price (zł)',
+        pouredByGlass: 'Poured by the glass', glassPrice: 'Glass price (zł)', glassHint: 'Used only when the wine is poured by the glass; leave it as it is otherwise.',
+        baseHint: 'This is the base text. Translations are below.'
+      },
+      save: 'Save changes',
+      create: {
+        addDish: 'Add dish', addWine: 'Add wine',
+        dishTitle: 'New dish', dishText: 'A new dish starts as a draft: guests see it after you publish. Its taste profile is a draft too; check it and confirm it on the dish page.',
+        wineTitle: 'New wine', wineText: 'A new wine appears on the wine list with a draft taste profile; guests see it after you publish. Check the profile and confirm it on the wine page.',
+        submitDish: 'Add dish', submitWine: 'Add wine', cancel: 'Cancel',
+        style: 'Style', grape: 'Grape (optional)', grapeHint: 'Only used to prepare the draft taste profile; several grapes: separate them with a comma.',
+        listNumberHint: 'Leave empty to take the next free number.'
+      },
+      visibility: {
+        hide: 'Hide from guests', show: 'Show to guests',
+        hideHint: 'Guests stop seeing the dish at once; its pairings and suggestions stay.',
+        showHint: 'This dish is hidden. Guests see it again at once, without a publish.'
+      },
+      readOnly: 'Your role cannot change these details.',
+      identity: {
+        dish: 'This dish has {n} sommelier pairings. Rename it only to correct the name, not to replace the dish.',
+        wine: 'This wine has {n} sommelier pairings. Change the producer, name or vintage only to correct them, not to replace the wine.',
+        confirm: 'I am correcting it, not replacing it'
+      },
+      lastEditBy: 'Last edited by {name}, {date}',
+      lastEdit: 'Last edited {date}',
+      stale: 'Translations ({languages}) may be outdated.',
+      staleLink: 'Check the translations',
+      checkAfterRename: 'Check after rename',
+      pairsToCheck: '{n} pairings to check after the rename',
+      errors: {
+        required: 'Fill this in.', too_long: 'Too long.', not_positive: 'Must be more than zero.', too_many_decimals: 'At most two decimal places.',
+        glass_not_below_bottle: 'The glass must cost less than the bottle.', duplicate: 'Another item already has this name.', transition: 'This change is not allowed.',
+        not_a_number: 'Enter a number such as 58 or 58,50.', not_allowed: 'Switch on “Poured by the glass” to set a glass price.', out_of_range: 'Outside the allowed range.',
+        invalid: 'Not a valid value.', invalid_chars: 'Remove the control or invisible characters.', identity_unconfirmed: 'Confirm that you are correcting the name.',
+        unknown_field: 'Unknown field.'
+      } as Record<string, string>,
+      formErrors: {
+        version_conflict_dish: 'Someone has changed this dish in the meantime. Reload the page.',
+        version_conflict_wine: 'Someone has changed this wine in the meantime. Reload the page.',
+        forbidden: 'You don’t have permission to do that.', not_found: 'That item no longer exists.', validation_failed: 'Check the fields marked below. Nothing was saved.',
+        unexpected: 'The change could not be saved. Nothing was changed; try again.'
+      } as Record<string, string>
     },
     translations: {
       title: 'Translations',
@@ -1602,6 +1892,9 @@ export const en = {
         pdf: 'This PDF was read as text. A PDF has no real columns, so check every row before importing.',
         noCategory: 'No category column: dishes without a category are set to Mains. Check them in the preview.',
         unused: (columns: string) => `Columns not used: ${columns}.`,
+        costSkipped: (columns: string) => `Cost columns skipped, never read as a price: ${columns}.`,
+        priceUnsure: (columns: string) => `Price not chosen, several columns could be it: ${columns}.`,
+        priceHint: 'If a skipped column is really your sale price, rename its header to "Price" or "Cena" and upload the file again.',
         noHeader: (order: string) => `No header row was found, so the columns were read in this order: ${order}.`,
         noCovers: 'No guests column: wine revenue per guest cannot be calculated from this file.',
         dayMonth: 'Dates like 03/04/2026 were read as day/month (3 April 2026).',

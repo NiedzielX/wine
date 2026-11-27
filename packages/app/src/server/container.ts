@@ -3,7 +3,7 @@ import type { DbCradle } from '@wine-match/db';
 import { randomUUID } from 'node:crypto';
 import {
   AdminService, AnalyticsService, AuthService, CatalogService, DEFAULT_AUTH_CONFIG, DEFAULT_RATE_LIMIT_MAX_CLIENTS, DEFAULT_RATE_LIMIT_RULES, ImportService, MemoryAuthRepository, MemorySystemHealth, OpportunityService, RestaurantService, MemoryStore, PublishService, RecommendationCodeService, RecommendationService, SalesKpiService,
-  InvitationService, LogThrottle, MemoryRateLimiter, RateLimitGuard, SommelierService, TeamService, TranslationService, ProfileService, ProfilePreviewService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
+  InvitationService, LogThrottle, MemoryRateLimiter, RateLimitGuard, SommelierService, TeamService, TranslationService, ProfileService, ProfilePreviewService, CatalogEditService, PicksService, PicksSimulationService, ProofReportService, UsageEventService, buildDemoDataset, createMemoryRepositories, type AuthConfig, type AuthRepository, type Clock, type IdGenerator, type ImportFileParser, type Logger,
   type PasswordHasher, type RateLimiter, type RateLimitRules, type Repositories, type SessionTokens, type SystemHealth
 } from '@wine-match/core';
 import { NodeSessionTokens, ScryptPasswordHasher } from '@wine-match/db/auth';
@@ -40,6 +40,10 @@ export interface Cradle extends Repositories, Partial<DbCradle> {
   translationService: TranslationService;
   profileService: ProfileService;
   profilePreviewService: ProfilePreviewService;
+  catalogEditService: CatalogEditService;
+  picksService: PicksService;
+  proofReportService: ProofReportService;
+  picksSimulationService: PicksSimulationService;
   usageEventService: UsageEventService;
   recommendationCodeService: RecommendationCodeService;
   salesKpiService: SalesKpiService;
@@ -84,6 +88,10 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
     translationService: asClass(TranslationService).scoped(),
     profileService: asClass(ProfileService).scoped(),
     profilePreviewService: asClass(ProfilePreviewService).scoped(),
+    catalogEditService: asClass(CatalogEditService).scoped(),
+    picksService: asClass(PicksService).scoped(),
+    proofReportService: asClass(ProofReportService).scoped(),
+    picksSimulationService: asClass(PicksSimulationService).scoped(),
     usageEventService: asClass(UsageEventService).scoped(),
     recommendationCodeService: asClass(RecommendationCodeService).scoped(),
     salesKpiService: asClass(SalesKpiService).scoped(),
@@ -123,12 +131,16 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       publishRepository: asClass(db.PgPublishRepository).scoped(),
       contentWriteRepository: asClass(db.PgContentWriteRepository).scoped(),
       profileWriteRepository: asClass(db.PgProfileWriteRepository).scoped(),
+      catalogWriteRepository: asClass(db.PgCatalogWriteRepository).scoped(),
+      catalogEditRepository: asClass(db.PgCatalogEditRepository).scoped(),
+      picksRepository: asClass(db.PgPicksRepository).scoped(),
       authRepository: asClass(db.PgAuthRepository).scoped(),
       importRepository: asClass(db.PgImportRepository).scoped(),
       opportunityDismissalRepository: asClass(db.PgOpportunityDismissalRepository).scoped(),
       guestInteractionRepository: asClass(db.PgGuestInteractionRepository).scoped(),
       recommendationCodeRepository: asClass(db.PgRecommendationCodeRepository).scoped(),
       salesRepository: asClass(db.PgSalesRepository).scoped(),
+      proofLaunchRepository: asClass(db.PgProofLaunchRepository).scoped(),
       systemHealth: asClass(db.PgSystemHealth).scoped(),
       rateLimiter: asClass(db.PgRateLimiter).scoped(),
       teamRepository: asClass(db.PgTeamRepository).scoped(),
@@ -151,12 +163,16 @@ async function buildContainer(): Promise<AwilixContainer<Cradle>> {
       publishRepository: asValue(repos.publishRepository),
       contentWriteRepository: asValue(repos.contentWriteRepository),
       profileWriteRepository: asValue(repos.profileWriteRepository),
+      catalogWriteRepository: asValue(repos.catalogWriteRepository),
+      catalogEditRepository: asValue(repos.catalogEditRepository),
+      picksRepository: asValue(repos.picksRepository),
       authRepository: asValue<AuthRepository>(new MemoryAuthRepository(store)),
       importRepository: asValue(repos.importRepository),
       opportunityDismissalRepository: asValue(repos.opportunityDismissalRepository),
       guestInteractionRepository: asValue(repos.guestInteractionRepository),
       recommendationCodeRepository: asValue(repos.recommendationCodeRepository),
       salesRepository: asValue(repos.salesRepository),
+      proofLaunchRepository: asValue(repos.proofLaunchRepository),
       systemHealth: asValue<SystemHealth>(new MemorySystemHealth()),
       // one process, bounded (MAX_MEMORY_RATE_LIMIT_ENTRIES): the counters live as long as the container
       rateLimiter: asValue<RateLimiter>(new MemoryRateLimiter(undefined, env().rateLimitMaxClients ?? DEFAULT_RATE_LIMIT_MAX_CLIENTS)),

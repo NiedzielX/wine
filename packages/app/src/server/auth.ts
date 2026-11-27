@@ -78,11 +78,11 @@ export const requireAccess = cache(async (slug: string): Promise<Access> => {
 });
 
 /** For server actions: returns the actor or throws. `null` principal means the session ended. */
-export async function authorizeAction(slug: string, permission: Permission): Promise<{ actor: Actor } | { signedOut: true }> {
+export async function authorizeAction(slug: string, permission: Permission): Promise<{ actor: Actor; membership: Membership } | { signedOut: true }> {
   const principal = await getPrincipal();
   if (!principal) return { signedOut: true };
-  authorize(principal, slug, permission);        // throws ForbiddenError
-  return { actor: toActor(principal) };
+  const membership = authorize(principal, slug, permission);        // throws ForbiddenError
+  return { actor: toActor(principal), membership };
 }
 
 export { ForbiddenError };

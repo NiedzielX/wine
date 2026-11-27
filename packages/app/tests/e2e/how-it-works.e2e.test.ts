@@ -45,7 +45,7 @@ describe('"How it works" on the guest screens and G12, without JavaScript', () =
     const page = await browser.waitForPageText('The sommelier has the last word');
     expect(page).toContain('pinot noir with duck');
     expect(page).toContain('No producer pays to be listed.');
-    expect(await browser.count('section[data-section]')).toBe(7);
+    expect(await browser.count('section[data-section]')).toBe(8);
     expect(await browser.count(`a[href="/r/halka?sid=${sid}"]`)).toBe(2);
   });
 
