@@ -4,7 +4,7 @@ area: admin
 title: "Simulator shows before and after and writes nothing"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-restaurant-picks.md
+  path: .ai/specs/implemented/2026-11-18-restaurant-picks.md
   ac: ["AC9"]
 test:
   file: packages/app/tests/e2e/picks.e2e.test.ts

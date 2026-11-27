@@ -4,7 +4,7 @@ area: admin
 title: "Add dish: wrong values come back with what was typed"
 status: automated
 spec:
-  path: .ai/specs/2026-11-16-catalog-field-editing.md
+  path: .ai/specs/implemented/2026-11-16-catalog-field-editing.md
   ac: ["AC16", "AC18"]
 test:
   file: packages/app/tests/e2e/catalog-create.e2e.test.ts
