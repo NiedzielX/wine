@@ -30,7 +30,6 @@ An owner's spreadsheet with a purchase-cost column ("Cena zakupu netto") placed 
 3. After the confirmation the dishes cost 36 and 112 and the wines 240 and 220; no dish or wine has a price above 7000.
 4. After the publish the public menu API shows 36 and 112; the guest pages and the published snapshot contain no 7777.
 5. The application log contains neither 7777,77 nor 7777.77.
-6. A file without a header whose columns include a cost (`Potrawa;Cena;Koszt`, wines `Etykieta;Koszt;Cena`) is uploaded: the answer is 422 `cost_without_header`, the body names no cell and no value, and no import job is stored.
 
 ## Edge cases covered
 - The cost column is first in the file (before the price column).
@@ -41,5 +40,4 @@ An owner's spreadsheet with a purchase-cost column ("Cena zakupu netto") placed 
 - The test records the database first and puts it back at the end. The dishes and wines of the files have names no demo item has.
 
 ## Test implementation
-The 422 refusal of a headerless file with a cost column is the second `it` of the same file (step 6).
 [packages/app/tests/e2e/import-cost-columns.e2e.test.ts](../../../packages/app/tests/e2e/import-cost-columns.e2e.test.ts): `a menu and a wine list with "Cena zakupu netto" before the price column: the preview warns, the prices are the price column, and the cost reaches nobody`
