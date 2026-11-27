@@ -39,12 +39,12 @@ Wine Match: platforma B2B2C rekomendacji win dla restauracji — aplikacja gośc
 
 | Obszar | Technologia | Wersja |
 |---|---|---|
-| Aplikacja | Next.js (App Router, Turbopack), React | 16.4.3, 19.3.1 |
+| Aplikacja | Next.js (App Router, Turbopack), React | 16.4.5, 19.3.1 |
 | Język | TypeScript (natywny kompilator) | 7.0.2 |
-| Baza danych | PostgreSQL + MikroORM (migracje, seedery, pula połączeń) | PG ≥ 16, MikroORM 7.2.5 |
+| Baza danych | PostgreSQL + MikroORM (migracje, seedery, pula połączeń) | PG ≥ 16, MikroORM 7.2.8 |
 | Dependency Injection | Awilix (tryb `PROXY`) | 13.0.5 |
-| CSS | Tailwind CSS (strony gościa) / shadcn/ui na Tailwind (panel) | 4.3.3 / new-york-v4 |
-| Testy | Vitest | 5.0.5 |
+| CSS | Tailwind CSS (strony gościa) / shadcn/ui na Tailwind (panel) | 4.3.5 / new-york-v4 |
+| Testy | Vitest | 5.1.0 |
 | Monorepo | npm workspaces | npm ≥ 11.6, Node ≥ 22.17 |
 
 **MUSISZ** trzymać się tego stosu. Nowa biblioteka, zmiana wersji głównej albo zamiana narzędzia (np. inny ORM, kontener DI, biblioteka komponentów, pnpm) wymaga specyfikacji (§3). Wersje są przypięte dokładnie (`.npmrc`: `save-exact`); nowe zależności wybieraj spośród wydań opublikowanych co najmniej 14 dni temu.
