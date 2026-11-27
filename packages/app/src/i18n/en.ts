@@ -1891,6 +1891,7 @@ export const en = {
         pdf: 'This PDF was read as text. A PDF has no real columns, so check every row before importing.',
         noCategory: 'No category column: dishes without a category are set to Mains. Check them in the preview.',
         unused: (columns: string) => `Columns not used: ${columns}.`,
+        costSkipped: (columns: string) => `Cost columns skipped, never read as a price: ${columns}.`,
         noHeader: (order: string) => `No header row was found, so the columns were read in this order: ${order}.`,
         noCovers: 'No guests column: wine revenue per guest cannot be calculated from this file.',
         dayMonth: 'Dates like 03/04/2026 were read as day/month (3 April 2026).',

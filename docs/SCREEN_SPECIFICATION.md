@@ -475,7 +475,7 @@ Spec `2026-10-16-how-it-works-explanations` (faza 2, R9). Dłuższa, spokojna we
 | Empty | plik bez wierszy → komunikat walidacji |
 | Error | zły format, za duży plik, brak wierszy, wiersz bez nazwy / ceny („Row 5: add a name and a price, or untick it.”), brak zaznaczonych wierszy |
 | Success | krok 3 „{n} dishes imported” |
-| Walidacje | rozszerzenia csv/xlsx/xls/pdf; ≤ 10 MB; nazwa i cena > 0 dla importowanych wierszy; separator `,` lub `;` |
+| Walidacje | rozszerzenia csv/xlsx/xls/pdf; ≤ 10 MB; nazwa i cena > 0 dla importowanych wierszy; separator `,` lub `;`. **Kolumny kosztów** (od 2026-11-25): nagłówek o koszcie zakupu („Cena zakupu netto”, „Koszt”, „Cost”, „Purchase price”, „Cena hurtowa”) nigdy nie jest ceną; podgląd pokazuje uwagę „Cost columns skipped, never read as a price: …” / „Pominięte kolumny kosztów, nigdy nie odczytywane jako cena: …”, a plik bez innej kolumny ceny daje wiersze „Price is missing” (dotyczy też importu win) |
 | Permissions | Sommelier, GM |
 | API | `POST /imports/menu` (multipart), `GET /imports/{id}`, `PATCH /imports/{id}/rows`, `POST /imports/{id}/confirm`, `DELETE /imports/{id}` |
 | Analytics | `import_file_parsed {kind, rows, format}`, `import_confirmed {kind, count}` |
