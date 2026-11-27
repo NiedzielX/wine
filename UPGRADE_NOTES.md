@@ -22,6 +22,8 @@ Wzór wpisu (w bloku kodu, więc skrypt go nie czyta):
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-27
+
 ### Import: kolumna kosztu zakupu nigdy nie jest ceną (#200)
 
 - **Kogo dotyczy:** restauracji, które importują menu lub wina z pliku z kolumną `koszt` albo `cost` (także „Cena zakupu netto”, „Purchase price”, „Cena hurtowa”) w roli ceny; integratora, który wysyła takie pliki; operatora, który ma gotowe szablony importu.
