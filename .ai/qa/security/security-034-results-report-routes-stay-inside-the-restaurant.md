@@ -4,7 +4,7 @@ area: security
 title: "Results report routes stay inside the restaurant"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-owner-proof-report.md
+  path: .ai/specs/implemented/2026-11-18-owner-proof-report.md
   ac: ["AC10", "AC11", "AC12", "AC13"]
 test:
   file: packages/app/tests/e2e/proof-boundary.e2e.test.ts

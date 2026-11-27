@@ -4,7 +4,7 @@ area: guest
 title: "The sommelier pairs stay on top and never carry the pick label"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-restaurant-picks.md
+  path: .ai/specs/implemented/2026-11-18-restaurant-picks.md
   ac: ["AC2", "AC4"]
 test:
   file: packages/app/tests/e2e/picks-guest.e2e.test.ts

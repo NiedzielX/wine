@@ -4,7 +4,7 @@ area: admin
 title: "Renaming a dish with pairings: warning, confirmation and marks"
 status: automated
 spec:
-  path: .ai/specs/2026-11-16-catalog-field-editing.md
+  path: .ai/specs/implemented/2026-11-16-catalog-field-editing.md
   ac: ["AC20"]
 test:
   file: packages/app/tests/e2e/catalog-edit.e2e.test.ts
