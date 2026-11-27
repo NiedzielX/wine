@@ -4,7 +4,7 @@ area: kpi
 title: "Results report: not enough data and a window that does not exist"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-owner-proof-report.md
+  path: .ai/specs/implemented/2026-11-18-owner-proof-report.md
   ac: ["AC4"]
 test:
   file: packages/app/tests/e2e/proof-report.e2e.test.ts

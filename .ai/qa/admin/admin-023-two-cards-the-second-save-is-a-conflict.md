@@ -4,7 +4,7 @@ area: admin
 title: "Wine form: the second of two open cards gets a conflict"
 status: automated
 spec:
-  path: .ai/specs/2026-11-16-catalog-field-editing.md
+  path: .ai/specs/implemented/2026-11-16-catalog-field-editing.md
   ac: ["AC9"]
 test:
   file: packages/app/tests/e2e/catalog-edit.e2e.test.ts

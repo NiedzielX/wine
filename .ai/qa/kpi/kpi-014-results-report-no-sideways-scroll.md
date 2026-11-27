@@ -4,7 +4,7 @@ area: kpi
 title: "Results report: no sideways scroll"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-owner-proof-report.md
+  path: .ai/specs/implemented/2026-11-18-owner-proof-report.md
   ac: ["AC14"]
 test:
   file: packages/app/tests/e2e/proof-report-layout.e2e.test.ts
