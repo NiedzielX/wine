@@ -31,6 +31,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ### Poprawki
 - Import menu i win nie czyta kolumny kosztu jako ceny (`import-cost-columns-not-price`): nagłówek „Cena zakupu netto”, „Koszt”, „Cost”, „Purchase price” lub „Cena hurtowa” pasował do pola ceny przez regułę prefiksu (`cena`), więc koszt zakupu mógł trafić do menu gości (dane bieżące, bez publikacji). Taka kolumna jest teraz pomijana z uwagą w podglądzie. **Zmiana zachowania:** `cost` i `koszt` w imporcie menu dotąd oznaczały cenę dania, teraz są pomijane (`BACKWARD_COMPATIBILITY.md` §6). Wiersz T-44 w modelu zagrożeń, scenariusz `import-001`.
+- Import: kolumna kosztu zakupu nie trafia do ceny także w pliku bez rozpoznanego nagłówka (odrzucenie `cost_without_header`) ani gdy stoi przed „Cena” (dokładne „Cena” / „Price” wygrywa z „Cena nabycia”, „Price net”; kilka kandydatów tylko-prefiksowych = pusta cena z uwagą); nowe rdzenie `nabyc`, `kupn`, `zak`, `buy`, `supplier`, `dostaw`. **Breaking:** plik z kolumną `koszt` / `cost` jako ceną dania się nie zaimportuje, użyj „Cena” / „Price” (`import-cost-columns-followup`).
 - Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
 
 ### Operacje
