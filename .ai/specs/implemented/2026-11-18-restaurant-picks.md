@@ -6,6 +6,7 @@ related: [.ai/specs/product-brief.md (D22, D24, D25, R02, R06, N02), .ai/specs/2
 superseded_by:
 author_model: not recorded
 reviewed_by: "independent agent, fresh context (model not recorded)"
+review_independence: different-model        # przegląd po wdrożeniu 2026-11-27; model inny niż autora zlecony przy uruchomieniu, nie potwierdzony po stronie sesji
 ---
 
 # Wybór restauracji, faza 1: kolejność i etykieta z symulatorem „przed / po” (tryb ostrożny)
@@ -111,7 +112,7 @@ Każde AC o zachowaniu UI lub API ma scenariusz w `.ai/qa/{AREA}/` i test e2e w 
 - [x] **AC14** (U7) `recommendations_viewed`, `wine_viewed`, `wine_selected` niosą `pick: true` tylko przy pozycji z etykietą; zdarzenia gościa bez wyboru bez zmian. *Test zdarzeń; usage-010.*
 - [x] **AC15** (R16) Publiczne API ma `restaurantPick` na pozycji; trasy mają `strictObject`, `handle()`, brak `try/catch`; `npm run check:routes` zielony; opisy w `API_SPECIFICATION.md`. *Test trasy + `check:routes`.*
 - [x] **AC16** (migracja) `up`/`down`/`up` przechodzi, `schema:check` zgodny dla wszystkich nazw baz, replay późniejszych migracji; plan wycofania zapisany (§12 standardów). *`npm run test:db`.*
-- [x] **AC17** (R17) Nowe strony panelu: `scripts/smoke.mjs` sprawdza 200 i tytuł w `memory` i `postgres`; przy 390 i 1440 px brak poziomego przewijania i błędów w konsoli; `npm run check:design` bez podnoszenia baseline. *`npm run smoke` + przegląd ekranów.*
+- [x] **AC17** (R17) Nowe strony panelu: `scripts/smoke.mjs` sprawdza 200 i tytuł w `memory` i `postgres`; przy 390 i 1440 px brak poziomego przewijania i błędów w konsoli; `npm run check:design` bez podnoszenia baseline. *`npm run smoke` + przegląd ekranów.* **Częściowo:** smoke w trybie `postgres` nie był uruchomiony, patrz odstępstwo 3.
 - [x] **AC18** (granice) `npm run check:boundaries` zielony: `core` bez importów spoza dozwolonych, strony bez `@wine-match/db`, `engine/` bez zmian (diff PR nie dotyka `packages/core/src/engine/`). *`check:boundaries`, przegląd diffu.*
 - [x] **AC19** (dokumentacja) Pliki z R19 zaktualizowane; `npm run check:context` bez błędów. *Przegląd diffu + polecenie.*
 
@@ -222,8 +223,14 @@ PR-y i logi:
 Ocena AC1–AC19 na `main`: wszystkie spełnione (sprawdzone w kodzie, testach i logach; testów nie uruchomiono ponownie w tym przebiegu, wyniki pochodzą z logów PR-ów). Dowody: AC1–AC4 `core/tests/restaurant-picks.test.ts`, `picks-guest.test.ts`, `engine-golden.test.ts`; AC5 kontrakty, `picks-service.test.ts`, `concurrency.integration.test.ts`; AC6 `published-view.test.ts`, `snapshot-reader.test.ts`; AC7 `picks-publish.test.ts`, `picks-guest.e2e.test.ts`; AC8–AC10 `picks-simulation.test.ts`, `picks-routes.test.ts`, `picks-pages.test.ts`; AC11 `access-boundaries-picks.e2e.test.ts` (T-40, mutacje w logu PR1b); AC12–AC14 `picks-guest-pages.test.ts`, słowniki, `usage-010`; AC15 `check:routes`; AC16 `migrations-roundtrip.integration.test.ts`; AC17 A27 w `scripts/smoke.mjs` (#195); AC18 `engine/` bez zmian (diff PR0–PR3 pusty); AC19 pliki z R19.
 
 Odstępstwa i niezweryfikowane lokalnie (nic z tego nie blokuje zamknięcia):
-1. R19: `packages/core/AGENTS.md` bez wpisu o `ranking/` i `services/picks/` (plik pod CODEOWNERS; do dopisania przez właściciela).
+1. R19: `packages/core/AGENTS.md` bez wpisu o `ranking/` i `services/picks/` (plik pod CODEOWNERS; do dopisania przez właściciela). *Nieaktualne: wpis już jest w `packages/core/AGENTS.md` (przegląd 2026-11-27).*
 2. Numeracja inna niż w AC: scenariusze guest-018…021, admin-035…039 (zamiast 021…024), security-036, usage-010; wiersz modelu zagrożeń T-40.
 3. AC17: smoke w trybie `postgres` nie uruchomiony w sesjach agentów (A27 pokryte e2e HTTP na PostgreSQL); 11 plików e2e z `agent-browser` uruchamia CI, wyniku CI nie sprawdzano w tym przebiegu.
 4. Dowód mutacyjny akcji formularza A27 (osłabienie `picks.edit`) nie wykonany; odmowę dowodzą `picks-pages.test.ts` i admin-038.
 5. `RANKING_LAYER_VERSION` jest w migawce, nie w zdarzeniach użycia; `restaurant_pick` bez kolumny kolejności; `pick_edit` ma `before`/`after` zamiast kolumny operacji (PR1a).
+
+Uwagi z przeglądu po wdrożeniu (2026-11-27, model inny niż autora zlecony przy uruchomieniu, nie potwierdzony; bez uwag blokujących; do poprawienia przy następnej zmianie tej funkcji):
+- R8 i AC3 nie wymieniają reguł `pick.window` (`PICK_WINDOW` = 10, decyzja O12) i `pick.budget_untouched`, które działają w `packages/core/src/ranking/restaurant-picks.ts`; źródłem decyzji jest O12.
+- `rankingVersion` trafia do migawki, ale nie do zdarzeń użycia, więc odtworzenie tego, co widział gość (R03), jest niepełne; nie było to formalne wymaganie.
+- R9 i R16 opisują `restaurantPick: boolean`; typ w `core` to opcjonalne `true`, a API zwraca boolean (kontrakt API dotrzymany).
+- Komentarz „Not yet stored with the snapshot” w `restaurant-picks.ts` przeczy zapisowi `rankingVersion` w migawce.
