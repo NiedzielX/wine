@@ -20,3 +20,6 @@ Przed zmianą semantyki `handle()` uruchom testy tras i sprawdź, które kody od
 
 ## Jak sprawdzić
 `npm test -w @wine-match/app` przed i po zmianie strażnika; lista zmienionych kodów odpowiedzi jest pusta albo opisana w specyfikacji.
+
+## Aktualizacja 2026-11-27
+Alert zamknięto bez zmiany kontraktu: `handle()` przy podanym `permission` i braku sluga sam zwraca ten sam 422 co trasy (po 401 i CSRF), zamiast pomijać `authorize`. Działa wzorzec „strażnik odpowiada tym samym kodem co handler”, a nie „strażnik zmienia kod”.
