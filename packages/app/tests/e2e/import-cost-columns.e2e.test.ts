@@ -71,4 +71,18 @@ describe('T-44: a cost column is never a price', () => {
     expect(log).not.toContain('7777,77');
     expect(log).not.toContain('7777.77');
   });
+
+  it('a file without a header that has a cost column is refused with 422 cost_without_header, and nothing of the file is echoed or stored', async () => {
+    const before = (await queryDatabase<{ n: string }>(db(), 'select count(*)::text as n from import_job'))[0]!.n;
+    for (const [kind, text] of [['menu', 'Potrawa;Cena;Koszt\nTarta;36;7777\n'], ['wines', 'Etykieta;Koszt;Cena\nRiesling;7777;240\n']] as const) {
+      const form = new FormData();
+      form.append('file', new File([text], `${kind}-no-header.csv`, { type: 'text/csv' }));
+      const res = await fetch(`${base()}/api/v1/imports/${kind}?restaurant=${HALKA}`, { method: 'POST', headers: { cookie: tomasz.cookie, 'x-csrf-token': tomasz.csrf, origin: origin() }, body: form });
+      const body = await res.text();
+      expect(res.status, kind).toBe(422);
+      expect(body, kind).toContain('cost_without_header');
+      for (const cell of ['7777', 'Potrawa', 'Etykieta', 'Koszt']) expect(body, `${kind} ${cell}`).not.toContain(cell);
+    }
+    expect((await queryDatabase<{ n: string }>(db(), 'select count(*)::text as n from import_job'))[0]!.n).toBe(before);
+  });
 });

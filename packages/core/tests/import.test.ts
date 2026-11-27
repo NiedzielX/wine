@@ -566,6 +566,7 @@ describe('cost columns are never read as a price', () => {
     const t = mapTable('menu', [['Danie', 'Cena zakupu', 'Cena', 'Alergeny'], ['Tart', '5', '36', 'nuts']]);
     expect(t.notes).toEqual([
       'Cost columns skipped, never read as a price: Cena zakupu.',
+      expect.stringMatching(/sale price, rename/),
       'Columns not used: Alergeny.',
       expect.stringMatching(/No category column/)
     ]);
@@ -581,6 +582,133 @@ describe('cost columns are never read as a price', () => {
     const wines = await t.imp.upload('halka', 'wines', file('wines-cost.csv'), ACTOR);
     expect(wines.rows[0].fields).toMatchObject({ bottlePrice: '240' });
     expect(JSON.stringify([menu, wines, await t.imp.get('halka', menu.id)])).not.toContain('7777');
+  });
+});
+
+/* ------------------ follow-up of the review of PR #200: no header, order of columns, false hits ------------------ */
+
+function refusal(run: () => unknown): { code?: string; message: string } {
+  try { run(); } catch (e) { return e as { code?: string; message: string }; }
+  throw new Error('expected the file to be refused');
+}
+
+describe('a cost column in a file without a recognised header', () => {
+  it.each([
+    [[['Potrawa', 'Cena', 'Koszt'], ['Tarta', '36', '7777']]],
+    [[['Potrawa', 'Opis', 'Cena', 'Koszt zakupu'], ['Tarta', 'Śliwki', '36', '7777']]],
+    [[['Menu', 'Cost'], ['Tarta', '7777']]]
+  ])('menu %j is refused with a clear message, never read in the default order', (rows) => {
+    const e = refusal(() => mapTable('menu', rows));
+    expect(e.code).toBe('cost_without_header');
+    expect(e.message).toMatch(/purchase cost/);
+    expect(e.message).not.toContain('7777');
+    expect(e.message).not.toMatch(/Potrawa|Menu|Koszt|Cost/);
+  });
+
+  it('wines: "Etykieta;Koszt;Cena" does not put the cost into the name or the vintage', () => {
+    const e = refusal(() => mapTable('wines', [['Etykieta', 'Koszt', 'Cena'], ['Riesling', '7777', '240']]));
+    expect(e.code).toBe('cost_without_header');
+    expect(e.message).not.toContain('7777');
+  });
+
+  it('a cost word further down the first five rows counts too, a headerless file without one still works', () => {
+    expect(refusal(() => mapTable('menu', [['Tytul'], ['Potrawa', 'Koszt']])).code).toBe('cost_without_header');
+    expect(mapTable('menu', [['Tarta', '36'], ['Sernik', '30']]).records.map((r) => r.price)).toEqual(['36', '30']);
+  });
+});
+
+describe('an exact price header wins over a header that only starts with "Cena" or "Price"', () => {
+  const SALE_AFTER_COST = ['Cena nabycia', 'Cena kupna', 'Cena zak.', 'Cena dostawcy', 'Cena dostawy', 'Buy price', 'Supplier price', 'Price net'];
+  it.each(SALE_AFTER_COST)('menu: "%s" before "Cena" is not the price', (header) => {
+    const t = mapTable('menu', [['Danie', header, 'Cena'], ['Tart', CANARY, '36']]);
+    expect(t.records[0]).toMatchObject({ name: 'Tart', price: '36' });
+    expect(JSON.stringify(t.records)).not.toContain(CANARY);
+  });
+  it.each(SALE_AFTER_COST)('wines: "%s" before "Cena butelka" is not the bottle price', (header) => {
+    const t = mapTable('wines', [['Producent', 'Wino', header, 'Cena butelka'], ['Keller', 'Riesling', CANARY, '240']]);
+    expect(t.records[0]).toMatchObject({ bottlePrice: '240' });
+    expect(JSON.stringify(t.records)).not.toContain(CANARY);
+  });
+  it.each(['Cena nabycia', 'Cena kupna', 'Cena zak.', 'Cena dostawcy', 'Buy price', 'Supplier price'])('"%s" is named as a skipped cost column', (header) => {
+    const t = mapTable('menu', [['Danie', header, 'Cena'], ['Tart', CANARY, '36']]);
+    expect(t.notes.join('\n')).toContain(`Cost columns skipped, never read as a price: ${header}.`);
+  });
+  it('the order of the columns does not matter', () => {
+    expect(mapTable('menu', [['Danie', 'Cena', 'Cena nabycia'], ['Tart', '36', CANARY]]).records[0]).toMatchObject({ price: '36' });
+  });
+  it('several columns that only start with "Cena" and none exact: the price is left empty and the note names them', () => {
+    const t = mapTable('menu', [['Danie', 'Cena netto', 'Cena brutto'], ['Tart', '30', '36']]);
+    expect(t.records).toEqual([{ category: '', name: 'Tart', description: '', price: '' }]);
+    expect(t.notes.join('\n')).toContain('Price not chosen, several columns could be it: Cena netto, Cena brutto.');
+    expect(t.notes.join('\n')).not.toMatch(/No header row/);
+    const w = mapTable('wines', [['Producent', 'Wino', 'Cena netto', 'Cena brutto'], ['Keller', 'Riesling', '200', '240']]);
+    expect(w.records[0]).toMatchObject({ bottlePrice: '' });
+    expect(w.notes.join('\n')).toContain('Cena netto, Cena brutto');
+  });
+});
+
+describe('headers that look like a cost but are not: the file fails closed and says so', () => {
+  it.each(['Hurtownia', 'Cost-plus price', 'Cena po kosztach'])('"%s" is no price, the price column next to it is', (header) => {
+    const t = mapTable('menu', [['Danie', header, 'Cena'], ['Tart', CANARY, '36']]);
+    expect(t.records[0]).toMatchObject({ name: 'Tart', price: '36' });
+    expect(JSON.stringify(t.records)).not.toContain(CANARY);
+  });
+  it.each(['Hurtownia', 'Cost-plus price', 'Cena po kosztach'])('"%s" alone: rows without a price and a note that tells how to fix it', (header) => {
+    const t = mapTable('menu', [['Danie', header], ['Tart', CANARY]]);
+    expect(t.records).toEqual([{ category: '', name: 'Tart', description: '', price: '' }]);
+    const notes = t.notes.join('\n');
+    expect(notes).toContain(`Cost columns skipped, never read as a price: ${header}.`);
+    expect(notes).toMatch(/If a skipped column is really your sale price, rename its header to "Price" or "Cena"/);
+  });
+});
+
+/* ------------------ review of the follow-up: two-row headers, two exact prices, title rows, data that only mentions a word ------------------ */
+
+describe('a cost named in a second header row, or two columns that are both exactly "Cena"', () => {
+  it('menu: "Cena" over "zakupu | sprzedazy" is a cost and a sale price, the sub-header row is no record', () => {
+    const t = mapTable('menu', [['Danie', 'Cena', ''], ['', 'zakupu', 'sprzedazy'], ['Tarta', CANARY, '36']]);
+    expect(t.records).toEqual([{ category: '', name: 'Tarta', description: '', price: '' }]);
+    expect(JSON.stringify(t.records)).not.toContain(CANARY);
+    expect(t.notes.join('\n')).toContain('Cost columns skipped');
+  });
+  it('menu: two columns "Cena" with the sub-header: the sale price is read, the cost is not', () => {
+    const t = mapTable('menu', [['Danie', 'Cena', 'Cena'], ['', 'zakupu', 'sprzedazy'], ['Tarta', CANARY, '36']]);
+    expect(t.records).toEqual([{ category: '', name: 'Tarta', description: '', price: '36' }]);
+  });
+  it('menu: two exact "Cena" columns and no sub-header: the price stays empty and the note names them', () => {
+    const t = mapTable('menu', [['Danie', 'Cena', 'Cena'], ['Tarta', CANARY, '36']]);
+    expect(t.records[0]).toMatchObject({ name: 'Tarta', price: '' });
+    expect(t.notes.join('\n')).toContain('Price not chosen, several columns could be it: Cena, Cena.');
+  });
+  it('wines: the same shapes never put the cost into a price', () => {
+    for (const rows of [
+      [['Producent', 'Wino', 'Cena', ''], ['', '', 'zakupu', 'sprzedazy'], ['Keller', 'Riesling', CANARY, '240']],
+      [['Producent', 'Wino', 'Cena', 'Cena'], ['', '', 'zakupu', 'sprzedazy'], ['Keller', 'Riesling', CANARY, '240']],
+      [['Producent', 'Wino', 'Cena', 'Cena'], ['Keller', 'Riesling', CANARY, '240']]
+    ]) {
+      const t = mapTable('wines', rows);
+      expect(t.records).toHaveLength(1);
+      expect(t.records[0]).toMatchObject({ producer: 'Keller', name: 'Riesling' });
+      expect(JSON.stringify(t.records)).not.toContain(CANARY);
+    }
+  });
+});
+
+describe('a cost header below title rows, and data that only mentions a cost word', () => {
+  it('five title rows, then "Potrawa;Koszt;Cena": refused, the cost is never read as a price', () => {
+    const rows = [['Restauracja Halka'], ['ul. Długa 1'], ['NIP 123'], ['Cennik'], ['2026-11-01'], ['Potrawa', 'Koszt', 'Cena'], ['Tarta', CANARY, '36']];
+    expect(refusal(() => mapTable('menu', rows)).code).toBe('cost_without_header');
+  });
+  it.each([
+    [[['Tarta', 'Wołowina z hurtowni', '36'], ['Sernik', 'Buyer\'s choice', '30']]],
+    [[['Tarta', 'Buyer\'s choice', '36']]]
+  ])('menu data %j without a header still imports', (rows) => {
+    const t = mapTable('menu', rows);
+    expect(t.records[0]).toMatchObject({ name: 'Tarta', price: rows[0][2] });
+  });
+  it('wines without a header and with "Buy-back Riesling" still import', () => {
+    const t = mapTable('wines', [['Keller', 'Buy-back Riesling', '2020', 'Rheinhessen', 'Riesling', 'White', '52', '240']]);
+    expect(t.records[0]).toMatchObject({ producer: 'Keller', name: 'Buy-back Riesling', bottlePrice: '240' });
   });
 });
 

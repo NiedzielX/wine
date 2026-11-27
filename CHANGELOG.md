@@ -1,8 +1,12 @@
 # Changelog
 
-Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku jak README. Wpisy pochodzą z listy scalonych PR-ów (numer w nawiasie). Wersja w `package.json` to `0.3.0` (pierwsze przygotowane wydanie; tag `v0.3.0` powstanie dopiero po publikacji wydania przez właściciela, dziś nic nie jest otagowane), a definicja wersji 1.0 jest decyzją właściciela. Co zrobić przy zmianie niezgodnej wstecz: [UPGRADE_NOTES.md](UPGRADE_NOTES.md); jak powstaje wydanie: [docs/RELEASING.md](docs/RELEASING.md). Kształt sekcji `[Unreleased]` sprawdza `npm run release:notes -- check`.
+Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku jak README. Wpisy pochodzą z listy scalonych PR-ów (numer w nawiasie). Wersja w `package.json` to `0.4.0` (kolejne przygotowane wydanie po `0.3.0`; tagi `v0.3.0` i `v0.4.0` powstaną dopiero po publikacji wydania przez właściciela, dziś nic nie jest otagowane), a definicja wersji 1.0 jest decyzją właściciela. Co zrobić przy zmianie niezgodnej wstecz: [UPGRADE_NOTES.md](UPGRADE_NOTES.md); jak powstaje wydanie: [docs/RELEASING.md](docs/RELEASING.md). Kształt sekcji `[Unreleased]` sprawdza `npm run release:notes -- check`.
 
 ## [Unreleased]
+
+## [0.4.0] - 2026-11-27
+
+Podsumowanie wydania: restauracja może wskazać wybrane wina, które na stronie gościa dostają etykietę „Wybór restauracji” (faza 1: warstwa po silniku, API i symulator „przed / po”, ekran A27); w panelu da się edytować pola dania i wina, ukrywać danie przed gośćmi i dodawać pozycje ręcznie (C1–C3, ekran A32); właściciel i GM mają raport wyników (A33, wersja do druku A34, trasy API i dziennik dnia uruchomienia). Poprawka importu jest **zmianą łamiącą** dla plików, w których kolumna `koszt` / `cost` pełniła rolę ceny dania: koszt zakupu nigdy nie jest już ceną (`BACKWARD_COMPATIBILITY.md` §6, `UPGRADE_NOTES.md`). Zmiany procesu: reguła niezależności przeglądu specyfikacji i zaktualizowane `security-notes.md`.
 
 ### Raport wyników (`2026-11-18-owner-proof-report`)
 - Krok 5: trasy `GET /restaurants/{slug}/proof-report?window=` (`proof.view`) i `POST /restaurants/{slug}/proof-launch` (`proof.manage`; dopisanie dnia uruchomienia, warunek wstępny w `If-Match` lub `expectedCurrent`: 428, 400, 409), test granicy dostępu T-43 z dowodem mutacyjnym, scenariusz `security-034`.
@@ -30,8 +34,13 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 - Trasy `POST /dishes?restaurant=` i `POST /wines?restaurant=` (201, `Location`, `ETag`), `CatalogEditService.createDish` / `createWine`, `CatalogWriteRepository.createDish` / `createWine` (nazwa, klucz wina i numer na karcie sprawdzane pod blokadą restauracji, następny wolny numer liczony pod blokadą); wpisy audytu `catalog_edit` `create` (bez migracji).
 
 ### Poprawki
-- Import menu i win nie czyta kolumny kosztu jako ceny (`import-cost-columns-not-price`): nagłówek „Cena zakupu netto”, „Koszt”, „Cost”, „Purchase price” lub „Cena hurtowa” pasował do pola ceny przez regułę prefiksu (`cena`), więc koszt zakupu mógł trafić do menu gości (dane bieżące, bez publikacji). Taka kolumna jest teraz pomijana z uwagą w podglądzie. **Zmiana zachowania:** `cost` i `koszt` w imporcie menu dotąd oznaczały cenę dania, teraz są pomijane (`BACKWARD_COMPATIBILITY.md` §6). Wiersz T-44 w modelu zagrożeń, scenariusz `import-001`.
+- Import menu i win nie czyta kolumny kosztu jako ceny (`import-cost-columns-not-price`): nagłówek „Cena zakupu netto”, „Koszt”, „Cost”, „Purchase price” lub „Cena hurtowa” pasował do pola ceny przez regułę prefiksu (`cena`), więc koszt zakupu mógł trafić do menu gości (dane bieżące, bez publikacji). Taka kolumna jest teraz pomijana z uwagą w podglądzie. **Zmiana łamiąca** (wpis w `UPGRADE_NOTES.md`): `cost` i `koszt` w imporcie menu dotąd oznaczały cenę dania, teraz są pomijane (`BACKWARD_COMPATIBILITY.md` §6). Wiersz T-44 w modelu zagrożeń, scenariusz `import-001`.
+- Import: kolumna kosztu zakupu nie trafia do ceny także w pliku bez rozpoznanego nagłówka (odrzucenie `cost_without_header`) ani gdy stoi przed „Cena” (dokładne „Cena” / „Price” wygrywa z „Cena nabycia”, „Price net”; kilka kandydatów tylko-prefiksowych = pusta cena z uwagą); nowe rdzenie `nabyc`, `kupn`, `zak`, `buy`, `supplier`, `dostaw`. **Breaking:** plik z kolumną `koszt` / `cost` jako ceną dania się nie zaimportuje, użyj „Cena” / „Price” (`import-cost-columns-followup`).
 - Płynniejsze przejścia w menu: strona rezerwuje miejsce na pasek przewijania (`scrollbar-gutter: stable` w motywie panelu i gościa), więc układ nie przeskakuje o szerokość paska przy zmianie trasy (klasyczne paski przewijania, Windows i Linux). Pozostałe przyczyny skakania opisuje specyfikacja `2026-11-16-menu-transition-smoothness` (PR #158).
+
+### Proces i bezpieczeństwo
+- Nowa specyfikacja deklaruje, jak niezależny był jej przegląd, a skrypt repozytorium to sprawdza (#194).
+- `security-notes.md`: akapit o sekretach wdrożenia i rzetelna uwaga o ryzyku wstrzyknięcia poleceń (#193).
 
 ### Operacje
 - Workflow `Demo database` (ręczny, tylko `main`, środowisko `demo-database`): migracje i opcjonalnie dane demo na bazie instancji demo z runnera GitHub, bez lokalnego komputera; adres bazy z sekretu środowiska, nigdy w logu. Opis: `docs/DEPLOYMENT.md` §17.1.
