@@ -4,7 +4,7 @@ area: guest
 title: "A pick needs a raw score of 75 and at most two move up"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-restaurant-picks.md
+  path: .ai/specs/implemented/2026-11-18-restaurant-picks.md
   ac: ["AC3"]
 test:
   file: packages/app/tests/e2e/picks-guest.e2e.test.ts

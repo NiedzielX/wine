@@ -4,7 +4,7 @@ area: admin
 title: "Marking picks needs the version of the set and the right role"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-restaurant-picks.md
+  path: .ai/specs/implemented/2026-11-18-restaurant-picks.md
   ac: ["AC5", "AC10"]
 test:
   file: packages/app/tests/e2e/picks.e2e.test.ts

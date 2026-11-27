@@ -4,7 +4,7 @@ area: admin
 title: "Restaurant’s picks screen: the manager changes, the Wine Director only looks"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-restaurant-picks.md
+  path: .ai/specs/implemented/2026-11-18-restaurant-picks.md
   ac: ["AC10", "AC17"]
 test:
   file: packages/app/tests/e2e/picks-panel.e2e.test.ts

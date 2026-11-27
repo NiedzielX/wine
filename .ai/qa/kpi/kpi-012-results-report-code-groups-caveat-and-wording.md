@@ -4,7 +4,7 @@ area: kpi
 title: "Results report: codes are a comparison, in both languages, without forbidden words"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-owner-proof-report.md
+  path: .ai/specs/implemented/2026-11-18-owner-proof-report.md
   ac: ["AC7", "AC9"]
 test:
   file: packages/app/tests/e2e/proof-report.e2e.test.ts
