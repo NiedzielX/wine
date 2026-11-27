@@ -1,9 +1,9 @@
 ---
 started: 2026-11-27 17:30
-ended:
+ended: 2026-11-27 17:50
 agent: Claude Code
 spec: .ai/specs/2026-11-27-archive-dishes-wines.md
-outcome: partial
+outcome: success
 related: [.ai/specs/implemented/2026-11-16-catalog-field-editing.md]
 ---
 
@@ -19,7 +19,7 @@ Szkic w statusie `draft` (miękkie usunięcie: `archived_at`, uprawnienie `catal
 Dokumentacja; `check:context` do uruchomienia po wpisaniu uwag z przeglądu.
 
 ## Wynik
-Szkic gotowy, przegląd w toku, brak implementacji.
+Szkic z uwagami przeglądu niezależnego gotowy do akceptacji właściciela; brak implementacji.
 
 ## Lekcje
 brak
