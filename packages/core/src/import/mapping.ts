@@ -96,6 +96,12 @@ function matchField(kind: 'menu' | 'wines', cell: string): FieldMatch | null {
   return best ? { field: best.field, exact: false } : null;
 }
 
+/** A row below the header that names what a header cell is ("Cena" over "zakupu"): no digit, and a cost word under a price header. */
+function isSubHeader(kind: 'menu' | 'wines', header: string[], row: string[]): boolean {
+  if (!row.some((c) => c.trim()) || row.some((c) => /\d/.test(c))) return false;
+  return row.some((cell, c) => isCostHeader(cell) && PRICE_FIELDS.has(matchField(kind, header[c] ?? '')?.field ?? ''));
+}
+
 export interface MappedTable {
   records: Array<Record<string, string>>;
   notes: string[];
@@ -104,16 +110,29 @@ export interface MappedTable {
 export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
   if (kind === 'sales') return mapSalesTable(rows);
   const key = kind === 'menu' ? 'name' : 'producer';
-  let best: { index: number; map: Record<string, number>; cost: Set<number>; unsure: Set<number> } | null = null;
+  let best: { index: number; map: Record<string, number>; cost: Set<number>; unsure: Set<number>; header: string[]; next: number } | null = null;
   for (let i = 0; i < Math.min(5, rows.length); i++) {
     const map: Record<string, number> = {};
     const cost = new Set<number>();
     const unsure = new Set<number>();
-    const matches = rows[i].map((cell) => matchField(kind, cell));
+    // a cost named in the row(s) below ("Cena" over "zakupu | sprzedazy") belongs to the header above it
+    const header = [...rows[i]];
+    let next = i + 1;
+    while (next < Math.min(i + 3, rows.length) && isSubHeader(kind, header, rows[next])) {
+      rows[next].forEach((cell, c) => { if (cell.trim()) header[c] = `${header[c] ?? ''} ${cell}`.trim(); });
+      next++;
+    }
+    const matches = header.map((cell) => matchField(kind, cell));
     // a cost header never becomes a price; it may still be another field (a note about purchasing is not a cost value)
-    rows[i].forEach((cell, c) => { if (isCostHeader(cell) && (!matches[c] || PRICE_FIELDS.has(matches[c]!.field))) cost.add(c); });
+    header.forEach((cell, c) => { if (isCostHeader(cell) && (!matches[c] || PRICE_FIELDS.has(matches[c]!.field))) cost.add(c); });
     // an exact synonym wins over a header that only starts with one, whatever their order ("Cena" beats "Cena netto")
-    matches.forEach((m, c) => { if (m?.exact && !cost.has(c) && !(m.field in map)) map[m.field] = c; });
+    const exact = new Map<string, number[]>();
+    matches.forEach((m, c) => { if (m?.exact && !cost.has(c)) exact.set(m.field, [...(exact.get(m.field) ?? []), c]); });
+    for (const [field, columns] of exact) {
+      // two columns that are both exactly "Cena" (a purchase and a sale price under a merged cell): do not guess
+      if (PRICE_FIELDS.has(field) && columns.length > 1) columns.forEach((c) => unsure.add(c));
+      else map[field] = columns[0];
+    }
     const byPrefix = new Map<string, number[]>();
     matches.forEach((m, c) => { if (m && !m.exact && !cost.has(c) && !(m.field in map)) byPrefix.set(m.field, [...(byPrefix.get(m.field) ?? []), c]); });
     for (const [field, columns] of byPrefix) {
@@ -124,15 +143,15 @@ export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
     // a name next to a cost or an unchosen price column is a header without a price
     const n = Object.keys(map).length;
     const extra = cost.size + unsure.size;
-    if ((n >= 2 || (n >= 1 && extra > 0)) && (key in map || 'name' in map) && (!best || n > Object.keys(best.map).length)) best = { index: i, map, cost, unsure };
+    if ((n >= 2 || (n >= 1 && extra > 0)) && (key in map || 'name' in map) && (!best || n > Object.keys(best.map).length)) best = { index: i, map, cost, unsure, header, next };
   }
   const notes: string[] = [];
   let map: Record<string, number>;
   let start: number;
   if (best) {
     map = best.map;
-    start = best.index + 1;
-    const header = rows[best.index];
+    start = best.next;
+    const header = best.header;
     const named = (set: Set<number>) => header.filter((c, i) => c && set.has(i)).map((c) => c.trim());
     const costNames = named(best.cost);
     if (costNames.length) notes.push(`Cost columns skipped, never read as a price: ${costNames.join(', ')}.`);
@@ -144,10 +163,12 @@ export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
     if (kind === 'menu' && !('category' in map)) notes.push('No category column: dishes without a category are set to Mains. Check them in the preview.');
   } else {
     // a cost column in a file without a header cannot be told from a price: the default order would read it as one
-    const costCells = rows.slice(0, 5).flat().filter((c) => c.trim() && isCostHeader(c)).map((c) => c.trim().slice(0, 60));
-    if (costCells.length) {
+    // only rows that look like headers (no digit anywhere: a data row has a price) in a wider window, because title rows
+    // (name, address, tax id, date) may come first; a data row that merely mentions "hurtownia" is not a header
+    const headerLike = rows.slice(0, 20).filter((r) => r.some((c) => c.trim()) && !r.some((c) => /\d/.test(c)));
+    if (headerLike.some((r) => r.some((c) => c.trim() && isCostHeader(c)))) {
       throw new ValidationError('cost_without_header',
-        `No header row was recognised, and the file has a column that looks like a purchase cost (${[...new Set(costCells)].slice(0, 3).join(', ')}). `
+        'No header row was recognised, and the file has a column that looks like a purchase cost. '
         + 'A cost is never read as a price, and without a header the columns cannot be told apart. Name the columns in the first row (for example "Name", "Price") and upload the file again.');
     }
     const width = Math.max(...rows.slice(0, 5).map((r) => r.length));
