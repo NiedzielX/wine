@@ -194,7 +194,7 @@ describe('contrast of the guest explanation (AC16, R2, WCAG 1.4.3 / 1.4.11)', ()
       expect(contrast('ink-2', bg)).toBeGreaterThanOrEqual(4.5);
       expect(contrast('wine', bg)).toBeGreaterThanOrEqual(3);
     }
-    // ink-3 is AA for text since the lesson-06 fix (docs/DESIGN_SYSTEM.md); the explanation still uses ink-2 by rule
+    // ink-3 is AA for text since the contrast fix (docs/DESIGN_SYSTEM.md); the explanation still uses ink-2 by rule
     expect(contrast('ink-3', 'paper')).toBeGreaterThanOrEqual(4.5);
   });
 
