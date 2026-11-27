@@ -9,6 +9,11 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
+- [2026-11-27] [Ochrona `main` ma `strict`: scalanie szeregowe](lessons/2026-11-27-strict-branch-protection-serial-merges.md) — jeden PR na pełny przebieg CI; wyniki czytaj dla SHA nowego commitu, po restarcie sesji sprawdź stan PR-ów.
+- [2026-11-27] [Niezależny przegląd poprawki `risk-high` przed scaleniem](lessons/2026-11-27-independent-review-before-merging-high-risk-fix.md) — heurystyki nazw kolumn testuj bez nagłówka, z wielowierszowym nagłówkiem i fałszywymi trafieniami w obie strony.
+- [2026-11-27] [Zmiana kontraktu `handle()` pod alert CodeQL łamie testy tras](lessons/2026-11-27-handle-guard-contract-change-needs-contract-tests.md) — 422 z walidacji to kontrakt; nie zamykaj alertu zmianą kodu odpowiedzi bez testów.
+- [2026-11-27] [CodeQL „Bad HTML filtering regexp” w testach](lessons/2026-11-27-codeql-html-filtering-regexp-in-tests.md) — wycinaj `<script>` wzorcem `/<script\b[\s\S]*?<\/script[^>]*>/gi`; nierozwiązany wątek blokuje scalanie.
+- [2026-11-27] [Pliki e2e biegną po kolei na jednej bazie](lessons/2026-11-27-e2e-files-share-one-database.md) — zaczynaj od opublikowanego stanu bazowego i wybieraj dane z tego, co strona renderuje.
 - [2026-11-18] [Dwa odczyty strony Next.js nie są bajt w bajt równe](lessons/2026-11-18-streamed-flight-rows-vary-in-order.md) — kolejność wierszy Flight w HTML to wyścig metadanych z treścią; porównuj przez `normalise` z `guest-compare.ts`.
 - [2026-11-17] [Edycja pól: schemat ciała tylko typy, reguły treści po odjęciu pól równych zapisanym](lessons/2026-11-17-catalog-edit-type-schema-then-content-rules.md) — stara wartość z importu nie blokuje edycji innego pola; formularz z błędnym polem woła serwis z `validateOnly`.
 - [2026-11-17] [Listy znaków niewidocznych buduj z numerów punktów kodowych](lessons/2026-11-17-no-raw-invisible-characters-in-source.md) — zapisy `\uXXXX` potrafią stać się surowymi znakami w pliku; sprawdź `grep -nP "[^\x00-\x7e]"`.

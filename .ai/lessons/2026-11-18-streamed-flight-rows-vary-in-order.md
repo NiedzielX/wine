@@ -1,6 +1,6 @@
 ---
 date: 2026-11-18
-updated:
+updated: 2026-11-27
 area: testing
 status: active
 source: .ai/runs/2026-11-18-e2e-t33-flake.md
@@ -17,6 +17,9 @@ Strona `/r/{slug}` jest strumieniowana. Do HTML wchodzą wiersze React Flight (`
 
 ## Reguła
 Test porównujący całe odpowiedzi stron Next.js normalizuje je przez `normalise` z `packages/app/tests/e2e/guest-compare.ts` (HTML bez skryptów Flight, potem wiersze Flight posortowane; nonce wycięty). Wiersze zostają w tekście, więc sprawdzanie przecieków i porównanie nadal widzą każdą zmianę treści. Nie porównuj surowego HTML dwóch odczytów i nie wycinaj Flight w całości. Przy niezgodności `firstDifference` wypisuje ścieżkę, offset i ±80 znaków.
+
+## Aktualizacja 2026-11-27
+To samo dotyczy porównania dwóch odczytów strony panelu (stan przed i po odmowach): nie jest bajt w bajt równe. Różnią się nonce CSP i numery odwołań strumienia Flight (`$L28` vs `$L54`, `"$67"` vs `"$57"`, prefiksy wierszy). Gonienie kolejnych wzorców nie ma końca: porównuj wyrenderowany HTML po `normalise` (`tests/e2e/guest-compare.ts`), bez wierszy strumienia. Źródło: `.ai/runs/2026-11-27-orchestration-session.md`.
 
 ## Jak sprawdzić
 `npm run test -w @wine-match/app -- tests/unit/guest-compare.test.ts`; pętla `access-boundaries-guest.e2e.test.ts` (30 przebiegów) bez porażek; przed poprawką ok. 2 z 3 przebiegów padały.
