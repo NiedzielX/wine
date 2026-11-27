@@ -1,6 +1,6 @@
 {
   "name": "@wine-match/testkit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Test harness shared by the integration suites: a PostgreSQL server (testcontainers or TEST_DATABASE_URL), a built app process, and the agent-browser driver. Not shipped.",
