@@ -56,22 +56,33 @@ const DEFAULT_ORDER: Record<'menu' | 'wines', string[][]> = {
 };
 
 /**
- * A header about what the restaurant PAID („Cena zakupu netto”, „Koszt”, „Cost”, „Purchase price”, „Cena hurtowa”). Prices
- * are current data and guests read them without a publish, so a cost must never become one: the prefix rule below would
- * otherwise read „Cena zakupu” as „Cena”. Words are matched by their stem, so „zakupu”, „zakupowa”, „kosztu”, „hurt.” count.
- * Until a margin feature exists, such a column is skipped with a note (spec 2026-11-25-margin-dashboard, R9).
+ * A header about what the restaurant PAID („Cena zakupu netto”, „Cena nabycia”, „Koszt”, „Cost”, „Purchase price”, „Cena
+ * hurtowa”). Prices are current data and guests read them without a publish, so a cost must never become one: the prefix
+ * rule below would otherwise read „Cena zakupu” as „Cena”. Words are matched by their stem, so „zakupu”, „zakupowa”,
+ * „kosztu”, „hurt.” count. Until a margin feature exists, such a column is skipped with a note. The list is a heuristic,
+ * so a price header is also never guessed (see `mapTable`): an exact „Cena” / „Price” wins, and several candidates that
+ * only start with it leave the price empty. This list is the single source of truth: docs name it, not copy it.
  */
-const COST_STEMS = ['zakup', 'koszt', 'cost', 'purchas', 'hurt', 'wholesale'];
+const COST_STEMS = ['zakup', 'koszt', 'cost', 'purchas', 'hurt', 'wholesale', 'nabyc', 'kupn', 'buy', 'supplier', 'dostaw'];
+/** Words too short to be a stem („zak.” = zakupu; „zakaski” is a menu section, not a cost). */
+const COST_WORDS = ['zak'];
 const PRICE_FIELDS = new Set(['price', 'glassPrice', 'bottlePrice']);
 export function isCostHeader(cell: string): boolean {
-  return normKey(cell).split(' ').some((word) => COST_STEMS.some((stem) => word.startsWith(stem)));
+  return normKey(cell).split(' ').some((word) => COST_WORDS.includes(word) || COST_STEMS.some((stem) => word.startsWith(stem)));
 }
 
-function matchField(kind: 'menu' | 'wines', cell: string): string | null {
+/** Said after a skipped or unchosen column: the heuristic can be wrong, and the user decides by renaming. */
+export const IMPORT_NOTES = {
+  priceHint: 'If a skipped column is really your sale price, rename its header to "Price" or "Cena" and upload the file again.'
+} as const;
+
+interface FieldMatch { field: string; exact: boolean }
+
+function matchField(kind: 'menu' | 'wines', cell: string): FieldMatch | null {
   const k = normKey(cell);
   if (!k) return null;
   for (const [field, words] of Object.entries(SYNONYMS[kind])) {
-    if (words.some((w) => normKey(w) === k)) return field;
+    if (words.some((w) => normKey(w) === k)) return { field, exact: true };
   }
   // "Price (PLN)", "Cena za butelkę": the header word followed by more words; the longest such word wins, so
   // "Opis EN (krótki)" is the English description, not the description
@@ -82,7 +93,13 @@ function matchField(kind: 'menu' | 'wines', cell: string): string | null {
       if (k.startsWith(`${n} `) && (!best || n.length > best.length)) best = { field, length: n.length };
     }
   }
-  return best?.field ?? null;
+  return best ? { field: best.field, exact: false } : null;
+}
+
+/** A row below the header that names what a header cell is ("Cena" over "zakupu"): no digit, and a cost word under a price header. */
+function isSubHeader(kind: 'menu' | 'wines', header: string[], row: string[]): boolean {
+  if (!row.some((c) => c.trim()) || row.some((c) => /\d/.test(c))) return false;
+  return row.some((cell, c) => isCostHeader(cell) && PRICE_FIELDS.has(matchField(kind, header[c] ?? '')?.field ?? ''));
 }
 
 export interface MappedTable {
@@ -93,34 +110,67 @@ export interface MappedTable {
 export function mapTable(kind: ImportKind, rows: string[][]): MappedTable {
   if (kind === 'sales') return mapSalesTable(rows);
   const key = kind === 'menu' ? 'name' : 'producer';
-  let best: { index: number; map: Record<string, number>; cost: Set<number> } | null = null;
+  let best: { index: number; map: Record<string, number>; cost: Set<number>; unsure: Set<number>; header: string[]; next: number } | null = null;
   for (let i = 0; i < Math.min(5, rows.length); i++) {
     const map: Record<string, number> = {};
     const cost = new Set<number>();
-    rows[i].forEach((cell, c) => {
-      const f = matchField(kind, cell);
-      // a cost header never becomes a price; it may still be another field (a note about purchasing is not a cost value)
-      if (isCostHeader(cell) && (!f || PRICE_FIELDS.has(f))) { cost.add(c); return; }
-      if (f && !(f in map)) map[f] = c;
-    });
-    // a plain "price" next to a glass price is the bottle price; a name next to a cost column is a header without a price
+    const unsure = new Set<number>();
+    // a cost named in the row(s) below ("Cena" over "zakupu | sprzedazy") belongs to the header above it
+    const header = [...rows[i]];
+    let next = i + 1;
+    while (next < Math.min(i + 3, rows.length) && isSubHeader(kind, header, rows[next])) {
+      rows[next].forEach((cell, c) => { if (cell.trim()) header[c] = `${header[c] ?? ''} ${cell}`.trim(); });
+      next++;
+    }
+    const matches = header.map((cell) => matchField(kind, cell));
+    // a cost header never becomes a price; it may still be another field (a note about purchasing is not a cost value)
+    header.forEach((cell, c) => { if (isCostHeader(cell) && (!matches[c] || PRICE_FIELDS.has(matches[c]!.field))) cost.add(c); });
+    // an exact synonym wins over a header that only starts with one, whatever their order ("Cena" beats "Cena netto")
+    const exact = new Map<string, number[]>();
+    matches.forEach((m, c) => { if (m?.exact && !cost.has(c)) exact.set(m.field, [...(exact.get(m.field) ?? []), c]); });
+    for (const [field, columns] of exact) {
+      // two columns that are both exactly "Cena" (a purchase and a sale price under a merged cell): do not guess
+      if (PRICE_FIELDS.has(field) && columns.length > 1) columns.forEach((c) => unsure.add(c));
+      else map[field] = columns[0];
+    }
+    const byPrefix = new Map<string, number[]>();
+    matches.forEach((m, c) => { if (m && !m.exact && !cost.has(c) && !(m.field in map)) byPrefix.set(m.field, [...(byPrefix.get(m.field) ?? []), c]); });
+    for (const [field, columns] of byPrefix) {
+      // several candidates for a price and none exact: guessing which one is the sale price is worse than an empty price
+      if (PRICE_FIELDS.has(field) && columns.length > 1) columns.forEach((c) => unsure.add(c));
+      else map[field] = columns[0];
+    }
+    // a name next to a cost or an unchosen price column is a header without a price
     const n = Object.keys(map).length;
-    if ((n >= 2 || (n >= 1 && cost.size > 0)) && (key in map || 'name' in map) && (!best || n > Object.keys(best.map).length)) best = { index: i, map, cost };
+    const extra = cost.size + unsure.size;
+    if ((n >= 2 || (n >= 1 && extra > 0)) && (key in map || 'name' in map) && (!best || n > Object.keys(best.map).length)) best = { index: i, map, cost, unsure, header, next };
   }
   const notes: string[] = [];
   let map: Record<string, number>;
   let start: number;
   if (best) {
     map = best.map;
-    start = best.index + 1;
-    const known = Object.keys(map);
-    const costNames = rows[best.index].filter((c, i) => c && best!.cost.has(i)).map((c) => c.trim());
+    start = best.next;
+    const header = best.header;
+    const named = (set: Set<number>) => header.filter((c, i) => c && set.has(i)).map((c) => c.trim());
+    const costNames = named(best.cost);
     if (costNames.length) notes.push(`Cost columns skipped, never read as a price: ${costNames.join(', ')}.`);
-    const ignored = rows[best.index].filter((c, i) => c && !Object.values(map).includes(i) && !best!.cost.has(i));
+    const unsureNames = named(best.unsure);
+    if (unsureNames.length) notes.push(`Price not chosen, several columns could be it: ${unsureNames.join(', ')}.`);
+    if (costNames.length || unsureNames.length) notes.push(IMPORT_NOTES.priceHint);
+    const ignored = header.filter((c, i) => c && !Object.values(map).includes(i) && !best!.cost.has(i) && !best!.unsure.has(i));
     if (ignored.length) notes.push(`Columns not used: ${ignored.join(', ')}.`);
     if (kind === 'menu' && !('category' in map)) notes.push('No category column: dishes without a category are set to Mains. Check them in the preview.');
-    void known;
   } else {
+    // a cost column in a file without a header cannot be told from a price: the default order would read it as one
+    // only rows that look like headers (no digit anywhere: a data row has a price) in a wider window, because title rows
+    // (name, address, tax id, date) may come first; a data row that merely mentions "hurtownia" is not a header
+    const headerLike = rows.slice(0, 20).filter((r) => r.some((c) => c.trim()) && !r.some((c) => /\d/.test(c)));
+    if (headerLike.some((r) => r.some((c) => c.trim() && isCostHeader(c)))) {
+      throw new ValidationError('cost_without_header',
+        'No header row was recognised, and the file has a column that looks like a purchase cost. '
+        + 'A cost is never read as a price, and without a header the columns cannot be told apart. Name the columns in the first row (for example "Name", "Price") and upload the file again.');
+    }
     const width = Math.max(...rows.slice(0, 5).map((r) => r.length));
     const order = [...DEFAULT_ORDER[kind]].reverse().find((o) => o.length <= width) ?? DEFAULT_ORDER[kind][0];
     map = Object.fromEntries(order.map((f, i) => [f, i]));
