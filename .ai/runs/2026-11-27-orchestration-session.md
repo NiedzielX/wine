@@ -16,7 +16,7 @@ Prowadzenie wielu równoległych prac przez pod-agentów w izolowanych worktree 
 
 ## Przebieg
 - Agent główny planował zadania (typy I, S, P, M według `.ai/docs/parallel-work.md`), zlecał je pod-agentom w osobnych worktree i scalał wyniki; dwie sesje nie edytowały tej samej specyfikacji.
-- Scalanie szło szeregowo: ochrona `main` ma `strict`, każde scalenie robi pozostałe PR-y „behind”, a CI trwa ok. 12-15 minut. Skrypt scalający odczytujący wyniki tuż po pushu zgłaszał fałszywe „RED”; proces w tle ginął przy restarcie sesji, więc stan sprawdzano po restarcie.
+- Scalanie szło szeregowo: ochrona `main` ma `strict`, każde scalenie robi pozostałe PR-y „behind”, a każde scalenie wymaga pełnego przebiegu CI. Skrypt scalający odczytujący wyniki tuż po pushu zgłaszał fałszywe „RED”; proces w tle ginął przy restarcie sesji, więc stan sprawdzano po restarcie.
 - Poprawka #200 (koszt zakupu w imporcie) weszła bez niezależnego przeglądu; przegląd po fakcie i drugi przegląd #202 znalazły kolejne dziury (zob. lekcje).
 - Napotkane: flaky T-33 (porównanie odczytów), zależności między plikami e2e na wspólnej bazie, alerty CodeQL (wycinanie `<script>`, „User-controlled bypass of security check”), hook `spec-status-guard` odmawiający `status: approved`, błędy tworzenia worktree i `git fetch`/`--force-with-lease`.
 
@@ -77,7 +77,7 @@ PR-y otwarte w repozytorium:
 - #199 specyfikacja marży (szkic po niezależnym przeglądzie): wymaga `status: approved` od człowieka; agentowi odmawia tego hook `spec-status-guard`.
 - #205 wydanie 0.4.0 (`chore(release)`).
 - #206 synchronizacja wersji w `AGENTS.md` i mapa wyborów, raportu i edycji katalogu w `core` (otwarty w chwili zapisu logu, spoza listy zlecenia).
-- Dependabot #160 (`actions/checkout` 4.4.0 do 7.0.1) i #162 (`unpdf` 1.9.1 do 2.1.0): do decyzji; `unpdf` to zmiana wersji głównej parsera PDF, wymaga sprawdzenia importu PDF na plikach z `packages/db/tests/fixtures`.
+- Dependabot #160 (`actions/checkout` 4.4.0 do 7.0.1) i #162 (`unpdf` 1.9.1 do 2.1.0): do decyzji; zmiany wersji głównych (`actions/checkout`, `unpdf`) nie były sprawdzane (CI, notatki wydań).
 - #202 w zleceniu figurował jako otwarty; w chwili zapisu logu jest scalony.
 
 Po stronie właściciela:

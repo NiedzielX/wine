@@ -10,13 +10,13 @@ promoted:
 # Ochrona `main` ma `strict`: scalanie jest szeregowe, a wyniki CI czytaj dopiero po rejestracji nowego commitu
 
 ## Kontekst
-Przy kolejce wielu PR-ów każde scalenie robiło pozostałe „behind”, a CI trwa ok. 12-15 minut. Skrypt scalający, który odczytał wyniki zaraz po pushu, widział stare wyniki i zgłosił fałszywe „RED”. Proces w tle zginął przy restarcie procesu sesji.
+Przy kolejce wielu PR-ów każde scalenie robiło pozostałe „behind”, a każde scalenie wymaga pełnego przebiegu CI na zaktualizowanej gałęzi. Skrypt scalający, który odczytał wyniki zaraz po pushu, widział stare wyniki i zgłosił fałszywe „RED”. Proces w tle zginął przy restarcie procesu sesji.
 
 ## Przyczyna
 Ochrona gałęzi wymaga aktualnej gałęzi (`strict`). Po pushu stare checki przez chwilę zostają przypisane poprzedniemu commitowi, zanim CI zarejestruje się dla nowego.
 
 ## Reguła
-- Planuj scalanie szeregowo i w czasie: jeden PR na 12-15 minut, następny dopiero po aktualizacji do `main`.
+- Planuj scalanie szeregowo i w czasie: jeden PR na pełny przebieg CI, następny dopiero po aktualizacji do `main`.
 - Skrypt czyta wyniki dla SHA nowego commitu i czeka, aż checki zarejestrują się dla niego; stare wyniki nie są dowodem.
 - Proces w tle nie przeżywa restartu sesji: po restarcie sprawdź stan PR-ów (`gh pr list`, `gh pr checks`), nie zakładaj, że skrypt dokończył.
 

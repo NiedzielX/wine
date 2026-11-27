@@ -9,7 +9,7 @@ Format linii (najnowsze na górze):
 
 ## Aktywne
 
-- [2026-11-27] [Ochrona `main` ma `strict`: scalanie szeregowe](lessons/2026-11-27-strict-branch-protection-serial-merges.md) — jeden PR na 12-15 min CI; wyniki czytaj dla SHA nowego commitu, po restarcie sesji sprawdź stan PR-ów.
+- [2026-11-27] [Ochrona `main` ma `strict`: scalanie szeregowe](lessons/2026-11-27-strict-branch-protection-serial-merges.md) — jeden PR na pełny przebieg CI; wyniki czytaj dla SHA nowego commitu, po restarcie sesji sprawdź stan PR-ów.
 - [2026-11-27] [Niezależny przegląd poprawki `risk-high` przed scaleniem](lessons/2026-11-27-independent-review-before-merging-high-risk-fix.md) — heurystyki nazw kolumn testuj bez nagłówka, z wielowierszowym nagłówkiem i fałszywymi trafieniami w obie strony.
 - [2026-11-27] [Zmiana kontraktu `handle()` pod alert CodeQL łamie testy tras](lessons/2026-11-27-handle-guard-contract-change-needs-contract-tests.md) — 422 z walidacji to kontrakt; nie zamykaj alertu zmianą kodu odpowiedzi bez testów.
 - [2026-11-27] [CodeQL „Bad HTML filtering regexp” w testach](lessons/2026-11-27-codeql-html-filtering-regexp-in-tests.md) — wycinaj `<script>` wzorcem `/<script\b[\s\S]*?<\/script[^>]*>/gi`; nierozwiązany wątek blokuje scalanie.
