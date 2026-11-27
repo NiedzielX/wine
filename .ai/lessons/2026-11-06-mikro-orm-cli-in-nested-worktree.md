@@ -2,6 +2,7 @@
 date: 2026-11-06
 area: tooling
 status: active
+updated: 2026-11-27
 source: .ai/runs/2026-11-06-e22-f2-demo-guide-and-read-only.md
 ---
 
@@ -18,3 +19,9 @@ W worktree pod `.claude/worktrees/` przed `migration:up`, `seed` i `test:e2e` do
 
 ## Jak sprawdzić
 `ls -la node_modules/@mikro-orm` pokazuje cztery symlinki; `npm run migration:up -w @wine-match/db` kończy się „Successfully migrated up to the latest version”.
+
+## Aktualizacja 2026-11-27: worktree i git
+- Narzędzie agenta tworzące izolowany worktree wymaga, by katalog sesji był wewnątrz repozytorium; inaczej błąd „not in a git repository”.
+- `git fetch origin main` bywa zgłasza błąd lokalnego refa: używaj jawnego refspec `git fetch origin main:refs/remotes/origin/main`.
+- `git push --force-with-lease` bez lokalnego refa śledzącego odmawia: podaj oczekiwany SHA jawnie (`--force-with-lease=<gałąź>:<sha>`).
+Źródło: `.ai/runs/2026-11-27-orchestration-session.md`.
