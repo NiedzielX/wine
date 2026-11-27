@@ -6,6 +6,7 @@ related: [.ai/specs/research/benchmarks/2026-11-16-product-strategy-vs-sommelier
 superseded_by:
 author_model: not recorded
 reviewed_by: "independent agent, fresh context (model not recorded)"
+review_independence: different-model        # przegląd po wdrożeniu 2026-11-27; model inny niż autora zlecony przy uruchomieniu, nie potwierdzony po stronie sesji
 ---
 
 # Raport dowodu dla właściciela i GM (stała baza pilota)
@@ -112,7 +113,7 @@ Scenariusze QA: `.ai/qa/kpi/kpi-009…kpi-014` (obszar `kpi`) i `.ai/qa/security
 - [ ] **AC14 (R15)** Stany: brak L, brak importu, okno w toku, błąd; 390 i 1440 px bez `scrollWidth > innerWidth`; bez błędów konsoli. *E2E agent-browser.*
 - [x] **AC15 (bez JS)** Wybór okna (linki `?window=`) i zapis L (formularz POST) działają z wyłączonym JavaScriptem (lekcja `2026-10-17-e2e-without-javascript`). *E2E.*
 - [ ] **AC16 (R13, F2)** A34 w emulacji druku: nawigacja i przyciski niewidoczne, tabela i zastrzeżenia widoczne, ≤ 2 strony A4; brak żądań do zasobów zewnętrznych. *E2E plus zrzut do PR.*
-- [ ] **AC17 (dokumentacja)** `docs/SCREEN_MAP.md` (A33, A34), `docs/SCREEN_SPECIFICATION.md`, `docs/API_SPECIFICATION.md`, `docs/DATA_MODEL.md`, `docs/USER_ROLES.md`, `docs/PRODUCT_CONCEPT.md` §6 (zdanie o raporcie i stałej bazie), `docs/security/threat-model.md` (nowy wiersz T-…) zaktualizowane w tym samym PR; `npm run check:context`, `check:qa`, `check:routes` zielone. *Polecenia.*
+- [x] **AC17 (dokumentacja)** `docs/SCREEN_MAP.md` (A33, A34), `docs/SCREEN_SPECIFICATION.md`, `docs/API_SPECIFICATION.md`, `docs/DATA_MODEL.md`, `docs/USER_ROLES.md`, `docs/PRODUCT_CONCEPT.md` §6 (zdanie o raporcie i stałej bazie), `docs/security/threat-model.md` (nowy wiersz T-…) zaktualizowane w tym samym PR; `npm run check:context`, `check:qa`, `check:routes` zielone. *Polecenia.*
 - [x] **AC19 (R5, współbieżność)** [przegląd] Dwa równoległe zapisy L (bramka `race()`, pętla) dają jeden wiersz „pierwszy” i jeden 409; nie powstaje drugi wiersz bez `reason`. *`concurrency.integration.test.ts`.*
 - [ ] **AC18 (weryfikacja ogólna)** `npm run lint`, `typecheck`, `test`, `test:db`, `build`; `npm run test:e2e`; migracja z dowodem up/down/up. *Wyniki w logu przebiegu.*
 
@@ -233,3 +234,9 @@ Kroki 1–7 na `main`: #184, #188, #191, #196, #197, #198, #201 (A34). Logi: `.a
 W3: nieaktualny dzień uruchomienia daje `version_conflict` (409), nie `stale_launch_day`; R11 poprawione.
 
 AC (kod, testy, logi): AC1–AC13, AC15–AC19 spełnione (AC16–AC17: A34 i dokumentacja w #201, `e2e` w CI zielone na #201). Odstępstwo: AC14 (układ A33) sprawdzony ręcznie Playwrightem przy 390 i 1440 px, a test `proof-report-layout.e2e.test.ts` wymaga `agent-browser` i nie jest uruchamiany w tej sesji; druk A34 sprawdzony ręcznie (emulacja druku), nie zautomatyzowany.
+
+Uwagi z przeglądu po wdrożeniu (2026-11-27, model inny niż autora zlecony przy uruchomieniu, nie potwierdzony; bez uwag blokujących):
+- Pola AC14, AC16 i AC18 zostają nieodhaczone celowo: AC14 (układ A33) i AC16 (druk A34) sprawdzono ręcznie, bez uruchomienia testu e2e z `agent-browser`; dla AC18 nie ma zapisanego dowodu up/down/up osobno dla migracji `proof_launch_day` (ogólny test `migrations-roundtrip` działa w CI, ale nie zweryfikowano, że obejmuje tę migrację). AC17 odhaczone (dokumentacja w #201).
+- Kontrakt `POST …/proof-launch` w kodzie jest szerszy niż R11: dochodzą `If-Match`, 428 `precondition_required`, 400 `invalid_if_match`, 422 `reason_too_long`, a `expectedCurrent` jest opcjonalne; źródłem prawdy jest `docs/API_SPECIFICATION.md`.
+- Brak dowodu mutacji dla `checkTotalsMarked` (czyta sprzedaż); dowód z AC11 dotyczy `PgProofLaunchRepository.read`.
+- Append-only trzyma konwencja i test kształtu portu; baza nie ma triggera ani `REVOKE`. Indeks `(restaurant_id, set_at)` nie jest malejący, zapytania sortują po `seq`. Scenariusz `security-035` nie istnieje, jest `security-034`.
