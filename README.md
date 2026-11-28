@@ -43,7 +43,7 @@ PostgreSQL, konfiguracja, polecenia i testy: [docs/DEVELOPMENT.md](docs/DEVELOPM
 
 ## Stan projektu
 
-Wersja `0.4.0` (tag `v0.4.0`, wydanie na GitHubie). Aplikacja jest wdrożona na Vercel z bazą PostgreSQL (Supabase); definicja wersji 1.0 nie jest ustalona. Co jest zbudowane, a co w toku: sekcja „Stan prac” w [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) i [CHANGELOG.md](CHANGELOG.md). Założenia o odbiorcach produktu nie zostały zweryfikowane badaniami (brief produktu: [.ai/specs/product-brief.md](.ai/specs/product-brief.md)).
+Wersja `1.0.0` (wydanie na GitHubie). Aplikacja jest wdrożona na Vercel z bazą PostgreSQL (Supabase). Co jest zbudowane, a co w toku: sekcja „Stan prac” w [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) i [CHANGELOG.md](CHANGELOG.md). Założenia o odbiorcach produktu nie zostały zweryfikowane badaniami (brief produktu: [.ai/specs/product-brief.md](.ai/specs/product-brief.md)).
 
 ## Dokumentacja
 

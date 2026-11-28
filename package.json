@@ -1,7 +1,7 @@
 {
   "name": "wine-match",
   "private": true,
-  "version": "0.4.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Wine Match \u2014 B2B2C wine pairing platform for restaurants (monorepo)",
   "workspaces": [
