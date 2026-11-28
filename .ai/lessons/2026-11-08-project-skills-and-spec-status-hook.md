@@ -1,6 +1,6 @@
 ---
 date: 2026-11-08
-updated:
+updated: 2026-11-27
 area: tooling
 status: active
 source: .ai/runs/2026-11-08-project-skills-and-spec-status-hook.md
@@ -22,3 +22,6 @@ Reguły procesu żyły tylko w tekście; skille pochodziły z zewnętrznego źr�
 
 ## Jak sprawdzić
 `npm test -w @wine-match/testkit` (`spec-status-guard.test.ts`, `agent-guardrails.test.ts`), `npm run check:context` (45 skilli).
+
+## Aktualizacja 2026-11-27
+Hook `spec-status-guard` odmawia agentowi ustawienia `status: approved` i zabrania obchodzenia go innymi komendami (zweryfikowane w `.ai/runs/2026-11-27-orchestration-session.md`). `approved` zmienia człowiek (`AGENTS.md` §3); gdy specyfikacja czeka na akceptację, zostaw `draft` i zgłoś to w logu.

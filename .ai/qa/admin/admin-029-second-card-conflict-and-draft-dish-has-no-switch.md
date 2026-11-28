@@ -4,7 +4,7 @@ area: admin
 title: "Hide button: stale card is a conflict, a draft dish has no switch"
 status: automated
 spec:
-  path: .ai/specs/2026-11-16-catalog-field-editing.md
+  path: .ai/specs/implemented/2026-11-16-catalog-field-editing.md
   ac: ["AC14", "AC15"]
 test:
   file: packages/app/tests/e2e/catalog-visibility.e2e.test.ts

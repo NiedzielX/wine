@@ -1,11 +1,12 @@
 ---
-status: in-progress
+status: implemented
 created: 2026-11-18
 owner: Filip Niedziela
 related: [.ai/specs/research/benchmarks/2026-11-16-product-strategy-vs-sommelierbot.md (P3, na gałęzi docs/product-strategy-vs-competitors), .ai/specs/research/benchmarks/2026-11-16-competitive-advantages.md (S1), .ai/specs/product-brief.md (D04, D16, D18, D20, D23, A05, K03, Q02, Q11), docs/PRODUCT_CONCEPT.md (§6), .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, .ai/specs/implemented/2026-10-15-kpi-dashboard.md, .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/2026-11-04-sales-demo-and-roi-calculator.md, .ai/specs/2026-11-04-subscriptions-and-billing.md, docs/SCREEN_SPECIFICATION.md, docs/SCREEN_MAP.md, docs/USER_ROLES.md, docs/security/threat-model.md, .ai/runs/2026-11-18-owner-proof-report-spec.md]
 superseded_by:
 author_model: not recorded
 reviewed_by: "independent agent, fresh context (model not recorded)"
+review_independence: different-model        # przegląd po wdrożeniu 2026-11-27; model inny niż autora zlecony przy uruchomieniu, nie potwierdzony po stronie sesji
 ---
 
 # Raport dowodu dla właściciela i GM (stała baza pilota)
@@ -87,7 +88,7 @@ H4 i H5 pokazują sedno: +6 i +10 pp przy takich próbach nie odróżniają się
 - **R8 (język i treść)** Bez słowa „AI” w żadnym tekście ekranu i API; bez słów „gwarantowane”, „dzięki Wine Match”, „efekt Wine Match” przy liczbach zmiany; dozwolone: „zmiana po uruchomieniu”, „z Twoich rachunków”, „zmierzone z eksportu POS”. Słownik PL i EN w `app/src/i18n`, para w tym samym PR. Stały blok „Jak to liczymy” (jeden akapit: okna, definicja, próg, przedział, ograniczenia) i blok „Czego ten raport nie mówi” (sezon, zmiana karty i cen, pogoda i wydarzenia, brak grupy kontrolnej).
 - **R9 (sezonowość i wiek bazy)** Od okna 4 (ponad 3 okna po L) nad liczbami stały komunikat: „Baza jest starsza niż trzy okna. Pora roku, zmiana karty lub cen mogą tłumaczyć różnicę.” Raport nigdy nie porównuje okna z oknem sprzed 12 miesięcy (brak takich danych w pilotażu).
 - **R10 (uprawnienia)** Nowe `proof.view` (odczyt A33, A34 i API) i `proof.manage` (ustawienie dnia uruchomienia), oba w `BUSINESS` w `permissions.ts` (dopisać do unii `Permission`), czyli owner i manager; sommelier i kelner bez dostępu (sommelier ma interes w wyniku i nie ustawia bazy; Q4). **[przegląd]** Uwaga: sommelier ma `import.manage` i może zastąpić rachunki bazy, więc „bez wpływu na dowód” nie jest prawdą; import zostaje poza zakresem, ale raport pokazuje „ostatni import” (R5), a rola i uzasadnienie wchodzą do Q4. Każde wejście sprawdza samo: `requireAccess` w layoucie i na stronie, `authorizeAction` w akcji, `handle()` w trasie.
-- **R11 (API)** `GET /api/v1/restaurants/{slug}/proof-report?window=N` (odczyt) i `POST /api/v1/restaurants/{slug}/proof-launch` (zapis = dopisanie wpisu, 201; nie `PUT`, bo powtórzenie dopisuje kolejny wiersz; ciało `strictObject` `{ launchDay, reason?, expectedCurrent }`, schemat w `core/validators/proof/`). Błędy (istniejące klasy `ValidationError` i `VersionConflictError`, bez nowych): `invalid_window` (422; liczba całkowita 1..12, bo 28 + 12×28 = 364 ≤ 366 dni; poza zakresem lub okno przyszłe też 422) **[przegląd]**, `invalid_launch_day` (422: data z przyszłości, przed 2020-01-01, zły format), `reason_required` (422), `stale_launch_day` (409). Obcy slug i brak roli zgodnie z polityką 403/404 z `threat-model.md` §4.1.
+- **R11 (API)** `GET /api/v1/restaurants/{slug}/proof-report?window=N` (odczyt) i `POST /api/v1/restaurants/{slug}/proof-launch` (zapis = dopisanie wpisu, 201; nie `PUT`, bo powtórzenie dopisuje kolejny wiersz; ciało `strictObject` `{ launchDay, reason?, expectedCurrent }`, schemat w `core/validators/proof/`). Błędy (istniejące klasy `ValidationError` i `VersionConflictError`, bez nowych): `invalid_window` (422; liczba całkowita 1..12, bo 28 + 12×28 = 364 ≤ 366 dni; poza zakresem lub okno przyszłe też 422) **[przegląd]**, `invalid_launch_day` (422: data z przyszłości, przed 2020-01-01, zły format), `reason_required` (422), `version_conflict` (409, nieaktualny `expectedCurrent`; zamiast `stale_launch_day`, W3). Obcy slug i brak roli zgodnie z polityką 403/404 z `threat-model.md` §4.1.
 - **R12 (izolacja tenantów)** Każda metoda nowego repozytorium i nowa metoda `SalesRepository` przyjmują `restaurantId` z sluga rozwiązanego na serwerze; slug nigdy nie pochodzi z ciała. Test granicy z trzema sprawdzeniami (§10 standardów).
 - **R13 (druk, F2)** A34: układ A4, `@media print`, bez nawigacji, tabela okien, przedziały, zastrzeżenia, „Jak to liczymy”; zdanie „Użyj Ctrl/Cmd+P” zawsze widoczne, przycisk „Drukuj” tylko z JS (wzór DM3 z E22). Bez zewnętrznych zasobów i fontów z sieci. Data na wydruku to „dane do dnia” (z danych), nie zegar serwera.
 - **R14 (prywatność)** Raport zawiera wyłącznie agregaty restauracji: liczby rachunków, procenty, kwoty, daty. Nie zawiera `check_id`, kodów polecenia, `sid`, nazw pozycji ani tekstów z POS. Logi: tylko wzorzec trasy i status (bez parametrów i wartości). Nic nie wychodzi poza restaurację (D18, D23: dane między lokalami wymagają osobnej decyzji).
@@ -96,24 +97,24 @@ H4 i H5 pokazują sedno: +6 i +10 pp przy takich próbach nie odróżniają się
 ## Kryteria akceptacji
 Scenariusze QA: `.ai/qa/kpi/kpi-009…kpi-014` (obszar `kpi`) i `.ai/qa/security/security-034…035` (`security-033` zajęte na `feat/catalog-field-editing-c1`) **[przegląd]**; numeracja do potwierdzenia przy implementacji (`check:qa`). Testy jednostkowe w `packages/core/tests/proof-report.test.ts`.
 
-- [ ] **AC1 (R1, definicje)** H1: 5 rachunków z jedzeniem, 2 z winem, 40,0%; grupy 1/2 i 1/3. *Test jednostkowy.*
-- [ ] **AC2 (R4)** H2–H5 zgadzają się z tabelą (tolerancja 0,05 pp), werdykty `increase`, `increase`, `inconclusive`, `inconclusive`; dodatkowo `x=0`, `x=n`, `n=0` bez NaN i wartości poza 0..1. *Test jednostkowy.*
-- [ ] **AC3 (R2)** Dla okna o tych samych datach co okno A1 `foodChecks`, `foodChecksWithWine` i `attachRate` raportu są równe `SalesKpiService.getSalesKpis`. *Test kontraktowy w `core` na pamięci i test `test:db` na PostgreSQL.*
-- [ ] **AC4 (R3)** `window_not_imported` gdy dane POS kończą się przed ostatnim dniem okna **[przegląd]**; 29 rachunków: `window_too_few_checks`, brak Δ i werdyktu, brak procentu okna; 30: Δ liczone; 13 dni z danymi: `…too_few_days`; 14: ok; baza bez danych: `baseline_no_data` z zakresem dat do wgrania. *Testy jednostkowe plus e2e na A33.*
-- [ ] **AC5 (R5)** Dwa wpisy `proof_launch_day`: obowiązuje najnowszy, drugi bez `reason` odrzucony (`reason_required`), wiersze nie są edytowane ani kasowane, raport pokazuje „zmieniony 1 raz”. *Test serwisu, test `test:db`, e2e.*
-- [ ] **AC6 (R5, okna)** Okno jest kompletne tylko przy ostatnim dniu ≤ wczorajszy dzień usługi (`serviceDay`, test o 02:00 i 05:00) **[przegląd]**; granice w dniach zmiany czasu (2026-10-25, 2027-03-28) poprawne (28 dni kalendarzowych, nie 28×24 h). *Test jednostkowy z `now` podanym z zewnątrz.*
-- [ ] **AC7 (R6)** Zestawienie z kodem/bez ma zastrzeżenie w obu językach, nie zawiera Δ między grupami ani słów „przyczyna: Wine Match”; grupa poniżej 30 pokazuje „za mało danych”. *Test SSR (`prerender`) i e2e.*
-- [ ] **AC8 (R7)** Liczby kodów w raporcie równe `RecommendationCodeService.summary` dla okna. *Test jednostkowy.*
-- [ ] **AC9 (R8)** Widoczny tekst A33 (bez `<script>` z ładunkiem RSC) i odpowiedź API nie pasują do `\bAI\b|gwarantowan|dzięki Wine Match|efekt Wine Match` (testy po wszystkich stanach, w PL i EN, także zdanie werdyktu `increase`) **[przegląd]**; zawierają bloki „Jak to liczymy” i „Czego ten raport nie mówi”. *Test SSR.*
-- [ ] **AC10 (R10)** Owner i manager: 200; sommelier i kelner: 403 na stronie, w akcji i w API; brak sesji: przekierowanie / 401. *Test HTTP.*
-- [ ] **AC11 (R11, R12)** Test granicy `proof-boundary.e2e.test.ts` według §10: kontrola pozytywna dla obu restauracji (A i B czytają własny raport i zapisują własny L), odmowa odczytu i zapisu cudzego sluga, stan po próbie (całe ładunki obu raportów i skrót tabeli `proof_launch_day` md5), mutacja (usunięcie filtra `restaurant_id` w nowej metodzie powoduje czerwony test; zapis w logu). *E2E na PostgreSQL.*
-- [ ] **AC12 (R11)** Ciało `POST` z polem spoza schematu → 422 (`strictObject`); data z przyszłości, zły format, `window=0`, `window=13`, `window=1e9` i `window=abc` → 422 bez 500; nieaktualne `expectedCurrent` → 409 **[przegląd]**. *Test trasy.*
-- [ ] **AC13 (R14)** Odpowiedź API i HTML nie zawierają `check_id`, kodu polecenia ani `sid` z danych testowych (seed z rozpoznawalnymi wartościami). *E2E.*
+- [x] **AC1 (R1, definicje)** H1: 5 rachunków z jedzeniem, 2 z winem, 40,0%; grupy 1/2 i 1/3. *Test jednostkowy.*
+- [x] **AC2 (R4)** H2–H5 zgadzają się z tabelą (tolerancja 0,05 pp), werdykty `increase`, `increase`, `inconclusive`, `inconclusive`; dodatkowo `x=0`, `x=n`, `n=0` bez NaN i wartości poza 0..1. *Test jednostkowy.*
+- [x] **AC3 (R2)** Dla okna o tych samych datach co okno A1 `foodChecks`, `foodChecksWithWine` i `attachRate` raportu są równe `SalesKpiService.getSalesKpis`. *Test kontraktowy w `core` na pamięci i test `test:db` na PostgreSQL.*
+- [x] **AC4 (R3)** `window_not_imported` gdy dane POS kończą się przed ostatnim dniem okna **[przegląd]**; 29 rachunków: `window_too_few_checks`, brak Δ i werdyktu, brak procentu okna; 30: Δ liczone; 13 dni z danymi: `…too_few_days`; 14: ok; baza bez danych: `baseline_no_data` z zakresem dat do wgrania. *Testy jednostkowe plus e2e na A33.*
+- [x] **AC5 (R5)** Dwa wpisy `proof_launch_day`: obowiązuje najnowszy, drugi bez `reason` odrzucony (`reason_required`), wiersze nie są edytowane ani kasowane, raport pokazuje „zmieniony 1 raz”. *Test serwisu, test `test:db`, e2e.*
+- [x] **AC6 (R5, okna)** Okno jest kompletne tylko przy ostatnim dniu ≤ wczorajszy dzień usługi (`serviceDay`, test o 02:00 i 05:00) **[przegląd]**; granice w dniach zmiany czasu (2026-10-25, 2027-03-28) poprawne (28 dni kalendarzowych, nie 28×24 h). *Test jednostkowy z `now` podanym z zewnątrz.*
+- [x] **AC7 (R6)** Zestawienie z kodem/bez ma zastrzeżenie w obu językach, nie zawiera Δ między grupami ani słów „przyczyna: Wine Match”; grupa poniżej 30 pokazuje „za mało danych”. *Test SSR (`prerender`) i e2e.*
+- [x] **AC8 (R7)** Liczby kodów w raporcie równe `RecommendationCodeService.summary` dla okna. *Test jednostkowy.*
+- [x] **AC9 (R8)** Widoczny tekst A33 (bez `<script>` z ładunkiem RSC) i odpowiedź API nie pasują do `\bAI\b|gwarantowan|dzięki Wine Match|efekt Wine Match` (testy po wszystkich stanach, w PL i EN, także zdanie werdyktu `increase`) **[przegląd]**; zawierają bloki „Jak to liczymy” i „Czego ten raport nie mówi”. *Test SSR.*
+- [x] **AC10 (R10)** Owner i manager: 200; sommelier i kelner: 403 na stronie, w akcji i w API; brak sesji: przekierowanie / 401. *Test HTTP.*
+- [x] **AC11 (R11, R12)** Test granicy `proof-boundary.e2e.test.ts` według §10: kontrola pozytywna dla obu restauracji (A i B czytają własny raport i zapisują własny L), odmowa odczytu i zapisu cudzego sluga, stan po próbie (całe ładunki obu raportów i skrót tabeli `proof_launch_day` md5), mutacja (usunięcie filtra `restaurant_id` w nowej metodzie powoduje czerwony test; zapis w logu). *E2E na PostgreSQL.*
+- [x] **AC12 (R11)** Ciało `POST` z polem spoza schematu → 422 (`strictObject`); data z przyszłości, zły format, `window=0`, `window=13`, `window=1e9` i `window=abc` → 422 bez 500; nieaktualne `expectedCurrent` → 409 **[przegląd]**. *Test trasy.*
+- [x] **AC13 (R14)** Odpowiedź API i HTML nie zawierają `check_id`, kodu polecenia ani `sid` z danych testowych (seed z rozpoznawalnymi wartościami). *E2E.*
 - [ ] **AC14 (R15)** Stany: brak L, brak importu, okno w toku, błąd; 390 i 1440 px bez `scrollWidth > innerWidth`; bez błędów konsoli. *E2E agent-browser.*
-- [ ] **AC15 (bez JS)** Wybór okna (linki `?window=`) i zapis L (formularz POST) działają z wyłączonym JavaScriptem (lekcja `2026-10-17-e2e-without-javascript`). *E2E.*
+- [x] **AC15 (bez JS)** Wybór okna (linki `?window=`) i zapis L (formularz POST) działają z wyłączonym JavaScriptem (lekcja `2026-10-17-e2e-without-javascript`). *E2E.*
 - [ ] **AC16 (R13, F2)** A34 w emulacji druku: nawigacja i przyciski niewidoczne, tabela i zastrzeżenia widoczne, ≤ 2 strony A4; brak żądań do zasobów zewnętrznych. *E2E plus zrzut do PR.*
-- [ ] **AC17 (dokumentacja)** `docs/SCREEN_MAP.md` (A33, A34), `docs/SCREEN_SPECIFICATION.md`, `docs/API_SPECIFICATION.md`, `docs/DATA_MODEL.md`, `docs/USER_ROLES.md`, `docs/PRODUCT_CONCEPT.md` §6 (zdanie o raporcie i stałej bazie), `docs/security/threat-model.md` (nowy wiersz T-…) zaktualizowane w tym samym PR; `npm run check:context`, `check:qa`, `check:routes` zielone. *Polecenia.*
-- [ ] **AC19 (R5, współbieżność)** [przegląd] Dwa równoległe zapisy L (bramka `race()`, pętla) dają jeden wiersz „pierwszy” i jeden 409; nie powstaje drugi wiersz bez `reason`. *`concurrency.integration.test.ts`.*
+- [x] **AC17 (dokumentacja)** `docs/SCREEN_MAP.md` (A33, A34), `docs/SCREEN_SPECIFICATION.md`, `docs/API_SPECIFICATION.md`, `docs/DATA_MODEL.md`, `docs/USER_ROLES.md`, `docs/PRODUCT_CONCEPT.md` §6 (zdanie o raporcie i stałej bazie), `docs/security/threat-model.md` (nowy wiersz T-…) zaktualizowane w tym samym PR; `npm run check:context`, `check:qa`, `check:routes` zielone. *Polecenia.*
+- [x] **AC19 (R5, współbieżność)** [przegląd] Dwa równoległe zapisy L (bramka `race()`, pętla) dają jeden wiersz „pierwszy” i jeden 409; nie powstaje drugi wiersz bez `reason`. *`concurrency.integration.test.ts`.*
 - [ ] **AC18 (weryfikacja ogólna)** `npm run lint`, `typecheck`, `test`, `test:db`, `build`; `npm run test:e2e`; migracja z dowodem up/down/up. *Wyniki w logu przebiegu.*
 
 ## Projekt rozwiązania
@@ -205,9 +206,9 @@ Poniższe to **hipoteza** z P3 strategii; nic w tej specyfikacji jej nie wdraża
 3. **Zapis L.** `PUT` dopisujący wiersz nie jest idempotentny, a „powód od drugiego wpisu” to sprawdź-potem-wstaw bez blokady (standardy §12.4). Teraz `POST`, `expectedCurrent`, 409, `seq` z `CHECK` w bazie, AC19.
 
 ### Ważne
-4. **Moc.** Przy 30 + 30 rachunkach `increase` dopiero od ok. +27 pp (przedział zmiany ok. ±25 pp, nie ±17); Q1 poprawione. Rekomendacja (nie wpisana): pokazywać „najmniejszą zmianę możliwą do wykazania przy tych próbach”.
+4. **Moc.** Przy 30 + 30 rachunkach `increase` dopiero od ok. +27 pp (przedział zmiany ok. ±25 pp, nie ±17); Q1 poprawione.
 5. **Wariant A zwrotu** zwraca pieniądze w ok. 35% przypadków przy realnym +5 pp i n = 30; dopisane ryzyko (5).
-6. **Grupa „z kodem”** ma odsetek z definicji bliski 100% (kod przy zamówieniu wina, D16); zastrzeżenie R6 uzupełnione. Rekomendacja: rozważyć pokazywanie tylko liczby rachunków i przychodu.
+6. **Grupa „z kodem”** ma odsetek z definicji bliski 100% (kod przy zamówieniu wina, D16); zastrzeżenie R6 uzupełnione.
 7. **Wielokrotne spojrzenia i niezależność.** Wilson ignoruje korelację w obrębie dnia; przedział jest „co najmniej tak szeroki”. Brak domyślnego okna: ustalić „najnowsze kompletne”. Zakaz L w przyszłości zmusza do wpisu po zobaczeniu danych: rekomendacja, by dopuścić L do +14 dni jako „zaplanowany”. Oznaczenie „L zmieniony po oknie 1” dodane.
 8. **Sommelier ma `import.manage`** i może zastąpić rachunki bazy; uzasadnienie R10 było nieścisłe (poprawione, Q4 do uzupełnienia).
 9. **N zapytań na N okien** i `salesPeriodSchema` ≤ 366 dni: jedno zapytanie, okna 1..12.
@@ -216,16 +217,26 @@ Poniższe to **hipoteza** z P3 strategii; nic w tej specyfikacji jej nie wdraża
 12. **Nazwa:** PL „Raport dowodu” przy „inconclusive” obiecuje więcej niż dane; rekomendacja „Raport wyników” (PL) i „Results report” (EN), `proof` tylko w ścieżce i uprawnieniach (Q9 nierozstrzygnięte).
 
 ### Drobne
-13. Nowe klasy błędów zbędne: `ValidationError`, `VersionConflictError` (`errors.ts:19,59`) są już na liście. 14. Serwis potrzebuje `clock` w deps (`now`). 15. Wzór Newcombe'a zapisany jawnie. 16. Kroki 3 i 6 przekraczają ok. 150 linii: dzielić (migracja osobno od portów; A33 / QA+e2e / docs). 17. Append-only tylko konwencją: dodać test, że port nie ma `update`/`delete`; wiersz T-39 w threat-model. 18. `hasCode` dla linii zwrotu (−1 z kodem): zdefiniować przy implementacji (rekomendacja: tylko `quantity > 0`). 19. Zmiana czasu: testować 2026-10-25 i 2027-03-28; fraza „28 dni w oknie 29-dniowym” w przykładach jest myląca, czytać: okno ma zawsze 28 dat.
+13. Nowe klasy błędów zbędne (`ValidationError`, `VersionConflictError` już są). 14. Serwis ma `clock` w deps. 15. Wzór Newcombe'a jawnie. 16. Kroki 3 i 6 dzielić (migracja od portów; A33 / QA+e2e / docs). 17. Append-only tylko konwencją: test, że port nie ma `update`/`delete`; wiersz w threat-model. 18. `hasCode` tylko dla `quantity > 0`. 19. Zmiana czasu: testować 2026-10-25 i 2027-03-28; okno ma zawsze 28 dat.
 
 ### Gotowość
 Zatwierdzona przez właściciela 2026-11-18. Decyzje: Q1 progi bez zmian, raport pokazuje „najmniejszą zmianę możliwą do wykazania” (moc ok. 27 pp); Q4 sommelier bez dostępu; Q9 nazwa PL „Raport wyników”, EN „Results report”; zwrot abonamentu: bez wariantu A.
 
 ## Changelog
 - 2026-11-18 — Autor/recenzent: not recorded / not recorded (szkic).
-- 2026-11-18 — Przegląd niezależny (świeży kontekst, model nie zapisany): sekcja wyżej, poprawki oznaczone [przegląd]; ID ekranów A33/A34.
-- 2026-11-18 — Właściciel przyjął rekomendacje do pytań otwartych 1–10 (z zastrzeżeniami z przeglądu: moc, rola sommeliera, nazwa PL, wariant zwrotu); `status` bez zmian (draft).
+- 2026-11-18 — Przegląd niezależny (świeży kontekst): poprawki [przegląd]; ekrany A33/A34.
+- 2026-11-18 — Właściciel przyjął rekomendacje do pytań 1–10 (z zastrzeżeniami: moc, rola sommeliera, nazwa PL, zwrot); draft.
 - 2026-11-18 — Zatwierdzona (status approved) z decyzjami Q1, Q4, Q9 i wariantu zwrotu jak w „Gotowość”.
 
 ## Realizacja
-(Uzupełnia agent po implementacji: commit(y), log przebiegu, odstępstwa od projektu.)
+Kroki 1–7 na `main`: #184, #188, #191, #196, #197, #198, #201 (A34). Logi: `.ai/runs/2026-11-19-results-report-core.md`, `2026-11-22-results-report-s2-s4.md`, `2026-11-25-results-report-s3-review-fixes.md`, `2026-11-24-results-report-s5-s7.md`.
+
+W3: nieaktualny dzień uruchomienia daje `version_conflict` (409), nie `stale_launch_day`; R11 poprawione.
+
+AC (kod, testy, logi): AC1–AC13, AC15–AC19 spełnione (AC16–AC17: A34 i dokumentacja w #201, `e2e` w CI zielone na #201). Odstępstwo: AC14 (układ A33) sprawdzony ręcznie Playwrightem przy 390 i 1440 px, a test `proof-report-layout.e2e.test.ts` wymaga `agent-browser` i nie jest uruchamiany w tej sesji; druk A34 sprawdzony ręcznie (emulacja druku), nie zautomatyzowany.
+
+Uwagi z przeglądu po wdrożeniu (2026-11-27, model inny niż autora zlecony przy uruchomieniu, nie potwierdzony; bez uwag blokujących):
+- Pola AC14, AC16 i AC18 zostają nieodhaczone celowo: AC14 (układ A33) i AC16 (druk A34) sprawdzono ręcznie, bez uruchomienia testu e2e z `agent-browser`; dla AC18 nie ma zapisanego dowodu up/down/up osobno dla migracji `proof_launch_day` (ogólny test `migrations-roundtrip` działa w CI, ale nie zweryfikowano, że obejmuje tę migrację). AC17 odhaczone (dokumentacja w #201).
+- Kontrakt `POST …/proof-launch` w kodzie jest szerszy niż R11: dochodzą `If-Match`, 428 `precondition_required`, 400 `invalid_if_match`, 422 `reason_too_long`, a `expectedCurrent` jest opcjonalne; źródłem prawdy jest `docs/API_SPECIFICATION.md`.
+- Brak dowodu mutacji dla `checkTotalsMarked` (czyta sprzedaż); dowód z AC11 dotyczy `PgProofLaunchRepository.read`.
+- Append-only trzyma konwencja i test kształtu portu; baza nie ma triggera ani `REVOKE`. Indeks `(restaurant_id, set_at)` nie jest malejący, zapytania sortują po `seq`. Scenariusz `security-035` nie istnieje, jest `security-034`.

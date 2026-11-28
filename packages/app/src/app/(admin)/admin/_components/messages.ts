@@ -34,7 +34,7 @@ export function savedText(f: Flash, saved: string | undefined, n: string | undef
     case 'details': case 'details_slug': case 'translations': case 'content': case 'suggestion_added': case 'opportunity_restored':
     case 'catalog_created': case 'dish_hidden': case 'profile_confirmed': case 'profile_draft': case 'profile_unchanged': case 'catalog_unchanged':
     case 'member_role_changed': case 'member_deactivated': case 'member_reactivated': case 'invitation_revoked':
-    case 'pick_marked': case 'pick_unmarked': case 'pick_unchanged':
+    case 'pick_marked': case 'pick_unmarked': case 'pick_unchanged': case 'launch_day_saved':
       return s[saved]();
     default: return undefined;
   }
@@ -76,6 +76,11 @@ export function noteText(note: string, t: Dictionary): string {
   if (note === english.dayMonth) return n.dayMonth;
   if (note === english.monthDay) return n.monthDay;
   if (note === english.repeatedChecks) return n.repeatedChecks;
+  const cost = /^Cost columns skipped, never read as a price: (.*)\.$/.exec(note);
+  if (cost) return n.costSkipped(cost[1]);
+  if (note === english.priceHint) return n.priceHint;
+  const unsure = /^Price not chosen, several columns could be it: (.*)\.$/.exec(note);
+  if (unsure) return n.priceUnsure(unsure[1]);
   const unused = /^Columns not used: (.*)\.$/.exec(note);
   if (unused) return n.unused(unused[1]);
   const order = /^No header row was found, so the columns were read in this order: (.*)\.$/.exec(note);

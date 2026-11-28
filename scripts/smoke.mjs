@@ -612,6 +612,30 @@ if (langAction) {
   expect('the switch ignores an unknown language and a foreign address', evil.status === 303 && !(evil.headers.getSetCookie?.() ?? []).some((c) => c.startsWith('wm_lang')) && evil.headers.get('location') === '/admin', `${evil.status} ${evil.headers.get('location')}`);
 }
 
+// --- results report (spec 2026-11-18-owner-proof-report): A33, A34 and their routes. Reads and refusals only, no launch day is ever set.
+// The demo data has no launch day, so A33 and A34 show their "set the launch day first" states; the report body, the print element and the
+// Ctrl/Cmd+P line need a launch day and a POS import and are covered by proof-report.e2e.test.ts.
+const proofPath = `/admin/${slug}/proof`;
+await check('A33 results report: the General Manager gets the page', proofPath, { cookie: GM, has: ['<title>Results report | Wine Match dashboard</title>', '>Results report</h1>', 'Set the launch day first'] });
+await check('A33 results report: the Wine Director is refused (403)', proofPath, { cookie: SESSION, status: 403, hasNot: ['Set the launch day first'] });
+await check('A33 results report: no session goes to sign-in', proofPath, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(proofPath)}` });
+await check('A34 printable report: the General Manager gets the page', `${proofPath}/print`, { cookie: GM, has: ['<title>Results report, printable version | Wine Match dashboard</title>', 'Set the launch day first', `href="${proofPath}"`], hasNot: ['data-print-button'] });
+await check('A34 printable report: the Wine Director is refused (403)', `${proofPath}/print`, { cookie: SESSION, status: 403, hasNot: ['Set the launch day first'] });
+await check('A34 printable report: no session goes to sign-in', `${proofPath}/print`, { cookie: '', redirect: 'manual', status: 307, location: `/admin/login?next=${encodeURIComponent(`${proofPath}/print`)}` });
+const proofApi = `/api/v1/restaurants/${slug}/proof-report`;
+const proofRead = await check('proof report API: the General Manager reads the report', proofApi, { cookie: GM, has: ['"window"', '"report"', '"launch"', '"verdict"', '"history"'] });
+const proofBody = JSON.parse(proofRead.text || '{}');
+expect('proof report API has the documented shape ({window, report, launch.current/history/changes}) and an ETag of the current entry', Number.isInteger(proofBody.window) && typeof proofBody.report?.verdict === 'string' && Array.isArray(proofBody.report?.caveats) && Array.isArray(proofBody.launch?.history) && Number.isInteger(proofBody.launch?.changes) && 'current' in (proofBody.launch ?? {}) && (proofRead.res.headers.get('etag') ?? '') === `"${proofBody.launch?.current?.id ?? 'none'}"` && /no-store/.test(proofRead.res.headers.get('cache-control') ?? ''), proofRead.text.slice(0, 200));
+await check('proof report API: the Wine Director is refused (403)', proofApi, { cookie: SESSION, status: 403, hasNot: ['"report"'] });
+await check('proof report API: no session is 401', proofApi, { cookie: '', status: 401 });
+await check('proof report API: window=0 is 422', `${proofApi}?window=0`, { cookie: GM, status: 422, has: ['invalid_window'] });
+const proofLaunch = `/api/v1/restaurants/${slug}/proof-launch`;
+const proofBefore = { etag: proofRead.res.headers.get('etag'), launch: JSON.stringify(proofBody.launch) };
+await check('proof launch API: no session cannot set the launch day (401)', proofLaunch, { method: 'POST', body: { launchDay: '2026-02-02', expectedCurrent: null }, cookie: '', status: 401 });
+await check('proof launch API: setting it without the CSRF token is refused (403), nothing is saved', proofLaunch, { method: 'POST', body: { launchDay: '2026-02-02', expectedCurrent: null }, cookie: GM, status: 403, has: ['csrf'] });
+const proofAfter = await check('proof report API: the launch log is unchanged after the refusals', proofApi, { cookie: GM, has: ['"launch"'] });
+expect('the launch log, its current entry and the ETag are the same as before the refusals', proofAfter.res.headers.get('etag') === proofBefore.etag && JSON.stringify(JSON.parse(proofAfter.text || '{}').launch) === proofBefore.launch, `${proofBefore.etag} ${proofBefore.launch} -> ${proofAfter.res.headers.get('etag')} ${proofAfter.text.slice(0, 200)}`);
+
 await check('sign out', '/api/v1/auth/logout', { method: 'POST', headers: write(), status: 204 });
 await check('after sign-out the old session is dead', '/api/v1/auth/me', { cookie: SESSION, status: 401 });
 await check('after sign-out the dashboard asks to sign in again', `/admin/${slug}`, { cookie: SESSION, redirect: 'manual', status: 307, location: '/admin/login' });

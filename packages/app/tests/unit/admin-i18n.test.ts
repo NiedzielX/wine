@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { DISMISS_DAYS, buildRows, linesToRows, mapTable, type ImportIssue } from '@wine-match/core';
+import { DISMISS_DAYS, IMPORT_NOTES, buildRows, linesToRows, mapTable, type ImportIssue } from '@wine-match/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { formatDateTime, vintageLabel, zl } from '@/app/(admin)/admin/_components/format';
 import { errorText, issueText, noteText, savedText } from '@/app/(admin)/admin/_components/messages';
@@ -137,6 +137,12 @@ describe('messages by code', () => {
     // English stays as core wrote it, except that the header-less column order names the columns as the table does
     expect(notes.map((n) => noteText(n, en))).toEqual(notes.map((n) => n.replace('order: name, price.', 'order: Name, Price (zł).')));
     expect(noteText(en.admin.import.notes.pdf, pl)).toBe(pl.admin.import.notes.pdf);
+    expect(noteText('Cost columns skipped, never read as a price: Cena zakupu netto, Koszt.', pl)).toBe('Pominięte kolumny kosztów, nigdy nie odczytywane jako cena: Cena zakupu netto, Koszt.');
+    expect(noteText('Cost columns skipped, never read as a price: Koszt.', en)).toBe('Cost columns skipped, never read as a price: Koszt.');
+    expect(noteText('Price not chosen, several columns could be it: Cena netto, Cena brutto.', pl)).toBe('Nie wybrano ceny, bo kilka kolumn mogłoby nią być: Cena netto, Cena brutto.');
+    expect(noteText(en.admin.import.notes.priceHint, pl)).toBe(pl.admin.import.notes.priceHint);
+    expect(noteText(en.admin.import.notes.priceHint, en)).toBe(en.admin.import.notes.priceHint);
+    expect(en.admin.import.notes.priceHint).toBe(IMPORT_NOTES.priceHint);
     expect(noteText('Columns not used: Colour, Notes.', pl)).toBe('Nieużyte kolumny: Colour, Notes.');
     expect(noteText('No header row was found, so the columns were read in this order: name, price.', pl)).toBe('Nie znaleziono wiersza nagłówka, więc kolumny odczytano w tej kolejności: Nazwa, Cena (zł).');
     expect(noteText('Something new.', pl)).toBe('Something new.');

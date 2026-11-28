@@ -4,7 +4,7 @@ area: usage
 title: "Usage events carry the pick flag only for a labelled wine"
 status: automated
 spec:
-  path: .ai/specs/2026-11-18-restaurant-picks.md
+  path: .ai/specs/implemented/2026-11-18-restaurant-picks.md
   ac: ["AC14"]
 test:
   file: packages/app/tests/e2e/picks-guest.e2e.test.ts

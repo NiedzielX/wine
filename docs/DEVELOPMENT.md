@@ -267,7 +267,7 @@ Stan na 2026-11-08, z listy scalonych PR-ów (GitHub API, tylko odczyt) i specyf
 | E21 Jakość i zgodność | **w toku**: F1 scalone (#117: metryki, logi, redakcja); F2–F7 nie rozpoczęte |
 | E22 Demo i kalkulator zwrotu | **w toku**: F1 (#122: kalkulator) i F2 (#126: przewodnik, demo tylko do odczytu) scalone; F3–F4 nie rozpoczęte |
 
-Specyfikacje E12–E22 mają status `approved` na podstawie delegacji właściciela z 2026-11-04. Rola System Admin nie jest zaimplementowana (E14), a w panelu nie ma tworzenia ani usuwania dań i win (zob. „Usuwanie danych: co jest dziś” w [docs/DATA_MODEL.md](DATA_MODEL.md)). Definicja wersji 1.0 nie jest ustalona (`package.json` ma `0.2.0`).
+Specyfikacje E12–E22 mają status `approved` na podstawie delegacji właściciela z 2026-11-04. Rola System Admin nie jest zaimplementowana (E14), a w panelu nie ma tworzenia ani usuwania dań i win (zob. „Usuwanie danych: co jest dziś” w [docs/DATA_MODEL.md](DATA_MODEL.md)). Wersja 1.0.0 to decyzja właściciela z 2026-11-28 (stan po audycie; `docs/RELEASING.md` §11).
 
 ## Testy i CI
 

@@ -1,5 +1,6 @@
 import { queryDatabase } from '@wine-match/testkit';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { LAUNCH, seedSales } from './proof-seed';
 import { BISTRO, HALKA, base, bistroOwner, bistroSommelier, db, digest, errorCode, get, halkaManager, halkaSommelier, origin, payload, send, snapshotDatabase, type Session } from './boundaries';
 
 /**
@@ -11,30 +12,13 @@ import { BISTRO, HALKA, base, bistroOwner, bistroSommelier, db, digest, errorCod
  * into both restaurants, so a leak of any of them into an answer is visible. The database is recorded first and put back.
  */
 let restoreDatabase: (() => Promise<void>) | undefined;
-const LAUNCH = '2026-02-02'; // window 1 is 2026-02-02 .. 2026-03-01, the baseline 2026-01-05 .. 2026-02-01: both long over
-const CODE = 'Z9Q';
 const NO_ID = '00000000-0000-4000-8000-0000000000fe';
-
-/** POS lines of one restaurant: `n` checks with food per period, every `k`-th with a bottle, spread over 20 days; window wine lines carry a code. */
-async function seedSales(slug: string, tag: string, baseline: [number, number], window: [number, number]) {
-  const [{ id: restaurantId }] = await queryDatabase<{ id: string }>(db(), 'select id::text from restaurant where slug = $1', [slug]);
-  const job = crypto.randomUUID();
-  await queryDatabase(db(), `insert into import_job (id, restaurant_id, kind, file_name, file_type, file_size, status, created_by, created_at, confirmed_at) values ($1, $2, 'sales', 'e2e-proof.csv', 'csv', 1, 'confirmed', 'e2e', now(), now())`, [job, restaurantId]);
-  const insert = async (start: string, n: number, k: number, prefix: string, coded: boolean) => {
-    await queryDatabase(db(), `insert into sales_record (id, restaurant_id, import_job_id, business_date, check_id, covers, item_type, quantity, net_amount, recommendation_code, created_at)
-      select gen_random_uuid(), $1, $2, ($3::date + (i % 20)), $4::text || '-' || i, 2, 'food', 1, 100, null, now() from generate_series(1, $5::int) i`, [restaurantId, job, start, prefix, n]);
-    await queryDatabase(db(), `insert into sales_record (id, restaurant_id, import_job_id, business_date, check_id, covers, item_type, quantity, net_amount, recommendation_code, created_at)
-      select gen_random_uuid(), $1, $2, ($3::date + (i % 20)), $4::text || '-' || i, 2, 'wine_bottle', 1, 150, case when $6::boolean and i % 5 = 0 then $7::text else null end, now() from generate_series(1, $5::int) i where i % $8::int = 0`, [restaurantId, job, start, prefix, n, coded, CODE, k]);
-  };
-  await insert('2026-01-05', baseline[0], baseline[1], `SECRETCHK-${tag}-B`, false);
-  await insert(LAUNCH, window[0], window[1], `SECRETCHK-${tag}-W`, true);
-}
 
 beforeAll(async () => {
   restoreDatabase = await snapshotDatabase();
   await queryDatabase(db(), 'delete from proof_launch_day', []);
-  await seedSales(HALKA, 'HALKA', [40, 4], [40, 2]);
-  await seedSales(BISTRO, 'BISTRO', [32, 4], [36, 3]);
+  await seedSales(HALKA, 'HALKA', [40, 10], [40, 20]);
+  await seedSales(BISTRO, 'BISTRO', [32, 8], [36, 12]);
 }, 120_000);
 afterAll(async () => { await restoreDatabase?.(); });
 

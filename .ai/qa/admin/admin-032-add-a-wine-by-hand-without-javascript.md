@@ -4,7 +4,7 @@ area: admin
 title: "Add a wine by hand: next number, draft profile, visible after a publish"
 status: automated
 spec:
-  path: .ai/specs/2026-11-16-catalog-field-editing.md
+  path: .ai/specs/implemented/2026-11-16-catalog-field-editing.md
   ac: ["AC17", "AC18"]
 test:
   file: packages/app/tests/e2e/catalog-create.e2e.test.ts

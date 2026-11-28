@@ -1,4 +1,4 @@
-import type { CookingMethod, EngineFacts, ImportIssueCode, ProteinType, Role, SetupStepKey } from '@wine-match/core';
+import type { CookingMethod, EngineFacts, ImportIssueCode, ProofCaveat, ProofReason, ProteinType, Role, SetupStepKey } from '@wine-match/core';
 import { showcaseEn } from './showcase-en';
 
 /** Values quoted in an import issue (`ImportIssue.params`): the cell text, the guessed style, a row number. */
@@ -591,6 +591,7 @@ export const en = {
       importSales: 'Import sales',
       opportunities: 'Opportunities',
       picks: 'Restaurant’s picks',
+      proof: 'Results report',
       team: 'Team',
       acceptInvitation: 'Join a restaurant'
     },
@@ -631,6 +632,7 @@ export const en = {
       review: 'Review queue',
       opportunities: 'Opportunities',
       picks: 'Restaurant’s picks',
+      proof: 'Results report',
       publish: 'Publish',
       restaurant: 'Restaurant',
       importMenu: 'Import menu',
@@ -756,7 +758,8 @@ export const en = {
         invitation_revoked: () => 'Invitation cancelled. Its link no longer works.',
         pick_marked: () => 'Marked as the restaurant’s pick. Guests see it after you publish.',
         pick_unmarked: () => 'Pick removed. Guests stop seeing it after you publish.',
-        pick_unchanged: () => 'Nothing to change: the wine is already in that state.'
+        pick_unchanged: () => 'Nothing to change: the wine is already in that state.',
+        launch_day_saved: () => 'Launch day saved. The report now uses it as the baseline.'
       },
       errors: {
         version_conflict: 'This was changed by someone else a moment ago. The page now shows the latest version, please try again.',
@@ -790,6 +793,7 @@ export const en = {
         no_rows_selected: 'Tick at least one row to import.',
         unknown_row: 'That row does not exist in this import.',
         invalid_kind: 'Import the menu, the wine list or sales.',
+        cost_without_header: 'No header row was recognised, and the file has a column that looks like a purchase cost. A cost is never read as a price, and without a header the columns cannot be told apart. Name the columns in the first row (for example "Name", "Price") and upload the file again.',
         no_header: 'The file is missing columns the sales import needs: date, check number, item type, quantity and net amount.',
         no_complete_checks: 'No check can be saved: each ticked line belongs to a check with an unticked line or an error.',
         slug_taken: 'Another restaurant already uses this address name. Choose another.',
@@ -810,6 +814,9 @@ export const en = {
         invitation_conflict: 'Another invitation for this address was created at the same moment. Try again.',
         catalog_conflict: 'Someone changed the menu or the wine list while this import was open, and one of the new items now exists. Nothing was imported: start the import again.',
         too_many_picks: 'A restaurant can mark at most 5 wines as its picks. Remove one first.',
+        invalid_launch_day: 'The launch day must be a real date from 2020-01-01 and not later than today.',
+        reason_required: 'A change of the launch day needs a short reason.',
+        reason_too_long: 'The reason can have at most 200 characters.',
         wine_inactive: 'Only a wine that guests can see can be a pick. Show it on the wine list first.',
         unexpected: 'The change could not be saved. Nothing was changed; try again.'
       }
@@ -1407,6 +1414,109 @@ export const en = {
         ]
       }
     },
+    /**
+     * A33 "Results report" (spec 2026-11-18-owner-proof-report, R4 to R9, R15). Wording rules (R8): never the word AI, never
+     * "guaranteed", never a cause ("thanks to Wine Match", "Wine Match effect"); the verdict sentences are fixed; "measured from
+     * the POS export" and "from your checks" are allowed. The report says what changed and how sure we can be, never why.
+     */
+    proof: {
+      title: 'Results report',
+      description: 'What your own POS checks show before and after launch, and how sure we can be. It does not say what caused the change.',
+      window: (k: number, from: string, to: string) => `Window ${k}: ${from} – ${to}`,
+      windowShort: (k: number) => `Window ${k}`,
+      windowNav: 'Choose a window',
+      prev: 'Previous window',
+      next: 'Next window',
+      print: 'Printable version',
+      printTitle: 'Results report, printable version',
+      printHeading: (restaurant: string) => `Results report: ${restaurant}`,
+      printButton: 'Print',
+      printHint: 'To print or save as PDF, use Ctrl/Cmd+P.',
+      backToReport: 'Back to the report',
+      launchSet: (day: string, role: string, changes: number) => `Launch day set to ${day} by ${role}${changes > 0 ? `; changed ${changes} ${changes === 1 ? 'time' : 'times'}` : ''}.`,
+      launchChangedLate: 'Launch day changed after window 1 ended',
+      dataThrough: (day: string, lastImport: string) => `POS data through ${day}${lastImport ? `, last import ${lastImport}` : ''}.`,
+      emptyNoLaunchTitle: 'Set the launch day first',
+      emptyNoLaunchText: 'The report compares the 28 days before the launch with the 28-day windows after it. Enter the first day guests could use Wine Match at the tables.',
+      emptyNoLaunchReadOnly: 'The launch day has not been set. Ask the owner or the general manager to set it.',
+      emptyNoImportTitle: 'Upload a POS export',
+      emptyNoImportText: 'The report is measured from your POS sales. No sales have been imported yet.',
+      emptyNoImportAction: 'Import sales',
+      invalidWindowTitle: 'This window does not exist',
+      invalidWindowText: (max: number) => `The window must be a whole number from 1 to ${max}, and it must have started.`,
+      invalidWindowAction: 'Show the newest window',
+      resultTitle: 'Result',
+      before: 'Before',
+      after: 'After',
+      checksOf: (n: number, m: number) => `${n} of ${m} checks with food included wine`,
+      tradingDays: (d: number, days: number) => `days with data: ${d} of ${days}`,
+      changeLine: (delta: string, low: string, high: string) => `${delta} percentage points, interval from ${low} to ${high}`,
+      minimumChange: (pp: number) => `With these numbers of checks the report can show a rise of about ${pp} percentage points or more.`,
+      verdict: {
+        increase: 'The share of checks with wine is higher than in the baseline window and the difference is larger than ordinary swings at this number of checks. The report does not say what caused it.',
+        decrease: 'The share of checks with wine is lower than in the baseline window and the difference is larger than ordinary swings at this number of checks. The report does not say what caused it.',
+        inconclusive: 'From this data it is not possible to say whether the share rose, fell or stayed the same.'
+      },
+      notEnoughTitle: 'Not enough data to show a change',
+      notEnoughText: 'The counts are below. The change, its interval and the verdict appear when both periods have enough data.',
+      rateHidden: (min: number) => `under ${min} checks: no percentage`,
+      baselineLabel: 'Baseline',
+      reasons: {
+        no_launch_day: () => ({ what: 'The launch day is not set.', todo: 'Enter the launch day below.' }),
+        no_sales_import: () => ({ what: 'No POS sales have been imported.', todo: 'Upload a POS export.' }),
+        baseline_no_data: (f: { from: string; to: string }) => ({ what: 'The baseline has no sales.', todo: `Upload the POS export for ${f.from} – ${f.to}.` }),
+        baseline_too_few_checks: (f: { minChecks: number }) => ({ what: `The baseline has fewer than ${f.minChecks} checks with food.`, todo: 'A longer baseline is not possible: the report uses the 28 days before launch. Check that the whole period is imported.' }),
+        baseline_too_few_days: (f: { minDays: number }) => ({ what: `The baseline has data for fewer than ${f.minDays} days.`, todo: 'Check that the export covers every day the restaurant was open.' }),
+        window_incomplete: (f: { to: string }) => ({ what: 'This window is still running.', todo: `Come back after ${f.to}; the counts above are partial.` }),
+        window_not_imported: (f: { to: string; dataThrough: string }) => ({ what: `POS data ends ${f.dataThrough}, before the end of the window.`, todo: `Upload the POS export up to ${f.to}.` }),
+        window_too_few_checks: (f: { minChecks: number }) => ({ what: `The window has fewer than ${f.minChecks} checks with food.`, todo: 'Wait for the next window or check the import.' }),
+        window_too_few_days: (f: { minDays: number }) => ({ what: `The window has data for fewer than ${f.minDays} days.`, todo: 'Check that the export covers every day the restaurant was open.' })
+      } as Record<ProofReason, (f: { from: string; to: string; minChecks: number; minDays: number; dataThrough: string }) => { what: string; todo: string }>,
+      oldBaseline: 'The baseline is older than three windows. Season, a new menu or prices may explain the difference.',
+      tableTitle: 'All windows',
+      colPeriod: 'Period',
+      colChecks: 'Checks with wine',
+      colRate: 'Share',
+      colInterval: 'Interval',
+      colChange: 'Change',
+      colDays: 'Days with data',
+      noValue: '–',
+      incomplete: 'window running',
+      groupsTitle: 'Checks with and without a code',
+      groupsCaveat: 'This is a comparison, not proof of a cause. Tables that used a code reached for a recommendation themselves; they might have ordered wine without it. No code in the till does not mean the table did not use Wine Match. A code is entered when the recommended wine is ordered, so the share in the group with a code is high by definition.',
+      groupWithCode: 'With a code',
+      groupWithoutCode: 'Without a code',
+      groupNotEnough: 'not enough data',
+      groupRevenue: 'Wine revenue per check with food',
+      groupNone: 'The baseline has no groups: codes did not exist then.',
+      codesTitle: 'Recommendation codes in the window',
+      codesIssued: 'Issued',
+      codesConfirmed: 'Confirmed by the waiter',
+      codesInSales: 'Found in sales',
+      codesOrdered: 'Ordered',
+      codesUnmatched: 'In the POS without a recommendation',
+      howTitle: 'How we calculate',
+      howText: (f: { minChecks: number; minDays: number }) => `The baseline is the 28 days before the launch day, and each window is the next 28 days (four full weeks), measured from your POS export. A check counts when it has food; it has wine when the wine lines, after refunds, are above zero; bar-only checks are left out. The share is checks with wine divided by checks with food. A period needs at least ${f.minChecks} checks with food and data for at least ${f.minDays} days. The interval is at least as wide as shown: checks of one day resemble each other, and the windows are looked at one after another without correction. It is not a statistical test and not a basis for automatic decisions.`,
+      notTitle: 'What this report does not say',
+      notPoints: {
+        not_causal: 'Why the share changed: the report shows what changed, not the cause.',
+        no_control_group: 'There is no comparison group, no other restaurant and no tables without the app.',
+        season_menu_prices: 'Season, a new menu, price changes, weather and events can move the share on their own.',
+        checks_of_a_day_are_alike: 'Checks of one day resemble each other (weekend, weather), so the real uncertainty is larger than the interval.',
+        looks_are_not_corrected: 'Windows are looked at one after another and the intervals are not corrected for that.'
+      } as Record<ProofCaveat, string>,
+      launchTitle: 'Launch day',
+      launchHelp: 'The first day guests could use Wine Match at the tables. It fixes the baseline. A change is added to the history with a reason, never overwritten.',
+      launchLabel: 'Launch day',
+      reasonLabel: 'Reason for the change',
+      reasonFirst: 'Optional for the first entry.',
+      reasonLater: 'Required: a short reason, up to 200 characters.',
+      save: 'Save launch day',
+      readOnly: 'Only the owner and the general manager change the launch day.',
+      historyTitle: 'History',
+      historyEntry: (n: number, day: string, role: string, when: string) => `${n}. ${day}, by ${role}, ${when}`,
+      historyReason: (reason: string) => `Reason: ${reason}`
+    },
     team: {
       title: 'Team',
       description: 'Everyone with access to this restaurant. A change applies on the person’s next request: there is nothing to publish.',
@@ -1782,6 +1892,9 @@ export const en = {
         pdf: 'This PDF was read as text. A PDF has no real columns, so check every row before importing.',
         noCategory: 'No category column: dishes without a category are set to Mains. Check them in the preview.',
         unused: (columns: string) => `Columns not used: ${columns}.`,
+        costSkipped: (columns: string) => `Cost columns skipped, never read as a price: ${columns}.`,
+        priceUnsure: (columns: string) => `Price not chosen, several columns could be it: ${columns}.`,
+        priceHint: 'If a skipped column is really your sale price, rename its header to "Price" or "Cena" and upload the file again.',
         noHeader: (order: string) => `No header row was found, so the columns were read in this order: ${order}.`,
         noCovers: 'No guests column: wine revenue per guest cannot be calculated from this file.',
         dayMonth: 'Dates like 03/04/2026 were read as day/month (3 April 2026).',

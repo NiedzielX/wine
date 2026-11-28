@@ -22,6 +22,15 @@ Wzór wpisu (w bloku kodu, więc skrypt go nie czyta):
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-27
+
+### Import: kolumna kosztu zakupu nigdy nie jest ceną (#200)
+
+- **Kogo dotyczy:** restauracji, które importują menu lub wina z pliku z kolumną `koszt` albo `cost` (także „Cena zakupu netto”, „Purchase price”, „Cena hurtowa”) w roli ceny; integratora, który wysyła takie pliki; operatora, który ma gotowe szablony importu.
+- **Co się zmienia:** taka kolumna jest pomijana z uwagą w podglądzie („Cost columns skipped, never read as a price”). Plik z kolumną „Koszt” zamiast „Cena” daje wiersze bez ceny, do uzupełnienia w podglądzie przed zatwierdzeniem. Dane już zaimportowane się nie zmieniają.
+- **Co zrobić:** w plikach, które mają koszt w roli ceny dania, zmienić nagłówek kolumny na „Cena” / „Price” (albo uzupełnić ceny w podglądzie importu); operator nic nie zmienia w `.env`. Szczegóły: `BACKWARD_COMPATIBILITY.md` §6.
+- **Wycofanie:** poprzedni obraz (docs/DEPLOYMENT.md §10, ścieżka A); nie ma migracji, więc wycofanie nie dotyka bazy.
+
 ## [0.3.0] - 2026-11-16
 
 ### Limity żądań na klienta: bez `TRUSTED_PROXY_HOPS` za proxy jeden klient może zablokować wszystkich (#148)

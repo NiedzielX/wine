@@ -1,6 +1,6 @@
 {
   "name": "@wine-match/ui",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Reusable UI: shadcn/ui components for the dashboard, Wine Match brand components and the dashboard theme",

@@ -1,11 +1,12 @@
 ---
-status: in-progress
+status: implemented
 created: 2026-11-18
 owner: Filip Niedziela
 related: [.ai/specs/product-brief.md (D22, D24, D25, R02, R06, N02), .ai/specs/2026-11-04-restaurant-operations.md (E19, F2 zastępowane), .ai/specs/2026-11-04-panel-completion.md (E13 F1, F2 na main), .ai/specs/2026-11-04-learning-layer-shadow-model.md (E17), .ai/specs/2026-11-04-staff-accounts-and-roles.md (E12, tabela uprawnień), .ai/specs/implemented/2026-10-16-recommendation-code.md, .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md, docs/RECOMMENDATION_ENGINE.md, docs/security/threat-model.md, .ai/runs/2026-11-18-restaurant-picks-spec.md, "strategia produktu: .ai/specs/research/benchmarks/2026-11-16-product-strategy-vs-sommelierbot.md (na gałęzi docs/product-strategy-vs-competitors, jeszcze nie na main; P12, część 1)"]
 superseded_by:
 author_model: not recorded
 reviewed_by: "independent agent, fresh context (model not recorded)"
+review_independence: different-model        # przegląd po wdrożeniu 2026-11-27; model inny niż autora zlecony przy uruchomieniu, nie potwierdzony po stronie sesji
 ---
 
 # Wybór restauracji, faza 1: kolejność i etykieta z symulatorem „przed / po” (tryb ostrożny)
@@ -95,25 +96,25 @@ Stałe w jednym miejscu (`core/src/ranking/restaurant-picks.ts`): `PICKS_MAX = 5
 
 ## Kryteria akceptacji
 Każde AC o zachowaniu UI lub API ma scenariusz w `.ai/qa/{AREA}/` i test e2e w `packages/app/tests/e2e/`; numery scenariuszy są orientacyjne, nadaje je implementacja (`check:qa`).
-- [ ] **AC1** (R8, U1) Bez wyborów wynik `forDish` jest bit w bit dzisiejszy (test złoty `engine-golden` i test serwisu na Halce); z wyborami każde `matchScore`, `rankScore`, `why` danego wina jest równe wartości bez wyborów. *Unit w `core/tests/`.*
-- [ ] **AC2** (R8, U2) Dla losowych zbiorów wyborów skład i kolejność tier 0 i 1 są niezmienione; pozycja z wyboru nigdy nie stoi przed pozycją tier 0/1 i nie ma `sommelier`. *Test własności na Halce + mutacja (usunięcie warunku tieru musi zepsuć test); scenariusz guest-019.*
-- [ ] **AC3** (R8) Granice progu: wino 74 nie jest kwalifikowane i nie ma etykiety, 75 jest; trzeci kwalifikujący się wybór nie przechodzi na początek (`PICKS_PROMOTED_MAX`). *Unit z granicami; guest-020.*
-- [ ] **AC4** (R9, R10) Para sommeliera będąca też wyborem ma pieczęć i nie ma etykiety; przy `notice` (budżet) nic się nie przestawia. *Unit + test SSR G3.*
-- [ ] **AC5** (R1, R2) Szósty wybór daje `too_many_picks`, także przy dwóch równoległych zapisach (nigdy 6 wierszy); `setPick` jest idempotentny; obce lub nieznane wino daje `NotFoundError`; nieaktualne `expectedVersion` daje `version_conflict`; audyt zapisany w tej samej transakcji. **[przegląd]** Wino z wyborem dezaktywowane i reaktywowane nie daje >5 aktywnych; wyścig w `concurrency.integration.test.ts` przez `race()` (§12.4 standardów), w pętli. *Kontrakt `repository-contract.ts`/`write-contract.ts` w pamięci i `npm run test:db` (dwie sesje); admin-021.*
-- [ ] **AC6** (R5, R6) Migawka schema 3 zapisuje posortowane id aktywnych win; schema 2 jest czytana z pustym zbiorem; wino zdezaktywowane po publikacji nie jest widoczne jako wybór; round-trip `buildSnapshot`/`readSnapshot`; **[przegląd]** ręcznie zbudowana migawka schema 2 czyta się jak dziś (widoczność i profile z migawki). *Unit `published-view.test.ts` i testy snapshotu.*
-- [ ] **AC7** (R5, R6) Zmiana zbioru bez publikacji nie zmienia ładunku gościa (całe ładunki `GET …/public/…/recommendations` dla wszystkich dań przed i po); po publikacji kolejność i etykieta się zmieniają, a `matchScore` nie. *E2E na PostgreSQL, w tym rozszerzenie `access-boundaries-guest.e2e.test.ts`; guest-018.*
-- [ ] **AC8** (R7) A11 pokazuje „Wybory restauracji: +n / −n” i licznik niepublikowanych zmian rośnie i spada po publikacji. *Test serwisu + SSR; admin-024.*
-- [ ] **AC9** (R13, R15) Symulator zwraca „przed” równe dzisiejszej liście gościa, a „po” równe liście gościa po publikacji tego zbioru; nie zapisuje niczego (digest tabel przed i po wywołaniu równy); podaje powód braku wpływu per wybór. *Unit + e2e; admin-023.*
-- [ ] **AC10** (R4, U5) Sommelier i kelner dostają 403 na `PUT …/pick` i odmowę sfałszowanej akcji formularza; sommelier widzi A27 i symulator bez przycisków zmiany; nie istnieje trasa, akcja, import ani pole ustawiające wybór poza `picks.edit`. *Test trasy, akcji, routingu, permissions; admin-022.*
-- [ ] **AC11** (granica dostępu, `engineering-standards.md` §10) Test HTTP z trzema sprawdzeniami: (1) kontrola pozytywna dla OBU kont (A→B i B→A: `PUT` własnego wina 200); (2) odmowa odczytu i zapisu (obcy slug 403, cudze id pod własnym slugiem 404 z ciałem równym nieistniejącemu, za niska rola 403, pole spoza schematu 422; obce id w `picks` symulatora = nieistniejące); (3) stan po próbie: całe ładunki `GET picks` i `recommendations` obu restauracji przed i po oraz `md5(string_agg(x::text …))` tabel `restaurant_pick` i `pick_edit`. Mutacja: usunięcie filtra `restaurantId` w repozytorium i wymuszenie roli muszą zepsuć test (zapis w logu). *`access-boundaries-picks.e2e.test.ts`; security-033; wiersz w `threat-model.md`.*
-- [ ] **AC12** (R11, R12, U3, U4) G3 i G7 pokazują „Wybór restauracji” / „Restaurant’s pick” (PL/EN), bez `Seal` i bez „Para sommeliera”; pierwsza pozycja z wyboru ma nagłówek wyboru, nie „Polecane do Twojego dania”; HTML działa bez JS; brak słowa „AI”; `why` bez zmian. *Test SSR (`prerender`) + e2e; guest-018, guest-021.*
-- [ ] **AC13** (U6, R18) G12 zawiera zdanie z U6 w obu językach; klucze PL i EN zgodne. *Test słowników + SSR.*
-- [ ] **AC14** (U7) `recommendations_viewed`, `wine_viewed`, `wine_selected` niosą `pick: true` tylko przy pozycji z etykietą; zdarzenia gościa bez wyboru bez zmian. *Test zdarzeń; usage-010.*
-- [ ] **AC15** (R16) Publiczne API ma `restaurantPick` na pozycji; trasy mają `strictObject`, `handle()`, brak `try/catch`; `npm run check:routes` zielony; opisy w `API_SPECIFICATION.md`. *Test trasy + `check:routes`.*
-- [ ] **AC16** (migracja) `up`/`down`/`up` przechodzi, `schema:check` zgodny dla wszystkich nazw baz, replay późniejszych migracji; plan wycofania zapisany (§12 standardów). *`npm run test:db`.*
-- [ ] **AC17** (R17) Nowe strony panelu: `scripts/smoke.mjs` sprawdza 200 i tytuł w `memory` i `postgres`; przy 390 i 1440 px brak poziomego przewijania i błędów w konsoli; `npm run check:design` bez podnoszenia baseline. *`npm run smoke` + przegląd ekranów.*
-- [ ] **AC18** (granice) `npm run check:boundaries` zielony: `core` bez importów spoza dozwolonych, strony bez `@wine-match/db`, `engine/` bez zmian (diff PR nie dotyka `packages/core/src/engine/`). *`check:boundaries`, przegląd diffu.*
-- [ ] **AC19** (dokumentacja) Pliki z R19 zaktualizowane; `npm run check:context` bez błędów. *Przegląd diffu + polecenie.*
+- [x] **AC1** (R8, U1) Bez wyborów wynik `forDish` jest bit w bit dzisiejszy (test złoty `engine-golden` i test serwisu na Halce); z wyborami każde `matchScore`, `rankScore`, `why` danego wina jest równe wartości bez wyborów. *Unit w `core/tests/`.*
+- [x] **AC2** (R8, U2) Dla losowych zbiorów wyborów skład i kolejność tier 0 i 1 są niezmienione; pozycja z wyboru nigdy nie stoi przed pozycją tier 0/1 i nie ma `sommelier`. *Test własności na Halce + mutacja (usunięcie warunku tieru musi zepsuć test); scenariusz guest-019.*
+- [x] **AC3** (R8) Granice progu: wino 74 nie jest kwalifikowane i nie ma etykiety, 75 jest; trzeci kwalifikujący się wybór nie przechodzi na początek (`PICKS_PROMOTED_MAX`). *Unit z granicami; guest-020.*
+- [x] **AC4** (R9, R10) Para sommeliera będąca też wyborem ma pieczęć i nie ma etykiety; przy `notice` (budżet) nic się nie przestawia. *Unit + test SSR G3.*
+- [x] **AC5** (R1, R2) Szósty wybór daje `too_many_picks`, także przy dwóch równoległych zapisach (nigdy 6 wierszy); `setPick` jest idempotentny; obce lub nieznane wino daje `NotFoundError`; nieaktualne `expectedVersion` daje `version_conflict`; audyt zapisany w tej samej transakcji. **[przegląd]** Wino z wyborem dezaktywowane i reaktywowane nie daje >5 aktywnych; wyścig w `concurrency.integration.test.ts` przez `race()` (§12.4 standardów), w pętli. *Kontrakt `repository-contract.ts`/`write-contract.ts` w pamięci i `npm run test:db` (dwie sesje); admin-021.*
+- [x] **AC6** (R5, R6) Migawka schema 3 zapisuje posortowane id aktywnych win; schema 2 jest czytana z pustym zbiorem; wino zdezaktywowane po publikacji nie jest widoczne jako wybór; round-trip `buildSnapshot`/`readSnapshot`; **[przegląd]** ręcznie zbudowana migawka schema 2 czyta się jak dziś (widoczność i profile z migawki). *Unit `published-view.test.ts` i testy snapshotu.*
+- [x] **AC7** (R5, R6) Zmiana zbioru bez publikacji nie zmienia ładunku gościa (całe ładunki `GET …/public/…/recommendations` dla wszystkich dań przed i po); po publikacji kolejność i etykieta się zmieniają, a `matchScore` nie. *E2E na PostgreSQL, w tym rozszerzenie `access-boundaries-guest.e2e.test.ts`; guest-018.*
+- [x] **AC8** (R7) A11 pokazuje „Wybory restauracji: +n / −n” i licznik niepublikowanych zmian rośnie i spada po publikacji. *Test serwisu + SSR; admin-024.*
+- [x] **AC9** (R13, R15) Symulator zwraca „przed” równe dzisiejszej liście gościa, a „po” równe liście gościa po publikacji tego zbioru; nie zapisuje niczego (digest tabel przed i po wywołaniu równy); podaje powód braku wpływu per wybór. *Unit + e2e; admin-023.*
+- [x] **AC10** (R4, U5) Sommelier i kelner dostają 403 na `PUT …/pick` i odmowę sfałszowanej akcji formularza; sommelier widzi A27 i symulator bez przycisków zmiany; nie istnieje trasa, akcja, import ani pole ustawiające wybór poza `picks.edit`. *Test trasy, akcji, routingu, permissions; admin-022.*
+- [x] **AC11** (granica dostępu, `engineering-standards.md` §10) Test HTTP z trzema sprawdzeniami: (1) kontrola pozytywna dla OBU kont (A→B i B→A: `PUT` własnego wina 200); (2) odmowa odczytu i zapisu (obcy slug 403, cudze id pod własnym slugiem 404 z ciałem równym nieistniejącemu, za niska rola 403, pole spoza schematu 422; obce id w `picks` symulatora = nieistniejące); (3) stan po próbie: całe ładunki `GET picks` i `recommendations` obu restauracji przed i po oraz `md5(string_agg(x::text …))` tabel `restaurant_pick` i `pick_edit`. Mutacja: usunięcie filtra `restaurantId` w repozytorium i wymuszenie roli muszą zepsuć test (zapis w logu). *`access-boundaries-picks.e2e.test.ts`; security-033; wiersz w `threat-model.md`.*
+- [x] **AC12** (R11, R12, U3, U4) G3 i G7 pokazują „Wybór restauracji” / „Restaurant’s pick” (PL/EN), bez `Seal` i bez „Para sommeliera”; pierwsza pozycja z wyboru ma nagłówek wyboru, nie „Polecane do Twojego dania”; HTML działa bez JS; brak słowa „AI”; `why` bez zmian. *Test SSR (`prerender`) + e2e; guest-018, guest-021.*
+- [x] **AC13** (U6, R18) G12 zawiera zdanie z U6 w obu językach; klucze PL i EN zgodne. *Test słowników + SSR.*
+- [x] **AC14** (U7) `recommendations_viewed`, `wine_viewed`, `wine_selected` niosą `pick: true` tylko przy pozycji z etykietą; zdarzenia gościa bez wyboru bez zmian. *Test zdarzeń; usage-010.*
+- [x] **AC15** (R16) Publiczne API ma `restaurantPick` na pozycji; trasy mają `strictObject`, `handle()`, brak `try/catch`; `npm run check:routes` zielony; opisy w `API_SPECIFICATION.md`. *Test trasy + `check:routes`.*
+- [x] **AC16** (migracja) `up`/`down`/`up` przechodzi, `schema:check` zgodny dla wszystkich nazw baz, replay późniejszych migracji; plan wycofania zapisany (§12 standardów). *`npm run test:db`.*
+- [x] **AC17** (R17) Nowe strony panelu: `scripts/smoke.mjs` sprawdza 200 i tytuł w `memory` i `postgres`; przy 390 i 1440 px brak poziomego przewijania i błędów w konsoli; `npm run check:design` bez podnoszenia baseline. *`npm run smoke` + przegląd ekranów.* **Częściowo:** smoke w trybie `postgres` nie był uruchomiony, patrz odstępstwo 3.
+- [x] **AC18** (granice) `npm run check:boundaries` zielony: `core` bez importów spoza dozwolonych, strony bez `@wine-match/db`, `engine/` bez zmian (diff PR nie dotyka `packages/core/src/engine/`). *`check:boundaries`, przegląd diffu.*
+- [x] **AC19** (dokumentacja) Pliki z R19 zaktualizowane; `npm run check:context` bez błędów. *Przegląd diffu + polecenie.*
 
 ## Projekt rozwiązania
 **Pliki (nowe):** `packages/core/src/ranking/restaurant-picks.ts` (stałe, `applyRestaurantPicks`, `explainPick`), `core/src/services/picks/picks-service.ts`, `picks-rules.ts` (`picksVersion`, `planPick`), `picks-simulation-service.ts`, `core/src/validators/picks/pick.schema.ts` i `simulation.schema.ts`, port `PicksRepository` (w `ports/repositories.ts`) z implementacjami `memory/memory-repositories.ts` i `db/src/repositories/index.ts`, encje `db/src/entities/catalog/restaurant-pick.ts` i `pick-edit.ts`, migracja `db:migration:create`, trasy `app/src/app/api/v1/restaurants/[slug]/picks/route.ts`, `…/picks/simulation/route.ts`, `api/v1/wines/[wineId]/pick/route.ts`, strona A27 `(admin)/admin/[slug]/picks/page.tsx`, testy w `tests/` pakietów, `packages/app/tests/e2e/picks.e2e.test.ts` i `access-boundaries-picks.e2e.test.ts`, scenariusze QA (`guest-018…021`, `admin-021…024`, `security-033`, `usage-010`).
@@ -206,8 +207,30 @@ Przegląd w świeżym kontekście; twierdzenia o kodzie sprawdzone w `engine/rec
 - 2026-11-18 — Autor/recenzent: not recorded / not recorded (draft napisany przez agenta; źródło: `.ai/runs/2026-11-18-restaurant-picks-spec.md`).
 - 2026-11-18 — Przegląd niezależny: sekcja „Przegląd niezależny”, poprawki z **[przegląd]** (R1, R5, R8, R11, R13, R15, AC5, AC6, AC11, podział na PR, O12); `status` bez zmian (draft).
 - 2026-11-18 — Zatwierdzona (approved); rekomendacje O1–O12 przyjęte, O12: okno 10 pkt.
+- 2026-11-27 — Faza 1 zrealizowana (PR0–PR3), status `implemented`; F2 i F3 to osobne specyfikacje (patrz „Realizacja”).
 
 ## Realizacja
-Logi: `.ai/runs/*-picks-pr*.md`.
+Faza 1 (F1) zrealizowana i scalona na `main`, status `implemented` (2026-11-27). F2 (tryb `score`) i F3 (raport marży) są poza tą specyfikacją i wymagają własnych (F2: PR-B i opinia prawna). PR-A (`AGENTS.md` §7, znak restauracji nie jest pieczęcią) scalony jako #178.
 
-PR2: `.ai/runs/2026-11-22-picks-pr2.md`.
+PR-y i logi:
+- PR0 #181, `.ai/runs/2026-11-18-picks-pr0.md` (czytnik `schema >= 2`, `applyRestaurantPicks`, mutacje, `engine:matrix` przed i po identyczne).
+- PR1a #182, `.ai/runs/2026-11-19-picks-pr1a.md` (migawka schema 3, port, tabele `restaurant_pick` i `pick_edit`, migracja).
+- PR1b #183, `.ai/runs/2026-11-19-picks-pr1b.md` (serwis, trasy, symulator, test granicy z mutacjami).
+- PR2 #185, `.ai/runs/2026-11-22-picks-pr2.md` (strona gościa, etykieta, zdarzenia, G12).
+- PR3 #187, `.ai/runs/2026-11-22-picks-pr3.md` (A27, A4/A5/A6/A11, nawigacja).
+- Smoke nowych ekranów #195, `.ai/runs/2026-11-26-smoke-new-screens.md`.
+
+Ocena AC1–AC19 na `main`: wszystkie spełnione (sprawdzone w kodzie, testach i logach; testów nie uruchomiono ponownie w tym przebiegu, wyniki pochodzą z logów PR-ów). Dowody: AC1–AC4 `core/tests/restaurant-picks.test.ts`, `picks-guest.test.ts`, `engine-golden.test.ts`; AC5 kontrakty, `picks-service.test.ts`, `concurrency.integration.test.ts`; AC6 `published-view.test.ts`, `snapshot-reader.test.ts`; AC7 `picks-publish.test.ts`, `picks-guest.e2e.test.ts`; AC8–AC10 `picks-simulation.test.ts`, `picks-routes.test.ts`, `picks-pages.test.ts`; AC11 `access-boundaries-picks.e2e.test.ts` (T-40, mutacje w logu PR1b); AC12–AC14 `picks-guest-pages.test.ts`, słowniki, `usage-010`; AC15 `check:routes`; AC16 `migrations-roundtrip.integration.test.ts`; AC17 A27 w `scripts/smoke.mjs` (#195); AC18 `engine/` bez zmian (diff PR0–PR3 pusty); AC19 pliki z R19.
+
+Odstępstwa i niezweryfikowane lokalnie (nic z tego nie blokuje zamknięcia):
+1. R19: `packages/core/AGENTS.md` bez wpisu o `ranking/` i `services/picks/` (plik pod CODEOWNERS; do dopisania przez właściciela). *Nieaktualne: wpis już jest w `packages/core/AGENTS.md` (przegląd 2026-11-27).*
+2. Numeracja inna niż w AC: scenariusze guest-018…021, admin-035…039 (zamiast 021…024), security-036, usage-010; wiersz modelu zagrożeń T-40.
+3. AC17: smoke w trybie `postgres` nie uruchomiony w sesjach agentów (A27 pokryte e2e HTTP na PostgreSQL); 11 plików e2e z `agent-browser` uruchamia CI, wyniku CI nie sprawdzano w tym przebiegu.
+4. Dowód mutacyjny akcji formularza A27 (osłabienie `picks.edit`) nie wykonany; odmowę dowodzą `picks-pages.test.ts` i admin-038.
+5. `RANKING_LAYER_VERSION` jest w migawce, nie w zdarzeniach użycia; `restaurant_pick` bez kolumny kolejności; `pick_edit` ma `before`/`after` zamiast kolumny operacji (PR1a).
+
+Uwagi z przeglądu po wdrożeniu (2026-11-27, model inny niż autora zlecony przy uruchomieniu, nie potwierdzony; bez uwag blokujących; do poprawienia przy następnej zmianie tej funkcji):
+- R8 i AC3 nie wymieniają reguł `pick.window` (`PICK_WINDOW` = 10, decyzja O12) i `pick.budget_untouched`, które działają w `packages/core/src/ranking/restaurant-picks.ts`; źródłem decyzji jest O12.
+- `rankingVersion` trafia do migawki, ale nie do zdarzeń użycia, więc odtworzenie tego, co widział gość (R03), jest niepełne; nie było to formalne wymaganie.
+- R9 i R16 opisują `restaurantPick: boolean`; typ w `core` to opcjonalne `true`, a API zwraca boolean (kontrakt API dotrzymany).
+- Komentarz „Not yet stored with the snapshot” w `restaurant-picks.ts` przeczy zapisowi `rankingVersion` w migawce.

@@ -170,3 +170,16 @@ for i in range(20):
 ws.append([datetime.date(2026, 10, 14), 'R-900', None, 'Wino kieliszek', 'Prosecco', 3, 83.33, 90.0, 'Bar', ''])
 wb.save('sales-pos.xlsx')
 print('sales fixtures written')
+
+# ---------- cost columns (fix import-cost-columns-not-price): a purchase-cost column BEFORE the price column.
+# The canary 7777,77 is a cost no guest may ever see: it must not become a price, a row value, a note or a log line.
+with open('menu-purchase-cost.csv', 'w', newline='', encoding='utf-8') as f:
+    w = csv.writer(f, delimiter=';')
+    w.writerow(['Kategoria', 'Danie', 'Opis', 'Cena zakupu netto', 'Cena'])
+    w.writerow(['Desery', 'Tarta śliwkowa', 'Pieczona tarta ze śliwkami', '7777,77', '36'])
+    w.writerow(['Dania główne', 'Kaczka z wiśniami', 'Pierś z kaczki, sos wiśniowy', '41,00', '112'])
+with open('wines-purchase-cost.csv', 'w', newline='', encoding='utf-8') as f:
+    w = csv.writer(f, delimiter=';')
+    w.writerow(['Producent', 'Wino', 'Rocznik', 'Region', 'Szczep', 'Kolor', 'Cena zakupu netto', 'Cena butelka'])
+    w.writerow(['Bodega Prueba', 'Blanco de Prueba', '2022', 'Rías Baixas', 'Albariño', 'Białe', '7777,77', '240'])
+    w.writerow(['Bodega Prueba', 'Tinto de Prueba', '2020', 'Rioja', 'Tempranillo', 'Czerwone', '95,00', '220'])
