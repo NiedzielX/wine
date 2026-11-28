@@ -49,6 +49,7 @@ Wersja `1.0.0` (wydanie na GitHubie). Aplikacja jest wdrożona na Vercel z bazą
 
 | Dokument | Zawartość |
 |---|---|
+| [docs/PRODUCT_SUMMARY.md](docs/PRODUCT_SUMMARY.md) | opis produktu na jedną stronę: problem, rozwiązanie, role, zasady, stan |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | architektura, pakiety, konfiguracja (`.env`), polecenia, testy i CI, adresy ekranów, zakres MVP, stan prac, mapa repozytorium, pełny spis dokumentacji |
 | [docs/PRODUCT_CONCEPT.md](docs/PRODUCT_CONCEPT.md) | problem, propozycja wartości, model B2B2C, KPI |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [docs/OPERATIONS.md](docs/OPERATIONS.md) | wdrożenie, wycofanie, operacje i alerty |
