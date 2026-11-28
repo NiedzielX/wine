@@ -40,7 +40,7 @@ Duże projekty open source mają `develop` (wydania nocne, środowisko deweloper
 
 ## 3. Wersjonowanie
 
-- **SemVer 0.x** do czasu, aż właściciel zdefiniuje wersję 1.0 (§11; dziś wszystkie pakiety mają `0.2.0`). W 0.x: `0.MINOR.0` dla funkcji i **każdego** wydania z wpisem w `UPGRADE_NOTES.md`; `0.x.PATCH` tylko dla poprawek bez zmian łamiących.
+- **SemVer od 1.0.0** (decyzja właściciela z 2026-11-28, §11): zmiana łamiąca (wpis w `UPGRADE_NOTES.md`) podnosi wersję główną (`MAJOR`), nowa funkcja zgodna wstecz podnosi `MINOR`, poprawka bez zmiany zachowania publicznego `PATCH`. Wydania 0.x (do 0.4.0 włącznie) były wydaniami przed 1.0 i zostają bez zmian.
 - **Tylko czyste `X.Y.Z`:** bez `-rc.1` (prerelease), bez `+build` i bez zer wiodących (`01.0.0`). Oba skrypty i `release.yml` takie wersje odrzucają tym samym komunikatem; dzięki temu kolejność wersji to zwykłe porównanie liczb. Wydania próbne (`-rc`) to decyzja właściciela (§11); wymagałyby pełnej kolejności SemVer w `release:notes`.
 - **Jedna wersja dla całego monorepo:** `package.json` w korzeniu, każdy pakiet i wpisy `package-lock.json` (`npm run release:version`). Zmieniane są wyłącznie własne pola `version`, nigdy zakresy zależności (`.npmrc`: `save-exact`).
 - **Tag `vX.Y.Z`** na commicie z `main`; ten sam tag podaje operator w `WINE_MATCH_TAG` (DEPLOYMENT.md §10–§11). Tagów nie przesuwamy i nie usuwamy.
@@ -59,7 +59,7 @@ Skille nie mają lokalnych rozszerzeń w `.ai/skills/` (jest tylko `om-integrati
 Na gałęzi `release/vX.Y.Z` z aktualnego `main` (agent lub właściciel):
 
 1. `npm run release:notes -- check`: `[Unreleased]` ma wpisy i poprawny kształt, wpisy `UPGRADE_NOTES.md` mają cztery pola. Kompletność względem scalonych PR-ów: `om-auto-update-changelog --since v<poprzednia> --dry-run` i porównanie z `[Unreleased]` (zasługa dla autora oryginalnego PR-a, także gdy PR zastąpiono, wg reguły „Supersede Credit” skilla).
-2. **Zmiany łamiące:** każdy wpis „Zmiana łamiąca” / „💥 Breaking” w `CHANGELOG.md` i każda zmiana powierzchni z `BACKWARD_COMPATIBILITY.md` ma wpis w `UPGRADE_NOTES.md`. Jest wpis → wersja co najmniej `0.MINOR+1.0`.
+2. **Zmiany łamiące:** każdy wpis „Zmiana łamiąca” / „💥 Breaking” w `CHANGELOG.md` i każda zmiana powierzchni z `BACKWARD_COMPATIBILITY.md` ma wpis w `UPGRADE_NOTES.md`. Jest wpis → podniesiona wersja główna (od 1.0.0).
 3. **Migracje:** `git diff v<poprzednia> HEAD --stat -- packages/db/src/migrations`; każda nowa migracja ma dowód up/down/up i plan wycofania w swoim PR-ze (`engineering-standards.md` §12). Migracja *contract* = notatka w `UPGRADE_NOTES.md`, że powrót do poprzedniego obrazu nie jest możliwy (DEPLOYMENT.md §5, §10.2). Na produkcji migracje idą tylko w przód; `migration:down` jest tam zabronione (DEPLOYMENT.md §10.1).
 4. `npm run release:version -- --set X.Y.Z` (plan), potem z `--write`; `npm run release:version -- --check --expect X.Y.Z`. Zależności wewnętrzne (`@wine-match/*`) mają zakres `"*"`: npm 11 dowiązuje wtedy pakiet z workspace przy każdej wersji, a zakres stały po zmianie wersji przestałby pasować i npm szukałby tej nazwy w publicznym rejestrze (*dependency confusion*). `--check` odrzuca każdy inny zakres wewnętrzny, a `--set` wtedy odmawia. `workspace:*` npm nie obsługuje (`EUNSUPPORTEDPROTOCOL`).
 5. `npm run release:notes -- promote X.Y.Z` (podgląd treści wydania), potem z `--write` (data: dziś w Europe/Warsaw albo `--date`). Popraw zdanie wstępne `CHANGELOG.md` o wersji i tagach.
@@ -138,7 +138,7 @@ Po oknie obserwacji właściciel ogłasza wydanie restauracjom (co nowego, co zr
 
 | Decyzja | Stan | Wpływ |
 |---|---|---|
-| Definicja wersji 1.0 | otwarte | do tego czasu SemVer 0.x (§3) |
+| Definicja wersji 1.0 | **zdecydowane 2026-11-28**: stan sprawdzony przez audyt, z poprawkami po 0.4.0, wydany jako 1.0.0; własnego, osobnego kryterium nie spisano | SemVer od 1.0.0 (§3); tag `v0.4.0` zostaje (tagów nie przesuwamy) |
 | Licencja | nie wybrana (`CONTRIBUTING.md`) | treść notatek wydania i to, czy repozytorium może być publiczne |
 | Rytm wydań (stały czy „gdy gotowe”) | „gdy gotowe” do decyzji | §1 |
 | Hosting, domena, rejestr obrazów | DEPLOYMENT.md §15 | wdrożenie, podgląd per PR, środowisko nocne |

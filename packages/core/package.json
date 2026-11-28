@@ -1,6 +1,6 @@
 {
   "name": "@wine-match/core",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Domain types, deterministic pairing engine, repository ports and application services",
