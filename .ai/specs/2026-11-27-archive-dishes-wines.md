@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-27
 owner: Filip Niedziela
 related: [.ai/specs/implemented/2026-11-16-catalog-field-editing.md (Q6: usuwanie poza zakresem), docs/DATA_MODEL.md (sekcja „Usuwanie danych: co jest dziś”), docs/API_SPECIFICATION.md (DELETE /dishes/{id}, DELETE /wines/{id}), .ai/specs/2026-11-04-platform-quality-and-compliance.md (E21 F4, retencja), .ai/specs/2026-11-04-panel-completion.md (E13 F4, przywracanie wersji), docs/security/threat-model.md, .ai/runs/2026-11-27-archive-spec-draft.md]
