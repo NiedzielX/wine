@@ -4,6 +4,18 @@ Format wg [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), po polsku ja
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-28
+
+### Bezpieczeństwo
+- Poprawka alertu CodeQL „User-controlled bypass of security check”: `handle()` przy podanym uprawnieniu i braku parametru `restaurant` sam odpowiada 422, zamiast pomijać `authorize`; kody odpowiedzi tras bez zmian (#211).
+
+### Dokumentacja i wydanie
+- Wydanie 1.0.0: decyzja właściciela z 2026-11-28, stan po audycie; SemVer od 1.0.0 (`docs/RELEASING.md` §3 i §11).
+- Rollback na Vercelu (`docs/DEPLOYMENT.md` §17.2, #214), stan projektu w README i `docs/DEVELOPMENT.md` (#210), uwagi z przeglądów trzech specyfikacji epiku (#212).
+
+### Zależności
+- `actions/checkout` 4.4.0 → 7.0.1 w workflow wydania (#160).
+
 ## [0.4.0] - 2026-11-27
 
 Podsumowanie wydania: restauracja może wskazać wybrane wina, które na stronie gościa dostają etykietę „Wybór restauracji” (faza 1: warstwa po silniku, API i symulator „przed / po”, ekran A27); w panelu da się edytować pola dania i wina, ukrywać danie przed gośćmi i dodawać pozycje ręcznie (C1–C3, ekran A32); właściciel i GM mają raport wyników (A33, wersja do druku A34, trasy API i dziennik dnia uruchomienia). Poprawka importu jest **zmianą łamiącą** dla plików, w których kolumna `koszt` / `cost` pełniła rolę ceny dania: koszt zakupu nigdy nie jest już ceną (`BACKWARD_COMPATIBILITY.md` §6, `UPGRADE_NOTES.md`). Zmiany procesu: reguła niezależności przeglądu specyfikacji i zaktualizowane `security-notes.md`.
