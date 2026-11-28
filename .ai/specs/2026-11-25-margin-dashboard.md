@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 created: 2026-11-25
 owner: Filip Niedziela
 related: [.ai/specs/research/2026-11-25-margin-dashboard-decisions.md (alternatywy D1–D17), .ai/specs/2026-11-18-restaurant-picks.md (F3 stąd), .ai/specs/2026-11-18-owner-proof-report.md (A33, grupy z kodem i bez), .ai/specs/implemented/2026-10-15-pos-sales-import-attach-rate.md (E03, Q9, Q10, Q18), .ai/specs/implemented/2026-10-15-kpi-dashboard.md (E04), .ai/specs/implemented/2026-10-16-recommendation-code.md (E09), .ai/specs/2026-11-04-restaurant-operations.md (E19), .ai/specs/2026-11-16-catalog-field-editing.md (C1), .ai/specs/2026-11-04-product-completion-plan.md, .ai/specs/product-brief.md (D20, D22–D25, R06, N02–N04), .ai/specs/research/benchmarks/2026-11-16-product-strategy-vs-sommelierbot.md (P12), docs/SCREEN_MAP.md, docs/USER_ROLES.md, docs/DATA_MODEL.md, docs/API_SPECIFICATION.md, docs/security/threat-model.md, .ai/docs/engineering-standards.md (§10–§12), .ai/runs/2026-11-25-margin-dashboard-spec.md]
